@@ -1,0 +1,20 @@
+Metadata-Version: 1.2
+Name: alphapy
+Version: 3.0.0
+Summary: AlphaPy: A Machine Learning Pipeline for Speculators
+Home-page: https://github.com/ScottFreeLLC/AlphaPy
+Maintainer: ScottFree LLC [Robert D. Scott II, Mark Conway]
+Maintainer-email: scottfree.analytics@scottfreellc.com
+License: Apache License, Version 2
+Description: alphapy is a Python library for machine learning using scikit-learn. We have a stock market pipeline and a sports pipeline so that speculators can test predictive models, along with functions for trading systems and portfolio management.
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Classifier: Operating System :: OS Independent
