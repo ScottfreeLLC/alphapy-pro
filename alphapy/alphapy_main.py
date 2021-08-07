@@ -257,6 +257,7 @@ def training_pipeline(model):
         except KeyError:
             logger.info("Algorithm %s not found", algo)
         # initial fit
+        est = None
         model = first_fit(model, algo, est)
         # copy feature name master into feature names per algorithm
         model.fnames_algo[algo] = model.feature_names
