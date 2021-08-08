@@ -255,25 +255,26 @@ def training_pipeline(model):
             estimator = estimators[algo]
             est = estimator.estimator
         except KeyError:
+            est = None
             logger.info("Algorithm %s not found", algo)
-        # initial fit
-        est = None
-        model = first_fit(model, algo, est)
-        # copy feature name master into feature names per algorithm
-        model.fnames_algo[algo] = model.feature_names
-        # recursive feature elimination
-        if rfe:
-            has_coef = hasattr(est, "coef_")
-            has_fimp = hasattr(est, "feature_importances_")
-            if has_coef or has_fimp:
-                model = rfecv_search(model, algo)
-            else:
-                logger.info("No RFE Available for %s", algo)
-        # grid search
-        if grid_search:
-            model = hyper_grid_search(model, estimator)
-        # predictions
-        model = make_predictions(model, algo, calibration)
+        if est:
+            # initial fit
+            model = first_fit(model, algo, est)
+            # copy feature name master into feature names per algorithm
+            model.fnames_algo[algo] = model.feature_names
+            # recursive feature elimination
+            if rfe:
+                has_coef = hasattr(est, "coef_")
+                has_fimp = hasattr(est, "feature_importances_")
+                if has_coef or has_fimp:
+                    model = rfecv_search(model, algo)
+                else:
+                    logger.info("No RFE Available for %s", algo)
+            # grid search
+            if grid_search:
+                model = hyper_grid_search(model, estimator)
+            # predictions
+            model = make_predictions(model, algo, calibration)
 
     # Create a blended estimator
 
