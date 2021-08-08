@@ -255,6 +255,7 @@ def training_pipeline(model):
             estimator = estimators[algo]
             est = estimator.estimator
         except KeyError:
+            est = None
             logger.info("Algorithm %s not found", algo)
         if est:
             # initial fit
@@ -272,8 +273,8 @@ def training_pipeline(model):
             # grid search
             if grid_search:
                 model = hyper_grid_search(model, estimator)
-        # predictions
-        model = make_predictions(model, algo, calibration)
+            # predictions
+            model = make_predictions(model, algo, calibration)
 
     # Create a blended estimator
 
