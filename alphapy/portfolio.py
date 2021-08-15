@@ -874,7 +874,6 @@ def valuate_portfolio(p, tdate):
     for i, key in posenum:
         pos = positions[key]
         pos = valuate_position(pos, tdate)
-        print(pos.value)
         vpos[i] = pos.value
         value = value + vpos[i]
     p.value = value
