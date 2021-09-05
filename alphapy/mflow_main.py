@@ -153,6 +153,7 @@ def get_market_config():
     specs['subject'] = cfg['market']['subject']
     specs['target_group'] = cfg['market']['target_group']
     specs['create_model'] = cfg['market']['create_model']
+    specs['run_system'] = cfg['market']['run_system']
 
     # Set API Key environment variable
     if specs['api_key']:
@@ -267,6 +268,7 @@ def get_market_config():
     logger.info('forecast_period  = %d', specs['forecast_period'])
     logger.info('fractals         = %s', specs['fractals'])
     logger.info('predict_history  = %s', specs['predict_history'])
+    logger.info('run_system       = %r', specs['run_system'])
     logger.info('schema           = %s', specs['schema'])
     logger.info('subject          = %s', specs['subject'])
     logger.info('subschema        = %s', specs['subschema'])
@@ -323,6 +325,7 @@ def market_pipeline(model, market_specs):
     functions = market_specs['functions']
     predict_history = market_specs['predict_history']
     target_group = market_specs['target_group']
+    run_system = market_specs['run_system']
 
     # Set the target group
 
@@ -356,7 +359,7 @@ def market_pipeline(model, market_specs):
     # Run a system
 
     system_specs = market_specs['system']
-    if system_specs:
+    if run_system and system_specs:
         # get the system specs
         system_name = system_specs['name']
         buysignal = system_specs['buysignal']
