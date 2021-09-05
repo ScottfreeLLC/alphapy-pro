@@ -132,7 +132,7 @@ class Analysis(object):
 # Function run_analysis
 #
 
-def run_analysis(analysis, dfs, fractal, forecast_period, predict_history):
+def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
     r"""Run an analysis for a given model and group.
 
     First, the data are loaded for each member of the analysis group.
@@ -147,8 +147,8 @@ def run_analysis(analysis, dfs, fractal, forecast_period, predict_history):
         The analysis to run.
     dfs : list
         The list of pandas dataframes to analyze.
-    fractal : str
-        Pandas offset alias.
+    fractals : list
+        List of Pandas offset aliases.
     forecast_period : int
         The period for forecasting the target of the analysis.
     predict_history : int
@@ -196,6 +196,12 @@ def run_analysis(analysis, dfs, fractal, forecast_period, predict_history):
         train_frame = pd.DataFrame()
         test_frame = pd.DataFrame()
 
+    # Determine whether or not we are predicting with the base fractal or a higher fractal
+
+    base_fractal = fractals[0]
+    target_fractal = target.split('.')[0]
+    base_prediction = True if base_fractal == target_fractal else False
+
     # Subset each individual frame and add to the master frame
 
     for df in dfs:
@@ -204,7 +210,12 @@ def run_analysis(analysis, dfs, fractal, forecast_period, predict_history):
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol.upper(), first_date, last_date)
         # shift target
-        df[target] = df[target].shift(-forecast_period)
+        if base_prediction:
+            df[target] = df[target].shift(-forecast_period)
+        else:
+            fractal_shift = df.groupby(pd.Grouper(freq=target_fractal)).count().iloc(0)[0][0]
+            df[target] = df[target].shift(-fractal_shift)
+            df = df.groupby(pd.Grouper(freq=target_fractal)).nth(forecast_period-1)
         # get frame subsets
         if predict_mode:
             new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)]

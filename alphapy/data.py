@@ -726,6 +726,38 @@ data_dispatch_table = {'google' : get_google_data,
 
 
 #
+# Function assign_global_data
+#
+
+def assign_global_data(df, symbol, gspace, fractal):
+    r"""Create global pointer to dataframe.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe for the given symbol.
+    symbol : str
+        Pandas offset alias.
+    gspace : alphapy.Space
+        AlphaPy data taxonomy schema and subject.
+    fractal : str
+        Pandas offset alias.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        The dataframe for the given symbol.
+
+    """
+    try:
+        space = Space(gspace.subject, gspace.schema, fractal)
+        _ = Frame(symbol.lower(), space, df)
+    except:
+        logger.error("Could not allocate Frame for: %s", symbol.upper())
+    return df
+
+
+#
 # Function standardize_data
 #
 
@@ -759,12 +791,9 @@ def standardize_data(symbol, gspace, df, fractal, intraday_data):
         index_column = 'date'
     # convert data to canonical form
     df = convert_data(df, index_column, intraday_data)
-    # allocate global Frame
-    try:
-        space = Space(gspace.subject, gspace.schema, fractal)
-        _ = Frame(symbol.lower(), space, df)
-    except:
-        logger.error("Could not allocate Frame for: %s", symbol.upper())
+    # create global pointer to dataframe
+    df = assign_global_data(df, symbol, gspace, fractal)
+    # return dataframe
     return df
 
 
@@ -792,7 +821,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
     # Unpack market specifications
 
     data_fractal = market_specs['data_fractal']
-    feature_fractals = list(market_specs['features'].keys())
+    feature_fractals = market_specs['fractals']
     from_date = market_specs['data_start_date']
     subschema = market_specs['subschema']
     to_date = market_specs['data_end_date']
@@ -861,8 +890,9 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                                              'close'  : 'last',
                                              'volume' : 'sum'})
                 df_rs.dropna(axis=0, how='any', inplace=True)
-                logger.info("Rows after Resampling at %s: %d",
-                            ff, len(df_rs))
+                logger.info("Rows after Resampling at %s: %d", ff, len(df_rs))
+                # create global pointer
+                df_rs = assign_global_data(df_rs, symbol, gspace, ff)
         else:
             logger.info("No DataFrame for %s", symbol.upper())
     return

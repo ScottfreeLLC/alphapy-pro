@@ -164,33 +164,31 @@ def get_market_config():
     space = Space(*sspecs)
 
     #
-    # Section: features
+    # Section: fractals and features
     #
 
-    try:
-        logger.info("Getting Features")
-        fractals = {}
-        for frac in cfg['features']:
-            try:
-                td = pd.to_timedelta(frac)
-                fractals[td] = frac
-            except:
-                raise ValueError("Fractal [%s] is an invalid pandas offset" % frac)
-        # sort by ascending fractal
-        fractals_sorted = dict(sorted(fractals.items()))
-        # store features sorted by fractal
-        feature_fractals = list(fractals_sorted.values())
-        features = {}
-        for frac in feature_fractals:
-            features[frac] = cfg['features'][frac]
-        specs['features'] = features
-        # first (lowest) feature fractal must be >= data fractal
-        if list(fractals_sorted)[0] < data_fractal_td:
-            raise ValueError("Lowest feature fractal [%s] must >= data fractal [%s]" %
-                             (feature_fractals[0], specs['data_fractal']))
-    except:
-        logger.info("No Features Found")
-        specs['features'] = {}
+    logger.info("Getting Fractals")
+
+    fractals = {}
+    for frac in cfg['fractals']:
+        try:
+            td = pd.to_timedelta(frac)
+            fractals[td] = frac
+        except:
+            raise ValueError("Fractal [%s] is an invalid pandas offset" % frac)
+    # sort by ascending fractal
+    fractals_sorted = dict(sorted(fractals.items()))
+    # store features sorted by fractal
+    feature_fractals = list(fractals_sorted.values())
+    # first (lowest) feature fractal must be >= data fractal
+    if list(fractals_sorted)[0] < data_fractal_td:
+        raise ValueError("Lowest feature fractal [%s] must >= data fractal [%s]" %
+                         (feature_fractals[0], specs['data_fractal']))
+    # assign to market specifications
+    specs['fractals'] = feature_fractals
+
+    logger.info("Getting Features")
+    specs['features'] = cfg['features']
 
     #
     # Section: groups
@@ -267,6 +265,7 @@ def get_market_config():
     logger.info('data_history     = %d', specs['data_history'])
     logger.info('features         = %s', specs['features'])
     logger.info('forecast_period  = %d', specs['forecast_period'])
+    logger.info('fractals         = %s', specs['fractals'])
     logger.info('predict_history  = %s', specs['predict_history'])
     logger.info('schema           = %s', specs['schema'])
     logger.info('subject          = %s', specs['subject'])
@@ -319,6 +318,7 @@ def market_pipeline(model, market_specs):
     data_history = market_specs['data_history']
     features = market_specs['features']
     forecast_period = market_specs['forecast_period']
+    fractals = market_specs['fractals']
     data_fractal = market_specs['data_fractal']
     functions = market_specs['functions']
     predict_history = market_specs['predict_history']
@@ -341,7 +341,7 @@ def market_pipeline(model, market_specs):
 
     # Apply the features to all frames.
 
-    dfs = vapply(group, features, functions)
+    dfs = vapply(group, fractals, features, functions)
 
     # Run an analysis to create the model.
 
@@ -349,8 +349,7 @@ def market_pipeline(model, market_specs):
         logger.info("Creating Model")
         # run the analysis, which calls the model pipeline
         a = Analysis(model, group)
-        fractal = list(features.keys())[0]
-        run_analysis(a, dfs, fractal, forecast_period, predict_history)
+        run_analysis(a, dfs, fractals, forecast_period, predict_history)
     else:
         logger.info("No Model (System Only)")
 

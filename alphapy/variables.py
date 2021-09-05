@@ -486,13 +486,15 @@ def vexec(f, v, vfuncs=None):
 # Function vapply
 #
 
-def vapply(group, features, vfuncs=None):
+def vapply(group, fractals, features, vfuncs=None):
     r"""Apply a set of variables to multiple dataframes.
 
     Parameters
     ----------
     group : alphapy.Group
         The input group.
+    fractals : list
+        List of Pandas Offset Aliases.
     features : dict
         The list of variables (sorted by fractal) to apply to the ``group``.
     vfuncs : dict, optional
@@ -514,8 +516,6 @@ def vapply(group, features, vfuncs=None):
     gsubject = group.space.subject
     gschema = group.space.schema
     symbols = [item.lower() for item in group.members]
-    # get fractal information
-    fractals = list(features.keys())
     # initialize list of final dataframes
     dffs = []
     # apply the variables to each frame
@@ -530,7 +530,7 @@ def vapply(group, features, vfuncs=None):
             if fname in Frame.frames:
                 df = Frame.frames[fname].df
                 if not df.empty:
-                    for vname in features[fractal]:
+                    for vname in features:
                         # get all the precedent variables
                         logger.debug("%s Variable: %s.%s" % (symbol.upper(), fractal, vname))
                         allv = vtree(vname)
@@ -549,6 +549,9 @@ def vapply(group, features, vfuncs=None):
         for indexf, df in enumerate(dfs):     
             # upsample successive frames
             if indexf > 0:
+                # shift higher fractals
+                df = df.shift(1)
+                # resample for base fractal
                 dfr = df.resample(fractals[0]).ffill()
                 # join frames
                 dfj = dfj.merge(dfr, left_index=True, right_index=True)
