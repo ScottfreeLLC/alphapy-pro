@@ -514,43 +514,6 @@ def ema(f, c, p = 20):
 
 
 #
-# Function fapply
-#
-
-def fapply(f, c, fractal, func):
-    r"""Transform a feature based on a higher-order fractal.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe containing the base fractal column ``c``.
-    c : str
-        Name of the column in the dataframe ``f``.
-    fractal : str
-        Pandas offset alias.
-    func : str
-        The Pandas function to apply.
-
-    Returns
-    -------
-    new_column : pandas.Series
-        The series containing the fractal value.
-
-    """
-
-    if func == 'first':
-        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[0]))
-    elif func == 'last':
-        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[-1]))
-    else:
-        try:
-            new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(func)
-        except:
-            logger.info("Could not apply function %s for fractal %s" % (func, fractal))
-    return new_column
-
-
-#
 # Function gap
 #
 
@@ -904,13 +867,17 @@ def highest(f, c, p = 20):
 # Function hlrange
 #
 
-def hlrange(f, p = 1):
+def hlrange(f, h='high', l='low', p = 1):
     r"""Calculate the Range, the difference between High and Low.
 
     Parameters
     ----------
     f : pandas.DataFrame
         Dataframe with columns ``high`` and ``low``.
+    h : str
+        Name of the high column in the dataframe ``f``.
+    l : str
+        Name of the low column in the dataframe ``f``.
     p : int
         The period over which the range is calculated.
 
@@ -920,7 +887,7 @@ def hlrange(f, p = 1):
         The array containing the new feature.
 
     """
-    new_column = highest(f, 'high', p) - lowest(f, 'low', p)
+    new_column = highest(f, h, p) - lowest(f, l, p)
     return new_column
 
 
