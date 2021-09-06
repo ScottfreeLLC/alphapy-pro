@@ -483,6 +483,43 @@ def vexec(f, v, vfuncs=None):
 
 
 #
+# Function vfrac
+#
+
+def vfrac(f, c, fractal, func):
+    r"""Transform a feature based on a higher-order fractal.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the base fractal column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    fractal : str
+        Pandas offset alias.
+    func : str
+        The Pandas function to apply.
+
+    Returns
+    -------
+    new_column : pandas.Series
+        The series containing the fractal value.
+
+    """
+
+    if func == 'first':
+        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[0]))
+    elif func == 'last':
+        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[-1]))
+    else:
+        try:
+            new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(func)
+        except:
+            logger.info("Could not apply function %s for fractal %s" % (func, fractal))
+    return new_column
+
+
+#
 # Function vapply
 #
 
@@ -512,13 +549,22 @@ def vapply(group, fractals, features, vfuncs=None):
 
     """
 
-    # get group information
+    # Get group information
+
     gsubject = group.space.subject
     gschema = group.space.schema
     symbols = [item.lower() for item in group.members]
-    # initialize list of final dataframes
+
+    # Initialize list of dataframes and function dictionary
+
     dffs = []
-    # apply the variables to each frame
+    func_dict = {'open'  : 'first',
+                 'high'  : 'cummax',
+                 'low'   : 'cummin',
+                 'close' : 'last'}
+
+    # Apply the variables to each frame
+
     for symbol in symbols:
         logger.info("Applying Variables to %s" % symbol.upper())
         # apply variables to each of the fractals
@@ -555,6 +601,12 @@ def vapply(group, fractals, features, vfuncs=None):
                 dfr = df.resample(fractals[0]).ffill()
                 # join frames
                 dfj = dfj.merge(dfr, left_index=True, right_index=True)
+                # create cumulative fractal variables
+                for j in range(indexf):
+                    for field in func_dict.keys():
+                        col1name = '.'.join([fractals[0], field])
+                        col2name = ''.join([col1name, 'f', str(j+1)])
+                        dfj[col2name] = vfrac(dfj, col1name, fractals[indexf], func_dict[field])
             else:
                 dfj = df
         # apply fractal features
