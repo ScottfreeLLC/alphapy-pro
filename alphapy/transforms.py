@@ -148,13 +148,15 @@ def belowma(f, c, p = 50):
 # Function bizday
 #
 
-def bizday(ds):
+def bizday(f, c):
     r"""Extract business day of month and week.
 
     Parameters
     ----------
-    ds : pandas.Series
-        Series containing the datetime column.
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
 
     Returns
     -------
@@ -164,7 +166,7 @@ def bizday(ds):
 
     date_features = pd.DataFrame()
     try:
-        date_features = dateparts(ds)
+        date_features = dateparts(f[c])
         rdate = date_features.apply(get_rdate, axis=1)
         bdm = pd.Series(rdate.apply(biz_day_month), name='bizdaymonth')
         bdw = pd.Series(rdate.apply(biz_day_week), name='bizdayweek')
@@ -228,16 +230,40 @@ def c2min(f, c1, c2):
 
 
 #
+# Function closeha
+#
+
+def closeha(f):
+    r"""Calculate the Heikin-Ashi Close.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with OHLC columns.
+
+    Returns
+    -------
+    closeha : pandas.Series
+        The series containing the Heikin-Ashi Close.
+
+    """
+    closeha = (f['open'] + f['high'] + f['low'] + f['close']) / 4.0
+    return closeha
+
+
+#
 # Function dateparts
 #
 
-def dateparts(ds):
+def dateparts(f, c):
     r"""Extract date into its components: year, month, day, dayofweek.
 
     Parameters
     ----------
-    ds : pandas.Series
-        Series having the datetime column in string format.
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
 
     Returns
     -------
@@ -245,7 +271,7 @@ def dateparts(ds):
         The dataframe containing the date features.
     """
 
-    ds_dt = pd.to_datetime(ds)
+    ds_dt = pd.to_datetime(f[c])
     date_features = pd.DataFrame()
     try:
         fyear = pd.Series(ds_dt.dt.year, name='year')
@@ -365,13 +391,17 @@ def diplus(f, p = 14):
 # Function dminus
 #
 
-def dminus(f):
+def dminus(f, h='high', l='low'):
     r"""Calculate the Minus Directional Movement (-DM).
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``high`` and ``low``.
+        Dataframe with high and low columns.
+    h : str
+        Name of the high column in the dataframe ``f``.
+    l : str
+        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -388,9 +418,9 @@ def dminus(f):
 
     """
     c1 = 'downmove'
-    f[c1] = -net(f, 'low')
+    f[c1] = -net(f, l)
     c2 = 'upmove'
-    f[c2] = net(f, 'high')
+    f[c2] = net(f, h)
     new_column = f.apply(gtval0, axis=1, args=[c1, c2])
     return new_column
 
@@ -399,13 +429,17 @@ def dminus(f):
 # Function dmplus
 #
 
-def dmplus(f):
+def dmplus(f, h='high', l='low'):
     r"""Calculate the Plus Directional Movement (+DM).
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``high`` and ``low``.
+        Dataframe with high and low columns.
+    h : str
+        Name of the high column in the dataframe ``f``.
+    l : str
+        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -424,9 +458,9 @@ def dmplus(f):
 
     """
     c1 = 'upmove'
-    f[c1] = net(f, 'high')
+    f[c1] = net(f, h)
     c2 = 'downmove'
-    f[c2] = -net(f, 'low')
+    f[c2] = -net(f, l)
     new_column = f.apply(gtval0, axis=1, args=[c1, c2])
     return new_column
 
@@ -517,14 +551,18 @@ def ema(f, c, p = 20):
 # Function gap
 #
 
-def gap(f):
+def gap(f, o='open', c='close'):
     r"""Calculate the gap percentage between the current open and
     the previous close.
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``open`` and ``close``.
+        Dataframe with open and close columns.
+    o : str
+        Name of the open column in the dataframe ``f``.
+    c : str
+        Name of the close column in the dataframe ``f``.
 
     Returns
     -------
@@ -540,10 +578,9 @@ def gap(f):
     .. [IP_GAP] http://www.investopedia.com/terms/g/gap.asp
 
     """
-    c1 = 'open'
-    c2 = 'close[1]'
-    vexec(f, c2)
-    new_column = 100 * pchange2(f, c1, c2)
+    c1 = ''.join([c, '[1]'])
+    vexec(f, c1)
+    new_column = 100 * pchange2(f, o, c1)
     return new_column
 
 
@@ -551,13 +588,17 @@ def gap(f):
 # Function gapbadown
 #
 
-def gapbadown(f):
+def gapbadown(f, o='open', l='low'):
     r"""Determine whether or not there has been a breakaway gap down.
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``open`` and ``low``.
+        Dataframe with open and low columns.
+    o : str
+        Name of the open column in the dataframe ``f``.
+    l : str
+        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -572,7 +613,7 @@ def gapbadown(f):
     .. [IP_BAGAP] http://www.investopedia.com/terms/b/breakawaygap.asp
 
     """
-    new_column = f['open'] < f['low'].shift(1)
+    new_column = f[o] < f[l].shift(1)
     return new_column
 
 
@@ -580,13 +621,17 @@ def gapbadown(f):
 # Function gapbaup
 #
 
-def gapbaup(f):
+def gapbaup(f, o='open', h='high'):
     r"""Determine whether or not there has been a breakaway gap up.
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``open`` and ``high``.
+        Dataframe with open and high columns.
+    o : str
+        Name of the open column in the dataframe ``f``.
+    h : str
+        Name of the high column in the dataframe ``f``.
 
     Returns
     -------
@@ -599,7 +644,7 @@ def gapbaup(f):
     supported by levels of high volume* [IP_BAGAP]_.
 
     """
-    new_column = f['open'] > f['high'].shift(1)
+    new_column = f[o] > f[h].shift(1)
     return new_column
 
 
@@ -607,13 +652,17 @@ def gapbaup(f):
 # Function gapdown
 #
 
-def gapdown(f):
+def gapdown(f, o='open', c='close'):
     r"""Determine whether or not there has been a gap down.
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``open`` and ``close``.
+        Dataframe with open and close columns.
+    o : str
+        Name of the open column in the dataframe ``f``.
+    c : str
+        Name of the close column in the dataframe ``f``.
 
     Returns
     -------
@@ -627,7 +676,7 @@ def gapdown(f):
     occurring in between* [IP_GAP]_.
 
     """
-    new_column = f['open'] < f['close'].shift(1)
+    new_column = f[o] < f[c].shift(1)
     return new_column
 
 
@@ -635,13 +684,17 @@ def gapdown(f):
 # Function gapup
 #
 
-def gapup(f):
+def gapup(f, o='open', c='close'):
     r"""Determine whether or not there has been a gap up.
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``open`` and ``close``.
+        Dataframe with open and close columns.
+    o : str
+        Name of the open column in the dataframe ``f``.
+    c : str
+        Name of the close column in the dataframe ``f``.
 
     Returns
     -------
@@ -655,7 +708,7 @@ def gapup(f):
     occurring in between* [IP_GAP]_.
 
     """
-    new_column = f['open'] > f['close'].shift(1)
+    new_column = f[o] > f[c].shift(1)
     return new_column
 
 
@@ -718,99 +771,6 @@ def gtval0(f, c1, c2):
 
 
 #
-# Function haclose
-#
-
-def haclose(f):
-    r"""Calculate the Heikin-Ashi Close.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with OHLC columns.
-
-    Returns
-    -------
-    haclose : pandas.Series
-        The series containing the Heikin-Ashi Close.
-
-    """
-    haclose = (f['open'] + f['high'] + f['low'] + f['close']) / 4.0
-    return haclose
-
-
-#
-# Function hahigh
-#
-
-def hahigh(f):
-    r"""Calculate the Heikin-Ashi High.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with OHLC columns.
-
-    Returns
-    -------
-    hahigh : pandas.Series
-        The series containing the Heikin-Ashi High.
-
-    """
-    hahigh = pd.DataFrame([f['high'], haopen(f), haclose(f)]).max(axis=0)
-    return hahigh
-
-
-#
-# Function halow
-#
-
-def halow(f):
-    r"""Calculate the Heikin-Ashi Low.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with OHLC columns.
-
-    Returns
-    -------
-    halow : pandas.Series
-        The series containing the Heikin-Ashi Low.
-
-    """
-    halow = pd.DataFrame([f['low'], haopen(f), haclose(f)]).min(axis=0)
-    return halow
-
-
-#
-# Function haopen
-#
-
-def haopen(f):
-    r"""Calculate the Heikin-Ashi Open.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with OHLC columns.
-
-    Returns
-    -------
-    haopen : pandas.Series
-        The series containing the Heikin-Ashi Open.
-
-    """
-    s1 = haclose(f)
-    s2 = (f['open'] + f['close']) / 2.0
-    dfha = pd.concat([s1, s2], axis=1)
-    dfha.columns = ['haclose', 'haopen']
-    for i in range(1, len(dfha)):
-        dfha.iloc[i]['haopen'] = (dfha.iloc[i-1]['haopen'] + dfha.iloc[i-1]['haclose']) / 2.0
-    return dfha['haopen']
-
-
-#
 # Function higher
 #
 
@@ -861,6 +821,28 @@ def highest(f, c, p = 20):
     """
     new_column = f[c].rolling(p).max()
     return new_column
+
+
+#
+# Function highha
+#
+
+def highha(f):
+    r"""Calculate the Heikin-Ashi High.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with OHLC columns.
+
+    Returns
+    -------
+    highha : pandas.Series
+        The series containing the Heikin-Ashi High.
+
+    """
+    highha = pd.DataFrame([f['high'], openha(f), closeha(f)]).max(axis=0)
+    return highha
 
 
 #
@@ -941,6 +923,28 @@ def lowest(f, c, p = 20):
 
     """
     return f[c].rolling(p).min()
+
+
+#
+# Function lowha
+#
+
+def lowha(f):
+    r"""Calculate the Heikin-Ashi Low.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with OHLC columns.
+
+    Returns
+    -------
+    lowha : pandas.Series
+        The series containing the Heikin-Ashi Low.
+
+    """
+    lowha = pd.DataFrame([f['low'], openha(f), closeha(f)]).min(axis=0)
+    return lowha
 
 
 #
@@ -1096,6 +1100,33 @@ def netreturn(f, c, o = 1):
     """
     new_column = 100 * pchange1(f, c, o)
     return new_column
+
+
+#
+# Function openha
+#
+
+def openha(f):
+    r"""Calculate the Heikin-Ashi Open.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with OHLC columns.
+
+    Returns
+    -------
+    openha : pandas.Series
+        The series containing the Heikin-Ashi Open.
+
+    """
+    s1 = closeha(f)
+    s2 = (f['open'] + f['close']) / 2.0
+    dfha = pd.concat([s1, s2], axis=1)
+    dfha.columns = ['closeha', 'openha']
+    for i in range(1, len(dfha)):
+        dfha.iloc[i]['openha'] = (dfha.iloc[i-1]['openha'] + dfha.iloc[i-1]['closeha']) / 2.0
+    return dfha['openha']
 
 
 #
@@ -1260,13 +1291,17 @@ def rsi(f, c, p = 14):
 # Function rtotal
 #
 
-def rtotal(vec):
+def rtotal(f, c, w):
     r"""Calculate the running total.
 
     Parameters
     ----------
-    vec : pandas.Series
-        The input array for calculating the running total.
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    w : int
+        The rolling period.
 
     Returns
     -------
@@ -1276,26 +1311,29 @@ def rtotal(vec):
     Example
     -------
 
-    >>> vec.rolling(window=20).apply(rtotal)
+    >>> rtotal(f, c, 20))
 
     """
-    tcount = np.count_nonzero(vec)
-    fcount = len(vec) - tcount
-    running_total = tcount - fcount
-    return running_total
+    ds = f[c]
+    running_total = ds.rolling(window=w).apply(np.count_nonzero)
+    return running_total.fillna(0).astype(int)
 
 
 #
 # Function runs
 #
 
-def runs(vec):
+def runs(f, c, w):
     r"""Calculate the total number of runs.
 
     Parameters
     ----------
-    vec : pandas.Series
-        The input array for calculating the number of runs.
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    w : int
+        The rolling period.
 
     Returns
     -------
@@ -1305,18 +1343,19 @@ def runs(vec):
     Example
     -------
 
-    >>> vec.rolling(window=20).apply(runs)
+    >>> runs(f, c, 20)
 
     """
-    runs_value = len(list(itertools.groupby(vec)))
-    return runs_value
+    ds = f[c]
+    runs_value = ds.rolling(window=w).apply(lambda x: len(list(itertools.groupby(x))))
+    return runs_value.fillna(0).astype(int)
 
 
 #
 # Function runstest
 #
 
-def runstest(f, c, wfuncs, window):
+def runstest(f, c, wfuncs, w):
     r"""Perform a runs test on binary series.
 
     Parameters
@@ -1338,7 +1377,7 @@ def runstest(f, c, wfuncs, window):
             The length of the latest streak.
         ``'zscore'``:
             The Z-Score over the ``window`` period.
-    window : int
+    w : int
         The rolling period.
 
     Returns
@@ -1355,7 +1394,6 @@ def runstest(f, c, wfuncs, window):
 
     """
 
-    fc = f[c]
     all_funcs = {'runs'   : runs,
                  'streak' : streak,
                  'rtotal' : rtotal,
@@ -1365,11 +1403,11 @@ def runstest(f, c, wfuncs, window):
         wfuncs = list(all_funcs.keys())
     # apply each of the runs functions
     new_features = pd.DataFrame()
-    for w in wfuncs:
-        if w in all_funcs:
-            new_feature = fc.rolling(window=window).apply(all_funcs[w])
+    for wf in wfuncs:
+        if wf in all_funcs:
+            new_feature = all_funcs[wf](f, c, w)
             new_feature.fillna(0, inplace=True)
-            new_column_name = PSEP.join([c, w])
+            new_column_name = PSEP.join([c, wf])
             new_feature = new_feature.rename(new_column_name)
             frames = [new_features, new_feature]
             new_features = pd.concat(frames, axis=1)
@@ -1417,13 +1455,17 @@ def split2letters(f, c):
 # Function streak
 #
 
-def streak(vec):
+def streak(f, c, w):
     r"""Determine the length of the latest streak.
 
     Parameters
     ----------
-    vec : pandas.Series
-        The input array for calculating the latest streak.
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    w : int
+        The rolling period.
 
     Returns
     -------
@@ -1433,11 +1475,12 @@ def streak(vec):
     Example
     -------
 
-    >>> vec.rolling(window=20).apply(streak)
+    >>> streak(f, c, 20)
 
     """
-    latest_streak = [len(list(g)) for k, g in itertools.groupby(vec)][-1]
-    return latest_streak
+    ds = f[c]
+    latest_streak = ds.rolling(window=w).apply(lambda x: [len(list(g)) for k, g in itertools.groupby(x)][-1])
+    return latest_streak.fillna(0).astype(int)
 
 
 #
@@ -1492,13 +1535,15 @@ def texplode(f, c):
 # Function timeparts
 #
 
-def timeparts(ds):
+def timeparts(f, c):
     r"""Extract time into its components: hour, minute, second.
 
     Parameters
     ----------
-    ds : pandas.Series
-        Dataframe containing the datetime column in string format.
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
 
     Returns
     -------
@@ -1506,7 +1551,7 @@ def timeparts(ds):
         The dataframe containing the time features.
     """
 
-    ds_dt = pd.to_datetime(ds)
+    ds_dt = pd.to_datetime(f[c])
     time_features = pd.DataFrame()
     try:
         fhour = pd.Series(ds_dt.dt.hour, name='hour')
@@ -1523,13 +1568,17 @@ def timeparts(ds):
 # Function truehigh
 #
 
-def truehigh(f):
+def truehigh(f, h='high', l='low'):
     r"""Calculate the *True High* value.
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``high`` and ``low``.
+        Dataframe with high and low columns.
+    h : str
+        Name of the high column in the dataframe ``f``.
+    l : str
+        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -1543,10 +1592,9 @@ def truehigh(f):
     .. [TS_TR] http://help.tradestation.com/09_01/tradestationhelp/charting_definitions/true_range.htm
 
     """
-    c1 = 'low[1]'
-    vexec(f, c1)
-    c2 = 'high'
-    new_column = f.apply(c2max, axis=1, args=[c1, c2])
+    l1 = ''.join([l, '[1]'])
+    vexec(f, l1)
+    new_column = f.apply(c2max, axis=1, args=[l1, h])
     return new_column
 
 
@@ -1554,13 +1602,17 @@ def truehigh(f):
 # Function truelow
 #
 
-def truelow(f):
+def truelow(f, h='high', l='low'):
     r"""Calculate the *True Low* value.
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``high`` and ``low``.
+        Dataframe with high and low columns.
+    h : str
+        Name of the high column in the dataframe ``f``.
+    l : str
+        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -1572,10 +1624,9 @@ def truelow(f):
     *Today's low, or the previous close, whichever is lower* [TS_TR]_.
 
     """
-    c1 = 'high[1]'
-    vexec(f, c1)
-    c2 = 'low'
-    new_column = f.apply(c2min, axis=1, args=[c1, c2])
+    h1 = ''.join([h, '[1]'])
+    vexec(f, h1)
+    new_column = f.apply(c2min, axis=1, args=[h1, l])
     return new_column
 
 
@@ -1589,7 +1640,7 @@ def truerange(f):
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe with columns ``high`` and ``low``.
+        Dataframe with with high and low columns.
 
     Returns
     -------
@@ -1741,13 +1792,17 @@ def xmaup(f, c='close', pfast = 20, pslow = 50):
 # Function zscore
 #
 
-def zscore(vec):
+def zscore(f, c, w):
     r"""Calculate the Z-Score.
 
     Parameters
     ----------
-    vec : pandas.Series
-        The input array for calculating the Z-Score.
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    w : int
+        The rolling period.
 
     Returns
     -------
@@ -1763,19 +1818,12 @@ def zscore(vec):
     Example
     -------
 
-    >>> vec.rolling(window=20).apply(zscore)
+    >>> zscore(f, c, 20)
 
     """
-    n1 = np.count_nonzero(vec)
-    n2 = len(vec) - n1
-    fac1 = float(2 * n1 * n2)
-    fac2 = float(n1 + n2)
-    rbar = fac1 / fac2 + 1
-    sr2num = fac1 * (fac1 - n1 - n2)
-    sr2den = math.pow(fac2, 2) * (fac2 - 1)
-    sr = math.sqrt(sr2num / sr2den)
-    if sr2den and sr:
-        zscore = (runs(vec) - rbar) / sr
-    else:
-        zscore = 0
+    ds = f[c]
+    r = ds.rolling(window=w)
+    m = r.mean().shift(1)
+    s = r.std(ddof=0).shift(1)
+    zscore = (ds - m) / s
     return zscore

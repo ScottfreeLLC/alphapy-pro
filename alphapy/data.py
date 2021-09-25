@@ -344,9 +344,9 @@ def convert_data(df, index_column, intraday_data):
         df['endofday'] = False
         df.loc[date_group.tail(1).index, 'endofday'] = True
         # get time fields
-        df = pd.concat([df, timeparts(dt_column)], axis=1)
+        df = pd.concat([df, timeparts(df, 'time')], axis=1)
     # get date fields
-    df = pd.concat([df, dateparts(dt_column)], axis=1)
+    df = pd.concat([df, dateparts(df, 'date')], axis=1)
 
     # Set the index of the dataframe
 

@@ -174,6 +174,7 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
 
     directory = model.specs['directory']
     extension = model.specs['extension']
+    leaders = model.specs['leaders']
     predict_date = model.specs['predict_date']
     predict_mode = model.specs['predict_mode']
     separator = model.specs['separator']
@@ -209,12 +210,14 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
         first_date = df.index[0]
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol.upper(), first_date, last_date)
-        # shift target
+        # shift target and leaders
         if base_prediction:
             df[target] = df[target].shift(-forecast_period)
+            df[leaders] = df[leaders].shift(-forecast_period)
         else:
             fractal_shift = df.groupby(pd.Grouper(freq=target_fractal)).count().iloc(0)[0][0]
             df[target] = df[target].shift(-fractal_shift)
+            df[leaders] = df[leaders].shift(-fractal_shift)
             df = df.groupby(pd.Grouper(freq=target_fractal)).nth(forecast_period-1)
         # get frame subsets
         if predict_mode:

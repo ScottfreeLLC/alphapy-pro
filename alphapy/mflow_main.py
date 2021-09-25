@@ -325,7 +325,7 @@ def market_pipeline(model, market_specs):
     functions = market_specs['functions']
     predict_history = market_specs['predict_history']
     target_group = market_specs['target_group']
-    run_system = market_specs['run_system']
+    run_sys = market_specs['run_system']
 
     # Set the target group
 
@@ -359,7 +359,7 @@ def market_pipeline(model, market_specs):
     # Run a system
 
     system_specs = market_specs['system']
-    if run_system and system_specs:
+    if run_sys and system_specs:
         # get the system specs
         system_name = system_specs['name']
         buysignal = system_specs['buysignal']
