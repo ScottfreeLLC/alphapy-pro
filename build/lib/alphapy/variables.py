@@ -483,18 +483,55 @@ def vexec(f, v, vfuncs=None):
 
 
 #
+# Function vfrac
+#
+
+def vfrac(f, c, fractal, func):
+    r"""Transform a feature based on a higher-order fractal.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the base fractal column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    fractal : str
+        Pandas offset alias.
+    func : str
+        The Pandas function to apply.
+
+    Returns
+    -------
+    new_column : pandas.Series
+        The series containing the fractal value.
+
+    """
+
+    if func == 'first':
+        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[0]))
+    elif func == 'last':
+        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[-1]))
+    else:
+        try:
+            new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(func)
+        except:
+            logger.info("Could not apply function %s for fractal %s" % (func, fractal))
+    return new_column
+
+
+#
 # Function vapply
 #
 
-def vapply(group, features, vfuncs=None):
+def vapply(group, market_specs, vfuncs=None):
     r"""Apply a set of variables to multiple dataframes.
 
     Parameters
     ----------
     group : alphapy.Group
         The input group.
-    features : dict
-        The list of variables (sorted by fractal) to apply to the ``group``.
+    market_specs : dict
+        The specifications for controlling the MarketFlow pipeline.
     vfuncs : dict, optional
         Dictionary of external modules and functions.
 
@@ -510,15 +547,30 @@ def vapply(group, features, vfuncs=None):
 
     """
 
-    # get group information
+    # Get group information
+
     gsubject = group.space.subject
     gschema = group.space.schema
     symbols = [item.lower() for item in group.members]
-    # get fractal information
-    fractals = list(features.keys())
-    # initialize list of final dataframes
+
+    # Extract market specification fields
+
+    fractals = market_specs['fractals']
+    features = market_specs['features']
+    ohlc_map = market_specs['ohlc_map']
+
+    # Initialize list of dataframes, function dictionary, and possibly OHLC mapping values
+
     dffs = []
-    # apply the variables to each frame
+    func_dict = {'open'  : 'first',
+                 'high'  : 'cummax',
+                 'low'   : 'cummin',
+                 'close' : 'last'}
+    if ohlc_map:
+        new_names = [x+'0' for x in ohlc_map.keys()]
+
+    # Apply the variables to each frame
+
     for symbol in symbols:
         logger.info("Applying Variables to %s" % symbol.upper())
         # apply variables to each of the fractals
@@ -530,7 +582,14 @@ def vapply(group, features, vfuncs=None):
             if fname in Frame.frames:
                 df = Frame.frames[fname].df
                 if not df.empty:
-                    for vname in features[fractal]:
+                    # Remap OHLC values if specified
+                    if ohlc_map:
+                        for v in ohlc_map.keys():
+                            df = vexec(df, ohlc_map[v])
+                        df.rename(columns=dict(zip(ohlc_map.keys(), new_names)), inplace=True)
+                        df.rename(columns=dict(zip(ohlc_map.values(), ohlc_map.keys())), inplace=True)
+                    # create the features in the dataframe
+                    for vname in features:
                         # get all the precedent variables
                         logger.debug("%s Variable: %s.%s" % (symbol.upper(), fractal, vname))
                         allv = vtree(vname)
@@ -549,9 +608,18 @@ def vapply(group, features, vfuncs=None):
         for indexf, df in enumerate(dfs):     
             # upsample successive frames
             if indexf > 0:
+                # shift higher fractals
+                df = df.shift(1)
+                # resample for base fractal
                 dfr = df.resample(fractals[0]).ffill()
                 # join frames
                 dfj = dfj.merge(dfr, left_index=True, right_index=True)
+                # create cumulative fractal variables
+                for j in range(indexf):
+                    for field in func_dict.keys():
+                        col1name = '.'.join([fractals[0], field])
+                        col2name = ''.join([col1name, 'f', str(j+1)])
+                        dfj[col2name] = vfrac(dfj, col1name, fractals[indexf], func_dict[field])
             else:
                 dfj = df
         # apply fractal features

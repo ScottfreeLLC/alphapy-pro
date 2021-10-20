@@ -523,17 +523,15 @@ def vfrac(f, c, fractal, func):
 # Function vapply
 #
 
-def vapply(group, fractals, features, vfuncs=None):
+def vapply(group, market_specs, vfuncs=None):
     r"""Apply a set of variables to multiple dataframes.
 
     Parameters
     ----------
     group : alphapy.Group
         The input group.
-    fractals : list
-        List of Pandas Offset Aliases.
-    features : dict
-        The list of variables (sorted by fractal) to apply to the ``group``.
+    market_specs : dict
+        The specifications for controlling the MarketFlow pipeline.
     vfuncs : dict, optional
         Dictionary of external modules and functions.
 
@@ -555,13 +553,21 @@ def vapply(group, fractals, features, vfuncs=None):
     gschema = group.space.schema
     symbols = [item.lower() for item in group.members]
 
-    # Initialize list of dataframes and function dictionary
+    # Extract market specification fields
+
+    fractals = market_specs['fractals']
+    features = market_specs['features']
+    ohlc_map = market_specs['ohlc_map']
+
+    # Initialize list of dataframes, function dictionary, and possibly OHLC mapping values
 
     dffs = []
     func_dict = {'open'  : 'first',
                  'high'  : 'cummax',
                  'low'   : 'cummin',
                  'close' : 'last'}
+    if ohlc_map:
+        new_names = [x+'0' for x in ohlc_map.keys()]
 
     # Apply the variables to each frame
 
@@ -576,6 +582,13 @@ def vapply(group, fractals, features, vfuncs=None):
             if fname in Frame.frames:
                 df = Frame.frames[fname].df
                 if not df.empty:
+                    # Remap OHLC values if specified
+                    if ohlc_map:
+                        for v in ohlc_map.keys():
+                            df = vexec(df, ohlc_map[v])
+                        df.rename(columns=dict(zip(ohlc_map.keys(), new_names)), inplace=True)
+                        df.rename(columns=dict(zip(ohlc_map.values(), ohlc_map.keys())), inplace=True)
+                    # create the features in the dataframe
                     for vname in features:
                         # get all the precedent variables
                         logger.debug("%s Variable: %s.%s" % (symbol.upper(), fractal, vname))

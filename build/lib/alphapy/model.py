@@ -69,6 +69,7 @@ from sklearn.metrics import explained_variance_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import log_loss
 from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_squared_log_error
 from sklearn.metrics import median_absolute_error
@@ -240,6 +241,7 @@ def get_model_config():
 
     specs['drop'] = cfg['data']['drop']
     specs['features'] = cfg['data']['features']
+    specs['leaders'] = cfg['data']['leaders']
     specs['sentinel'] = cfg['data']['sentinel']
     specs['separator'] = cfg['data']['separator']
     specs['shuffle'] = cfg['data']['shuffle']
@@ -420,6 +422,7 @@ def get_model_config():
     logger.info('iso_components    = %d', specs['iso_components'])
     logger.info('iso_neighbors     = %d', specs['iso_neighbors'])
     logger.info('isample_pct       = %d', specs['isample_pct'])
+    logger.info('leaders           = %s', specs['leaders'])
     logger.info('learning_curve    = %r', specs['learning_curve'])
     logger.info('logtransform      = %r', specs['logtransform'])
     logger.info('lv_remove         = %r', specs['lv_remove'])
@@ -1124,6 +1127,10 @@ def generate_metrics(model, partition):
                     model.metrics[(algo, partition, 'neg_mean_absolute_error')] = mean_absolute_error(expected, predicted)
                 except:
                     logger.info("Mean Absolute Error not calculated")
+                try:
+                    model.metrics[(algo, partition, 'neg_mean_absolute_percentage_error')] = mean_absolute_percentage_error(expected, predicted)
+                except:
+                    logger.info("Mean Absolute Percentage Error not calculated")
                 try:
                     model.metrics[(algo, partition, 'neg_median_absolute_error')] = median_absolute_error(expected, predicted)
                 except:

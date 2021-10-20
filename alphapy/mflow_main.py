@@ -165,8 +165,17 @@ def get_market_config():
     space = Space(*sspecs)
 
     #
-    # Section: fractals and features
+    # Section: OHLC Map, Fractals and Features
     #
+
+    logger.info("Getting OHLC Map")
+
+    try:
+        specs['ohlc_map'] = cfg['ohlc_map']
+        if not all(key in specs['ohlc_map'].keys() for key in ['open', 'high', 'low', 'close']):
+            raise ValueError("Four OHLC mapping fields must be specified")
+    except:
+        specs['ohlc_map'] = None
 
     logger.info("Getting Fractals")
 
@@ -267,6 +276,7 @@ def get_market_config():
     logger.info('features         = %s', specs['features'])
     logger.info('forecast_period  = %d', specs['forecast_period'])
     logger.info('fractals         = %s', specs['fractals'])
+    logger.info('ohlc_map         = %s', specs['ohlc_map'])
     logger.info('predict_history  = %s', specs['predict_history'])
     logger.info('run_system       = %r', specs['run_system'])
     logger.info('schema           = %s', specs['schema'])
@@ -318,7 +328,6 @@ def market_pipeline(model, market_specs):
 
     create_model = market_specs['create_model']
     data_history = market_specs['data_history']
-    features = market_specs['features']
     forecast_period = market_specs['forecast_period']
     fractals = market_specs['fractals']
     data_fractal = market_specs['data_fractal']
@@ -344,7 +353,7 @@ def market_pipeline(model, market_specs):
 
     # Apply the features to all frames.
 
-    dfs = vapply(group, fractals, features, functions)
+    dfs = vapply(group, market_specs, functions)
 
     # Run an analysis to create the model.
 

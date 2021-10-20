@@ -306,7 +306,7 @@ def convert_data(df, index_column, intraday_data):
     df : pandas.DataFrame
         The intraday dataframe.
     index_column : str
-        The name of the index column.
+        The name of the index column in string format.
     intraday_data : bool
         Flag set to True if the frame contains intraday data.
 
@@ -317,10 +317,13 @@ def convert_data(df, index_column, intraday_data):
 
     """
 
-    # Standardize column names
+    if df.index.name:
+        if (df.index.name.lower() == index_column):
+            df.reset_index(inplace=True)
+        else:
+            logger.error("Dataframe must have a date or datetime column")
 
-    df.index.name = 'date'
-    df.reset_index(inplace=True)
+    # Standardize column names
     df = df.rename(columns = lambda x: x.lower().replace(' ',''))
 
     # Create the time/date index
@@ -334,7 +337,6 @@ def convert_data(df, index_column, intraday_data):
 
     if intraday_data:
         # Group by date first
-        df['date'] = df.index.strftime('%Y-%m-%d')
         date_group = df.groupby('date')
         # Number the intraday bars
         df['barnumber'] = date_group.cumcount()
@@ -342,16 +344,13 @@ def convert_data(df, index_column, intraday_data):
         df['endofday'] = False
         df.loc[date_group.tail(1).index, 'endofday'] = True
         # get time fields
-        df = pd.concat([df, timeparts(dt_column)], axis=1)
-        # Return the enhanced frame
-        del df['date']
+        df = pd.concat([df, timeparts(df, 'time')], axis=1)
     # get date fields
-    df = pd.concat([df, dateparts(dt_column)], axis=1)
+    df = pd.concat([df, dateparts(df, 'date')], axis=1)
 
     # Set the index of the dataframe
 
-    df[index_column] = pd.to_datetime(dt_column)
-    df.set_index(pd.DatetimeIndex(df[index_column]), drop=True, inplace=True)
+    df.set_index(pd.DatetimeIndex(pd.to_datetime(dt_column)), drop=True, inplace=True)
     del df['date']
     if intraday_data:
         del df['time']
@@ -360,6 +359,9 @@ def convert_data(df, index_column, intraday_data):
 
     cols_float = ['open', 'high', 'low', 'close', 'volume']
     df[cols_float] = df[cols_float].astype(float)
+
+    # Forward-Fill prices and volume
+    df.loc[:, cols_float] = df.loc[:, cols_float].ffill()
 
     # Order the frame by increasing date if necessary
     df = df.sort_index()
@@ -724,6 +726,38 @@ data_dispatch_table = {'google' : get_google_data,
 
 
 #
+# Function assign_global_data
+#
+
+def assign_global_data(df, symbol, gspace, fractal):
+    r"""Create global pointer to dataframe.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe for the given symbol.
+    symbol : str
+        Pandas offset alias.
+    gspace : alphapy.Space
+        AlphaPy data taxonomy schema and subject.
+    fractal : str
+        Pandas offset alias.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        The dataframe for the given symbol.
+
+    """
+    try:
+        space = Space(gspace.subject, gspace.schema, fractal)
+        _ = Frame(symbol.lower(), space, df)
+    except:
+        logger.error("Could not allocate Frame for: %s", symbol.upper())
+    return df
+
+
+#
 # Function standardize_data
 #
 
@@ -757,12 +791,9 @@ def standardize_data(symbol, gspace, df, fractal, intraday_data):
         index_column = 'date'
     # convert data to canonical form
     df = convert_data(df, index_column, intraday_data)
-    # allocate global Frame
-    try:
-        space = Space(gspace.subject, gspace.schema, fractal)
-        _ = Frame(symbol.lower(), space, df)
-    except:
-        logger.error("Could not allocate Frame for: %s", symbol.upper())
+    # create global pointer to dataframe
+    df = assign_global_data(df, symbol, gspace, fractal)
+    # return dataframe
     return df
 
 
@@ -790,7 +821,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
     # Unpack market specifications
 
     data_fractal = market_specs['data_fractal']
-    feature_fractals = list(market_specs['features'].keys())
+    feature_fractals = market_specs['fractals']
     from_date = market_specs['data_start_date']
     subschema = market_specs['subschema']
     to_date = market_specs['data_end_date']
@@ -859,10 +890,9 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                                              'close'  : 'last',
                                              'volume' : 'sum'})
                 df_rs.dropna(axis=0, how='any', inplace=True)
-                logger.info("Rows after Resampling at %s: %d",
-                            ff, len(df_rs))
-                # standardize the resampled data
-                _ = standardize_data(symbol, gspace, df_rs, ff, intraday_data)
+                logger.info("Rows after Resampling at %s: %d", ff, len(df_rs))
+                # create global pointer
+                df_rs = assign_global_data(df_rs, symbol, gspace, ff)
         else:
             logger.info("No DataFrame for %s", symbol.upper())
     return
