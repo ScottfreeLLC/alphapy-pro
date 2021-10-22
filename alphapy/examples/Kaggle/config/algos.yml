@@ -220,6 +220,7 @@ XGB:
     # XGBoost Binary
     model_type : classification
     params     : {"objective" : 'binary:logistic',
+                  "use_label_encoder" : False,
                   "n_estimators" : 300,
                   "seed" : seed,
                   "max_depth" : 3,
