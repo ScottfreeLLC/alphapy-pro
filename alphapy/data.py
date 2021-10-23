@@ -885,9 +885,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
         if not df.empty:
             logger.info("Rows: %d [%s]", len(df), data_fractal)
             # process data
-            df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)
-            # determine whether or not the target fractal is intraday
-            intraday_data = any(substring in feature_fractals[0] for substring in PD_INTRADAY_OFFSETS)
+            df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)            
             # resample data and drop any NA values
             for ff in feature_fractals:
                 df_rs = df.resample(ff).agg({'open'   : 'first',
@@ -898,6 +896,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                 df_rs.dropna(axis=0, how='any', inplace=True)
                 logger.info("Rows after Resampling at %s: %d", ff, len(df_rs))
                 # standardize resampled data
+                intraday_data = any(substring in ff for substring in PD_INTRADAY_OFFSETS)
                 df_rs = standardize_data(symbol, gspace, df_rs, ff, intraday_data)
         else:
             logger.info("No DataFrame for %s", symbol.upper())
