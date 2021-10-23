@@ -324,7 +324,7 @@ def convert_data(df, index_column, intraday_data):
             logger.error("Dataframe must have a date or datetime column")
 
     # Standardize column names
-    df = df.rename(columns = lambda x: x.lower().replace(' ',''))
+    df = df.rename(columns = lambda x: x.lower().replace(' ', ''))
 
     # Create the time/date index
 
@@ -345,6 +345,7 @@ def convert_data(df, index_column, intraday_data):
         date_group = df.groupby('date')
         # Number the intraday bars
         df['barnumber'] = date_group.cumcount()
+        df['barpct'] = date_group['barnumber'].apply(lambda x: 100.0 * x / x.count())
         # Mark the end of the trading day
         df['endofday'] = False
         df.loc[date_group.tail(1).index, 'endofday'] = True
@@ -834,7 +835,6 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
 
     # Unpack model specifications
 
-    directory = model.specs['directory']
     extension = model.specs['extension']
     separator = model.specs['separator']
 
@@ -897,8 +897,8 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                                              'volume' : 'sum'})
                 df_rs.dropna(axis=0, how='any', inplace=True)
                 logger.info("Rows after Resampling at %s: %d", ff, len(df_rs))
-                # create global pointer
-                df_rs = assign_global_data(df_rs, symbol, gspace, ff)
+                # standardize resampled data
+                df_rs = standardize_data(symbol, gspace, df_rs, ff, intraday_data)
         else:
             logger.info("No DataFrame for %s", symbol.upper())
     return

@@ -1551,7 +1551,7 @@ def timeparts(f, c):
         The dataframe containing the time features.
     """
 
-    ds_dt = pd.to_datetime(f[c], errors='coerce')
+    ds_dt = pd.to_datetime(f[c].astype(str))
     time_features = pd.DataFrame()
     try:
         fhour = pd.Series(ds_dt.dt.hour, name='hour')
