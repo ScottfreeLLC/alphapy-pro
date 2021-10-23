@@ -329,7 +329,12 @@ def convert_data(df, index_column, intraday_data):
     # Create the time/date index
 
     if intraday_data:
-        dt_column = df['date'] + ' ' + df['time']
+        if index_column == 'datetime':
+            dt_column = df[index_column]
+            df['date'] = pd.to_datetime(dt_column).dt.date
+            df['time'] = pd.to_datetime(dt_column).dt.time
+        else:
+            dt_column = df['date'] + ' ' + df['time']
     else:
         dt_column = df['date']
 
@@ -820,6 +825,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
 
     # Unpack market specifications
 
+    data_directory = market_specs['data_directory']
     data_fractal = market_specs['data_fractal']
     feature_fractals = market_specs['fractals']
     from_date = market_specs['data_start_date']
@@ -850,7 +856,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                     gschema, data_fractal, lookback_period)
 
     # Get the data from the relevant feed
-    data_dir = SSEP.join([directory, 'data'])
+    data_dir = SSEP.join([data_directory, gsubject])
 
     # Get the data from the specified data feed
 
@@ -860,7 +866,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                     symbol.upper(), from_date, to_date)
         # Locate the data source
         if gschema == 'data':
-            # local intraday or daily
+            # locally stored intraday or daily data
             dspace = Space(gsubject, gschema, data_fractal)
             fname = frame_name(symbol.lower(), dspace)
             df = read_frame(data_dir, fname, extension, separator)

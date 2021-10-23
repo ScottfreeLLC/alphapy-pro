@@ -57,7 +57,6 @@ import datetime
 import logging
 import os
 import pandas as pd
-import sys
 import yaml
 
 
@@ -138,6 +137,13 @@ def get_market_config():
             raise ValueError("Either parameter data_start_date or data_history is required")
         start_date = start_date_dt.strftime('%Y-%m-%d')
         end_date = end_date_dt.strftime('%Y-%m-%d')
+
+    data_directory = cfg['market']['data_directory']
+    dir_exists = os.path.isdir(data_directory)
+    if dir_exists:
+        specs['data_directory'] = data_directory
+    else:
+        raise ValueError("Directory %s does not exist" % data_directory)
  
     specs['data_history'] = data_history
     specs['data_start_date'] = start_date
@@ -269,6 +275,7 @@ def get_market_config():
     logger.info('api_key          = %s', specs['api_key'])
     logger.info('api_key_name     = %s', specs['api_key_name'])
     logger.info('create_model     = %r', specs['create_model'])
+    logger.info('data_directory   = %s', specs['data_directory'])
     logger.info('data_end_date    = %s', specs['data_end_date'])
     logger.info('data_fractal     = %s', specs['data_fractal'])
     logger.info('data_start_date  = %s', specs['data_start_date'])
