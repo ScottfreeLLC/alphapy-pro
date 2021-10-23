@@ -298,15 +298,13 @@ def sample_data(model):
 # Function convert_data
 #
 
-def convert_data(df, index_column, intraday_data):
+def convert_data(df, intraday_data):
     r"""Convert the market data frame to canonical format.
 
     Parameters
     ----------
     df : pandas.DataFrame
         The intraday dataframe.
-    index_column : str
-        The name of the index column in string format.
     intraday_data : bool
         Flag set to True if the frame contains intraday data.
 
@@ -317,29 +315,22 @@ def convert_data(df, index_column, intraday_data):
 
     """
 
-    if df.index.name:
-        if (df.index.name.lower() == index_column):
-            df.reset_index(inplace=True)
-        else:
-            logger.error("Dataframe must have a date or datetime column")
-
     # Standardize column names
     df = df.rename(columns = lambda x: x.lower().replace(' ', ''))
 
-    # Create the time/date index
+    # Create the date and time columns
 
+    df['date'] = df.index
+    df['date'] = pd.to_datetime(df['date']).dt.date
     if intraday_data:
-        if index_column == 'datetime':
-            dt_column = df[index_column]
-            df['date'] = pd.to_datetime(dt_column).dt.date
-            df['time'] = pd.to_datetime(dt_column).dt.time
-        else:
-            dt_column = df['date'] + ' ' + df['time']
-    else:
-        dt_column = df['date']
+        df['time'] = df.index
+        df['time'] = pd.to_datetime(df['time']).dt.time
 
     # Add datetime columns
 
+    # daily data
+    df = pd.concat([df, dateparts(df, 'date')], axis=1)
+    # intraday data
     if intraday_data:
         # Group by date first
         date_group = df.groupby('date')
@@ -351,12 +342,9 @@ def convert_data(df, index_column, intraday_data):
         df.loc[date_group.tail(1).index, 'endofday'] = True
         # get time fields
         df = pd.concat([df, timeparts(df, 'time')], axis=1)
-    # get date fields
-    df = pd.concat([df, dateparts(df, 'date')], axis=1)
 
-    # Set the index of the dataframe
+    # Drop date and time fields after extracting parts
 
-    df.set_index(pd.DatetimeIndex(pd.to_datetime(dt_column)), drop=True, inplace=True)
     del df['date']
     if intraday_data:
         del df['time']
@@ -790,13 +778,8 @@ def standardize_data(symbol, gspace, df, fractal, intraday_data):
 
     """
 
-    # determine whether or not this is intraday data
-    if intraday_data:
-        index_column = 'datetime'
-    else:
-        index_column = 'date'
     # convert data to canonical form
-    df = convert_data(df, index_column, intraday_data)
+    df = convert_data(df, intraday_data)
     # create global pointer to dataframe
     df = assign_global_data(df, symbol, gspace, fractal)
     # return dataframe
@@ -884,8 +867,15 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
         # Now that we have content, standardize the data
         if not df.empty:
             logger.info("Rows: %d [%s]", len(df), data_fractal)
-            # process data
-            df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)            
+            # acceptable datetime columns
+            dt_cols = ['datetime', 'date']
+            try:
+                dt_column = [x for x in df.columns if x in dt_cols][0]
+            except:
+                raise ValueError("Dataframe must have a datetime or date column")
+            dt_series = df[dt_column]
+            df.set_index(pd.DatetimeIndex(pd.to_datetime(dt_series)), drop=True, inplace=True)      
+            df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)
             # resample data and drop any NA values
             for ff in feature_fractals:
                 df_rs = df.resample(ff).agg({'open'   : 'first',
