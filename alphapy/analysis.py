@@ -4,7 +4,7 @@
 # Module    : analysis
 # Created   : July 11, 2013
 #
-# Copyright 2019 ScottFree Analytics LLC
+# Copyright 2021 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -95,8 +95,7 @@ class Analysis(object):
     # __new__
 
     def __new__(cls,
-                model,
-                group):
+                model):
         # set analysis name
         name = model.specs['directory'].split(SSEP)[-1]
         target = model.specs['target']
@@ -213,7 +212,7 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
         # shift target and leaders
         if base_prediction:
             df[target] = df[target].shift(-forecast_period)
-            df[leaders] = df[leaders].shift(-forecast_period)
+            df[leaders] = df[leaders].shift(-1)
         else:
             fractal_shift = df.groupby(pd.Grouper(freq=target_fractal)).count().iloc(0)[0][0]
             df[target] = df[target].shift(-fractal_shift)
