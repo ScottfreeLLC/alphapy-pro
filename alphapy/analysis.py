@@ -196,7 +196,21 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
         train_frame = pd.DataFrame()
         test_frame = pd.DataFrame()
 
-    # Determine whether or not we are predicting with the base fractal or a higher fractal
+    #
+    # Determine whether or not we are predicting with the base fractal or a higher fractal.
+    #
+    # 1. Base Fractal Prediction
+    #
+    #    a. Forecast on the lowest fractal.
+    #    b. Optionally use higher-order fractals.
+    #    c. The forecast is defined as n periods forward.
+    #
+    # 2. Higher Fractal Prediction
+    #
+    #    a. Forecast on a higher fractal with lower-fractal data.
+    #    b. Use lower-fractal data to index into the higher fractal prediction.
+    #    c. The higher the index (nth row), the higher probability of target prediction.
+    #
 
     base_fractal = fractals[0]
     target_fractal = target.split('.')[0]
