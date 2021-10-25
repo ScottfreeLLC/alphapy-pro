@@ -868,6 +868,8 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
         if not df.empty:
             logger.info("Rows: %d [%s]", len(df), data_fractal)
             # acceptable datetime columns
+            df[df.index.name] = df.index
+            df.columns= df.columns.str.lower()
             dt_cols = ['datetime', 'date']
             try:
                 dt_column = [x for x in df.columns if x in dt_cols][0]
