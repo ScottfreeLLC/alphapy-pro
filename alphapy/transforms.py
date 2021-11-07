@@ -1,25 +1,23 @@
-################################################################################
-#
-# Package   : AlphaPy
-# Module    : transforms
-# Created   : March 14, 2020
-#
-# Copyright 2020 ScottFree Analytics LLC
-# Mark Conway & Robert D. Scott II
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-################################################################################
+"""
+Package   : AlphaPy
+Module    : transforms
+Created   : March 14, 2020
+
+Copyright 2021 ScottFree Analytics LLC
+Mark Conway & Robert D. Scott II
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
 
 
 #
@@ -180,7 +178,7 @@ def bizday(f, c):
 #
 # Function c2max
 #
-    
+
 def c2max(f, c1, c2):
     r"""Take the maximum value between two columns in a dataframe.
 
@@ -243,12 +241,12 @@ def closeha(f):
 
     Returns
     -------
-    closeha : pandas.Series
+    closeha_ds : pandas.Series
         The series containing the Heikin-Ashi Close.
 
     """
-    closeha = (f['open'] + f['high'] + f['low'] + f['close']) / 4.0
-    return closeha
+    closeha_ds = (f['open'] + f['high'] + f['low'] + f['close']) / 4.0
+    return closeha_ds
 
 
 #
@@ -746,7 +744,7 @@ def gtval(f, c1, c2):
 def gtval0(f, c1, c2):
     r"""For positive values in the first column of the dataframe
     that are greater than the second column, get the value in
-    the first column, otherwise return zero. 
+    the first column, otherwise return zero.
 
     Parameters
     ----------
@@ -1012,7 +1010,7 @@ def maratio(f, c, p1 = 1, p2 = 10):
 #
 # Function mval
 #
-   
+
 def mval(f, c):
     r"""Get the negative value, otherwise zero.
 
@@ -1132,7 +1130,7 @@ def openha(f):
 #
 # Function pchange1
 #
-    
+
 def pchange1(f, c, o = 1):
     r"""Calculate the percentage change within the same variable.
 
@@ -1184,7 +1182,7 @@ def pchange2(f, c1, c2):
 #
 # Function pval
 #
-  
+
 def pval(f, c):
     r"""Get the positive value, otherwise zero.
 

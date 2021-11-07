@@ -56,7 +56,6 @@ import builtins
 from collections import OrderedDict
 from importlib import import_module
 import logging
-import numpy as np
 import pandas as pd
 import parser
 import re
@@ -374,7 +373,7 @@ def vsub(v, expr):
 #
 # Function vexec
 #
- 
+
 def vexec(f, v, vfuncs=None):
     r"""Add a variable to the given dataframe.
 
@@ -426,7 +425,7 @@ def vexec(f, v, vfuncs=None):
             expr_split = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
             expr_new = BSEP.join(expr_split)
             estr = "%s" % BSEP.join([''.join(['`', vxlag, '`']), ESEP, expr_new])
-            logger.debug("Expression: %s" % estr)
+            logger.debug("Expression: %s", estr)
             # pandas eval
             f[vxlag] = f.eval(expr_new)
         else:
@@ -572,11 +571,11 @@ def vapply(group, market_specs, vfuncs=None):
     # Apply the variables to each frame
 
     for symbol in symbols:
-        logger.info("Applying Variables to %s" % symbol.upper())
+        logger.info("Applying Variables to %s", symbol.upper())
         # apply variables to each of the fractals
         dfs = []
         for fractal in fractals:
-            logger.debug("Fractal: %s" % fractal)           
+            logger.debug("Fractal: %s", fractal)           
             fspace = Space(gsubject, gschema, fractal)
             fname = frame_name(symbol.lower(), fspace)
             if fname in Frame.frames:
@@ -588,10 +587,12 @@ def vapply(group, market_specs, vfuncs=None):
                             df = vexec(df, ohlc_map[v])
                         df.rename(columns=dict(zip(ohlc_map.keys(), new_names)), inplace=True)
                         df.rename(columns=dict(zip(ohlc_map.values(), ohlc_map.keys())), inplace=True)
+                    # save inter-fractal features until dataframes are joined
+                    pass
                     # create the features in the dataframe
                     for vname in features:
                         # get all the precedent variables
-                        logger.debug("%s Variable: %s.%s" % (symbol.upper(), fractal, vname))
+                        logger.debug("%s Variable: %s.%s", symbol.upper(), fractal, vname)
                         allv = vtree(vname)
                         for v in allv:
                             df = vexec(df, v, vfuncs)
@@ -604,7 +605,7 @@ def vapply(group, market_specs, vfuncs=None):
             # add the fractal frame to the list
             dfs.append(df)
         # join all fractal frames
-        logger.info("Joining Frames: %s" % fractals)
+        logger.info("Joining Frames: %s", fractals)
         for indexf, df in enumerate(dfs):     
             # upsample successive frames
             if indexf > 0:
