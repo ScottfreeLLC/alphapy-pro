@@ -35,6 +35,14 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # Imports
 #
 
+import argparse
+from datetime import datetime
+import logging
+import numpy as np
+import os
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
 from alphapy.data import get_data
 from alphapy.data import sample_data
 from alphapy.data import shuffle_data
@@ -49,10 +57,9 @@ from alphapy.features import remove_lv_features
 from alphapy.features import save_features
 from alphapy.features import select_features
 from alphapy.frame import write_frame
-from alphapy.globals import CSEP, PSEP, SSEP, USEP
+from alphapy.globals import SSEP, USEP
 from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
-from alphapy.globals import WILDCARD
+from alphapy.globals import Partition
 from alphapy.model import first_fit
 from alphapy.model import generate_metrics
 from alphapy.model import get_model_config
@@ -68,15 +75,6 @@ from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
 from alphapy.utilities import get_datestamp
-
-import argparse
-from datetime import datetime
-import logging
-import numpy as np
-import os
-import pandas as pd
-from sklearn.model_selection import train_test_split
-import sys
 
 
 #

@@ -24,18 +24,18 @@ limitations under the License.
 # Imports
 #
 
+import itertools
+import logging
+import math
+import numpy as np
+import pandas as pd
+
 from alphapy.calendrical import biz_day_month
 from alphapy.calendrical import biz_day_week
 from alphapy.calendrical import get_rdate
 from alphapy.globals import NULLTEXT
 from alphapy.globals import BSEP, PSEP, USEP
 from alphapy.variables import vexec
-
-import itertools
-import logging
-import math
-import numpy as np
-import pandas as pd
 
 
 #
@@ -835,12 +835,12 @@ def highha(f):
 
     Returns
     -------
-    highha : pandas.Series
+    highha_ds : pandas.Series
         The series containing the Heikin-Ashi High.
 
     """
-    highha = pd.DataFrame([f['high'], openha(f), closeha(f)]).max(axis=0)
-    return highha
+    highha_ds = pd.DataFrame([f['high'], openha(f), closeha(f)]).max(axis=0)
+    return highha_ds
 
 
 #
@@ -937,12 +937,12 @@ def lowha(f):
 
     Returns
     -------
-    lowha : pandas.Series
+    lowha_ds : pandas.Series
         The series containing the Heikin-Ashi Low.
 
     """
-    lowha = pd.DataFrame([f['low'], openha(f), closeha(f)]).min(axis=0)
-    return lowha
+    lowha_ds = pd.DataFrame([f['low'], openha(f), closeha(f)]).min(axis=0)
+    return lowha_ds
 
 
 #
