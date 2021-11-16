@@ -95,7 +95,8 @@ class Analysis(object):
     # __new__
 
     def __new__(cls,
-                model):
+                model,
+                group):
         # set analysis name
         name = model.specs['directory'].split(SSEP)[-1]
         target = model.specs['target']

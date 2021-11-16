@@ -640,10 +640,31 @@ def main(args=None):
 
     """
 
+    # Argument Parsing
+
+    parser = argparse.ArgumentParser(description="SportFlow Parser")
+    parser.add_argument("-d", "--debug", action="store_true", default=False)
+    parser.add_argument('--pdate', dest='predict_date',
+                        help="prediction date is in the format: YYYY-MM-DD",
+                        required=False, type=valid_date)
+    parser.add_argument('--tdate', dest='train_date',
+                        help="training date is in the format: YYYY-MM-DD",
+                        required=False, type=valid_date)
+    parser.add_mutually_exclusive_group(required=False)
+    parser.add_argument('--predict', dest='predict_mode', action='store_true')
+    parser.add_argument('--train', dest='predict_mode', action='store_false')
+    parser.set_defaults(predict_mode=False)
+    args = parser.parse_args()
+
     # Logging
 
+    if args.debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+
     logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
-                        filename="sport_flow.log", filemode='a', level=logging.DEBUG,
+                        filename="sport_flow.log", filemode='a', level=log_level,
                         datefmt='%m/%d/%y %H:%M:%S')
     formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
                                   datefmt='%m/%d/%y %H:%M:%S')
@@ -659,21 +680,6 @@ def main(args=None):
     logger.info('*'*80)
     logger.info("SportFlow Start")
     logger.info('*'*80)
-
-    # Argument Parsing
-
-    parser = argparse.ArgumentParser(description="SportFlow Parser")
-    parser.add_argument('--pdate', dest='predict_date',
-                        help="prediction date is in the format: YYYY-MM-DD",
-                        required=False, type=valid_date)
-    parser.add_argument('--tdate', dest='train_date',
-                        help="training date is in the format: YYYY-MM-DD",
-                        required=False, type=valid_date)
-    parser.add_mutually_exclusive_group(required=False)
-    parser.add_argument('--predict', dest='predict_mode', action='store_true')
-    parser.add_argument('--train', dest='predict_mode', action='store_false')
-    parser.set_defaults(predict_mode=False)
-    args = parser.parse_args()
 
     # Set train and predict dates
 

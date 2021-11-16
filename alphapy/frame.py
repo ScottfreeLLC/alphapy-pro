@@ -132,7 +132,7 @@ class Frame(object):
 #
 
 def read_frame(directory, filename, extension, separator,
-               index_col=None, squeeze=False):
+               index_col=False):
     r"""Read a delimiter-separated file into a data frame.
 
     Parameters
@@ -147,8 +147,6 @@ def read_frame(directory, filename, extension, separator,
         The delimiter between fields in the file.
     index_col : str, optional
         Column to use as the row labels in the dataframe.
-    squeeze : bool, optional
-        If the data contains only one column, then return a pandas Series.
 
     Returns
     -------
@@ -161,8 +159,7 @@ def read_frame(directory, filename, extension, separator,
     file_all = SSEP.join([directory, file_only])
     logger.info("Loading data from %s", file_all)
     try:
-        df = pd.read_csv(file_all, sep=separator, index_col=index_col,
-                         squeeze=squeeze, low_memory=False)
+        df = pd.read_csv(file_all, sep=separator, index_col=index_col)
     except:
         df = pd.DataFrame()
         logger.info("Could not find or access %s", file_all)

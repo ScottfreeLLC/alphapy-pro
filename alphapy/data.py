@@ -315,9 +315,6 @@ def convert_data(df, intraday_data):
 
     """
 
-    # Standardize column names
-    df = df.rename(columns = lambda x: x.lower().replace(' ', ''))
-
     # Create the date and time columns
 
     df['date'] = df.index
@@ -700,10 +697,10 @@ def get_yahoo_data(schema, subschema, symbol, intraday_data, data_fractal,
     else:
         use_yahoo = True
         if use_yahoo:
-            df = yf.download(symbol, start=from_date, end=to_date)
+            df = yf.download(symbol, start=from_date, end=to_date, threads=False)
         else:
             # use pandas data reader
-            df = get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
+            df = get_pandas_data(schema, subschema, symbol.upper(), intraday_data, data_fractal,
                                  from_date, to_date, lookback_period)       
     return df
 
@@ -867,16 +864,23 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
         # Now that we have content, standardize the data
         if not df.empty:
             logger.info("Rows: %d [%s]", len(df), data_fractal)
-            # acceptable datetime columns
-            df[df.index.name] = df.index
-            df.columns= df.columns.str.lower()
+            # set the index of the dataframe if necessary
+            df.columns = df.columns.str.lower()
             dt_cols = ['datetime', 'date']
-            try:
-                dt_column = [x for x in df.columns if x in dt_cols][0]
-            except:
-                raise ValueError("Dataframe must have a datetime or date column")
-            dt_series = df[dt_column]
-            df.set_index(pd.DatetimeIndex(pd.to_datetime(dt_series)), drop=True, inplace=True)      
+            # check if index is already set
+            dt_index = None
+            if df.index.name:
+                df.index.name = df.index.name.lower()
+                dt_index = [x for x in dt_cols if df.index.name == x]
+            # if the index is not already set, then find the datetime column
+            if not dt_index:
+                try:
+                    dt_column = [x for x in df.columns if x in dt_cols][0]
+                except:
+                    raise ValueError("Dataframe must have a datetime or date column")
+                df.set_index(pd.DatetimeIndex(pd.to_datetime(df[dt_column])),
+                                              drop=True, inplace=True)
+            #  register the dataframe in the global namespace
             df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)
             # resample data and drop any NA values
             for ff in feature_fractals:

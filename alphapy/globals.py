@@ -46,6 +46,7 @@ USEP = '_'
 LOFF = '['
 ROFF = ']'
 CARET = '^'
+ATSIGN = '@'
 
 #
 # Numerical Constants

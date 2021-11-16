@@ -57,7 +57,7 @@ import sys
 from alphapy.alias import get_alias
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
-from alphapy.globals import BSEP, CARET, ESEP, LOFF, PSEP, ROFF, USEP
+from alphapy.globals import ATSIGN, BSEP, CARET, ESEP, LOFF, PSEP, ROFF, USEP
 from alphapy.space import Space
 from alphapy.utilities import valid_name
 
@@ -159,6 +159,9 @@ def vparse(vname):
 
     Returns
     -------
+    fractal : int
+        The fractal level of the variable, with 0 being the base,
+        and +1 for each higher level. 
     vxlag : str
         Original variable name without the ``lag`` component.
     root : str
@@ -184,12 +187,19 @@ def vparse(vname):
     --------
 
     >>> vparse('lmin_5[2]')
-    # ('lmin_5', 'lmin', 'lowest_low', ['5'], 2)
+    # (0, 'lmin_5', 'lmin', 'lowest_low', ['5'], 2)
 
     """
 
-    # split along lag first
-    lsplit = vname.split(LOFF)
+    # split along fractal first
+    fsplit = vname.split(ATSIGN)
+    if len(fsplit) > 1:
+        fractal = -1
+    else:
+        fsplit = vname.split(CARET)
+        fractal = len(fsplit) - 1
+    # split along lag next
+    lsplit = fsplit[-1].split(LOFF)
     vxlag = lsplit[0]
     # if necessary, substitute any alias
     vxlag1 = vxlag.split(USEP)[0]
@@ -215,7 +225,7 @@ def vparse(vname):
             if lre.match(slag):
                 lag = int(slag)
     # return all components
-    return vxlag, root, valias, plist, lag
+    return fractal, vxlag, root, valias, plist, lag
 
 
 #
@@ -239,13 +249,13 @@ def allvars(expr):
     vlist = []
     logger.debug("Expression: %s", expr)
     for item in expr.split(BSEP):
-        match1_re = r'(\(|-)?[A-Za-z]\w+(\[\d+\])?'
+        match1_re = r'(\(|-)?[\^]?[A-Za-z]{1}\w+(\[\d+\])?'
         match1 = re.search(match1_re, item)
         match2_re = r'\(([^)]+)\)'
         match2 = re.search(match2_re, item)
         if match1 or match2:
             if match2:
-                var = match2.group(0)[1:-1]
+                var = match2.group(0)
             elif match1:
                 var = match1.group(0)
             var = re.sub('[()-]', '', var)
@@ -285,7 +295,7 @@ def vtree(vname):
     """
     allv = []
     def vwalk(allv, vname):
-        vxlag, root, _, plist, lag = vparse(vname)
+        _, vxlag, root, _, plist, lag = vparse(vname)
         if root in Variable.variables:
             root_expr = Variable.variables[root].expr
             expr = vsub(vxlag, root_expr)
@@ -397,12 +407,8 @@ def vexec(f, v, vfuncs=None):
     -------
     f : pandas.DataFrame
         Dataframe with the new variable.
-    info : str
-        String describing the outcome:
-            ``'variable added'``
-            ``'function called'``
-            ``'variable lagged'``
-            ``'fractal deferred'``
+    vexpr : str
+        Variable expression.
 
     Other Parameters
     ----------------
@@ -411,32 +417,33 @@ def vexec(f, v, vfuncs=None):
 
     """
 
-    vxlag, root, valias, plist, lag = vparse(v)
-    logger.debug("vexec  : %s", v)
-    logger.debug("vxlag  : %s", vxlag)
-    logger.debug("root   : %s", root)
-    logger.debug("valias : %s", valias)
-    logger.debug("plist  : %s", plist)
-    logger.debug("lag    : %s", lag)
+    fractal, vxlag, root, valias, plist, lag = vparse(v)
+    logger.debug("vexec   : %s", v)
+    logger.debug("fractal : %d", fractal)
+    logger.debug("vxlag   : %s", vxlag)
+    logger.debug("root    : %s", root)
+    logger.debug("valias  : %s", valias)
+    logger.debug("plist   : %s", plist)
+    logger.debug("lag     : %s", lag)
 
-    vinfo = 'variable not added'
+    vexpr = None
     if vxlag not in f.columns:
         if root in Variable.variables:
             logger.debug("Found variable %s: ", root)
             vroot = Variable.variables[root]
             expr = vroot.expr
-            if CARET in expr:
-                vinfo = 'fractal deferred'
+            expr_new = vsub(vxlag, expr)
+            expr_split = expr_new.split(BSEP)
+            expr_split = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
+            vexpr = BSEP.join(expr_split)
+            estr = "%s" % BSEP.join([''.join(['`', vxlag, '`']), ESEP, vexpr])
+            logger.debug("Expression: %s", estr)
+            if CARET not in expr:
+                # single fractal expression
+                f[vxlag] = f.eval(vexpr)
             else:
-                expr_new = vsub(vxlag, expr)
-                expr_split = expr_new.split(BSEP)
-                expr_split = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
-                expr_new = BSEP.join(expr_split)
-                estr = "%s" % BSEP.join([''.join(['`', vxlag, '`']), ESEP, expr_new])
-                logger.debug("Expression: %s", estr)
-                # pandas eval
-                f[vxlag] = f.eval(expr_new)
-                vinfo = 'variable added'
+                # multiple fractal expression
+                logger.info("Multiple Fractal Expression: %s", estr)
         else:
             logger.debug("Did not find variable: %s", root)
             # Must be a function call
@@ -479,7 +486,6 @@ def vexec(f, v, vfuncs=None):
             if func:
                 # Create the variable by calling the function
                 f[v] = func(*newlist)
-                vinfo = 'function called'
             elif func_name not in dir(builtins):
                 module_error = "*** Could not find module to execute function: {} ***".format(func_name)
                 logger.error(module_error)
@@ -487,134 +493,92 @@ def vexec(f, v, vfuncs=None):
     # if necessary, add the lagged variable
     if lag > 0 and vxlag in f.columns:
         f[v] = f[vxlag].shift(lag)
-        vinfo = 'variable lagged'
     # output frame and execution status
-    return f, vinfo
+    return f, vexpr
 
     
 #
-# Function vexec_fractal
+# Function vexec_multi_fractal
 #
 
-def vexec_fractal(f, v, vfuncs=None):
-    r"""Add a variable to the given dataframe.
+def vexec_multi_fractal(f, features, fractals):
+    r"""Add a multi-fractal variable to a dataframe.
 
-    This is the core function for adding a variable to a dataframe.
-    The default variable functions are already defined locally
-    in ``alphapy.transforms``; however, you may want to define your
-    own variable functions. If so, then the ``vfuncs`` parameter
-    will contain the list of modules and functions to be imported
-    and applied by the ``vexec`` function.
-    To write your own variable function, your function must have
-    a pandas *DataFrame* as an input parameter and must return
-    a pandas *DataFrame* with the new variable(s).
+    Create a variable having an expression with mixed fractals. 
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe to contain the new variable.
-    v : str
-        Variable to add to the dataframe.
-    vfuncs : dict, optional
-        Dictionary of external modules and functions.
+        Dataframe with all fractals to contain the new variable.
+    features : list of str
+        Fractal features to apply to the dataframe.
+    fractals : list of str
+        Pandas offset aliases.
 
     Returns
     -------
     f : pandas.DataFrame
         Dataframe with the new variable.
-    info : str
-        String describing the outcome:
-            ``'variable added'``
-            ``'function called'``
-            ``'variable lagged'``
-            ``'fractal deferred'``
 
-    Other Parameters
-    ----------------
-    Variable.variables : dict
-        Global dictionary of variables
+    Example
+    -------
+
+    If the two fractals are *1D* and *1W*, then the following variable ``vlow``
+    checks for a V pattern where the current day's low is less than last week's
+    low minus 1.5 x the daily Average True Range (ATR).
+
+        vlow : low < ^low[1] - 1.5 * atr
 
     """
 
-    vxlag, root, valias, plist, lag = vparse(v)
-    logger.debug("vexec  : %s", v)
-    logger.debug("vxlag  : %s", vxlag)
-    logger.debug("root   : %s", root)
-    logger.debug("valias : %s", valias)
-    logger.debug("plist  : %s", plist)
-    logger.debug("lag    : %s", lag)
+    # output frame
+    return f
 
-    vinfo = 'variable not added'
-    if vxlag not in f.columns:
-        if root in Variable.variables:
-            logger.debug("Found variable %s: ", root)
-            vroot = Variable.variables[root]
-            expr = vroot.expr
-            if CARET in expr:
-                vinfo = 'fractal deferred'
+    
+#
+# Function vexec_agg_fractal
+#
+
+def vexec_agg_fractal(f, features, fractals):
+    r"""Add a fractal aggregate variable to a dataframe.
+
+    Create a fractal aggregate variable.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with all fractals to contain the new variable.
+    features : list of str
+        Fractal features to apply to the dataframe.
+    fractals : list of str
+        Pandas offset aliases.
+
+    Returns
+    -------
+    f : pandas.DataFrame
+        Dataframe with the new variable.
+
+    Example
+    -------
+
+    If the two fractals are *1D* and *1W*, then the following variable ``vlow``
+    checks for a V pattern where the current day's low is less than last week's
+    low minus 1.5 x the daily Average True Range (ATR).
+
+        vlow : low < ^low[1] - 1.5 * atr
+
+    """
+
+    for fractal in fractals:
+        for feature in features:
+            if feature.startswith(ATSIGN):
+                allv = vtree(feature)
+                for v in allv:
+                    f, vexpr = vexec(f, v)
             else:
-                expr_new = vsub(vxlag, expr)
-                expr_split = expr_new.split(BSEP)
-                expr_split = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
-                expr_new = BSEP.join(expr_split)
-                estr = "%s" % BSEP.join([''.join(['`', vxlag, '`']), ESEP, expr_new])
-                logger.debug("Expression: %s", estr)
-                # pandas eval
-                f[vxlag] = f.eval(expr_new)
-                vinfo = 'variable added'
-        else:
-            logger.debug("Did not find variable: %s", root)
-            # Must be a function call
-            func_name = root
-            # Convert the parameter list and prepend the data frame
-            newlist = []
-            for p in plist:
-                try:
-                    newlist.append(int(p))
-                except:
-                    try:
-                        newlist.append(float(p))
-                    except:
-                        newlist.append(p)
-            newlist.insert(0, f)
-            # Find the module and function
-            module = None
-            if vfuncs:
-                for m in vfuncs:
-                    funcs = vfuncs[m]
-                    if func_name in funcs:
-                        module = m
-                        break
-            # If the module was found, import the external transform function,
-            # else search the local namespace and AlphaPy.
-            if module:
-                ext_module = import_module(module)
-                func = getattr(ext_module, func_name)
-            else:
-                modname = globals()['__name__']
-                module = sys.modules[modname]
-                if func_name in dir(module):
-                    func = getattr(module, func_name)
-                else:
-                    try:
-                        ap_module = import_module('alphapy.transforms')
-                        func = getattr(ap_module, func_name)
-                    except:
-                        func = None
-            if func:
-                # Create the variable by calling the function
-                f[v] = func(*newlist)
-                vinfo = 'function called'
-            elif func_name not in dir(builtins):
-                module_error = "*** Could not find module to execute function: {} ***".format(func_name)
-                logger.error(module_error)
-                sys.exit(module_error)
-    # if necessary, add the lagged variable
-    if lag > 0 and vxlag in f.columns:
-        f[v] = f[vxlag].shift(lag)
-        vinfo = 'variable lagged'
-    # output frame and execution status
-    return f, vinfo
+                logger.info("Invalid aggregate variable %s", feature)
+    # output frame
+    return f
 
 
 #
@@ -696,8 +660,9 @@ def vapply(group, market_specs, vfuncs=None):
 
     # Separate the features into single-fractal and multi-fractal features.
 
-    features_sf = [f for f in features if CARET not in f]
+    features_sf = [f for f in features if CARET not in f and ATSIGN not in f]
     features_mf = [f for f in features if CARET in f]
+    features_agg = [f for f in features if ATSIGN in f]
 
     # Initialize list of dataframes, function dictionary, and possibly OHLC mapping values
 
@@ -734,9 +699,9 @@ def vapply(group, market_specs, vfuncs=None):
                         logger.debug("%s Variable: %s.%s", symbol.upper(), fractal, vname)
                         allv = vtree(vname)
                         for v in allv:
-                            df, vinfo = vexec(df, v, vfuncs)
-                            if vinfo == 'fractal deferred':
-                                features_mf.append(v)
+                            df, vexpr = vexec(df, v, vfuncs)
+                            if vexpr:
+                                features_mf.append(vexpr)
                 else:
                     raise RuntimeError("Empty Dataframe for %s [%s]" % (symbol, fractal))
             else:
@@ -764,8 +729,9 @@ def vapply(group, market_specs, vfuncs=None):
                         dfj[col2name] = vfrac(dfj, col1name, fractals[indexf], func_dict[field])
             else:
                 dfj = df
-        # apply fractal features
-        dfj = vexec_fractal(dfj, features_mf, fractals)
+        # apply multi-fractal and aggregate features
+        # dfj = vexec_multi_fractal(dfj, features_mf, fractals)
+        # dfj = vexec_agg_fractal(dfj, features_agg, fractals)
         # add the symbol
         colsym = 'symbol'
         dfj[colsym] = symbol

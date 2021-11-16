@@ -221,7 +221,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
     # Evaluate the long and short events in the price frame
 
     for signal in active_signals:
-        pf = vexec(pf, signal)
+        pf, vinfo = vexec(pf, signal)
 
     # Initialize trading state variables
 

@@ -198,7 +198,7 @@ def apply_transforms(model, X):
             # get lag values
             lag_values = []
             for item in fcols:
-                _, _, _, _, lag = vparse(item)
+                _, _, _, _, _, lag = vparse(item)
                 lag_values.append(lag)
             # apply transform to the most recent value
             if lag_values:

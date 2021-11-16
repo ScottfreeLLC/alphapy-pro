@@ -103,9 +103,9 @@ def adx(f, p = 14):
 
     """
     c1 = 'diplus'
-    vexec(f, c1)
+    f, vinfo = vexec(f, c1)
     c2 = 'diminus'
-    vexec(f, c2)
+    f, vinfo = vexec(f, c2)
     # calculations
     dip = f[c1]
     dim = f[c2]
@@ -338,9 +338,9 @@ def diminus(f, p = 14):
 
     """
     tr = 'truerange'
-    vexec(f, tr)
+    f, vinfo = vexec(f, tr)
     atr = USEP.join(['atr', str(p)])
-    vexec(f, atr)
+    f, vinfo = vexec(f, atr)
     dmm = 'dmminus'
     f[dmm] = dminus(f)
     new_column = 100 * dminus(f).ewm(span=p).mean() / f[atr]
@@ -376,11 +376,11 @@ def diplus(f, p = 14):
 
     """
     tr = 'truerange'
-    vexec(f, tr)
+    f, vinfo = vexec(f, tr)
     atr = USEP.join(['atr', str(p)])
-    vexec(f, atr)
+    f, vinfo = vexec(f, atr)
     dmp = 'dmplus'
-    vexec(f, dmp)
+    f, vinfo = vexec(f, dmp)
     new_column = 100 * f[dmp].ewm(span=p).mean() / f[atr]
     return new_column
 
@@ -577,7 +577,7 @@ def gap(f, o='open', c='close'):
 
     """
     c1 = ''.join([c, '[1]'])
-    vexec(f, c1)
+    f, vinfo = vexec(f, c1)
     new_column = 100 * pchange2(f, o, c1)
     return new_column
 
@@ -1276,7 +1276,7 @@ def rsi(f, c, p = 14):
 
     """
     cdiff = 'net'
-    vexec(f, cdiff)
+    f, vinfo = vexec(f, cdiff)
     f['pval'] = upc(f, cdiff)
     f['mval'] = dpc(f, cdiff)
     upcs = ma(f, 'pval', p)
@@ -1591,7 +1591,7 @@ def truehigh(f, h='high', l='low'):
 
     """
     l1 = ''.join([l, '[1]'])
-    vexec(f, l1)
+    f, vinfo = vexec(f, l1)
     new_column = f.apply(c2max, axis=1, args=[l1, h])
     return new_column
 
@@ -1623,7 +1623,7 @@ def truelow(f, h='high', l='low'):
 
     """
     h1 = ''.join([h, '[1]'])
-    vexec(f, h1)
+    f, vinfo = vexec(f, h1)
     new_column = f.apply(c2min, axis=1, args=[h1, l])
     return new_column
 
