@@ -117,7 +117,7 @@ class Frame(object):
                 # add frame to frames list
                 Frame.frames[fn] = self
             else:
-                logger.info("Frame %s already exists" % fn)
+                logger.debug("Frame %s already exists" % fn)
         else:
             logger.info("df must be of type Pandas DataFrame")
         
