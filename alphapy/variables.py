@@ -186,14 +186,16 @@ def vparse(vname):
     """
 
     # split along fractal first
-    fsplit = vname.split(ATSIGN)
-    if len(fsplit) > 1:
-        fractal = -1
-    else:
-        fsplit = vname.split(CARET)
-        fractal = len(fsplit) - 1
-    # split along lag next
-    lsplit = fsplit[-1].split(LOFF)
+    fractal = 0
+    foffset = 0
+    if vname[0] == ATSIGN or vname[0] == CARET:
+        if vname[0] == ATSIGN:
+            fractal = -1
+        if vname[0] == CARET:
+            fractal = 1
+        foffset = 1
+    # split along lag
+    lsplit = vname[foffset:].split(LOFF)
     vxlag = lsplit[0]
     # if necessary, substitute any alias
     vxlag1 = vxlag.split(USEP)[0]
@@ -234,13 +236,17 @@ def vparse(vname):
 # Function allvars
 #
 
-def allvars(expr):
+def allvars(expr, match_fractal=True, match_lag=True):
     r"""Get the list of valid names in the expression.
 
     Parameters
     ----------
     expr : str
         A valid expression conforming to the Variable Definition Language.
+    match_fractal : bool
+        Flag to match fractal special character.
+    match_lag : bool
+        Flag to match fractal special character.
 
     Returns
     -------
@@ -250,21 +256,16 @@ def allvars(expr):
     """
     vlist = []
     logger.debug("Expression: %s", expr)
-    for item in expr.split(BSEP):
-        match1_re = r'(\(|-)?[\^]?[A-Za-z]{1}\w+(\[\d+\])?'
-        match1 = re.search(match1_re, item)
-        match2_re = r'\(([^)]+)\)'
-        match2 = re.search(match2_re, item)
-        if match1 or match2:
-            if match2:
-                var = match2.group(0)
-            elif match1:
-                var = match1.group(0)
-            special_chars = '^@-()'
-            for sc in special_chars:
-                var = var.replace(sc, '')
-            vlist.append(var)
-    vlist = list(set(vlist))
+    if match_fractal and match_lag:
+        pat = r'(\^)?([A-Za-z]{1}\w+)(\[\d+\])?'
+    elif match_fractal:
+        pat = r'[\^]?[A-Za-z]{1}\w+'
+    elif match_lag:
+        pat = r'[A-Za-z]{1}\w+(\[\d+\])?'
+    else:
+        pat = r'[A-Za-z]{1}\w+'
+    vgroups = re.findall(pat, expr)
+    vlist = [''.join(vgroup) for vgroup in vgroups]
     logger.debug("Variable Names: %s", vlist)
     return vlist
 
@@ -417,11 +418,10 @@ def vexpr(f, v):
         expr_split = expr_new.split(BSEP)
         expr_split = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
         vexpr = BSEP.join(expr_split)
-        estr = "%s" % BSEP.join([''.join(['`', vxlag, '`']), ESEP, vexpr])
-        logger.debug("Expression: %s", estr)
+        logger.debug("Expression: %s", vexpr)
     else:
         vexpr = None
-        logger.debug("Could not find variable: %s", v)
+        logger.debug("Could not find expression for variable: %s", v)
     # output expanded expression for evaluation
     return vexpr
 
@@ -538,7 +538,7 @@ def vexec(f, v, vfuncs=None):
 
     """
 
-    _, vxlag, root, _, _, lag = vparse(v)
+    fractal, vxlag, root, _, _, lag = vparse(v)
     if vxlag not in f.columns:
         # find the variable to evaluate
         veval = vexpr(f, v)
@@ -559,7 +559,8 @@ def vexec(f, v, vfuncs=None):
                 sys.exit(module_error)
     # if necessary, add the lagged variable
     if lag > 0 and vxlag in f.columns:
-        f[v] = f[vxlag].shift(lag)
+        vlag = v if fractal==0 else v[1:]
+        f[vlag] = f[vxlag].shift(lag)
     # output frame and execution status
     return f
 
@@ -568,8 +569,8 @@ def vexec(f, v, vfuncs=None):
 # Function vexec_multi_fractal
 #
 
-def vexec_multi_fractal(f, features, fractals):
-    r"""Add a multi-fractal variable to a dataframe.
+def vexec_multi_fractal(f, expr_dict, fractals):
+    r"""Add multi-fractal variables to a dataframe.
 
     Create a variable having an expression with mixed fractals. 
 
@@ -577,15 +578,15 @@ def vexec_multi_fractal(f, features, fractals):
     ----------
     f : pandas.DataFrame
         Dataframe with all fractals to contain the new variable.
-    features : list of str
-        Fractal features to apply to the dataframe.
+    expr_dict : dict of str
+        Fractal exressions to apply to the dataframe.
     fractals : list of str
         Pandas offset aliases.
 
     Returns
     -------
     f : pandas.DataFrame
-        Dataframe with the new variable.
+        Dataframe with the new variables.
 
     Example
     -------
@@ -598,6 +599,41 @@ def vexec_multi_fractal(f, features, fractals):
 
     """
 
+    print(expr_dict)
+    vpat = re.compile(r'[\^]?[A-Za-z]{1}\w+')
+    for index, fractal in enumerate(fractals):
+        print(index, fractal, fractals)
+        for key, value in expr_dict.items():
+            var = key
+            expr = value
+            print(var, expr)
+            if index < len(fractals)-1:
+                all_vars = allvars(expr, match_fractal=True, match_lag=False)
+                print(all_vars)
+                for vindex, v in enumerate(all_vars):
+                    print(v)
+                    if v.startswith(CARET):
+                        vnew = PSEP.join([fractals[index+1], v[1:]])
+                        expr = expr.replace(v, vnew)
+                    else:
+                        miter = re.finditer(vpat, expr)
+                        mspan = [m for m in miter][vindex].span()
+                        mspan_start = mspan[0]
+                        mspan_end = mspan[1]
+                        print(mspan_start, mspan_end)
+                        vnew = PSEP.join([fractal, v])
+                        expr = expr[:mspan_start] + vnew + expr[mspan_end:]
+                logger.debug("Variable: %s, Expression: %s", var, expr)
+                expr_split = expr.split(BSEP)
+                expr_quoted = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
+                expr_new = BSEP.join(expr_quoted)
+                f[var] = f.eval(expr_new)
+                logger.debug("Variable: %s, Expression: %s", var, expr_new)
+                #rename column
+                print(f.columns)
+                print(f)
+            else:
+                logger.info("")
     # output frame
     return f
 
@@ -736,12 +772,12 @@ def vapply(group, market_specs, vfuncs=None):
     mfe_dict = {}
     for vname, allv in fdict.items():
         for v in allv:
-            _, _, root, _, _, _ = vparse(v)
+            _, vxlag, root, _, _, _ = vparse(v)
             if root in Variable.variables:
                 vroot = Variable.variables[root]
                 expr = vroot.expr
                 if CARET in expr and v not in mfe_dict:
-                    mfe_dict[v] = expr
+                    mfe_dict[vxlag] = expr
 
     # Get all aggregate variables
 
@@ -811,9 +847,10 @@ def vapply(group, market_specs, vfuncs=None):
                         dfj[col2name] = vfrac(dfj, col1name, fractals[indexf], func_dict[field])
             else:
                 dfj = df
-        # apply multi-fractal and aggregate features
-        # dfj = vexec_multi_fractal(dfj, features_mf, fractals)
-        # dfj = vexec_agg_fractal(dfj, features_agg, fractals)
+        # evaluate multi-fractal expressions
+        dfj = vexec_multi_fractal(dfj, mfe_dict, fractals)
+        # create aggregate feature
+        # dfj = vexec_agg_fractal(dfj, agg_list, fractals)
         # add the symbol
         colsym = 'symbol'
         dfj[colsym] = symbol
