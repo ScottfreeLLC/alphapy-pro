@@ -599,19 +599,14 @@ def vexec_multi_fractal(f, expr_dict, fractals):
 
     """
 
-    print(expr_dict)
     vpat = re.compile(r'[\^]?[A-Za-z]{1}\w+')
     for index, fractal in enumerate(fractals):
-        print(index, fractal, fractals)
         for key, value in expr_dict.items():
             var = key
             expr = value
-            print(var, expr)
             if index < len(fractals)-1:
                 all_vars = allvars(expr, match_fractal=True, match_lag=False)
-                print(all_vars)
                 for vindex, v in enumerate(all_vars):
-                    print(v)
                     if v.startswith(CARET):
                         vnew = PSEP.join([fractals[index+1], v[1:]])
                         expr = expr.replace(v, vnew)
@@ -620,20 +615,18 @@ def vexec_multi_fractal(f, expr_dict, fractals):
                         mspan = [m for m in miter][vindex].span()
                         mspan_start = mspan[0]
                         mspan_end = mspan[1]
-                        print(mspan_start, mspan_end)
                         vnew = PSEP.join([fractal, v])
                         expr = expr[:mspan_start] + vnew + expr[mspan_end:]
                 logger.debug("Variable: %s, Expression: %s", var, expr)
                 expr_split = expr.split(BSEP)
                 expr_quoted = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
                 expr_new = BSEP.join(expr_quoted)
-                f[var] = f.eval(expr_new)
+                # define the multi-fractal variable
+                var_name = PSEP.join([fractal, var])
+                f[var_name] = f.eval(expr_new)
                 logger.debug("Variable: %s, Expression: %s", var, expr_new)
-                #rename column
-                print(f.columns)
-                print(f)
             else:
-                logger.info("")
+                logger.debug("Cannot define multi-fractal variable %s at highest level", var)
     # output frame
     return f
 
@@ -751,8 +744,9 @@ def vapply(group, market_specs, vfuncs=None):
 
     # Get group information
 
-    gsubject = group.space.subject
-    gschema = group.space.schema
+    gspace = group.space
+    gsubject = gspace.subject
+    gschema = gspace.schema
     symbols = [item.lower() for item in group.members]
 
     # Extract market specification fields
@@ -856,6 +850,9 @@ def vapply(group, market_specs, vfuncs=None):
         dfj[colsym] = symbol
         first_col = dfj.pop(colsym)
         dfj.insert(0, colsym, first_col)
+        # assign global frame for trading
+        tspace = Space(gsubject, gschema, 'ALL')
+        _ = Frame(symbol.lower(), tspace, dfj)
         # append frame to list of dataframes
         dffs.append(dfj)
     # return all of the dataframes

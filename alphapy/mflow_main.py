@@ -386,6 +386,7 @@ def market_pipeline(model, market_specs):
         sellexit = system_specs['sellexit']
         holdperiod = system_specs['holdperiod']
         scale = system_specs['scale']
+        trade_fractal = fractals[0]
         logger.info("Running System %s", system_name)
         logger.info("Buy Signal  : %s", buysignal)
         logger.info("Buy Stop    : %s", buystop)
@@ -395,9 +396,11 @@ def market_pipeline(model, market_specs):
         logger.info("Sell Exit   : %s", sellexit)
         logger.info("Hold Period : %d", holdperiod)
         logger.info("Scale       : %r", scale)
+        logger.info("Fractal     : %s", trade_fractal)
         # create and run the system
         system = System(system_name, buysignal, buystop, buyexit,
-                        sellsignal, sellstop, sellexit, holdperiod, scale)
+                        sellsignal, sellstop, sellexit,
+                        holdperiod, scale, trade_fractal)
         tfs = run_system(model, system, group, intraday)
         # generate a portfolio
         if tfs.empty:
