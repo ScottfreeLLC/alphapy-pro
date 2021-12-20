@@ -303,6 +303,7 @@ def get_day_offset(date_vector):
         A vector of day offsets between adjacent dates.
 
     """
+
     dv = pd.to_datetime(date_vector)
     offsets = pd.to_datetime(dv) - pd.to_datetime(dv[0])
     day_offset = offsets.astype('timedelta64[D]').astype(int)
@@ -770,6 +771,13 @@ def main(args=None):
     null_indices = [i for i, val in enumerate(null_rows.tolist()) if val == True]
     for i in null_indices:
         logger.info("Null Record: %d on Date: %s", i, df.date[i])
+
+    #
+    # Make all team names lower case
+    #
+
+    df['home.team'] = df['home.team'].str.lower()
+    df['away.team'] = df['away.team'].str.lower()
 
     #
     # Run the game pipeline on a seasonal loop

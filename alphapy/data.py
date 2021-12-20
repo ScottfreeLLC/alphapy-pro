@@ -251,7 +251,7 @@ def sample_data(model):
     # Choose the sampling method.
 
     if sampling_method == SamplingMethod.under_random:
-        sampler = RandomUnderSampler()
+        sampler = RandomUnderSampler(sampling_strategy=ratio)
     elif sampling_method == SamplingMethod.under_tomek:
         sampler = TomekLinks()
     elif sampling_method == SamplingMethod.under_cluster:
@@ -261,19 +261,17 @@ def sample_data(model):
     elif sampling_method == SamplingMethod.under_ncr:
         sampler = NeighbourhoodCleaningRule()
     elif sampling_method == SamplingMethod.over_random:
-        sampler = RandomOverSampler(ratio=ratio)
+        sampler = RandomOverSampler(sampling_strategy=ratio)
     elif sampling_method == SamplingMethod.over_smote:
-        sampler = SMOTE(ratio=ratio, kind='regular')
+        sampler = SMOTE()
     elif sampling_method == SamplingMethod.over_smoteb:
-        sampler = SMOTE(ratio=ratio, kind='borderline1')
+        sampler = SMOTE(sampling_strategy==ratio, kind='borderline1')
     elif sampling_method == SamplingMethod.over_smotesv:
-        sampler = SMOTE(ratio=ratio, kind='svm')
+        sampler = SMOTE(sampling_strategy=ratio, kind='svm')
     elif sampling_method == SamplingMethod.overunder_smote_tomek:
-        sampler = SMOTETomek(ratio=ratio)
+        sampler = SMOTETomek(sampling_strategy=ratio)
     elif sampling_method == SamplingMethod.overunder_smote_enn:
-        sampler = SMOTEENN(ratio=ratio)
-    elif sampling_method == SamplingMethod.ensemble_bc:
-        sampler = BalanceCascade()
+        sampler = SMOTEENN(sampling_strategy=ratio)
     elif sampling_method == SamplingMethod.ensemble_easy:
         sampler = EasyEnsembleClassifier()
     else:
@@ -281,7 +279,7 @@ def sample_data(model):
 
     # Get the newly sampled features.
 
-    X, y = sampler.fit_sample(X_train, y_train)
+    X, y = sampler.fit_resample(X_train, y_train)
 
     logger.info("Original Samples : %d", X_train.shape[0])
     logger.info("New Samples      : %d", X.shape[0])

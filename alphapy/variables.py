@@ -579,7 +579,7 @@ def vexec_multi_fractal(f, expr_dict, fractals):
     f : pandas.DataFrame
         Dataframe with all fractals to contain the new variable.
     expr_dict : dict of str
-        Fractal exressions to apply to the dataframe.
+        Multi-Fractal exressions to apply to the dataframe.
     fractals : list of str
         Pandas offset aliases.
 
@@ -617,7 +617,6 @@ def vexec_multi_fractal(f, expr_dict, fractals):
                         mspan_end = mspan[1]
                         vnew = PSEP.join([fractal, v])
                         expr = expr[:mspan_start] + vnew + expr[mspan_end:]
-                logger.debug("Variable: %s, Expression: %s", var, expr)
                 expr_split = expr.split(BSEP)
                 expr_quoted = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
                 expr_new = BSEP.join(expr_quoted)
@@ -627,52 +626,6 @@ def vexec_multi_fractal(f, expr_dict, fractals):
                 logger.debug("Variable: %s, Expression: %s", var, expr_new)
             else:
                 logger.debug("Cannot define multi-fractal variable %s at highest level", var)
-    # output frame
-    return f
-
-    
-#
-# Function vexec_agg_fractal
-#
-
-def vexec_agg_fractal(f, features, fractals):
-    r"""Add a fractal aggregate variable to a dataframe.
-
-    Create a fractal aggregate variable.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with all fractals to contain the new variable.
-    features : list of str
-        Fractal features to apply to the dataframe.
-    fractals : list of str
-        Pandas offset aliases.
-
-    Returns
-    -------
-    f : pandas.DataFrame
-        Dataframe with the new variable.
-
-    Example
-    -------
-
-    If the two fractals are *1D* and *1W*, then the following variable ``vlow``
-    checks for a V pattern where the current day's low is less than last week's
-    low minus 1.5 x the daily Average True Range (ATR).
-
-        vlow : low < ^low[1] - 1.5 * atr
-
-    """
-
-    for fractal in fractals:
-        for feature in features:
-            if feature.startswith(ATSIGN):
-                allv = vtree(feature)
-                for v in allv:
-                    f = vexec(f, v)
-            else:
-                logger.info("Invalid aggregate variable %s", feature)
     # output frame
     return f
 
@@ -703,15 +656,76 @@ def vfrac(f, c, fractal, func):
     """
 
     if func == 'first':
-        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[0]))
+        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(
+            lambda x: x.expanding().apply(lambda x: x.values[0]))
     elif func == 'last':
-        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[-1]))
+        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(
+            lambda x: x.expanding().apply(lambda x: x.values[-1]))
     else:
         try:
             new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(func)
         except:
             logger.info("Could not apply function %s for fractal %s", func, fractal)
     return new_column
+
+
+#
+# Function vexec_agg_fractal
+#
+
+def vexec_agg_fractal(f, features, fractals):
+    r"""Add a fractal aggregate variable to a dataframe.
+
+    Create a fractal aggregate variable.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with all fractals to contain the new variable.
+    features : list of str
+        Aggregate Fractal features to apply to the dataframe.
+    fractals : list of str
+        Pandas offset aliases.
+
+    Returns
+    -------
+    f : pandas.DataFrame
+        Dataframe with the new variable.
+
+    Example
+    -------
+
+    If the two fractals are *1D* and *1W*, then the following variable ``vlow``
+    checks for a V pattern where the current day's low is less than last week's
+    low minus 1.5 x the daily Average True Range (ATR).
+
+        vlow : low < ^low[1] - 1.5 * atr
+
+    """
+
+    for index, fractal in enumerate(fractals):
+        if index < len(fractals)-1:
+            for feature in features:
+                if feature.startswith(ATSIGN):
+                    # define component variables at this fractal
+                    allv = vtree(feature[1:])
+                    for v in allv:
+                        # define variable
+                        f = vexec(f, v)
+                        # rename column
+                        var_name = PSEP.join([fractal, v])
+                        f.rename(columns={v:var_name}, inplace=True)
+                    # group at the higher fractal to get the last row as the aggregate variable
+                    fractal_high = fractals[index+1]
+                    agg_name = PSEP.join([fractal_high, feature])
+                    f[agg_name] = vfrac(f, var_name, fractal_high, 'last')
+                else:
+                    logger.info("Invalid aggregate variable %s", feature)
+        else:
+            logger.debug("Cannot define aggregates at highest fractal %s", fractal)
+    # output frame
+    return f
+
 
 
 #
@@ -833,18 +847,14 @@ def vapply(group, market_specs, vfuncs=None):
                 dfr = df.resample(fractals[0]).ffill()
                 # join frames
                 dfj = dfj.merge(dfr, left_index=True, right_index=True)
-                # create cumulative fractal variables
-                for j in range(indexf):
-                    for field in func_dict.keys():
-                        col1name = '.'.join([fractals[0], field])
-                        col2name = ''.join([col1name, 'f', str(j+1)])
-                        dfj[col2name] = vfrac(dfj, col1name, fractals[indexf], func_dict[field])
             else:
                 dfj = df
         # evaluate multi-fractal expressions
-        dfj = vexec_multi_fractal(dfj, mfe_dict, fractals)
+        if len(mfe_dict) > 0:
+            dfj = vexec_multi_fractal(dfj, mfe_dict, fractals)
         # create aggregate feature
-        # dfj = vexec_agg_fractal(dfj, agg_list, fractals)
+        if len(agg_list) > 0:
+            dfj = vexec_agg_fractal(dfj, agg_list, fractals)
         # add the symbol
         colsym = 'symbol'
         dfj[colsym] = symbol

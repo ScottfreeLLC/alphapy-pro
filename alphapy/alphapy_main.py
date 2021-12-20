@@ -177,21 +177,32 @@ def training_pipeline(model):
     X_all = apply_transforms(model, X_all)
 
     # Drop features
+    X_drop = X_all[drop]
     X_all = drop_features(X_all, drop)
 
     # Save the train and test files with extracted and dropped features
 
     datestamp = get_datestamp()
     data_dir = SSEP.join([directory, 'input'])
+    # train data
     df_train = X_all.iloc[:split_point, :]
     df_train[target] = y_train
     output_file = USEP.join([model.train_file, datestamp])
     write_frame(df_train, data_dir, output_file, extension, separator, index=False)
+    # dropped train data
+    df_train_drop = X_drop.iloc[:split_point, :]
+    output_file = USEP.join(['dropped', model.train_file, datestamp])
+    write_frame(df_train_drop, data_dir, output_file, extension, separator, index=False)
+    # test data
     df_test = X_all.iloc[split_point:, :]
     if y_test.any():
         df_test[target] = y_test
     output_file = USEP.join([model.test_file, datestamp])
     write_frame(df_test, data_dir, output_file, extension, separator, index=False)
+    # dropped test data
+    df_test_drop = X_drop.iloc[split_point:, :]
+    output_file = USEP.join(['dropped', model.test_file, datestamp])
+    write_frame(df_test_drop, data_dir, output_file, extension, separator, index=False)
 
     # Create crosstabs for any categorical features
 
@@ -255,7 +266,7 @@ def training_pipeline(model):
         except KeyError:
             est = None
             logger.info("Algorithm %s not found", algo)
-        if est:
+        if est is not None:
             # initial fit
             model = first_fit(model, algo, est)
             # copy feature name master into feature names per algorithm

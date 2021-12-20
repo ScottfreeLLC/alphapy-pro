@@ -200,13 +200,13 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
     #
     # Determine whether or not we are predicting with the base fractal or a higher fractal.
     #
-    # 1. Base Fractal Prediction
+    # 1. Base Prediction
     #
     #    a. Forecast on the lowest fractal.
     #    b. Optionally use higher-order fractals.
     #    c. The forecast is defined as n periods forward.
     #
-    # 2. Higher Fractal Prediction
+    # 2. Aggregate Prediction
     #
     #    a. Forecast on a higher fractal with lower-fractal data.
     #    b. Use lower-fractal data to index into the higher fractal prediction.
@@ -224,7 +224,7 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
         first_date = df.index[0]
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol.upper(), first_date, last_date)
-        # shift target and leaders
+        # base or aggregate predictions
         if base_prediction:
             df[target] = df[target].shift(-forecast_period)
             df[leaders] = df[leaders].shift(-1)
@@ -232,6 +232,7 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
             fractal_shift = df.groupby(pd.Grouper(freq=target_fractal)).count().iloc(0)[0][0]
             df[target] = df[target].shift(-fractal_shift)
             df[leaders] = df[leaders].shift(-fractal_shift)
+            # if forecast period is 0, then the last row is selected
             df = df.groupby(pd.Grouper(freq=target_fractal)).nth(forecast_period-1)
         # get frame subsets
         if predict_mode:
