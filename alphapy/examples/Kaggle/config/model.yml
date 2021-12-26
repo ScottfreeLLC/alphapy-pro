@@ -10,8 +10,8 @@ data:
     leaders           : []
     sampling          :
         option        : False
-        method        : under_random
-        ratio         : 0.5
+        method        : over_random
+        ratio         : 1.0
     sentinel          : -1
     separator         : ','
     shuffle           : False

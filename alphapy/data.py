@@ -238,20 +238,15 @@ def sample_data(model):
 
     # Calculate the sampling ratio if one is not provided.
 
-    if sampling_ratio > 0.0:
-        ratio = sampling_ratio
-    else:
-        uv, uc = np.unique(y_train, return_counts=True)
-        target_index = np.where(uv == target_value)[0][0]
-        nontarget_index = np.where(uv != target_value)[0][0]
-        ratio = (uc[nontarget_index] / uc[target_index]) - 1.0
-    logger.info("Sampling Ratio for target %s [%r]: %f",
-                target, target_value, ratio)
+    _, uc = np.unique(y_train, return_counts=True)
+    current_ratio = uc[1] / uc[0]
+    logger.info("Sampling Ratio for target %s [%r]: %.2f => %.2f",
+                target, target_value, current_ratio, sampling_ratio)
 
     # Choose the sampling method.
 
     if sampling_method == SamplingMethod.under_random:
-        sampler = RandomUnderSampler(sampling_strategy=ratio)
+        sampler = RandomUnderSampler(sampling_strategy=sampling_ratio)
     elif sampling_method == SamplingMethod.under_tomek:
         sampler = TomekLinks()
     elif sampling_method == SamplingMethod.under_cluster:
@@ -261,17 +256,17 @@ def sample_data(model):
     elif sampling_method == SamplingMethod.under_ncr:
         sampler = NeighbourhoodCleaningRule()
     elif sampling_method == SamplingMethod.over_random:
-        sampler = RandomOverSampler(sampling_strategy=ratio)
+        sampler = RandomOverSampler(sampling_strategy=sampling_ratio)
     elif sampling_method == SamplingMethod.over_smote:
         sampler = SMOTE()
     elif sampling_method == SamplingMethod.over_smoteb:
-        sampler = SMOTE(sampling_strategy==ratio, kind='borderline1')
+        sampler = SMOTE(sampling_strategy=sampling_ratio, kind='borderline1')
     elif sampling_method == SamplingMethod.over_smotesv:
-        sampler = SMOTE(sampling_strategy=ratio, kind='svm')
+        sampler = SMOTE(sampling_strategy=sampling_ratio, kind='svm')
     elif sampling_method == SamplingMethod.overunder_smote_tomek:
-        sampler = SMOTETomek(sampling_strategy=ratio)
+        sampler = SMOTETomek(sampling_strategy=sampling_ratio)
     elif sampling_method == SamplingMethod.overunder_smote_enn:
-        sampler = SMOTEENN(sampling_strategy=ratio)
+        sampler = SMOTEENN(sampling_strategy=sampling_ratio)
     elif sampling_method == SamplingMethod.ensemble_easy:
         sampler = EasyEnsembleClassifier()
     else:

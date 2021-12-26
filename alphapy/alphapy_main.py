@@ -69,8 +69,9 @@ from alphapy.model import make_predictions
 from alphapy.model import Model
 from alphapy.model import predict_best
 from alphapy.model import predict_blend
-from alphapy.model import save_model
+from alphapy.model import save_feature_map
 from alphapy.model import save_predictions
+from alphapy.model import save_predictor
 from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
@@ -191,8 +192,7 @@ def training_pipeline(model):
     write_frame(df_train, data_dir, output_file, extension, separator, index=False)
     # dropped train data
     df_train_drop = X_drop.iloc[:split_point, :]
-    output_file = USEP.join(['dropped', model.train_file, datestamp])
-    write_frame(df_train_drop, data_dir, output_file, extension, separator, index=False)
+    model.dropped_train = df_train_drop
     # test data
     df_test = X_all.iloc[split_point:, :]
     if y_test.any():
@@ -201,8 +201,7 @@ def training_pipeline(model):
     write_frame(df_test, data_dir, output_file, extension, separator, index=False)
     # dropped test data
     df_test_drop = X_drop.iloc[split_point:, :]
-    output_file = USEP.join(['dropped', model.test_file, datestamp])
-    write_frame(df_test_drop, data_dir, output_file, extension, separator, index=False)
+    model.dropped_test = df_test_drop
 
     # Create crosstabs for any categorical features
 
@@ -290,22 +289,29 @@ def training_pipeline(model):
     if len(model.algolist) > 1:
         model = predict_blend(model)
 
-    # Generate metrics
+    #
+    # Generate metrics, get the best estimator, generate plots, and save the model.
+    #
 
-    model = generate_metrics(model, Partition.train)
-    model = generate_metrics(model, Partition.test)
+    tag = 'BEST'
+    partition = Partition.train
+    model = generate_metrics(model, partition)
+    model = predict_best(model, partition)
+    generate_plots(model, partition)
+    model = save_predictions(model, tag, partition)
 
-    # Store the best estimator
-    model = predict_best(model)
-
-    # Generate plots
-
-    generate_plots(model, Partition.train)
     if model.test_labels:
-        generate_plots(model, Partition.test)
+        partition = Partition.test
+        model = generate_metrics(model, partition)
+        model = predict_best(model, partition)
+        generate_plots(model, partition)
+        model = save_predictions(model, tag, partition)
 
-    # Save best features and predictions
-    save_model(model, 'BEST', Partition.test)
+    # Save the model
+
+    date_stamp = get_datestamp()
+    save_predictor(model, tag, date_stamp)
+    save_feature_map(model, date_stamp)
 
     # Return the model
     return model

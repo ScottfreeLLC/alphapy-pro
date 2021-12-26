@@ -62,7 +62,6 @@ from sklearn.metrics import auc
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics import brier_score_loss
-from sklearn.metrics import classification_report
 from sklearn.metrics import cohen_kappa_score
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import explained_variance_score
@@ -76,9 +75,7 @@ from sklearn.metrics import median_absolute_error
 from sklearn.metrics import precision_score
 from sklearn.metrics import r2_score
 from sklearn.metrics import recall_score
-from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve
-from sklearn.metrics.cluster import adjusted_rand_score
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 import sys
@@ -120,6 +117,10 @@ class Model:
         Training labels in vector format.
     y_test  : pandas.Series
         Testing labels in vector format.
+    dropped_train : pandas.DataFrame
+        Dropped training features.
+    dropped_test  : pandas.Series
+        Dropped testing features.
     algolist : list
         Algorithms to use in training.
     estimators : dict
@@ -156,6 +157,8 @@ class Model:
         self.X_test = None
         self.y_train = None
         self.y_test = None
+        self.dropped_train = None
+        self.dropped_test = None
         # test labels
         self.test_labels = False
         # datasets
@@ -517,13 +520,15 @@ def load_predictor(directory):
 # Function save_predictor
 #
 
-def save_predictor(model, timestamp):
+def save_predictor(model, tag, timestamp):
     r"""Save the time-stamped model predictor to disk.
 
     Parameters
     ----------
     model : alphapy.Model
         The model object that contains the best estimator.
+    tag : str
+        A unique identifier for a model algorithm.
     timestamp : str
         Date in yyyy-mm-dd format.
 
@@ -539,7 +544,7 @@ def save_predictor(model, timestamp):
     directory = model.specs['directory']
 
     # Get the best predictor
-    predictor = model.estimators['BEST']
+    predictor = model.estimators[tag]
 
     # Save model object
 
@@ -798,7 +803,7 @@ def make_predictions(model, algo, calibrate):
 # Function predict_best
 #
 
-def predict_best(model):
+def predict_best(model, partition):
     r"""Select the best model based on score.
 
     Parameters
@@ -810,6 +815,8 @@ def predict_best(model):
     -------
     model : alphapy.Model
         The model object with the best estimator.
+    partition : alphapy.Partition
+        Reference to the dataset.
 
     Notes
     -----
@@ -826,7 +833,7 @@ def predict_best(model):
     """
 
     logger.info('='*80)
-    logger.info("Selecting Best Model")
+    logger.info("Selecting Best Model for partition: %s" % partition)
 
     # Define model tags
 
@@ -838,12 +845,6 @@ def predict_best(model):
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']
     scorer = model.specs['scorer']
-    test_labels = model.test_labels
-
-    # Determine the correct partition to select the best model
-
-    partition = Partition.test if test_labels else Partition.train
-    logger.info("Scoring for: %s", partition)
 
     # Initialize best parameters.
 
@@ -1174,16 +1175,23 @@ def save_predictions(model, tag, partition):
     model : alphapy.Model
         The model object to save.
     tag : str
-        A unique identifier for the output files, e.g., a date stamp.
+        A unique identifier for a model algorithm.
     partition : alphapy.Partition
         Reference to the dataset.
 
     Returns
     -------
-    preds : numpy array
-        The prediction vector.
-    probas : numpy array
-        The probability vector.
+    model : alphapy.Model
+        The model object with the blended estimator.
+
+    Notes
+    -----
+
+    The following components are extracted from the model object
+    and saved to disk:
+
+    * Model predictor (via joblib/pickle)
+    * Feature Map (via joblib/pickle)
 
     """
 
@@ -1193,6 +1201,8 @@ def save_predictions(model, tag, partition):
     extension = model.specs['extension']
     model_type = model.specs['model_type']
     separator = model.specs['separator']
+    submission_file = model.specs['submission_file']
+    submit_probas = model.specs['submit_probas']
 
     # Get date stamp to record file creation
     timestamp = get_datestamp()
@@ -1206,7 +1216,7 @@ def save_predictions(model, tag, partition):
     file_spec = ''.join([datasets[partition], '*'])
     file_name = most_recent_file(input_dir, file_spec)
     file_name = file_name.split(SSEP)[-1].split(PSEP)[0]
-    pf = read_frame(input_dir, file_name, extension, separator)
+    df_master = read_frame(input_dir, file_name, extension, separator)
 
     # Cull records before the prediction date
 
@@ -1217,127 +1227,63 @@ def save_predictions(model, tag, partition):
         found_pdate = False
 
     if found_pdate:
-        pd_indices = pf[pf.date >= predict_date].index.tolist()
-        pf = pf.iloc[pd_indices]
+        pd_indices = df_master[df_master.date >= predict_date].index.tolist()
+        df_master = df_master.iloc[pd_indices]
     else:
-        pd_indices = pf.index.tolist()
+        pd_indices = df_master.index.tolist()
 
-    # Save predictions for all projects
+    # Get dropped features
+
+    if partition == Partition.train:
+        df_master = pd.concat([df_master, model.dropped_train], axis=1)
+    elif partition == Partition.test:
+        df_master = pd.concat([df_master, model.dropped_test], axis=1)
+
+    # Get predictions for all projects
 
     logger.info("Saving Predictions")
-    output_file = USEP.join(['predictions', timestamp])
     preds = model.preds[(tag, partition)].squeeze()
     if found_pdate:
         preds = np.take(preds, pd_indices)
     pred_series = pd.Series(preds, index=pd_indices)
-    df_pred = pd.DataFrame(pred_series, columns=['prediction'])
-    write_frame(df_pred, output_dir, output_file, extension, separator)
 
-    # Save probabilities for classification projects
+    # Get probabilities for classification projects
 
     probas = None
     if model_type == ModelType.classification:
         logger.info("Saving Probabilities")
-        output_file = USEP.join(['probabilities', timestamp])
         probas = model.probas[(tag, partition)].squeeze()
         if found_pdate:
             probas = np.take(probas, pd_indices)
         prob_series = pd.Series(probas, index=pd_indices)
-        df_prob = pd.DataFrame(prob_series, columns=['probability'])
-        write_frame(df_prob, output_dir, output_file, extension, separator)
 
     # Save ranked predictions
 
     logger.info("Saving Ranked Predictions")
-    pf['prediction'] = pred_series
+    df_master['prediction'] = pred_series
     if model_type == ModelType.classification:
-        pf['probability'] = prob_series
-        pf.sort_values('probability', ascending=False, inplace=True)
+        df_master['probability'] = prob_series
+        df_master.sort_values('probability', ascending=False, inplace=True)
     else:
-        pf.sort_values('prediction', ascending=False, inplace=True)
-    output_file = USEP.join(['rankings', timestamp])
-    write_frame(pf, output_dir, output_file, extension, separator)
-
-    # Return predictions and any probabilities
-    return preds, probas
-
-
-#
-# Function save_model
-#
-
-def save_model(model, tag, partition):
-    r"""Save the results in the model file.
-
-    Parameters
-    ----------
-    model : alphapy.Model
-        The model object to save.
-    tag : str
-        A unique identifier for the output files, e.g., a date stamp.
-    partition : alphapy.Partition
-        Reference to the dataset.
-
-    Returns
-    -------
-    None : None
-
-    Notes
-    -----
-
-    The following components are extracted from the model object
-    and saved to disk:
-
-    * Model predictor (via joblib/pickle)
-    * Predictions
-    * Probabilities (classification only)
-    * Rankings
-    * Submission File (optional)
-
-    """
-
-    logger.info('='*80)
-
-    # Extract model parameters.
-
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    model_type = model.specs['model_type']
-    submission_file = model.specs['submission_file']
-    submit_probas = model.specs['submit_probas']
-
-    # Get date stamp to record file creation
-
-    d = datetime.now()
-    f = "%Y%m%d"
-    timestamp = d.strftime(f)
-
-    # Save the model predictor
-    save_predictor(model, timestamp)
-
-    # Save the feature map
-    save_feature_map(model, timestamp)
-
-    # Specify input and output directories
-
-    input_dir = SSEP.join([directory, 'input'])
-    output_dir = SSEP.join([directory, 'output'])
-
-    # Save predictions
-    preds, probas = save_predictions(model, tag, partition)
+        df_master.sort_values('prediction', ascending=False, inplace=True)
+    output_file = USEP.join(['ranked', datasets[partition], timestamp])
+    write_frame(df_master, output_dir, output_file, extension, separator)
 
     # Generate submission file
 
-    if submission_file:
+    if submission_file and partition == Partition.train:
         sample_spec = PSEP.join([submission_file, extension])
         sample_input = SSEP.join([input_dir, sample_spec])
-        ss = pd.read_csv(sample_input)
+        df_sub = pd.read_csv(sample_input)
         if submit_probas and model_type == ModelType.classification:
-            ss[ss.columns[1]] = probas
+            df_sub[df_sub.columns[1]] = model.probas[(tag, Partition.test)].squeeze()
         else:
-            ss[ss.columns[1]] = preds
+            df_sub[df_sub.columns[1]] = model.preds[(tag, Partition.test)].squeeze()
         submission_base = USEP.join(['submission', timestamp])
         submission_spec = PSEP.join([submission_base, extension])
         submission_output = SSEP.join([output_dir, submission_spec])
         logger.info("Saving Submission to %s", submission_output)
-        ss.to_csv(submission_output, index=False)
+        df_sub.to_csv(submission_output, index=False)
+
+    # Return model
+    return model
