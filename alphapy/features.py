@@ -475,13 +475,15 @@ def float_factor(x, rounding):
 # Function create_crosstabs
 #
 
-def create_crosstabs(model):
+def create_crosstabs(model, target):
     r"""Create cross-tabulations for categorical variables.
 
     Parameters
     ----------
     model : alphapy.Model
         The model object containing the data.
+    target : str
+        The target variable to cross-tabulate.
 
     Returns
     -------
@@ -493,8 +495,8 @@ def create_crosstabs(model):
     logger.info("Creating Cross-Tabulations")
 
     # Extract model data
-    X = model.X_train
-    y = model.y_train
+    X_train = model.X_train
+    y_train = model.y_train
 
     # Extract model parameters
 
@@ -503,11 +505,11 @@ def create_crosstabs(model):
     # Iterate through columns, dispatching and transforming each feature.
 
     crosstabs = {}
-    for fname in X:
+    for fname in X_train:
         if fname in factors:
             logger.info("Creating crosstabs for feature %s", fname)
-            ct = pd.crosstab(X[fname], y).apply(lambda r : r / r.sum(), axis=1)
-            crosstabs[fname] = ct
+            ct_factor = pd.crosstab(X_train[fname], y_train[target]).apply(lambda r : r / r.sum(), axis=1)
+            crosstabs[fname] = ct_factor
 
     # Save crosstabs to the feature map
 

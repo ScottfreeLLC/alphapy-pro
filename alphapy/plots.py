@@ -498,8 +498,8 @@ def plot_learning_curve(model, partition):
         # call learning curve function
         train_sizes=np.linspace(0.1, 1.0, cv_folds)
         train_sizes, train_scores, test_scores = \
-            learning_curve(est, X, y, train_sizes=train_sizes, cv=cv,
-                           n_jobs=n_jobs, verbose=verbosity)
+            learning_curve(est, X, y.values.ravel(), train_sizes=train_sizes,
+                           cv=cv, n_jobs=n_jobs, verbose=verbosity)
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
@@ -582,7 +582,7 @@ def plot_roc_curve(model, partition):
     plt.ylim([-0.05, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    title = BSEP.join([algo, "ROC Curve [", pstring, "]"])
+    title = BSEP.join(["ROC Curve [", pstring, "]"])
     plt.title(title)
     plt.legend(loc="lower right")
     # save chart
@@ -746,7 +746,7 @@ def plot_validation_curve(model, partition, pname, prange):
         estimator = model.estimators[algo]
         # set up plot
         train_scores, test_scores = validation_curve(
-            estimator, X, y, param_name=pname, param_range=prange,
+            estimator, X, y.values.ravel(), param_name=pname, param_range=prange,
             cv=cv_folds, scoring=scorer, n_jobs=n_jobs)
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)

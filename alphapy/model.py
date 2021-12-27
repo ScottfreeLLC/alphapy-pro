@@ -109,6 +109,14 @@ class Model:
     ----------
     specs : dict
         The model specifications.
+    df_X_train : pandas.DataFrame
+        Original train features.
+    df_X_test  : pandas.Series
+        Original train target.
+    df_y_train : pandas.DataFrame
+        Original test features.
+    df_y_test  : pandas.Series
+        Original test target.
     X_train : pandas.DataFrame
         Training features in matrix format.
     X_test  : pandas.Series
@@ -117,10 +125,6 @@ class Model:
         Training labels in vector format.
     y_test  : pandas.Series
         Testing labels in vector format.
-    dropped_train : pandas.DataFrame
-        Dropped training features.
-    dropped_test  : pandas.Series
-        Dropped testing features.
     algolist : list
         Algorithms to use in training.
     estimators : dict
@@ -153,18 +157,19 @@ class Model:
         # specifications
         self.specs = specs
         # data in memory
+        self.df_X_train = None
+        self.df_X_test = None
+        self.df_y_train = None
+        self.df_y_test = None
         self.X_train = None
         self.X_test = None
         self.y_train = None
         self.y_test = None
-        self.dropped_train = None
-        self.dropped_test = None
         # test labels
         self.test_labels = False
         # datasets
         self.train_file = datasets[Partition.train]
         self.test_file = datasets[Partition.test]
-        self.predict_file = datasets[Partition.predict]
         # algorithms
         try:
             self.algolist = self.specs['algorithms']
@@ -691,17 +696,17 @@ def first_fit(model, algo, est):
                                           random_state=seed)
         eval_set = [(X1, y1), (X2, y2)]
         eval_metric = xgb_score_map[scorer]
-        est.fit(X1, y1, eval_set=eval_set, eval_metric=eval_metric,
+        est.fit(X1, y1.values.ravel(), eval_set=eval_set, eval_metric=eval_metric,
                 early_stopping_rounds=esr)
     else:
-        est.fit(X_train, y_train)
+        est.fit(X_train, y_train.values.ravel())
 
     # Get the initial scores
 
     logger.info("Cross-Validation")
     try:
-        scores = cross_val_score(est, X_train, y_train, scoring=scorer, cv=cv_folds,
-                                 n_jobs=n_jobs, verbose=verbosity)
+        scores = cross_val_score(est, X_train, y_train.values.ravel(), scoring=scorer,
+                                 cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
         logger.info("Cross-Validation Scores: %s", scores)
     except:
         logger.info("Cross-Validation Failed: Try setting number_jobs = 1 in model.yml")
@@ -779,7 +784,7 @@ def make_predictions(model, algo, calibrate):
         if calibrate:
             logger.info("Calibrating Classifier")
             est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
-            est.fit(X_train, y_train)
+            est.fit(X_train, y_train.values.ravel())
             model.estimators[algo] = est
             logger.info("Calibration Complete")
         else:
@@ -1058,7 +1063,7 @@ def generate_metrics(model, partition):
 
     # Generate Metrics
 
-    if expected.any():
+    if not expected.empty:
         # Add blended model to the list of algorithms.
         if len(model.algolist) > 1:
             algolist = copy(model.algolist)
@@ -1212,57 +1217,32 @@ def save_predictions(model, tag, partition):
     input_dir = SSEP.join([directory, 'input'])
     output_dir = SSEP.join([directory, 'output'])
 
-    # Read the prediction frame
-    file_spec = ''.join([datasets[partition], '*'])
-    file_name = most_recent_file(input_dir, file_spec)
-    file_name = file_name.split(SSEP)[-1].split(PSEP)[0]
-    df_master = read_frame(input_dir, file_name, extension, separator)
+    # Join train and test files
 
-    # Cull records before the prediction date
-
-    try:
-        predict_date = model.specs['predict_date']
-        found_pdate = True
-    except:
-        found_pdate = False
-
-    if found_pdate:
-        pd_indices = df_master[df_master.date >= predict_date].index.tolist()
-        df_master = df_master.iloc[pd_indices]
-    else:
-        pd_indices = df_master.index.tolist()
-
-    # Get dropped features
-
+    df_master = pd.DataFrame()
     if partition == Partition.train:
-        df_master = pd.concat([df_master, model.dropped_train], axis=1)
+        df_master = pd.concat([model.df_X_train, model.df_y_train], axis=1)
     elif partition == Partition.test:
-        df_master = pd.concat([df_master, model.dropped_test], axis=1)
+        if not model.df_y_test.empty:
+            df_master = pd.concat([model.df_X_test, model.df_y_test], axis=1)
+        else:
+            df_master = model.df_X_test
 
     # Get predictions for all projects
 
-    logger.info("Saving Predictions")
-    preds = model.preds[(tag, partition)].squeeze()
-    if found_pdate:
-        preds = np.take(preds, pd_indices)
-    pred_series = pd.Series(preds, index=pd_indices)
+    logger.info("Getting Predictions")
+    df_master['prediction'] = model.preds[(tag, partition)]
 
     # Get probabilities for classification projects
 
-    probas = None
     if model_type == ModelType.classification:
-        logger.info("Saving Probabilities")
-        probas = model.probas[(tag, partition)].squeeze()
-        if found_pdate:
-            probas = np.take(probas, pd_indices)
-        prob_series = pd.Series(probas, index=pd_indices)
+        logger.info("Getting Probabilities")
+        df_master['probability'] = model.probas[(tag, partition)]
 
     # Save ranked predictions
 
     logger.info("Saving Ranked Predictions")
-    df_master['prediction'] = pred_series
     if model_type == ModelType.classification:
-        df_master['probability'] = prob_series
         df_master.sort_values('probability', ascending=False, inplace=True)
     else:
         df_master.sort_values('prediction', ascending=False, inplace=True)
@@ -1276,9 +1256,9 @@ def save_predictions(model, tag, partition):
         sample_input = SSEP.join([input_dir, sample_spec])
         df_sub = pd.read_csv(sample_input)
         if submit_probas and model_type == ModelType.classification:
-            df_sub[df_sub.columns[1]] = model.probas[(tag, Partition.test)].squeeze()
+            df_sub[df_sub.columns[1]] = model.probas[(tag, Partition.test)]
         else:
-            df_sub[df_sub.columns[1]] = model.preds[(tag, Partition.test)].squeeze()
+            df_sub[df_sub.columns[1]] = model.preds[(tag, Partition.test)]
         submission_base = USEP.join(['submission', timestamp])
         submission_spec = PSEP.join([submission_base, extension])
         submission_output = SSEP.join([output_dir, submission_spec])

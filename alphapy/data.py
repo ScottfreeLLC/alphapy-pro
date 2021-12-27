@@ -97,9 +97,9 @@ def get_data(model, partition):
 
     Returns
     -------
-    X : pandas.DataFrame
+    df_X : pandas.DataFrame
         The feature set.
-    y : pandas.Series
+    df_y : pandas.DataFrame
         The array of target values, if available.
 
     """
@@ -117,8 +117,8 @@ def get_data(model, partition):
 
     # Initialize X and y
 
-    X = pd.DataFrame()
-    y = np.empty([0, 0])
+    df_X = pd.DataFrame()
+    df_y = pd.DataFrame()
 
     # Read in the file
 
@@ -138,23 +138,24 @@ def get_data(model, partition):
                 logger.info("Labels (y) for %s will not be used", partition)
             else:
                 # assign the target column to y
-                y = df[target]
+                df_y = df[target]
                 # encode label only for classification
                 if model_type == ModelType.classification:
-                    y = LabelEncoder().fit_transform(y)
+                    y = LabelEncoder().fit_transform(df_y)
                 logger.info("Labels (y) found for %s", partition)
+                df_y = pd.DataFrame(y, columns=[target])
             # drop the target from the original frame
             df = df.drop([target], axis=1)
         else:
             logger.info("Target %s not found in %s", target, partition)
         # Extract features
         if features == WILDCARD:
-            X = df
+            df_X = df
         else:
-            X = df[features]
+            df_X = df[features]
 
     # Labels are returned usually only for training data
-    return X, y
+    return df_X, df_y
 
 
 #

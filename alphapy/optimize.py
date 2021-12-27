@@ -103,7 +103,7 @@ def rfecv_search(model, algo):
     rfecv = RFECV(estimator, step=rfe_step, cv=cv_folds,
                   scoring=scorer, verbose=verbosity, n_jobs=n_jobs)
     start = time()
-    selector = rfecv.fit(X_train, y_train)
+    selector = rfecv.fit(X_train, y_train.values.ravel())
     logger.info("RFECV took %.2f seconds for step %d and %d folds",
                 (time() - start), rfe_step, cv_folds)
     logger.info("Algorithm: %s, Selected Features: %d, Ranking: %s",
@@ -272,7 +272,7 @@ def hyper_grid_search(model, estimator):
     # Fit the randomized search and time it.
 
     start = time()
-    gscv.fit(X_train, y_train)
+    gscv.fit(X_train, y_train.values.ravel())
     if gs_iters > 0:
         logger.info("Grid Search took %.2f seconds for %d candidate"
                     " parameter settings." % ((time() - start), gs_iters))

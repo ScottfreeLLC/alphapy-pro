@@ -133,6 +133,10 @@ def training_pipeline(model):
 
     X_train, y_train = get_data(model, Partition.train)
     X_test, y_test = get_data(model, Partition.test)
+    model.df_X_train = X_train
+    model.df_y_train = y_train
+    model.df_X_test = X_test
+    model.df_y_test = y_test
 
     # If there is no test partition, then we will split the train partition
 
@@ -144,7 +148,7 @@ def training_pipeline(model):
 
     # Determine if there are any test labels
 
-    if y_test.any():
+    if target in y_test.columns:
         logger.info("Test Labels Found")
         model.test_labels = True
     model = save_features(model, X_train, X_test, y_train, y_test)
@@ -178,7 +182,6 @@ def training_pipeline(model):
     X_all = apply_transforms(model, X_all)
 
     # Drop features
-    X_drop = X_all[drop]
     X_all = drop_features(X_all, drop)
 
     # Save the train and test files with extracted and dropped features
@@ -190,23 +193,17 @@ def training_pipeline(model):
     df_train[target] = y_train
     output_file = USEP.join([model.train_file, datestamp])
     write_frame(df_train, data_dir, output_file, extension, separator, index=False)
-    # dropped train data
-    df_train_drop = X_drop.iloc[:split_point, :]
-    model.dropped_train = df_train_drop
     # test data
     df_test = X_all.iloc[split_point:, :]
-    if y_test.any():
+    if model.test_labels:
         df_test[target] = y_test
     output_file = USEP.join([model.test_file, datestamp])
     write_frame(df_test, data_dir, output_file, extension, separator, index=False)
-    # dropped test data
-    df_test_drop = X_drop.iloc[split_point:, :]
-    model.dropped_test = df_test_drop
 
     # Create crosstabs for any categorical features
 
     if model_type == ModelType.classification:
-        create_crosstabs(model)
+        create_crosstabs(model, target)
 
     # Create initial features
 
@@ -354,7 +351,7 @@ def prediction_pipeline(model):
 
     X_train, y_train = get_data(model, Partition.train)
 
-    partition = Partition.predict
+    partition = Partition.test
     X_predict, _ = get_data(model, partition)
 
     # Load feature_map

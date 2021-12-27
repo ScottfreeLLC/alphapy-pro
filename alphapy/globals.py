@@ -243,6 +243,5 @@ class Scalers(Enum):
 # Datasets
 #
 
-datasets = {Partition.train   : 'train',
-            Partition.test    : 'test',
-            Partition.predict : 'predict'}
+datasets = {Partition.train : 'train',
+            Partition.test  : 'test'}
