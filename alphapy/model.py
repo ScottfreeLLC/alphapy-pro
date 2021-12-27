@@ -988,7 +988,7 @@ def predict_blend(model):
 
     if model_type == ModelType.classification:
         clf = LogisticRegression()
-        clf.fit(X_blend_train, y_train)
+        clf.fit(X_blend_train, y_train.values.ravel())
         model.estimators[blend_tag] = clf
         model.preds[(blend_tag, Partition.train)] = clf.predict(X_blend_train)
         model.preds[(blend_tag, Partition.test)] = clf.predict(X_blend_test)

@@ -584,7 +584,7 @@ def get_factors(model, X_train, X_test, y_train, fnum, fname,
     if enc is not None:
         # fit training features
         logger.info("Fitting training features for %s", fname)
-        ftrain = enc.fit_transform(df_train, y_train)
+        ftrain = enc.fit_transform(df_train, y_train.values.ravel())
         # fit testing features
         logger.info("Transforming testing features for %s", fname)
         ftest = enc.transform(df_test)
@@ -1177,7 +1177,7 @@ def select_features(model):
 
     # Perform feature selection and get the support mask
 
-    fsfit = fs.fit(X_train, y_train)
+    fsfit = fs.fit(X_train, y_train.values.ravel())
     support = fsfit.get_support()
 
     # Record the support vector
@@ -1308,7 +1308,7 @@ def create_interactions(model, X):
                 selector = SelectPercentile(f_classif, percentile=isample_pct)
             else:
                 raise TypeError("Unknown model type when creating interactions")
-            selector.fit(X_train, y_train)
+            selector.fit(X_train, y_train.values.ravel())
             support = selector.get_support()
             model.feature_map['poly_support'] = support
         else:

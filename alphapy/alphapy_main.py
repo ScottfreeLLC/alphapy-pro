@@ -249,7 +249,7 @@ def training_pipeline(model):
     if scorer not in scorers:
         raise KeyError("Scorer function %s not found" % scorer)
 
-    # Model Selection
+    # Model Loop
 
     logger.info("Selecting Models")
 

@@ -897,7 +897,7 @@ def main(args=None):
             raise ValueError("Prediction frame has length 1 or less")
         # rewrite with all the features to the train and test files
         logger.info("Saving prediction frame")
-        write_frame(new_predict_frame, input_dir, datasets[Partition.predict],
+        write_frame(new_predict_frame, input_dir, datasets[Partition.test],
                     specs['extension'], specs['separator'])
     else:
         # split data into training and test data
