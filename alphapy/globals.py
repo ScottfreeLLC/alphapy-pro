@@ -185,9 +185,9 @@ class Partition(Enum):
     """AlphaPy Partitions.
 
     """
-    predict = 1
+    train = 1
     test = 2
-    train = 3
+    walk_forward = 3
 
 
 #
@@ -243,5 +243,6 @@ class Scalers(Enum):
 # Datasets
 #
 
-datasets = {Partition.train : 'train',
-            Partition.test  : 'test'}
+datasets = {Partition.train        : 'train',
+            Partition.test         : 'test',
+            Partition.walk_forward : 'walk_forward'}

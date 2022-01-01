@@ -4,7 +4,7 @@
 # Module    : alphapy_main
 # Created   : July 11, 2013
 #
-# Copyright 2020 ScottFree Analytics LLC
+# Copyright 2022 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -67,11 +67,12 @@ from alphapy.model import load_feature_map
 from alphapy.model import load_predictor
 from alphapy.model import make_predictions
 from alphapy.model import Model
-from alphapy.model import predict_best
+from alphapy.model import select_best_model
 from alphapy.model import predict_blend
 from alphapy.model import save_feature_map
 from alphapy.model import save_predictions
 from alphapy.model import save_predictor
+from alphapy.model import time_series_model
 from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
@@ -114,7 +115,6 @@ def training_pipeline(model):
 
     # Unpack the model specifications
 
-    calibration = model.specs['calibration']
     directory = model.specs['directory']
     drop = model.specs['drop']
     extension = model.specs['extension']
@@ -128,15 +128,13 @@ def training_pipeline(model):
     separator = model.specs['separator']
     split = model.specs['split']
     target = model.specs['target']
+    ts_option = model.specs['ts_option']
+    ts_date_index = model.specs['ts_date_index']
 
     # Get train and test data
 
     X_train, y_train = get_data(model, Partition.train)
     X_test, y_test = get_data(model, Partition.test)
-    model.df_X_train = X_train
-    model.df_y_train = y_train
-    model.df_X_test = X_test
-    model.df_y_test = y_test
 
     # If there is no test partition, then we will split the train partition
 
@@ -146,12 +144,24 @@ def training_pipeline(model):
         X_train, X_test, y_train, y_test = train_test_split(
             X_train, y_train, test_size=split, random_state=seed)
 
+    # Save original train/test data
+
+    model.df_X_train = X_train
+    model.df_y_train = y_train
+    model.df_X_test = X_test
+    model.df_y_test = y_test
+    model = save_features(model, X_train, X_test, y_train, y_test)
+
+    # Time Series Dates
+
+    if ts_option:
+        model.ts_dates = X_train[ts_date_index]
+
     # Determine if there are any test labels
 
     if target in y_test.columns:
         logger.info("Test Labels Found")
         model.test_labels = True
-    model = save_features(model, X_train, X_test, y_train, y_test)
 
     # Log feature statistics
 
@@ -263,7 +273,7 @@ def training_pipeline(model):
             est = None
             logger.info("Algorithm %s not found", algo)
         if est is not None:
-            # initial fit
+            # run classic train/test model pipeline
             model = first_fit(model, algo, est)
             # copy feature name master into feature names per algorithm
             model.fnames_algo[algo] = model.feature_names
@@ -278,8 +288,11 @@ def training_pipeline(model):
             # grid search
             if grid_search:
                 model = hyper_grid_search(model, estimator)
+            # walk-forward time series
+            if ts_option:
+                time_series_model(model, algo)
             # predictions
-            model = make_predictions(model, algo, calibration)
+            model = make_predictions(model, algo)
 
     # Create a blended estimator
 
@@ -293,16 +306,21 @@ def training_pipeline(model):
     tag = 'BEST'
     partition = Partition.train
     model = generate_metrics(model, partition)
-    model = predict_best(model, partition)
+    model = select_best_model(model, partition)
     generate_plots(model, partition)
     model = save_predictions(model, tag, partition)
 
     if model.test_labels:
         partition = Partition.test
         model = generate_metrics(model, partition)
-        model = predict_best(model, partition)
+        model = select_best_model(model, partition)
         generate_plots(model, partition)
         model = save_predictions(model, tag, partition)
+
+    if ts_option:
+        partition = Partition.walk_forward
+        model = generate_metrics(model, partition)
+        model = select_best_model(model, partition)
 
     # Save the model
 
@@ -404,7 +422,7 @@ def prediction_pipeline(model):
     predictor = load_predictor(directory)
 
     # Make predictions
-    
+
     logger.info("Making Predictions")
     tag = 'BEST'
     model.preds[(tag, partition)] = predictor.predict(X_all)

@@ -26,6 +26,7 @@
 # Imports
 #
 
+from jinja2.tests import test_number
 from alphapy.estimators import scorers
 from alphapy.estimators import xgb_score_map
 from alphapy.features import feature_scorers
@@ -42,7 +43,7 @@ from alphapy.utilities import get_datestamp
 from alphapy.utilities import most_recent_file
 
 from copy import copy
-from datetime import datetime
+from datetime import date, datetime
 import itertools
 import joblib
 
@@ -54,6 +55,7 @@ except:
 import logging
 import numpy as np
 import pandas as pd
+from pandas.tseries.frequencies import to_offset
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import RidgeCV
@@ -167,6 +169,9 @@ class Model:
         self.y_test = None
         # test labels
         self.test_labels = False
+        # time series
+        self.ts_dates = None
+        self.y_ts = None
         # datasets
         self.train_file = datasets[Partition.train]
         self.test_file = datasets[Partition.test]
@@ -367,6 +372,23 @@ def get_model_config():
     # rfe
     specs['rfe'] = cfg['model']['rfe']['option']
     specs['rfe_step'] = cfg['model']['rfe']['step']
+    # time series
+    specs['ts_option'] = cfg['model']['time_series']['option']
+    specs['ts_date_index'] = cfg['model']['time_series']['date_index']
+    # forecast fractal
+    fractal = cfg['model']['time_series']['forecast']
+    try:
+        _ = pd.to_timedelta(fractal)
+    except:
+        raise ValueError("Fractal [%s] is an invalid pandas offset" % fractal)
+    specs['ts_forecast'] = fractal
+    # rolling window fractal
+    fractal = cfg['model']['time_series']['window']
+    try:
+        _ = pd.to_timedelta(fractal)
+    except:
+        raise ValueError("Fractal [%s] is an invalid pandas offset" % fractal)
+    specs['ts_window'] = fractal
 
     # Section: pipeline
 
@@ -468,6 +490,10 @@ def get_model_config():
     logger.info('target [y]        = %s', specs['target'])
     logger.info('target_value      = %d', specs['target_value'])
     logger.info('transforms        = %s', specs['transforms'])
+    logger.info('ts_option         = %r', specs['ts_option'])
+    logger.info('ts_date_index     = %s', specs['ts_date_index'])
+    logger.info('ts_forecast       = %s', specs['ts_forecast'])
+    logger.info('ts_window         = %s', specs['ts_window'])
     logger.info('tsne              = %r', specs['tsne'])
     logger.info('tsne_components   = %d', specs['tsne_components'])
     logger.info('tsne_learn_rate   = %f', specs['tsne_learn_rate'])
@@ -727,10 +753,134 @@ def first_fit(model, algo, est):
 
 
 #
+# Function time_series_model
+#
+
+def time_series_model(model, algo):
+    r"""Train a model using the walk-forward time series technique.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model object with specifications.
+    algo : str
+        Abbreviation of the algorithm to run.
+
+    Returns
+    -------
+    model : alphapy.Model
+        The model object with the predictions.
+
+    Notes
+    -----
+    We use a training window (derivation window) and a test window
+    (forecast window) to make predictions incrementally. This technique
+    is in contrast to the traditional train/test split, where the model
+    does not predict using the most recent data.
+
+    """
+
+    logger.info("Walk-Forward Time Series Model")
+
+    # Extract model parameters.
+
+    esr = model.specs['esr']
+    model_type = model.specs['model_type']
+    scorer = model.specs['scorer']
+    seed = model.specs['seed']
+    split = model.specs['split']
+    target = model.specs['target']
+    ts_date_index = model.specs['ts_date_index']
+    ts_forecast = model.specs['ts_forecast']
+    ts_window = model.specs['ts_window']
+
+    # Extract model data.
+
+    X_train = model.X_train
+    y_train = model.y_train
+    est = model.estimators[algo]
+    feature_names = model.feature_names
+    ts_dates = model.ts_dates
+
+    # Join date index with training data
+
+    df_X = pd.concat([ts_dates, pd.DataFrame(X_train, columns=feature_names)], axis=1)
+    df_X[ts_date_index] = pd.to_datetime(df_X[ts_date_index])
+    df_y = pd.concat([ts_dates, y_train], axis=1)
+    df_y[ts_date_index] = pd.to_datetime(df_y[ts_date_index])
+
+    # Walk forward through the training set, incrementally adding predictions
+
+    algo_xgb = 'XGB' in algo
+    niters = 1
+    walk_forward = True
+    last_date = df_X[ts_date_index].iloc[-1]
+
+    train1_date = df_X.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).head(1).iloc[0][ts_date_index]
+    train2_date = df_X.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).tail(1).iloc[0][ts_date_index]
+    test1_date = df_X.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).head(1).iloc[1][ts_date_index]
+    test2_date = test1_date + pd.Timedelta(ts_forecast)
+
+    all_actuals = []
+    all_preds = []
+    all_probas = []
+
+    while walk_forward:
+        logger.info("%d: Train: [%s, %s], Test: [%s, %s]",
+                    niters, train1_date, train2_date, test1_date, test2_date)
+        # define train and prediction datasets
+        df_X_sub = df_X[(df_X[ts_date_index] >= train1_date) & (df_X[ts_date_index] <= train2_date)]
+        df_y_sub = df_y[(df_y[ts_date_index] >= train1_date) & (df_y[ts_date_index] <= train2_date)]
+        # fit the model
+        if algo_xgb and scorer in xgb_score_map:
+            X1, X2, y1, y2 = train_test_split(df_X_sub.drop(columns=[ts_date_index]),
+                                              df_y_sub.drop(columns=[ts_date_index]),
+                                              test_size=split,
+                                              random_state=seed)
+            eval_set = [(X1, y1), (X2, y2)]
+            eval_metric = xgb_score_map[scorer]
+            est.fit(X1, y1, eval_set=eval_set, eval_metric=eval_metric,
+                    early_stopping_rounds=esr)
+        else:
+            est.fit(df_X_sub.drop(columns=[ts_date_index]), df_y_sub[target])
+        # make walk-forward predictions
+        df_pred_X = df_X[(df_X[ts_date_index] >= test1_date) & (df_X[ts_date_index] < test2_date)]
+        df_pred_y = df_y[(df_y[ts_date_index] >= test1_date) & (df_y[ts_date_index] < test2_date)]
+        preds = est.predict(df_pred_X.drop(columns=[ts_date_index]))
+        if model_type == ModelType.classification:
+            probas = est.predict_proba(df_pred_X.drop(columns=[ts_date_index]))[:, 1]
+        # save actuals and predicted
+        all_actuals.extend(df_pred_y[target])
+        all_preds.extend(preds)
+        all_probas.extend(probas)
+        if test2_date <= last_date:
+            # next iteration
+            index_date = df_X['date'].searchsorted(train1_date, side='right')
+            train1_date = df_X.iloc[index_date][ts_date_index]
+            df_X_next = df_X[df_X[ts_date_index] >= train1_date]
+            train2_date = df_X_next.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).tail(1).iloc[0][ts_date_index]
+            test1_date = df_X_next.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).head(1).iloc[1][ts_date_index]
+            test2_date = test1_date + pd.Timedelta(ts_forecast)
+            niters += 1
+        else:
+            walk_forward = False
+
+    # Store the actuals and predictions
+
+    model.y_ts = pd.Series(all_actuals)
+    model.preds[(algo, Partition.walk_forward)] = all_preds
+    if model_type == ModelType.classification:
+        model.probas[(algo, Partition.walk_forward)] = all_probas
+
+    # Return the model
+    return model
+
+
+#
 # Function make_predictions
 #
 
-def make_predictions(model, algo, calibrate):
+def make_predictions(model, algo):
     r"""Make predictions for the training and testing data.
 
     Parameters
@@ -739,8 +889,6 @@ def make_predictions(model, algo, calibrate):
         The model object with specifications.
     algo : str
         Abbreviation of the algorithm to make predictions.
-    calibrate : bool
-        If ``True``, calibrate the probabilities for a classifier.
 
     Returns
     -------
@@ -759,6 +907,7 @@ def make_predictions(model, algo, calibrate):
 
     # Extract model parameters.
 
+    calibrate = model.specs['calibration']
     cal_type = model.specs['cal_type']
     cv_folds = model.specs['cv_folds']
     model_type = model.specs['model_type']
@@ -767,7 +916,7 @@ def make_predictions(model, algo, calibrate):
 
     est = model.estimators[algo]
 
-    # Extract model data.
+    # Extract model data
 
     try:
         support = model.support[algo]
@@ -776,6 +925,9 @@ def make_predictions(model, algo, calibrate):
     except:
         X_train = model.X_train
         X_test = model.X_test
+
+    df_X_train = pd.DataFrame(X_train, columns=model.feature_names)
+    df_X_test = pd.DataFrame(X_test, columns=model.feature_names)
     y_train = model.y_train
 
     # Calibration
@@ -784,7 +936,7 @@ def make_predictions(model, algo, calibrate):
         if calibrate:
             logger.info("Calibrating Classifier")
             est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
-            est.fit(X_train, y_train.values.ravel())
+            est.fit(df_X_train, y_train.values.ravel())
             model.estimators[algo] = est
             logger.info("Calibration Complete")
         else:
@@ -793,126 +945,14 @@ def make_predictions(model, algo, calibrate):
     # Make predictions on original training and test data.
 
     logger.info("Making Predictions")
-    model.preds[(algo, Partition.train)] = est.predict(X_train)
-    model.preds[(algo, Partition.test)] = est.predict(X_test)
+    model.preds[(algo, Partition.train)] = est.predict(df_X_train)
+    model.preds[(algo, Partition.test)] = est.predict(df_X_test)
     if model_type == ModelType.classification:
-        model.probas[(algo, Partition.train)] = est.predict_proba(X_train)[:, 1]
-        model.probas[(algo, Partition.test)] = est.predict_proba(X_test)[:, 1]
+        model.probas[(algo, Partition.train)] = est.predict_proba(df_X_train)[:, 1]
+        model.probas[(algo, Partition.test)] = est.predict_proba(df_X_test)[:, 1]
     logger.info("Predictions Complete")
 
     # Return the model
-    return model
-
-
-#
-# Function predict_best
-#
-
-def predict_best(model, partition):
-    r"""Select the best model based on score.
-
-    Parameters
-    ----------
-    model : alphapy.Model
-        The model object with all of the estimators.
-
-    Returns
-    -------
-    model : alphapy.Model
-        The model object with the best estimator.
-    partition : alphapy.Partition
-        Reference to the dataset.
-
-    Notes
-    -----
-    Best model selection is based on a scoring function. If the
-    objective is to minimize (e.g., negative log loss), then we
-    select the model with the algorithm that has the lowest score.
-    If the objective is to maximize, then we select the algorithm
-    with the highest score (e.g., AUC).
-
-    For multiple algorithms, AlphaPy always creates a blended model.
-    Therefore, the best algorithm that is selected could actually
-    be the blended model itself.
-
-    """
-
-    logger.info('='*80)
-    logger.info("Selecting Best Model for partition: %s" % partition)
-
-    # Define model tags
-
-    best_tag = 'BEST'
-    blend_tag = 'BLEND'
-
-    # Extract model parameters.
-
-    model_type = model.specs['model_type']
-    rfe = model.specs['rfe']
-    scorer = model.specs['scorer']
-
-    # Initialize best parameters.
-
-    maximize = True if scorers[scorer][1] == Objective.maximize else False
-    if maximize:
-        best_score = -sys.float_info.max
-    else:
-        best_score = sys.float_info.max
-
-    # Initialize the model selection process.
-
-    start_time = datetime.now()
-    logger.info("Best Model Selection Start: %s", start_time)
-
-    # Add blended model to the list of algorithms.
-
-    if len(model.algolist) > 1:
-        algolist = copy(model.algolist)
-        algolist.append(blend_tag)
-    else:
-        algolist = model.algolist
-
-    # Iterate through the models, getting the best score for each one.
-
-    for algorithm in algolist:
-        logger.info("Scoring %s Model", algorithm)
-        top_score = model.metrics[(algorithm, partition, scorer)]
-        # objective is to either maximize or minimize score
-        if maximize:
-            if top_score > best_score:
-                best_score = top_score
-                best_algo = algorithm
-        else:
-            if top_score < best_score:
-                best_score = top_score
-                best_algo = algorithm
-
-    # Record predictions of best estimator
-
-    logger.info("Best Model is %s with a %s score of %.4f", best_algo, scorer, best_score)
-    model.best_algo = best_algo
-    model.estimators[best_tag] = model.estimators[best_algo]
-    model.preds[(best_tag, Partition.train)] = model.preds[(best_algo, Partition.train)]
-    model.preds[(best_tag, Partition.test)] = model.preds[(best_algo, Partition.test)]
-    if model_type == ModelType.classification:
-        model.probas[(best_tag, Partition.train)] = model.probas[(best_algo, Partition.train)]
-        model.probas[(best_tag, Partition.test)] = model.probas[(best_algo, Partition.test)]
-
-    # Record support vector for any recursive feature elimination
-
-    if rfe and 'XGB' not in best_algo:
-        try:
-            model.feature_map['rfe_support'] = model.support[best_algo]
-        except:
-            # no RFE support for best algorithm
-            pass
-
-    # Return the model with best estimator and predictions.
-
-    end_time = datetime.now()
-    time_taken = end_time - start_time
-    logger.info("Best Model Selection Complete: %s", time_taken)
-
     return model
 
 
@@ -1013,6 +1053,116 @@ def predict_blend(model):
 
 
 #
+# Function select_best_model
+#
+
+def select_best_model(model, partition):
+    r"""Select the best model based on score.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model object with all of the estimators.
+    partition : alphapy.Partition
+        Reference to the dataset.
+
+    Returns
+    -------
+    model : alphapy.Model
+        The model object with the best estimator.
+
+    Notes
+    -----
+    Best model selection is based on a scoring function. If the
+    objective is to minimize (e.g., negative log loss), then we
+    select the model with the algorithm that has the lowest score.
+    If the objective is to maximize, then we select the algorithm
+    with the highest score (e.g., AUC).
+
+    For multiple algorithms, AlphaPy always creates a blended model.
+    Therefore, the best algorithm that is selected could actually
+    be the blended model itself.
+
+    """
+
+    logger.info('='*80)
+    logger.info("Selecting Best Model for partition: %s" % partition)
+
+    # Define model tags
+
+    best_tag = 'BEST'
+    blend_tag = 'BLEND'
+
+    # Extract model parameters.
+
+    model_type = model.specs['model_type']
+    rfe = model.specs['rfe']
+    scorer = model.specs['scorer']
+
+    # Initialize best parameters.
+
+    maximize = True if scorers[scorer][1] == Objective.maximize else False
+    if maximize:
+        best_score = -sys.float_info.max
+    else:
+        best_score = sys.float_info.max
+
+    # Initialize the model selection process.
+
+    start_time = datetime.now()
+    logger.info("Best Model Selection Start: %s", start_time)
+
+    # Add blended model to the list of algorithms.
+
+    if len(model.algolist) > 1 and partition != Partition.walk_forward:
+        algolist = copy(model.algolist)
+        algolist.append(blend_tag)
+    else:
+        algolist = model.algolist
+
+    # Iterate through the models, getting the best score for each one.
+
+    for algorithm in algolist:
+        logger.info("Scoring %s Model", algorithm)
+        top_score = model.metrics[(algorithm, partition, scorer)]
+        # objective is to either maximize or minimize score
+        if maximize:
+            if top_score > best_score:
+                best_score = top_score
+                best_algo = algorithm
+        else:
+            if top_score < best_score:
+                best_score = top_score
+                best_algo = algorithm
+
+    # Record predictions of best estimator
+
+    logger.info("Best Model is %s with a %s score of %.4f", best_algo, scorer, best_score)
+    model.best_algo = best_algo
+    model.estimators[best_tag] = model.estimators[best_algo]
+    model.preds[(best_tag, partition)] = model.preds[(best_algo, partition)]
+    if model_type == ModelType.classification:
+        model.probas[(best_tag, partition)] = model.probas[(best_algo, partition)]
+
+    # Record support vector for any recursive feature elimination
+
+    if rfe and 'XGB' not in best_algo:
+        try:
+            model.feature_map['rfe_support'] = model.support[best_algo]
+        except:
+            # no RFE support for best algorithm
+            pass
+
+    # Return the model with best estimator and predictions.
+
+    end_time = datetime.now()
+    time_taken = end_time - start_time
+    logger.info("Best Model Selection Complete: %s", time_taken)
+
+    return model
+
+
+#
 # Function generate_metrics
 #
 
@@ -1050,22 +1200,24 @@ def generate_metrics(model, partition):
     logger.info('='*80)
     logger.info("Metrics for: %s", partition)
 
-    # Extract model paramters.
+    # Extract model parameters
 
     model_type = model.specs['model_type']
 
-    # Extract model data.
+    # Extract model data
 
     if partition == Partition.train:
         expected = model.y_train
-    else:
+    elif partition == Partition.test:
         expected = model.y_test
+    else:
+        expected = model.y_ts
 
     # Generate Metrics
 
     if not expected.empty:
         # Add blended model to the list of algorithms.
-        if len(model.algolist) > 1:
+        if len(model.algolist) > 1 and partition != partition.walk_forward:
             algolist = copy(model.algolist)
             algolist.append('BLEND')
         else:
