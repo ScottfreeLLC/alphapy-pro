@@ -305,6 +305,7 @@ def training_pipeline(model):
 
     tag = 'BEST'
     partition = Partition.train
+
     model = generate_metrics(model, partition)
     model = select_best_model(model, partition)
     generate_plots(model, partition)

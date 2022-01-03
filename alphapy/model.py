@@ -375,20 +375,10 @@ def get_model_config():
     # time series
     specs['ts_option'] = cfg['model']['time_series']['option']
     specs['ts_date_index'] = cfg['model']['time_series']['date_index']
-    # forecast fractal
-    fractal = cfg['model']['time_series']['forecast']
-    try:
-        _ = pd.to_timedelta(fractal)
-    except:
-        raise ValueError("Fractal [%s] is an invalid pandas offset" % fractal)
-    specs['ts_forecast'] = fractal
-    # rolling window fractal
-    fractal = cfg['model']['time_series']['window']
-    try:
-        _ = pd.to_timedelta(fractal)
-    except:
-        raise ValueError("Fractal [%s] is an invalid pandas offset" % fractal)
-    specs['ts_window'] = fractal
+    # forecast window
+    specs['ts_forecast'] = cfg['model']['time_series']['forecast']
+    # derivation (rolling) window
+    specs['ts_window'] = cfg['model']['time_series']['window']
 
     # Section: pipeline
 
@@ -492,8 +482,8 @@ def get_model_config():
     logger.info('transforms        = %s', specs['transforms'])
     logger.info('ts_option         = %r', specs['ts_option'])
     logger.info('ts_date_index     = %s', specs['ts_date_index'])
-    logger.info('ts_forecast       = %s', specs['ts_forecast'])
-    logger.info('ts_window         = %s', specs['ts_window'])
+    logger.info('ts_forecast       = %d', specs['ts_forecast'])
+    logger.info('ts_window         = %d', specs['ts_window'])
     logger.info('tsne              = %r', specs['tsne'])
     logger.info('tsne_components   = %d', specs['tsne_components'])
     logger.info('tsne_learn_rate   = %f', specs['tsne_learn_rate'])
@@ -814,12 +804,15 @@ def time_series_model(model, algo):
     algo_xgb = 'XGB' in algo
     niters = 1
     walk_forward = True
-    last_date = df_X[ts_date_index].iloc[-1]
 
-    train1_date = df_X.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).head(1).iloc[0][ts_date_index]
-    train2_date = df_X.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).tail(1).iloc[0][ts_date_index]
-    test1_date = df_X.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).head(1).iloc[1][ts_date_index]
-    test2_date = test1_date + pd.Timedelta(ts_forecast)
+    dates_ts = df_X[ts_date_index]
+    first_date = dates_ts.iloc[0]
+    last_date = dates_ts.iloc[-1]
+    _, date_index = np.unique(dates_ts, return_index=True)
+    train1_date = first_date
+    train2_date = dates_ts.iloc[date_index[ts_window - 1]]
+    test1_date = dates_ts.iloc[date_index[ts_window]]
+    test2_date = dates_ts.iloc[date_index[ts_window + ts_forecast - 1]]
 
     all_actuals = []
     all_preds = []
@@ -844,8 +837,8 @@ def time_series_model(model, algo):
         else:
             est.fit(df_X_sub.drop(columns=[ts_date_index]), df_y_sub[target])
         # make walk-forward predictions
-        df_pred_X = df_X[(df_X[ts_date_index] >= test1_date) & (df_X[ts_date_index] < test2_date)]
-        df_pred_y = df_y[(df_y[ts_date_index] >= test1_date) & (df_y[ts_date_index] < test2_date)]
+        df_pred_X = df_X[(df_X[ts_date_index] >= test1_date) & (df_X[ts_date_index] <= test2_date)]
+        df_pred_y = df_y[(df_y[ts_date_index] >= test1_date) & (df_y[ts_date_index] <= test2_date)]
         preds = est.predict(df_pred_X.drop(columns=[ts_date_index]))
         if model_type == ModelType.classification:
             probas = est.predict_proba(df_pred_X.drop(columns=[ts_date_index]))[:, 1]
@@ -853,14 +846,13 @@ def time_series_model(model, algo):
         all_actuals.extend(df_pred_y[target])
         all_preds.extend(preds)
         all_probas.extend(probas)
-        if test2_date <= last_date:
+        if test2_date < last_date:
             # next iteration
-            index_date = df_X['date'].searchsorted(train1_date, side='right')
-            train1_date = df_X.iloc[index_date][ts_date_index]
-            df_X_next = df_X[df_X[ts_date_index] >= train1_date]
-            train2_date = df_X_next.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).tail(1).iloc[0][ts_date_index]
-            test1_date = df_X_next.groupby(pd.Grouper(key=ts_date_index, freq=ts_window)).head(1).iloc[1][ts_date_index]
-            test2_date = test1_date + pd.Timedelta(ts_forecast)
+            next_index = ts_window + niters
+            train1_date = dates_ts.iloc[date_index[niters]]
+            train2_date = dates_ts.iloc[date_index[next_index - 1]]
+            test1_date = dates_ts.iloc[date_index[next_index]]
+            test2_date = dates_ts.iloc[date_index[next_index + ts_forecast - 1]]
             niters += 1
         else:
             walk_forward = False
