@@ -126,6 +126,7 @@ def training_pipeline(model):
     scorer = model.specs['scorer']
     seed = model.specs['seed']
     separator = model.specs['separator']
+    shuffle = model.specs['shuffle']
     split = model.specs['split']
     target = model.specs['target']
     ts_option = model.specs['ts_option']
@@ -155,7 +156,10 @@ def training_pipeline(model):
     # Time Series Dates
 
     if ts_option:
-        model.ts_dates = X_train[ts_date_index]
+        if shuffle:
+            logger.info("Set Shuffle to False for Time Series Testing")
+        else:
+            model.ts_dates = X_train[ts_date_index]
 
     # Determine if there are any test labels
 
@@ -289,7 +293,7 @@ def training_pipeline(model):
             if grid_search:
                 model = hyper_grid_search(model, estimator)
             # walk-forward time series
-            if ts_option:
+            if ts_option and not shuffle:
                 time_series_model(model, algo)
             # predictions
             model = make_predictions(model, algo)
@@ -318,7 +322,7 @@ def training_pipeline(model):
         generate_plots(model, partition)
         model = save_predictions(model, tag, partition)
 
-    if ts_option:
+    if ts_option and not shuffle:
         partition = Partition.walk_forward
         model = generate_metrics(model, partition)
         model = select_best_model(model, partition)

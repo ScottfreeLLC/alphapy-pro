@@ -185,16 +185,14 @@ def shuffle_data(model):
     # Extract model data.
 
     X_train = model.X_train
-    y_train = model.y_train
 
     # Shuffle data
 
     if shuffle:
         logger.info("Shuffling Training Data")
         np.random.seed(seed)
-        new_indices = np.random.permutation(y_train.size)
-        model.X_train = X_train[new_indices]
-        model.y_train = y_train[new_indices]
+        np.random.shuffle(X_train)
+        model.X_train = X_train
     else:
         logger.info("Skipping Shuffling")
 
