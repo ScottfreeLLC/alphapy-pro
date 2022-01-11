@@ -1053,15 +1053,18 @@ def create_features(model, X, X_train, X_test, y_train):
         else:
             raise TypeError("Base Feature Error with unrecognized type %s" % dtype)
         if features.shape[0] == all_features.shape[0]:
-            # add features
-            all_features = np.column_stack((all_features, features))
-            # add feature names
-            model.feature_names.extend(fnames)
+            if features.any():
+                # add features
+                all_features = np.column_stack((all_features, features))
+                # add feature names
+                model.feature_names.extend(fnames)
+            else:
+                logger.info("Feature %d: %s is null (fractal length spans data)", fnum, fname)
         else:
             logger.info("Feature %s has the wrong number of rows: %d",
                         fname, features.shape[0])
-    all_features = np.delete(all_features, 0, axis=1)
 
+    all_features = np.delete(all_features, 0, axis=1)
     logger.info("New Feature Count : %d", all_features.shape[1])
 
     # Call standard scaler for all features

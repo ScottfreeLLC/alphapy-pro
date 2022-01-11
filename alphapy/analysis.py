@@ -166,7 +166,6 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
 
     # Unpack model data
 
-    predict_file = model.predict_file
     test_file = model.test_file
     train_file = model.train_file
 
@@ -244,16 +243,22 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
         else:
             # split data into train and test
             new_train = df.loc[(df.index >= train_date) & (df.index < predict_date)]
-            if len(new_train) > 0:
-                new_train = new_train.dropna()
+            if not new_train.empty:
+                # check if target column has NaN values
+                nan_count = new_train[target].isnull().sum()
+                if nan_count > 0:
+                    logger.info("%s has %d train records with NaN targets", symbol, nan_count)
+                # drop records with NaN values in target column
+                new_train = new_train.dropna(subset=[target])
                 train_frame = train_frame.append(new_train)
+                # get test frame
                 new_test = df.loc[(df.index >= predict_date) & (df.index <= last_date)]
-                if len(new_test) > 0:
+                if not new_test.empty:
                     # check if target column has NaN values
-                    nan_count = df[target].isnull().sum()
+                    nan_count = new_test[target].isnull().sum()
                     forecast_check = forecast_period - 1
                     if nan_count != forecast_check:
-                        logger.info("%s has %d records with NaN targets", symbol, nan_count)
+                        logger.info("%s has %d test records with NaN targets", symbol, nan_count)
                     # drop records with NaN values in target column
                     new_test = new_test.dropna(subset=[target])
                     # append selected records to the test frame
@@ -268,7 +273,7 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
     directory = SSEP.join([directory, 'input'])
     if predict_mode:
         # write out the predict frame
-        write_frame(predict_frame, directory, predict_file, extension, separator,
+        write_frame(test_frame, directory, test_file, extension, separator,
                     index=True, index_label='date')
     else:
         # write out the train and test frames

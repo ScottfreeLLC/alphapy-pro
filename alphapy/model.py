@@ -374,6 +374,7 @@ def get_model_config():
     specs['rfe_step'] = cfg['model']['rfe']['step']
     # time series
     specs['ts_option'] = cfg['model']['time_series']['option']
+    specs['ts_backtests'] = cfg['model']['time_series']['backtests']
     specs['ts_date_index'] = cfg['model']['time_series']['date_index']
     # forecast window
     specs['ts_forecast'] = cfg['model']['time_series']['forecast']
@@ -481,6 +482,7 @@ def get_model_config():
     logger.info('target_value      = %d', specs['target_value'])
     logger.info('transforms        = %s', specs['transforms'])
     logger.info('ts_option         = %r', specs['ts_option'])
+    logger.info('ts_backtests      = %d', specs['ts_backtests'])
     logger.info('ts_date_index     = %s', specs['ts_date_index'])
     logger.info('ts_forecast       = %d', specs['ts_forecast'])
     logger.info('ts_window         = %d', specs['ts_window'])
@@ -780,6 +782,7 @@ def time_series_model(model, algo):
     seed = model.specs['seed']
     split = model.specs['split']
     target = model.specs['target']
+    ts_backtests = model.specs['ts_backtests']
     ts_date_index = model.specs['ts_date_index']
     ts_forecast = model.specs['ts_forecast']
     ts_window = model.specs['ts_window']
@@ -790,14 +793,19 @@ def time_series_model(model, algo):
     y_train = model.y_train
     est = model.estimators[algo]
     feature_names = model.feature_names
-    ts_dates = model.ts_dates
+    ts_dates = model.ts_dates.reset_index(drop=True)
 
     # Join date index with training data
 
     df_X = pd.concat([ts_dates, pd.DataFrame(X_train, columns=feature_names)], axis=1)
     df_X[ts_date_index] = pd.to_datetime(df_X[ts_date_index])
-    df_y = pd.concat([ts_dates, y_train], axis=1)
+    df_y = pd.concat([ts_dates, y_train.reset_index(drop=True)], axis=1)
     df_y[ts_date_index] = pd.to_datetime(df_y[ts_date_index])
+
+    # Sort train and test by ascending date
+
+    df_X.sort_values(by=[ts_date_index], inplace=True)
+    df_y.sort_values(by=[ts_date_index], inplace=True)
 
     # Walk forward through the training set, incrementally adding predictions
 
@@ -818,7 +826,7 @@ def time_series_model(model, algo):
     all_preds = []
     all_probas = []
 
-    while walk_forward:
+    while walk_forward and niters <= ts_backtests:
         logger.info("%d: Train: [%s, %s], Test: [%s, %s]",
                     niters, train1_date, train2_date, test1_date, test2_date)
         # define train and prediction datasets
@@ -1114,18 +1122,22 @@ def select_best_model(model, partition):
 
     # Iterate through the models, getting the best score for each one.
 
-    for algorithm in algolist:
+    for index, algorithm in enumerate(algolist):
         logger.info("Scoring %s Model", algorithm)
         top_score = model.metrics[(algorithm, partition, scorer)]
-        # objective is to either maximize or minimize score
-        if maximize:
-            if top_score > best_score:
-                best_score = top_score
-                best_algo = algorithm
+        if index > 0:
+            # objective is to either maximize or minimize score
+            if maximize:
+                if top_score > best_score:
+                    best_score = top_score
+                    best_algo = algorithm
+            else:
+                if top_score < best_score:
+                    best_score = top_score
+                    best_algo = algorithm
         else:
-            if top_score < best_score:
-                best_score = top_score
-                best_algo = algorithm
+            best_score = top_score
+            best_algo = algorithm
 
     # Record predictions of best estimator
 
