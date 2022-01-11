@@ -165,13 +165,14 @@ class Model:
         self.df_y_test = None
         self.X_train = None
         self.X_test = None
+        self.X_ts = None
         self.y_train = None
         self.y_test = None
+        self.y_ts = None
         # test labels
         self.test_labels = False
         # time series
         self.ts_dates = None
-        self.y_ts = None
         # datasets
         self.train_file = datasets[Partition.train]
         self.test_file = datasets[Partition.test]
@@ -823,7 +824,8 @@ def time_series_model(model, algo):
     train2_date = dates_ts.iloc[date_index[-ts_forecast - 1]]
     train1_date = dates_ts.iloc[date_index[-ts_forecast - ts_window]]
 
-    all_actuals = []
+    all_X = []
+    all_y = []
     all_preds = []
     all_probas = []
 
@@ -852,7 +854,8 @@ def time_series_model(model, algo):
         if model_type == ModelType.classification:
             probas = est.predict_proba(df_pred_X.drop(columns=[ts_date_index]))[:, 1]
         # save actuals and predicted
-        all_actuals.extend(df_pred_y[target])
+        all_X.append(df_pred_X)
+        all_y.extend(df_pred_y[target])
         all_preds.extend(preds)
         all_probas.extend(probas)
         if train1_date > first_date:
@@ -868,10 +871,11 @@ def time_series_model(model, algo):
 
     # Store the actuals and predictions
 
-    model.y_ts = pd.Series(all_actuals)
-    model.preds[(algo, Partition.walk_forward)] = all_preds
+    model.X_ts = pd.concat(all_X).reset_index(drop=True)
+    model.y_ts = pd.DataFrame(all_y, columns=[target])
+    model.preds[(algo, Partition.time_series)] = all_preds
     if model_type == ModelType.classification:
-        model.probas[(algo, Partition.walk_forward)] = all_probas
+        model.probas[(algo, Partition.time_series)] = all_probas
 
     # Return the model
     return model
@@ -1115,7 +1119,7 @@ def select_best_model(model, partition):
 
     # Add blended model to the list of algorithms.
 
-    if len(model.algolist) > 1 and partition != Partition.walk_forward:
+    if len(model.algolist) > 1 and partition != Partition.time_series:
         algolist = copy(model.algolist)
         algolist.append(blend_tag)
     else:
@@ -1215,14 +1219,16 @@ def generate_metrics(model, partition):
         expected = model.y_train
     elif partition == Partition.test:
         expected = model.y_test
-    else:
+    elif partition == Partition.time_series:
         expected = model.y_ts
+    else:
+        raise ValueError("Invalid Partition: %s", partition)
 
     # Generate Metrics
 
     if not expected.empty:
         # Add blended model to the list of algorithms.
-        if len(model.algolist) > 1 and partition != partition.walk_forward:
+        if len(model.algolist) > 1 and partition != Partition.time_series:
             algolist = copy(model.algolist)
             algolist.append('BLEND')
         else:
@@ -1384,6 +1390,10 @@ def save_predictions(model, tag, partition):
             df_master = pd.concat([model.df_X_test, model.df_y_test], axis=1)
         else:
             df_master = model.df_X_test
+    elif partition == Partition.time_series:
+        df_master = pd.concat([model.X_ts, model.y_ts], axis=1)
+    else:
+        raise ValueError("Invalid Partition: %s", partition)
 
     # Get predictions for all projects
 

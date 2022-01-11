@@ -4,7 +4,7 @@
 # Module    : globals
 # Created   : July 11, 2013
 #
-# Copyright 2020 ScottFree Analytics LLC
+# Copyright 2022 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -187,7 +187,7 @@ class Partition(Enum):
     """
     train = 1
     test = 2
-    walk_forward = 3
+    time_series = 3
 
 
 #
@@ -243,6 +243,6 @@ class Scalers(Enum):
 # Datasets
 #
 
-datasets = {Partition.train        : 'train',
-            Partition.test         : 'test',
-            Partition.walk_forward : 'walk_forward'}
+datasets = {Partition.train       : 'train',
+            Partition.test        : 'test',
+            Partition.time_series : 'time_series'}

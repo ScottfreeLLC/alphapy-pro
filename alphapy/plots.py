@@ -128,6 +128,9 @@ def get_partition_data(model, partition):
     elif partition == Partition.test:
         X = model.X_test
         y = model.y_test
+    elif partition == Partition.time_series:
+        X = model.X_ts
+        y = model.y_ts
     else:
         raise TypeError('Partition must be train or test')
 
