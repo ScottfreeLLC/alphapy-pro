@@ -749,7 +749,7 @@ def first_fit(model, algo, est):
 #
 
 def time_series_model(model, algo):
-    r"""Train a model using the walk-forward time series technique.
+    r"""Train a model using a walk-backward time series technique.
 
     Parameters
     ----------
@@ -772,7 +772,7 @@ def time_series_model(model, algo):
 
     """
 
-    logger.info("Walk-Forward Time Series Model")
+    logger.info("Walk-Backward Time Series Model")
 
     # Extract model parameters.
 
@@ -811,22 +811,23 @@ def time_series_model(model, algo):
 
     algo_xgb = 'XGB' in algo
     niters = 1
-    walk_forward = True
+    walk_backward = True
 
     dates_ts = df_X[ts_date_index]
     first_date = dates_ts.iloc[0]
     last_date = dates_ts.iloc[-1]
     _, date_index = np.unique(dates_ts, return_index=True)
-    train1_date = first_date
-    train2_date = dates_ts.iloc[date_index[ts_window - 1]]
-    test1_date = dates_ts.iloc[date_index[ts_window]]
-    test2_date = dates_ts.iloc[date_index[ts_window + ts_forecast - 1]]
+
+    test2_date = last_date
+    test1_date = dates_ts.iloc[date_index[-ts_forecast]]
+    train2_date = dates_ts.iloc[date_index[-ts_forecast - 1]]
+    train1_date = dates_ts.iloc[date_index[-ts_forecast - ts_window]]
 
     all_actuals = []
     all_preds = []
     all_probas = []
 
-    while walk_forward and niters <= ts_backtests:
+    while walk_backward and niters <= ts_backtests:
         logger.info("%d: Train: [%s, %s], Test: [%s, %s]",
                     niters, train1_date, train2_date, test1_date, test2_date)
         # define train and prediction datasets
@@ -854,16 +855,16 @@ def time_series_model(model, algo):
         all_actuals.extend(df_pred_y[target])
         all_preds.extend(preds)
         all_probas.extend(probas)
-        if test2_date < last_date:
+        if train1_date > first_date:
             # next iteration
-            next_index = ts_window + niters
-            train1_date = dates_ts.iloc[date_index[niters]]
-            train2_date = dates_ts.iloc[date_index[next_index - 1]]
+            next_index = -niters - ts_forecast
+            test2_date = dates_ts.iloc[date_index[-niters - 1]]
             test1_date = dates_ts.iloc[date_index[next_index]]
-            test2_date = dates_ts.iloc[date_index[next_index + ts_forecast - 1]]
+            train2_date = dates_ts.iloc[date_index[next_index - 1]]
+            train1_date = dates_ts.iloc[date_index[next_index - ts_window]]
             niters += 1
         else:
-            walk_forward = False
+            walk_backward = False
 
     # Store the actuals and predictions
 
