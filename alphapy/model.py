@@ -793,12 +793,11 @@ def time_series_model(model, algo):
     X_train = model.X_train
     y_train = model.y_train
     est = model.estimators[algo]
-    feature_names = model.feature_names
     ts_dates = model.ts_dates.reset_index(drop=True)
 
     # Join date index with training data
 
-    df_X = pd.concat([ts_dates, pd.DataFrame(X_train, columns=feature_names)], axis=1)
+    df_X = pd.concat([ts_dates, pd.DataFrame(X_train)], axis=1)
     df_X[ts_date_index] = pd.to_datetime(df_X[ts_date_index])
     df_y = pd.concat([ts_dates, y_train.reset_index(drop=True)], axis=1)
     df_y[ts_date_index] = pd.to_datetime(df_y[ts_date_index])
@@ -931,8 +930,6 @@ def make_predictions(model, algo):
         X_train = model.X_train
         X_test = model.X_test
 
-    df_X_train = pd.DataFrame(X_train, columns=model.feature_names)
-    df_X_test = pd.DataFrame(X_test, columns=model.feature_names)
     y_train = model.y_train
 
     # Calibration
@@ -941,7 +938,7 @@ def make_predictions(model, algo):
         if calibrate:
             logger.info("Calibrating Classifier")
             est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
-            est.fit(df_X_train, y_train.values.ravel())
+            est.fit(X_train, y_train.values.ravel())
             model.estimators[algo] = est
             logger.info("Calibration Complete")
         else:
@@ -950,11 +947,11 @@ def make_predictions(model, algo):
     # Make predictions on original training and test data.
 
     logger.info("Making Predictions")
-    model.preds[(algo, Partition.train)] = est.predict(df_X_train)
-    model.preds[(algo, Partition.test)] = est.predict(df_X_test)
+    model.preds[(algo, Partition.train)] = est.predict(X_train)
+    model.preds[(algo, Partition.test)] = est.predict(X_test)
     if model_type == ModelType.classification:
-        model.probas[(algo, Partition.train)] = est.predict_proba(df_X_train)[:, 1]
-        model.probas[(algo, Partition.test)] = est.predict_proba(df_X_test)[:, 1]
+        model.probas[(algo, Partition.train)] = est.predict_proba(X_train)[:, 1]
+        model.probas[(algo, Partition.test)] = est.predict_proba(X_test)[:, 1]
     logger.info("Predictions Complete")
 
     # Return the model

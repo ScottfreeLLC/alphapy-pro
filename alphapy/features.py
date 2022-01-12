@@ -1293,7 +1293,7 @@ def create_interactions(model, X):
     y_train = model.y_train
 
     # Log parameters
-    logger.info("Initial Feature Count  : %d", X.shape[1])
+    logger.info("Initial Feature Count : %d", X.shape[1])
 
     # Initialize all features
     all_features = X

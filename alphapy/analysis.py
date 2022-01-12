@@ -239,7 +239,7 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
             if len(new_predict) > 0:
                 predict_frame = predict_frame.append(new_predict)
             else:
-                logger.info("Prediction frame %s has zero rows. Check prediction date.", symbol)
+                logger.info("%s Prediction Frame has zero rows. Check prediction date.", symbol.upper())
         else:
             # split data into train and test
             new_train = df.loc[(df.index >= train_date) & (df.index < predict_date)]
@@ -247,7 +247,7 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
                 # check if target column has NaN values
                 nan_count = new_train[target].isnull().sum()
                 if nan_count > 0:
-                    logger.info("%s has %d train records with NaN targets", symbol, nan_count)
+                    logger.info("%s has %d train records with a NaN target.", symbol.upper(), nan_count)
                 # drop records with NaN values in target column
                 new_train = new_train.dropna(subset=[target])
                 train_frame = train_frame.append(new_train)
@@ -258,15 +258,15 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
                     nan_count = new_test[target].isnull().sum()
                     forecast_check = forecast_period - 1
                     if nan_count != forecast_check:
-                        logger.info("%s has %d test records with NaN targets", symbol, nan_count)
+                        logger.info("%s has %d test records with a NaN target.", symbol.upper(), nan_count)
                     # drop records with NaN values in target column
                     new_test = new_test.dropna(subset=[target])
                     # append selected records to the test frame
                     test_frame = test_frame.append(new_test)
                 else:
-                    logger.info("Testing frame %s has zero rows. Check prediction date.", symbol)
+                    logger.info("%s Testing Frame has zero rows. Check prediction date.", symbol.upper())
             else:
-                logger.info("Training frame %s has zero rows. Check data source.", symbol)
+                logger.info("%s Training Frame has zero rows. Check data source.", symbol.upper())
 
     # Write out the frames for input into the AlphaPy pipeline
 

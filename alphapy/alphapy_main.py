@@ -292,11 +292,11 @@ def training_pipeline(model):
             # grid search
             if grid_search:
                 model = hyper_grid_search(model, estimator)
+            # predictions
+            model = make_predictions(model, algo)
             # walk-forward time series
             if ts_option and not shuffle:
                 time_series_model(model, algo)
-            # predictions
-            model = make_predictions(model, algo)
 
     # Create a blended estimator
 
