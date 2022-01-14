@@ -699,6 +699,7 @@ def first_fit(model, algo, est):
     scorer = model.specs['scorer']
     seed = model.specs['seed']
     split = model.specs['split']
+    ts_option = model.specs['ts_option']
     verbosity = model.specs['verbosity']
 
     # Extract model data.
@@ -1360,6 +1361,9 @@ def save_predictions(model, tag, partition):
 
     """
 
+    logger.info('='*80)
+    logger.info("Saving Predictions for partition: %s" % partition)
+
     # Extract model parameters.
 
     directory = model.specs['directory']
@@ -1383,7 +1387,7 @@ def save_predictions(model, tag, partition):
     if partition == Partition.train:
         df_master = pd.concat([model.df_X_train, model.df_y_train], axis=1)
     elif partition == Partition.test:
-        if not model.df_y_test.empty:
+        if model.test_labels:
             df_master = pd.concat([model.df_X_test, model.df_y_test], axis=1)
         else:
             df_master = model.df_X_test

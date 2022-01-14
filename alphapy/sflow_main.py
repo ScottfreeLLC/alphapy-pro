@@ -817,21 +817,32 @@ def main(args=None):
 
         gf = add_features(gf, game_dict, gf.shape[0])
         for index, row in gf.iterrows():
-            gf['point_margin_game'].at[index] = get_point_margin(row, 'home.score', 'away.score')
-            gf['won_on_points'].at[index] = True if gf['point_margin_game'].at[index] > 0 else False
-            gf['lost_on_points'].at[index] = True if gf['point_margin_game'].at[index] < 0 else False
-            gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['line']
-            gf['won_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] > 0 else False
-            gf['lost_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] <= 0 else False
-            gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under']
-            gf['over'].at[index] = True if gf['overunder_margin'].at[index] > 0 else False
-            gf['under'].at[index] = True if gf['overunder_margin'].at[index] < 0 else False
+            if not np.isnan(row['home.score']):
+                gf['point_margin_game'].at[index] = get_point_margin(row, 'home.score', 'away.score')
+                gf['won_on_points'].at[index] = True if gf['point_margin_game'].at[index] > 0 else False
+                gf['lost_on_points'].at[index] = True if gf['point_margin_game'].at[index] < 0 else False
+                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['line']
+                gf['won_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] > 0 else False
+                gf['lost_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] <= 0 else False
+                gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under']
+                gf['over'].at[index] = True if gf['overunder_margin'].at[index] > 0 else False
+                gf['under'].at[index] = True if gf['overunder_margin'].at[index] < 0 else False
+            else:
+                gf['point_margin_game'].at[index] = None
+                gf['won_on_points'].at[index] = None
+                gf['lost_on_points'].at[index] = None
+                gf['cover_margin_game'].at[index] = None
+                gf['won_on_spread'].at[index] = None
+                gf['lost_on_spread'].at[index] = None
+                gf['overunder_margin'].at[index] = None
+                gf['over'].at[index] = None
+                gf['under'].at[index] = None
 
         # Generate each team frame
 
         team_frames = {}
         teams = gf.groupby([home_team])
-        for team, data in teams:
+        for team, _ in teams:
             team_frame = USEP.join([league, team.lower(), series, str(season)])
             logger.info("Generating team frame: %s", team_frame)
             tf = get_team_frame(gf, team, home_team, away_team)
@@ -855,7 +866,7 @@ def main(args=None):
         #     try: np.where((gf[home_team] == 'PHI') & (gf['date'] == '09/07/14'))[0][0]
         #     Assign team frame fields to respective model frame fields: set gf.at(pos, field)
 
-        for team, data in teams:
+        for team, _ in teams:
             team_frame = USEP.join([league, team.lower(), series, str(season)])
             logger.info("Merging team frame %s into model frame", team_frame)
             tf = team_frames[team_frame]

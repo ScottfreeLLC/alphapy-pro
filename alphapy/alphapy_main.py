@@ -163,9 +163,11 @@ def training_pipeline(model):
 
     # Determine if there are any test labels
 
-    if target in y_test.columns:
+    if not y_test.empty:
         logger.info("Test Labels Found")
         model.test_labels = True
+    else:
+        logger.info("Test Labels Not Found")
 
     # Log feature statistics
 
@@ -309,18 +311,19 @@ def training_pipeline(model):
 
     tag = 'BEST'
     partition = Partition.train
-
     model = generate_metrics(model, partition)
     model = select_best_model(model, partition)
     generate_plots(model, partition)
     model = save_predictions(model, tag, partition)
 
+    partition = Partition.test
     if model.test_labels:
-        partition = Partition.test
         model = generate_metrics(model, partition)
         model = select_best_model(model, partition)
         generate_plots(model, partition)
         model = save_predictions(model, tag, partition)
+    else:
+        model = save_predictions(model, model.best_algo, partition)
 
     if ts_option and not shuffle:
         partition = Partition.time_series
