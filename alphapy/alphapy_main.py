@@ -326,7 +326,7 @@ def training_pipeline(model):
         model = save_predictions(model, model.best_algo, partition)
 
     if ts_option and not shuffle:
-        partition = Partition.time_series
+        partition = Partition.train_ts
         model = generate_metrics(model, partition)
         model = select_best_model(model, partition)
         generate_plots(model, partition)

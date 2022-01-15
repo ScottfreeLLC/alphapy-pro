@@ -113,20 +113,24 @@ class Model:
         The model specifications.
     df_X_train : pandas.DataFrame
         Original train features.
-    df_X_test  : pandas.Series
+    df_y_train : pandas.Series
         Original train target.
-    df_y_train : pandas.DataFrame
+    df_X_test  : pandas.DataFrame
         Original test features.
     df_y_test  : pandas.Series
         Original test target.
+    df_X_ts  : pandas.DataFrame
+        Original time series frame.
+    df_y_ts  : pandas.Series
+        Original time series target.
     X_train : pandas.DataFrame
-        Training features in matrix format.
-    X_test  : pandas.Series
-        Testing features in matrix format.
-    y_train : pandas.DataFrame
+        Selected train features in matrix format.
+    y_train : pandas.Series
         Training labels in vector format.
+    X_test  : pandas.DataFrame
+        Selected test features in matrix format.
     y_test  : pandas.Series
-        Testing labels in vector format.
+        Test labels in vector format.
     algolist : list
         Algorithms to use in training.
     estimators : dict
@@ -160,15 +164,15 @@ class Model:
         self.specs = specs
         # data in memory
         self.df_X_train = None
-        self.df_X_test = None
         self.df_y_train = None
+        self.df_X_test = None
         self.df_y_test = None
+        self.df_X_ts = None
+        self.df_y_ts = None
         self.X_train = None
-        self.X_test = None
-        self.X_ts = None
         self.y_train = None
+        self.X_test = None
         self.y_test = None
-        self.y_ts = None
         # test labels
         self.test_labels = False
         # time series
@@ -699,7 +703,6 @@ def first_fit(model, algo, est):
     scorer = model.specs['scorer']
     seed = model.specs['seed']
     split = model.specs['split']
-    ts_option = model.specs['ts_option']
     verbosity = model.specs['verbosity']
 
     # Extract model data.
@@ -794,13 +797,13 @@ def time_series_model(model, algo):
     X_train = model.X_train
     y_train = model.y_train
     est = model.estimators[algo]
-    ts_dates = model.ts_dates.reset_index(drop=True)
+    ts_dates = model.ts_dates
 
     # Join date index with training data
 
-    df_X = pd.concat([ts_dates, pd.DataFrame(X_train)], axis=1)
+    df_X = pd.concat([ts_dates, pd.DataFrame(X_train, columns=model.feature_names)], axis=1)
     df_X[ts_date_index] = pd.to_datetime(df_X[ts_date_index])
-    df_y = pd.concat([ts_dates, y_train.reset_index(drop=True)], axis=1)
+    df_y = pd.concat([ts_dates, y_train], axis=1)
     df_y[ts_date_index] = pd.to_datetime(df_y[ts_date_index])
 
     # Sort train and test by ascending date
@@ -824,8 +827,7 @@ def time_series_model(model, algo):
     train2_date = dates_ts.iloc[date_index[-ts_forecast - 1]]
     train1_date = dates_ts.iloc[date_index[-ts_forecast - ts_window]]
 
-    all_X = []
-    all_y = []
+    all_indices = []
     all_preds = []
     all_probas = []
 
@@ -854,8 +856,7 @@ def time_series_model(model, algo):
         if model_type == ModelType.classification:
             probas = est.predict_proba(df_pred_X.drop(columns=[ts_date_index]))[:, 1]
         # save actuals and predicted
-        all_X.append(df_pred_X)
-        all_y.extend(df_pred_y[target])
+        all_indices.extend(df_pred_y.index)
         all_preds.extend(preds)
         all_probas.extend(probas)
         if train1_date > first_date:
@@ -869,13 +870,14 @@ def time_series_model(model, algo):
         else:
             walk_backward = False
 
-    # Store the actuals and predictions
+    # Store the time series dataframes and predictions
 
-    model.X_ts = pd.concat(all_X).reset_index(drop=True)
-    model.y_ts = pd.DataFrame(all_y, columns=[target])
-    model.preds[(algo, Partition.time_series)] = all_preds
+    model.df_X_ts = model.df_X_train.loc[all_indices]
+    model.df_y_ts = model.df_y_train.loc[all_indices]
+
+    model.preds[(algo, Partition.train_ts)] = all_preds
     if model_type == ModelType.classification:
-        model.probas[(algo, Partition.time_series)] = all_probas
+        model.probas[(algo, Partition.train_ts)] = all_probas
 
     # Return the model
     return model
@@ -1117,7 +1119,7 @@ def select_best_model(model, partition):
 
     # Add blended model to the list of algorithms.
 
-    if len(model.algolist) > 1 and partition != Partition.time_series:
+    if len(model.algolist) > 1 and partition != Partition.train_ts:
         algolist = copy(model.algolist)
         algolist.append(blend_tag)
     else:
@@ -1217,8 +1219,8 @@ def generate_metrics(model, partition):
         expected = model.y_train
     elif partition == Partition.test:
         expected = model.y_test
-    elif partition == Partition.time_series:
-        expected = model.y_ts
+    elif partition == Partition.train_ts:
+        expected = model.df_y_ts
     else:
         raise ValueError("Invalid Partition: %s", partition)
 
@@ -1226,7 +1228,7 @@ def generate_metrics(model, partition):
 
     if not expected.empty:
         # Add blended model to the list of algorithms.
-        if len(model.algolist) > 1 and partition != Partition.time_series:
+        if len(model.algolist) > 1 and partition != Partition.train_ts:
             algolist = copy(model.algolist)
             algolist.append('BLEND')
         else:
@@ -1391,8 +1393,8 @@ def save_predictions(model, tag, partition):
             df_master = pd.concat([model.df_X_test, model.df_y_test], axis=1)
         else:
             df_master = model.df_X_test
-    elif partition == Partition.time_series:
-        df_master = pd.concat([model.X_ts, model.y_ts], axis=1)
+    elif partition == Partition.train_ts:
+        df_master = pd.concat([model.df_X_ts, model.df_y_ts], axis=1)
     else:
         raise ValueError("Invalid Partition: %s", partition)
 
