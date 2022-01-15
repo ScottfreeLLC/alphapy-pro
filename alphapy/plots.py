@@ -79,10 +79,8 @@ from sklearn.inspection import plot_partial_dependence
 from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve
-from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import learning_curve
 from sklearn.model_selection import StratifiedKFold
-from sklearn.model_selection import train_test_split
 from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
 

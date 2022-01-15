@@ -26,7 +26,6 @@
 # Imports
 #
 
-from jinja2.tests import test_number
 from alphapy.estimators import scorers
 from alphapy.estimators import xgb_score_map
 from alphapy.features import feature_scorers
@@ -175,8 +174,6 @@ class Model:
         self.y_test = None
         # test labels
         self.test_labels = False
-        # time series
-        self.ts_dates = None
         # datasets
         self.train_file = datasets[Partition.train]
         self.test_file = datasets[Partition.test]
@@ -703,6 +700,7 @@ def first_fit(model, algo, est):
     scorer = model.specs['scorer']
     seed = model.specs['seed']
     split = model.specs['split']
+    ts_option = model.specs['ts_option']
     verbosity = model.specs['verbosity']
 
     # Extract model data.
@@ -715,8 +713,9 @@ def first_fit(model, algo, est):
     algo_xgb = 'XGB' in algo
 
     if algo_xgb and scorer in xgb_score_map:
+        shuffle_flag = False if ts_option else True
         X1, X2, y1, y2 = train_test_split(X_train, y_train, test_size=split,
-                                          random_state=seed)
+                                          random_state=seed, shuffle=shuffle_flag)
         eval_set = [(X1, y1), (X2, y2)]
         eval_metric = xgb_score_map[scorer]
         est.fit(X1, y1.values.ravel(), eval_set=eval_set, eval_metric=eval_metric,
@@ -790,38 +789,27 @@ def time_series_model(model, algo):
     ts_backtests = model.specs['ts_backtests']
     ts_date_index = model.specs['ts_date_index']
     ts_forecast = model.specs['ts_forecast']
+    ts_option = model.specs['ts_option']
     ts_window = model.specs['ts_window']
 
     # Extract model data.
 
-    X_train = model.X_train
-    y_train = model.y_train
+    df = pd.concat([model.df_X_train[ts_date_index], model.X_train, model.y_train], axis=1)
     est = model.estimators[algo]
-    ts_dates = model.ts_dates
-
-    # Join date index with training data
-
-    df_X = pd.concat([ts_dates, pd.DataFrame(X_train, columns=model.feature_names)], axis=1)
-    df_X[ts_date_index] = pd.to_datetime(df_X[ts_date_index])
-    df_y = pd.concat([ts_dates, y_train], axis=1)
-    df_y[ts_date_index] = pd.to_datetime(df_y[ts_date_index])
 
     # Sort train and test by ascending date
 
-    df_X.sort_values(by=[ts_date_index], inplace=True)
-    df_y.sort_values(by=[ts_date_index], inplace=True)
+    df.sort_values(by=[ts_date_index], inplace=True)
+    df_y = df[[ts_date_index, target]]
+    df_X = df.drop(columns=[target])
 
     # Walk forward through the training set, incrementally adding predictions
 
-    algo_xgb = 'XGB' in algo
-    niters = 1
-    walk_backward = True
-
     dates_ts = df_X[ts_date_index]
-    first_date = dates_ts.iloc[0]
-    last_date = dates_ts.iloc[-1]
     _, date_index = np.unique(dates_ts, return_index=True)
 
+    first_date = dates_ts.iloc[date_index[0]]
+    last_date = dates_ts.iloc[date_index[-1]]
     test2_date = last_date
     test1_date = dates_ts.iloc[date_index[-ts_forecast]]
     train2_date = dates_ts.iloc[date_index[-ts_forecast - 1]]
@@ -831,6 +819,10 @@ def time_series_model(model, algo):
     all_preds = []
     all_probas = []
 
+    algo_xgb = 'XGB' in algo
+    niters = 1
+    walk_backward = True
+
     while walk_backward and niters <= ts_backtests:
         logger.info("%d: Train: [%s, %s], Test: [%s, %s]",
                     niters, train1_date, train2_date, test1_date, test2_date)
@@ -839,10 +831,12 @@ def time_series_model(model, algo):
         df_y_sub = df_y[(df_y[ts_date_index] >= train1_date) & (df_y[ts_date_index] <= train2_date)]
         # fit the model
         if algo_xgb and scorer in xgb_score_map:
+            shuffle_flag = False if ts_option else True
             X1, X2, y1, y2 = train_test_split(df_X_sub.drop(columns=[ts_date_index]),
                                               df_y_sub.drop(columns=[ts_date_index]),
                                               test_size=split,
-                                              random_state=seed)
+                                              random_state=seed,
+                                              shuffle=shuffle_flag)
             eval_set = [(X1, y1), (X2, y2)]
             eval_metric = xgb_score_map[scorer]
             est.fit(X1, y1, eval_set=eval_set, eval_metric=eval_metric,

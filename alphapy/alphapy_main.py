@@ -130,7 +130,6 @@ def training_pipeline(model):
     split = model.specs['split']
     target = model.specs['target']
     ts_option = model.specs['ts_option']
-    ts_date_index = model.specs['ts_date_index']
 
     # Get train and test data
 
@@ -142,8 +141,9 @@ def training_pipeline(model):
     if X_test.empty:
         logger.info("No Test Data Found")
         logger.info("Splitting Training Data")
+        shuffle_flag = False if ts_option else True
         X_train, X_test, y_train, y_test = train_test_split(
-            X_train, y_train, test_size=split, random_state=seed)
+            X_train, y_train, test_size=split, random_state=seed, shuffle=shuffle_flag)
 
     # Save original train/test data
 
@@ -152,14 +152,6 @@ def training_pipeline(model):
     model.df_X_test = X_test
     model.df_y_test = y_test
     model = save_features(model, X_train, X_test, y_train, y_test)
-
-    # Time Series Dates
-
-    if ts_option:
-        if shuffle:
-            logger.info("Set Shuffle to False for Time Series Testing")
-        else:
-            model.ts_dates = X_train[ts_date_index]
 
     # Determine if there are any test labels
 
