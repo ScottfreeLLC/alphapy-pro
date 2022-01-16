@@ -765,15 +765,6 @@ def main(args=None):
     logger.info("Total Game Records: %d", df.shape[0])
 
     #
-    # Locate any rows with null values
-    #
-
-    null_rows = df.isnull().any(axis=1)
-    null_indices = [i for i, val in enumerate(null_rows.tolist()) if val == True]
-    for i in null_indices:
-        logger.info("Null Record: %d on Date: %s", i, df.date[i])
-
-    #
     # Get date information
     #
 
