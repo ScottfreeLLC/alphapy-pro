@@ -849,7 +849,7 @@ def time_series_model(model, algo):
         else:
             walk_backward = False
 
-    # Store the time series dataframes and predictions
+    # Store the time series dataframes and training predictions
 
     model.df_X_ts = model.df_X_train.loc[all_indices]
     model.df_y_ts = model.df_y_train.loc[all_indices]
@@ -857,6 +857,18 @@ def time_series_model(model, algo):
     model.preds[(algo, Partition.train_ts)] = all_preds
     if model_type == ModelType.classification:
         model.probas[(algo, Partition.train_ts)] = all_probas
+
+    # Fit on the most recent train data and make test predictions
+
+    logger.info("Time Series Test Predictions")
+    train_date = dates_ts.iloc[date_index[-ts_window]]
+    df_X_sub = df_X[df_X[ts_date_index] >= train_date].drop(columns=[ts_date_index]).values
+    df_y_sub = df_y[df_y[ts_date_index] >= train_date][target].values
+    est.fit(df_X_sub, df_y_sub)
+
+    model.preds[(algo, Partition.test_ts)] = est.predict(model.X_test)
+    if model_type == ModelType.classification:
+        model.probas[(algo, Partition.test_ts)] = est.predict_proba(model.X_test)[:, 1]
 
     # Return the model
     return model
@@ -1315,7 +1327,7 @@ def save_predictions(model, tag, partition):
     model : alphapy.Model
         The model object to save.
     tag : str
-        A unique identifier for a model algorithm.
+        Sort key for ranking by algorithm or other tag.
     partition : alphapy.Partition
         Reference to the dataset.
 
