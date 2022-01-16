@@ -397,13 +397,11 @@ def plot_importance(model, partition):
         logger.info("Feature Importances for Algorithm: %s", algo)
         try:
             # get feature importances
-            importances = np.array(model.importances[algo])
+            importances = model.importances[algo]
             imp_flag = True
         except:
             imp_flag = False
         if imp_flag:
-            # sort the importances by index
-            indices = np.argsort(importances)[::-1]
             # get feature names
             feature_names = np.array(model.fnames_algo[algo])
             n_features = len(feature_names)
@@ -411,15 +409,13 @@ def plot_importance(model, partition):
             logger.info("Feature Ranking:")
             n_min = min(n_top, n_features)
             for i in range(n_min):
-                logger.info("%d. %s (%f)" % (i + 1,
-                            feature_names[indices[i]],
-                            importances[indices[i]]))
+                logger.info("%d. %s (%f)", i + 1, feature_names[i], importances[i])
             # plot the feature importances
             title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
             plt.figure()
             plt.title(title)
-            plt.barh(range(n_min), importances[indices][:n_min][::-1])
-            plt.yticks(range(n_min), feature_names[indices][:n_min][::-1])
+            plt.barh(range(n_min), importances[:n_min][::-1])
+            plt.yticks(range(n_min), feature_names[:n_min][::-1])
             plt.ylim([-1, n_min])
             plt.xlabel('Relative Importance')
             # save the plot

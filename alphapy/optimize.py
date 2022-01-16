@@ -114,9 +114,12 @@ def rfecv_search(model, algo):
     best_estimator = selector.estimator_
     model.estimators[algo] = best_estimator
     model.support[algo] = selector.support_
-    model.fnames_algo[algo] = list(itertools.compress(model.fnames_algo[algo], selector.support_))
+    fnames_algo = model.fnames_algo[algo]
+    model.fnames_algo[algo] = list(itertools.compress(fnames_algo, selector.support_))
     if hasattr(best_estimator, "feature_importances_"):
-        model.importances[algo] = best_estimator.feature_importances_
+        importances = best_estimator.feature_importances_
+        indices = np.argsort(importances)[::-1]
+        model.importances[algo] = importances[indices]
 
     # Return the model with the support vector
 
