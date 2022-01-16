@@ -45,6 +45,7 @@ from alphapy.globals import WILDCARD
 from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.space import Space
+from alphapy.transforms import dateparts
 from alphapy.utilities import valid_date
 
 import argparse
@@ -771,6 +772,12 @@ def main(args=None):
     null_indices = [i for i, val in enumerate(null_rows.tolist()) if val == True]
     for i in null_indices:
         logger.info("Null Record: %d on Date: %s", i, df.date[i])
+
+    #
+    # Get date information
+    #
+
+    df = pd.concat([df, dateparts(df, 'date')], axis=1)
 
     #
     # Make all team names lower case
