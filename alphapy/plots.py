@@ -402,8 +402,10 @@ def plot_importance(model, partition):
         except:
             imp_flag = False
         if imp_flag:
-            # get feature names
-            feature_names = np.array(model.fnames_algo[algo])
+            # get feature name indices
+            indices = np.argsort(importances)[::-1]
+            importances = importances[indices]
+            feature_names = np.array(model.fnames_algo[algo])[indices]
             n_features = len(feature_names)
             # log the feature ranking
             logger.info("Feature Ranking:")

@@ -736,6 +736,9 @@ def first_fit(model, algo, est):
     # Store the estimator
     model.estimators[algo] = est
 
+    # Copy feature name master into feature names per algorithm
+    model.fnames_algo[algo] = model.feature_names
+
     # Record importances and coefficients if necessary.
 
     if hasattr(est, "feature_importances_"):

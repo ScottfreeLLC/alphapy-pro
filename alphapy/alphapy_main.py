@@ -198,6 +198,7 @@ def training_pipeline(model):
     data_dir = SSEP.join([directory, 'input'])
     # train data
     df_train = X_all.iloc[:split_point, :]
+    print(y_train)
     df_train[target] = y_train
     output_file = USEP.join([model.train_file, datestamp])
     write_frame(df_train, data_dir, output_file, extension, separator, index=False)
@@ -273,8 +274,6 @@ def training_pipeline(model):
         if est is not None:
             # run classic train/test model pipeline
             model = first_fit(model, algo, est)
-            # copy feature name master into feature names per algorithm
-            model.fnames_algo[algo] = model.feature_names
             # recursive feature elimination
             if rfe:
                 has_coef = hasattr(est, "coef_")
