@@ -780,21 +780,16 @@ def time_series_model(model, algo):
 
     # Extract model parameters.
 
-    esr = model.specs['esr']
     model_type = model.specs['model_type']
-    scorer = model.specs['scorer']
-    seed = model.specs['seed']
-    split = model.specs['split']
     target = model.specs['target']
     ts_backtests = model.specs['ts_backtests']
     ts_date_index = model.specs['ts_date_index']
     ts_forecast = model.specs['ts_forecast']
-    ts_option = model.specs['ts_option']
     ts_window = model.specs['ts_window']
 
     # Extract model data.
 
-    df = pd.concat([model.df_X_train[ts_date_index], model.X_train, model.y_train], axis=1)
+    df = pd.concat([model.df_X_train[ts_date_index], pd.DataFrame(model.X_train), model.y_train], axis=1)
     est = model.estimators[algo]
 
     # Sort train and test by ascending date
@@ -819,7 +814,6 @@ def time_series_model(model, algo):
     all_preds = []
     all_probas = []
 
-    algo_xgb = 'XGB' in algo
     niters = 1
     walk_backward = True
 
@@ -830,19 +824,7 @@ def time_series_model(model, algo):
         df_X_sub = df_X[(df_X[ts_date_index] >= train1_date) & (df_X[ts_date_index] <= train2_date)]
         df_y_sub = df_y[(df_y[ts_date_index] >= train1_date) & (df_y[ts_date_index] <= train2_date)]
         # fit the model
-        if algo_xgb and scorer in xgb_score_map:
-            shuffle_flag = False if ts_option else True
-            X1, X2, y1, y2 = train_test_split(df_X_sub.drop(columns=[ts_date_index]),
-                                              df_y_sub.drop(columns=[ts_date_index]),
-                                              test_size=split,
-                                              random_state=seed,
-                                              shuffle=shuffle_flag)
-            eval_set = [(X1, y1), (X2, y2)]
-            eval_metric = xgb_score_map[scorer]
-            est.fit(X1, y1, eval_set=eval_set, eval_metric=eval_metric,
-                    early_stopping_rounds=esr)
-        else:
-            est.fit(df_X_sub.drop(columns=[ts_date_index]), df_y_sub[target])
+        est.fit(df_X_sub.drop(columns=[ts_date_index]), df_y_sub[target])
         # make walk-forward predictions
         df_pred_X = df_X[(df_X[ts_date_index] >= test1_date) & (df_X[ts_date_index] <= test2_date)]
         df_pred_y = df_y[(df_y[ts_date_index] >= test1_date) & (df_y[ts_date_index] <= test2_date)]
@@ -1008,13 +990,6 @@ def predict_blend(model):
     logger.info("Blending Start: %s", start_time)
 
     for i, algorithm in enumerate(model.algolist):
-        # get the best estimator
-        estimator = model.estimators[algorithm]
-        # update coefficients and feature importances
-        if hasattr(estimator, "coef_"):
-            model.coefs[algorithm] = estimator.coef_
-        if hasattr(estimator, "feature_importances_"):
-            model.importances[algorithm] = estimator.feature_importances_
         # store predictions in the blended training set
         if model_type == ModelType.classification:
             X_blend_train[:, i] = model.probas[(algorithm, Partition.train)]
