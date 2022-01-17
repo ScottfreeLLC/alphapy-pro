@@ -957,82 +957,48 @@ def make_predictions(model, algo):
 #
 
 def predict_blend(model):
-    r"""Make predictions from a blended model.
+    r"""Make blended predictions.
 
     Parameters
     ----------
     model : alphapy.Model
-        The model object with all of the estimators.
+        The model object.
 
     Returns
     -------
     model : alphapy.Model
-        The model object with the blended estimator.
+        The model object with the blended predictions.
 
     Notes
     -----
-    For classification, AlphaPy uses logistic regression for creating
-    a blended model. For regression, ridge regression is applied.
+    Currently, we simply average the predictions. Previously, for classification,
+    AlphaPy usesd logistic regression for creating a blended model. For regression,
+    ridge regression was applied.
 
     """
 
-    logger.info("Blending Models")
+    logger.info('='*80)
+    logger.info("Blended Predictions")
 
-    # Extract model paramters.
-
+    # Extract model parameters.
     model_type = model.specs['model_type']
-    cv_folds = model.specs['cv_folds']
 
-    # Extract model data.
-
-    X_train = model.X_train
-    X_test = model.X_test
-    y_train = model.y_train
-
-    # Add blended algorithm.
-
+    # Set the tag.
     blend_tag = 'BLEND'
 
-    # Create blended training and test sets.
-
-    n_models = len(model.algolist)
-    X_blend_train = np.zeros((X_train.shape[0], n_models))
-    X_blend_test = np.zeros((X_test.shape[0], n_models))
-
-    # Iterate through the models, cross-validating for each one.
+    # Iterate through the partitions, averaging predictions for each one.
 
     start_time = datetime.now()
     logger.info("Blending Start: %s", start_time)
 
-    for i, algorithm in enumerate(model.algolist):
-        # store predictions in the blended training set
+    for partition in datasets.keys():
+        pred_set = [model.preds[key] for key, _ in model.preds.items() if partition in key]
+        model.preds[(blend_tag, partition)] = np.round(np.mean(pred_set, axis=0), 0)
         if model_type == ModelType.classification:
-            X_blend_train[:, i] = model.probas[(algorithm, Partition.train)]
-            X_blend_test[:, i] = model.probas[(algorithm, Partition.test)]
-        else:
-            X_blend_train[:, i] = model.preds[(algorithm, Partition.train)]
-            X_blend_test[:, i] = model.preds[(algorithm, Partition.test)]
+            proba_set = [model.probas[key] for key, _ in model.probas.items() if partition in key]
+            model.probas[(blend_tag, partition)] = np.mean(proba_set, axis=0)
 
-    # Use the blended estimator to make predictions
-
-    if model_type == ModelType.classification:
-        clf = LogisticRegression()
-        clf.fit(X_blend_train, y_train.values.ravel())
-        model.estimators[blend_tag] = clf
-        model.preds[(blend_tag, Partition.train)] = clf.predict(X_blend_train)
-        model.preds[(blend_tag, Partition.test)] = clf.predict(X_blend_test)
-        model.probas[(blend_tag, Partition.train)] = clf.predict_proba(X_blend_train)[:, 1]
-        model.probas[(blend_tag, Partition.test)] = clf.predict_proba(X_blend_test)[:, 1]
-    else:
-        alphas = [0.0001, 0.005, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5,
-                  1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0]
-        rcvr = RidgeCV(alphas=alphas, normalize=True, cv=cv_folds)
-        rcvr.fit(X_blend_train, y_train)
-        model.estimators[blend_tag] = rcvr
-        model.preds[(blend_tag, Partition.train)] = rcvr.predict(X_blend_train)
-        model.preds[(blend_tag, Partition.test)] = rcvr.predict(X_blend_test)
-
-    # Return the model with blended estimator and predictions.
+    # Return the model with blended predictions.
 
     end_time = datetime.now()
     time_taken = end_time - start_time
@@ -1211,13 +1177,8 @@ def generate_metrics(model, partition):
     # Generate Metrics
 
     if not expected.empty:
-        # Add blended model to the list of algorithms.
-        if len(model.algolist) > 1 and partition != Partition.train_ts:
-            algolist = copy(model.algolist)
-            algolist.append('BLEND')
-        else:
-            algolist = model.algolist
-
+        algolist = copy(model.algolist)
+        algolist.append('BLEND')
         # get the metrics for each algorithm
         for algo in algolist:
             # get predictions for the given algorithm
@@ -1236,7 +1197,7 @@ def generate_metrics(model, partition):
                 try:
                     model.metrics[(algo, partition, 'balanced_accuracy')] = balanced_accuracy_score(expected, predicted)
                 except:
-                    logger.info("Accuracy Score not calculated")
+                    logger.info("Balanced Accuracy Score not calculated")
                 try:
                     model.metrics[(algo, partition, 'brier_score_loss')] = brier_score_loss(expected, probas)
                 except:
@@ -1301,7 +1262,7 @@ def generate_metrics(model, partition):
                 except:
                     logger.info("R-Squared Score not calculated")
         # log the metrics for each algorithm
-        for algo in model.algolist:
+        for algo in algolist:
             logger.info('-'*80)
             logger.info("Algorithm: %s", algo)
             metrics = [(k[2], v) for k, v in list(model.metrics.items()) if k[0] == algo and k[1] == partition]
