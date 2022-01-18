@@ -993,10 +993,11 @@ def predict_blend(model):
 
     for partition in datasets.keys():
         pred_set = [model.preds[key] for key, _ in model.preds.items() if partition in key]
-        model.preds[(blend_tag, partition)] = np.round(np.mean(pred_set, axis=0), 0)
+        model.preds[(blend_tag, partition)] = np.round(np.mean(pred_set, axis=0), 0).astype(int)
         if model_type == ModelType.classification:
             proba_set = [model.probas[key] for key, _ in model.probas.items() if partition in key]
             model.probas[(blend_tag, partition)] = np.mean(proba_set, axis=0)
+            model.preds[(blend_tag, partition)] = np.round(model.probas[(blend_tag, partition)], 0).astype(int)
 
     # Return the model with blended predictions.
 
@@ -1280,15 +1281,13 @@ def generate_metrics(model, partition):
 # Function save_predictions
 #
 
-def save_predictions(model, tag, partition):
-    r"""Save the predictions to disk.
+def save_predictions(model, partition):
+    r"""Save the predictions to files.
 
     Parameters
     ----------
     model : alphapy.Model
         The model object to save.
-    tag : str
-        Sort key for ranking by algorithm or other tag.
     partition : alphapy.Partition
         Reference to the dataset.
 
@@ -1319,6 +1318,7 @@ def save_predictions(model, tag, partition):
     separator = model.specs['separator']
     submission_file = model.specs['submission_file']
     submit_probas = model.specs['submit_probas']
+    ts_option = model.specs['ts_option']
 
     # Get date stamp to record file creation
     timestamp = get_datestamp()
@@ -1343,24 +1343,42 @@ def save_predictions(model, tag, partition):
     else:
         raise ValueError("Invalid Partition: %s", partition)
 
-    # Get predictions for all projects
+    # Iterate through tags, including algorithms.
 
-    logger.info("Getting Predictions")
-    df_master['prediction'] = model.preds[(tag, partition)]
+    logger.info("Adding Prediction Columns")
 
-    # Get probabilities for classification projects
+    partition_list = [partition]
+    if ts_option and partition == Partition.test:
+        partition_list.insert(0, Partition.test_ts)
 
-    if model_type == ModelType.classification:
-        logger.info("Getting Probabilities")
-        df_master['probability'] = model.probas[(tag, partition)]
+    best_tag = 'BEST'
+    blend_tag = 'BLEND'
+    tag_list = []
+    if partition == Partition.train or partition == Partition.train_ts or model.test_labels:
+        sort_tag = best_tag.lower()
+        tag_list.append(best_tag)
+    else:
+        sort_tag = blend_tag.lower()
+    tag_list.append(blend_tag)
+    tag_list.extend(model.algolist)
+
+    for partition_id in partition_list:
+        for tag_id in tag_list:
+            pred_name = USEP.join(['pred', datasets[partition_id], tag_id.lower()])
+            df_master[pred_name] = model.preds[(tag_id, partition_id)]
+            if model_type == ModelType.classification:
+                prob_name = USEP.join(['prob', datasets[partition_id], tag_id.lower()])
+                df_master[prob_name] = model.probas[(tag_id, partition_id)]
 
     # Save ranked predictions
 
     logger.info("Saving Ranked Predictions")
     if model_type == ModelType.classification:
-        df_master.sort_values('probability', ascending=False, inplace=True)
+        prob_name = USEP.join(['prob', datasets[partition], sort_tag])
+        df_master.sort_values(prob_name, ascending=False, inplace=True)
     else:
-        df_master.sort_values('prediction', ascending=False, inplace=True)
+        pred_name = USEP.join(['pred', datasets[partition], sort_tag])
+        df_master.sort_values(pred_name, ascending=False, inplace=True)
     output_file = USEP.join(['ranked', datasets[partition], timestamp])
     write_frame(df_master, output_dir, output_file, extension, separator)
 

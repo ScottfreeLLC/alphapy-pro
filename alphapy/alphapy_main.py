@@ -299,33 +299,32 @@ def training_pipeline(model):
     # Generate metrics, get the best estimator, generate plots, and save the model.
     #
 
-    tag = 'BEST'
     partition = Partition.train
     model = generate_metrics(model, partition)
     model = select_best_model(model, partition)
     generate_plots(model, partition)
-    model = save_predictions(model, tag, partition)
+    model = save_predictions(model, partition)
 
     partition = Partition.test
     if model.test_labels:
         model = generate_metrics(model, partition)
         model = select_best_model(model, partition)
         generate_plots(model, partition)
-        model = save_predictions(model, tag, partition)
+        model = save_predictions(model, partition)
     else:
-        model = save_predictions(model, model.best_algo, partition)
+        model = save_predictions(model, partition)
 
     if ts_option and not shuffle:
         partition = Partition.train_ts
         model = generate_metrics(model, partition)
         model = select_best_model(model, partition)
         generate_plots(model, partition)
-        model = save_predictions(model, tag, partition)
+        model = save_predictions(model, partition)
 
     # Save the model
 
     date_stamp = get_datestamp()
-    save_predictor(model, tag, date_stamp)
+    save_predictor(model, 'BEST', date_stamp)
     save_feature_map(model, date_stamp)
 
     # Return the model
