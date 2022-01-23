@@ -1354,7 +1354,7 @@ def save_predictions(model, partition):
     best_tag = 'BEST'
     blend_tag = 'BLEND'
     tag_list = []
-    if partition == Partition.train or partition == Partition.train_ts or model.test_labels:
+    if partition == Partition.train or partition == Partition.train_ts:
         sort_tag = best_tag.lower()
         tag_list.append(best_tag)
     else:
