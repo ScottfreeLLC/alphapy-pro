@@ -911,11 +911,11 @@ def main(args=None):
     else:
         # split data into training and test data
         new_train_frame = ff.loc[(ff.date >= train_date) & (ff.date < predict_date)]
-        if len(new_train_frame) <= 1:
-            raise ValueError("Training frame has length 1 or less")
+        if new_train_frame.empty:
+            raise ValueError("Training frame has no rows")
         new_test_frame = ff.loc[ff.date >= predict_date]
-        if len(new_test_frame) <= 1:
-            raise ValueError("Testing frame has length 1 or less")
+        if new_test_frame.empty:
+            raise ValueError("Testing frame has no rows")
         # rewrite with all the features to the train and test files
         logger.info("Saving training frame")
         write_frame(new_train_frame, input_dir, datasets[Partition.train],
