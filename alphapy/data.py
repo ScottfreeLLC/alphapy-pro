@@ -332,11 +332,11 @@ def convert_data(df, intraday_data):
         npivots = 3
         for i in range(npivots):
             npivot = i + 1
-            indices = list(date_group.apply(lambda x: x.nlargest(npivot).tail(1).index[0]))
+            indices = list(date_group['high'].apply(lambda x: x.nlargest(npivot).tail(1).index[0]))
             df.loc[indices, 'pivothigh'] = npivot
         for i in range(npivots):
             npivot = i + 1
-            indices = list(date_group.apply(lambda x: x.nsmallest(npivot).tail(1).index[0]))
+            indices = list(date_group['low'].apply(lambda x: x.nsmallest(npivot).tail(1).index[0]))
             df.loc[indices, 'pivotlow'] = npivot
         # Mark the end of the trading day
         df['endofday'] = False
