@@ -326,6 +326,18 @@ def convert_data(df, intraday_data):
         # Number the intraday bars
         df['barnumber'] = date_group.cumcount()
         df['barpct'] = date_group['barnumber'].apply(lambda x: 100.0 * x / x.count())
+        # Record intraday pivots
+        df['pivothigh'] = 0
+        df['pivotlow'] = 0
+        npivots = 3
+        for i in range(npivots):
+            npivot = i + 1
+            indices = list(date_group.apply(lambda x: x.nlargest(npivot).tail(1).index[0]))
+            df.loc[indices, 'pivothigh'] = npivot
+        for i in range(npivots):
+            npivot = i + 1
+            indices = list(date_group.apply(lambda x: x.nsmallest(npivot).tail(1).index[0]))
+            df.loc[indices, 'pivotlow'] = npivot
         # Mark the end of the trading day
         df['endofday'] = False
         df.loc[date_group.tail(1).index, 'endofday'] = True

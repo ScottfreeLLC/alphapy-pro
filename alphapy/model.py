@@ -1034,7 +1034,6 @@ def select_best_model(model, partition):
     select the model with the algorithm that has the lowest score.
     If the objective is to maximize, then we select the algorithm
     with the highest score (e.g., AUC).
-
     For multiple algorithms, AlphaPy always creates a blended model.
     Therefore, the best algorithm that is selected could actually
     be the blended model itself.
@@ -1353,6 +1352,7 @@ def save_predictions(model, partition):
 
     best_tag = 'BEST'
     blend_tag = 'BLEND'
+
     tag_list = []
     if partition == Partition.train or partition == Partition.train_ts:
         sort_tag = best_tag.lower()
