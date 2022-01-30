@@ -283,6 +283,10 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
                     index=True, index_label='date')
 
     # Run the AlphaPy pipeline
+
+    logger.info('*'*80)
+    logger.info("Running AlphaPy")
+    logger.info('*'*80)
     analysis.model = main_pipeline(model)
 
     # Return the analysis

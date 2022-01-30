@@ -56,7 +56,7 @@ import sys
 from alphapy.alias import get_alias
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
-from alphapy.globals import ATSIGN, BSEP, CARET, ESEP, LOFF, PSEP, ROFF, USEP
+from alphapy.globals import BSEP, CARET, LOFF, PSEP, ROFF, USEP
 from alphapy.space import Space
 from alphapy.utilities import valid_name
 
@@ -186,14 +186,12 @@ def vparse(vname):
     """
 
     # split along fractal first
-    fractal = 0
-    foffset = 0
-    if vname[0] == ATSIGN or vname[0] == CARET:
-        if vname[0] == ATSIGN:
-            fractal = -1
-        if vname[0] == CARET:
-            fractal = 1
+    if vname[0] == CARET:
+        fractal = 1
         foffset = 1
+    else:
+        fractal = 0
+        foffset = 0
     # split along lag
     lsplit = vname[foffset:].split(LOFF)
     vxlag = lsplit[0]
@@ -544,7 +542,10 @@ def vexec(f, v, vfuncs=None):
         veval = vexpr(f, v)
         if veval:
             if CARET not in veval:
-                f[vxlag] = f.eval(veval)
+                try:
+                    f[vxlag] = f.eval(veval)
+                except:
+                    logger.info("Variable %s: %s could not be evaluated", vxlag, veval)
             else:
                 logger.debug("Multi-Fractal expression is deferred: %s", veval)
         else:
@@ -553,10 +554,8 @@ def vexec(f, v, vfuncs=None):
             if func:
                 f[v] = func(*newlist)
             elif root not in dir(builtins):
-                # Could not find any function
-                module_error = "*** Could not find module to execute function: {} ***".format(root)
-                logger.error(module_error)
-                sys.exit(module_error)
+                vinfo = "Could not find function to define variable: {}".format(root)
+                logger.info(vinfo)
     # if necessary, add the lagged variable
     if lag > 0 and vxlag in f.columns:
         vlag = v if fractal==0 else v[1:]
@@ -631,104 +630,6 @@ def vexec_multi_fractal(f, expr_dict, fractals):
 
 
 #
-# Function vfrac
-#
-
-def vfrac(f, c, fractal, func):
-    r"""Transform a feature based on a higher-order fractal.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe containing the base fractal column ``c``.
-    c : str
-        Name of the column in the dataframe ``f``.
-    fractal : str
-        Pandas offset alias.
-    func : str
-        The Pandas function to apply.
-
-    Returns
-    -------
-    new_column : pandas.Series
-        The series containing the fractal value.
-
-    """
-
-    if func == 'first':
-        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(
-            lambda x: x.expanding().apply(lambda x: x.values[0]))
-    elif func == 'last':
-        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(
-            lambda x: x.expanding().apply(lambda x: x.values[-1]))
-    else:
-        try:
-            new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(func)
-        except:
-            logger.info("Could not apply function %s for fractal %s", func, fractal)
-    return new_column
-
-
-#
-# Function vexec_agg_fractal
-#
-
-def vexec_agg_fractal(f, features, fractals):
-    r"""Add a fractal aggregate variable to a dataframe.
-
-    Create a fractal aggregate variable.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with all fractals to contain the new variable.
-    features : list of str
-        Aggregate Fractal features to apply to the dataframe.
-    fractals : list of str
-        Pandas offset aliases.
-
-    Returns
-    -------
-    f : pandas.DataFrame
-        Dataframe with the new variable.
-
-    Example
-    -------
-
-    If the two fractals are *1D* and *1W*, then the following variable ``vlow``
-    checks for a V pattern where the current day's low is less than last week's
-    low minus 1.5 x the daily Average True Range (ATR).
-
-        vlow : low < ^low[1] - 1.5 * atr
-
-    """
-
-    for index, fractal in enumerate(fractals):
-        if index < len(fractals)-1:
-            for feature in features:
-                if feature.startswith(ATSIGN):
-                    # define component variables at this fractal
-                    allv = vtree(feature[1:])
-                    for v in allv:
-                        # define variable
-                        f = vexec(f, v)
-                        # rename column
-                        var_name = PSEP.join([fractal, v])
-                        f.rename(columns={v:var_name}, inplace=True)
-                    # group at the higher fractal to get the last row as the aggregate variable
-                    fractal_high = fractals[index+1]
-                    agg_name = PSEP.join([fractal_high, feature])
-                    f[agg_name] = vfrac(f, var_name, fractal_high, 'last')
-                else:
-                    logger.info("Invalid aggregate variable %s", feature)
-        else:
-            logger.debug("Cannot define aggregates at highest fractal %s", fractal)
-    # output frame
-    return f
-
-
-
-#
 # Function vapply
 #
 
@@ -787,20 +688,9 @@ def vapply(group, market_specs, vfuncs=None):
                 if CARET in expr and v not in mfe_dict:
                     mfe_dict[vxlag] = expr
 
-    # Get all aggregate variables
-
-    agg_list = []
-    for feature in features:
-        if feature.startswith(ATSIGN):
-            agg_list.append(feature)
-
     # Initialize list of dataframes, function dictionary, and possibly OHLC mapping values
 
     dffs = []
-    func_dict = {'open'  : 'first',
-                 'high'  : 'cummax',
-                 'low'   : 'cummin',
-                 'close' : 'last'}
     if ohlc_map:
         new_names = [x+'0' for x in ohlc_map.keys()]
 
@@ -811,7 +701,7 @@ def vapply(group, market_specs, vfuncs=None):
         # apply variables to each of the fractals
         dfs = []
         for fractal in fractals:
-            logger.debug("Fractal: %s", fractal)           
+            logger.info("Fractal: %s", fractal)           
             fspace = Space(gsubject, gschema, fractal)
             fname = frame_name(symbol.lower(), fspace)
             if fname in Frame.frames:
@@ -852,9 +742,6 @@ def vapply(group, market_specs, vfuncs=None):
         # evaluate multi-fractal expressions
         if len(mfe_dict) > 0:
             dfj = vexec_multi_fractal(dfj, mfe_dict, fractals)
-        # create aggregate feature
-        if len(agg_list) > 0:
-            dfj = vexec_agg_fractal(dfj, agg_list, fractals)
         # add the symbol
         colsym = 'symbol'
         dfj[colsym] = symbol

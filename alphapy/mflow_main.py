@@ -202,7 +202,7 @@ def get_market_config():
                          (feature_fractals[0], specs['data_fractal']))
     # assign to market specifications
     specs['fractals'] = feature_fractals
-
+ 
     logger.info("Getting Features")
     specs['features'] = cfg['features']
 
@@ -210,8 +210,8 @@ def get_market_config():
     # Section: groups
     #
 
+    logger.info("Defining Groups")
     try:
-        logger.info("Defining Groups")
         for g, m in list(cfg['groups'].items()):
             Group(g, space)
             Group.groups[g].add(m)
@@ -222,8 +222,8 @@ def get_market_config():
     # Section: aliases
     #
 
+    logger.info("Defining Aliases")
     try:
-        logger.info("Defining Aliases")
         for k, v in list(cfg['aliases'].items()):
             Alias(k, v)
     except:
@@ -233,8 +233,8 @@ def get_market_config():
     # Section: system
     #
 
+    logger.info("Getting System Parameters")
     try:
-        logger.info("Getting System Parameters")
         specs['system'] = cfg['system']
     except:
         logger.info("No System Parameters Found")
@@ -249,8 +249,8 @@ def get_market_config():
     Variable('phigh', 'probability > 0.7')
     Variable('plow', 'probability < 0.3')
 
+    logger.info("Defining User Variables")
     try:
-        logger.info("Defining User Variables")
         for k, v in list(cfg['variables'].items()):
             Variable(k, v)
     except:
@@ -260,8 +260,8 @@ def get_market_config():
     # Section: functions
     #
 
+    logger.info("Getting Variable Functions")
     try:
-        logger.info("Getting Variable Functions")
         specs['functions'] = cfg['functions']
     except:
         logger.info("No Variable Functions Found")

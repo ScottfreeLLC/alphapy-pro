@@ -926,10 +926,13 @@ def main(args=None):
 
     # Create the model from specs
 
-    logger.info("Running Model")
     model = Model(specs)
 
     # Run the pipeline
+
+    logger.info('*'*80)
+    logger.info("Running AlphaPy")
+    logger.info('*'*80)
     model = main_pipeline(model)
 
     # Complete the pipeline

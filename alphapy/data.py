@@ -326,18 +326,11 @@ def convert_data(df, intraday_data):
         # Number the intraday bars
         df['barnumber'] = date_group.cumcount()
         df['barpct'] = date_group['barnumber'].apply(lambda x: 100.0 * x / x.count())
-        # Record intraday highs and lows
-        df['highnth'] = 0
-        df['lownth'] = 0
-        npivots = 3
-        for i in range(npivots):
-            npivot = i + 1
-            indices = list(date_group['high'].apply(lambda x: x.nlargest(npivot).tail(1).index[0]))
-            df.loc[indices, 'highnth'] = npivot
-        for i in range(npivots):
-            npivot = i + 1
-            indices = list(date_group['low'].apply(lambda x: x.nsmallest(npivot).tail(1).index[0]))
-            df.loc[indices, 'lownth'] = npivot
+        # Add progressive intraday columns
+        df['opend'] = date_group['open'].first()
+        df['highd'] = date_group['high'].cummax()
+        df['lowd'] = date_group['low'].cummin()
+        df['closed'] = date_group['close'].last()
         # Mark the end of the trading day
         df['endofday'] = False
         df.loc[date_group.tail(1).index, 'endofday'] = True
