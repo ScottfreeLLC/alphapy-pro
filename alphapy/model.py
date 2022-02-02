@@ -1067,17 +1067,9 @@ def select_best_model(model, partition):
     start_time = datetime.now()
     logger.info("Best Model Selection Start: %s", start_time)
 
-    # Add blended model to the list of algorithms.
-
-    if len(model.algolist) > 1 and partition != Partition.train_ts:
-        algolist = copy(model.algolist)
-        algolist.append(blend_tag)
-    else:
-        algolist = model.algolist
-
     # Iterate through the models, getting the best score for each one.
 
-    for index, algorithm in enumerate(algolist):
+    for index, algorithm in enumerate(model.algolist):
         logger.info("Scoring %s Model", algorithm)
         top_score = model.metrics[(algorithm, partition, scorer)]
         if index > 0:

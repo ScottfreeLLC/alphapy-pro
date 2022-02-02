@@ -49,14 +49,13 @@ import builtins
 from collections import OrderedDict
 from importlib import import_module
 import logging
-import pandas as pd
 import re
 import sys
 
 from alphapy.alias import get_alias
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
-from alphapy.globals import BSEP, CARET, LOFF, PSEP, ROFF, USEP
+from alphapy.globals import CARET, LOFF, ROFF, USEP
 from alphapy.space import Space
 from alphapy.utilities import valid_name
 
@@ -397,7 +396,7 @@ def vexpr(f, v):
 
     Returns
     -------
-    vexpr : str
+    expr_new : str
         Expanded expression for evaluation.
 
     Other Parameters
@@ -410,18 +409,16 @@ def vexpr(f, v):
     _, vxlag, root, _, _, _ = vparse(v)
     if root in Variable.variables:
         logger.debug("Found variable root %s: ", root)
-        vroot = Variable.variables[root]
-        expr = vroot.expr
-        expr_new = vsub(vxlag, expr)
-        expr_split = expr_new.split(BSEP)
-        expr_split = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
-        vexpr = BSEP.join(expr_split)
-        logger.debug("Expression: %s", vexpr)
+        expr = Variable.variables[root].expr
+        expr_sub = vsub(vxlag, expr)
+        expr_split = re.split('(\W)', expr_sub)
+        expr_new = ''.join([''.join(['`', e, '`']) if e in f.columns else e for e in expr_split])
+        logger.debug("Expression: %s", expr_new)
     else:
-        vexpr = None
+        expr_new = None
         logger.debug("Could not find expression for variable: %s", v)
     # output expanded expression for evaluation
-    return vexpr
+    return expr_new
 
     
 #
@@ -547,14 +544,14 @@ def vexec(f, v, vfuncs=None):
                 except:
                     logger.info("Variable %s: %s could not be evaluated", vxlag, veval)
             else:
-                logger.debug("Multi-Fractal expression is deferred: %s", veval)
+                logger.info("Variable %s: %s is multi-fractal deferred", vxlag, veval)
         else:
             # Must be a function call
             func, newlist = vfunc(f, v, vfuncs)
             if func:
                 f[v] = func(*newlist)
             elif root not in dir(builtins):
-                vinfo = "Could not find function to define variable: {}".format(root)
+                vinfo = "Variable {} could not be defined".format(root)
                 logger.info(vinfo)
     # if necessary, add the lagged variable
     if lag > 0 and vxlag in f.columns:
@@ -607,20 +604,19 @@ def vexec_multi_fractal(f, expr_dict, fractals):
                 all_vars = allvars(expr, match_fractal=True, match_lag=False)
                 for vindex, v in enumerate(all_vars):
                     if v.startswith(CARET):
-                        vnew = PSEP.join([fractals[index+1], v[1:]])
+                        vnew = USEP.join([v[1:], fractals[index+1]])
                         expr = expr.replace(v, vnew)
                     else:
                         miter = re.finditer(vpat, expr)
                         mspan = [m for m in miter][vindex].span()
                         mspan_start = mspan[0]
                         mspan_end = mspan[1]
-                        vnew = PSEP.join([fractal, v])
+                        vnew = USEP.join([v, fractal])
                         expr = expr[:mspan_start] + vnew + expr[mspan_end:]
-                expr_split = expr.split(BSEP)
-                expr_quoted = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
-                expr_new = BSEP.join(expr_quoted)
+                expr_split = re.split('(\W)', expr)
+                expr_new = ''.join([''.join(['`', e, '`']) if e in f.columns else e for e in expr_split])
                 # define the multi-fractal variable
-                var_name = PSEP.join([fractal, var])
+                var_name = USEP.join([var, fractal])
                 f[var_name] = f.eval(expr_new)
                 logger.debug("Variable: %s, Expression: %s", var, expr_new)
             else:
@@ -683,10 +679,19 @@ def vapply(group, market_specs, vfuncs=None):
         for v in allv:
             _, vxlag, root, _, _, _ = vparse(v)
             if root in Variable.variables:
-                vroot = Variable.variables[root]
-                expr = vroot.expr
-                if CARET in expr and v not in mfe_dict:
-                    mfe_dict[vxlag] = expr
+                expr = Variable.variables[root].expr
+                if CARET in expr:
+                    # store fractabl variable in dictionary
+                    if v not in mfe_dict:
+                        mfe_dict[vxlag] = expr
+                    # all parent evaluations are deferred as well
+                    vlist = allv[allv.index(v)+1:]
+                    for vparent in vlist:
+                        _, vxlag, root, _, _, _ = vparse(vparent)
+                        if root in Variable.variables:
+                            expr = Variable.variables[root].expr
+                            if vparent not in mfe_dict:
+                                mfe_dict[vxlag] = expr
 
     # Initialize list of dataframes, function dictionary, and possibly OHLC mapping values
 
@@ -723,7 +728,7 @@ def vapply(group, market_specs, vfuncs=None):
             else:
                 raise RuntimeError("Dataframe Not Found for %s [%s]" % (symbol, fractal))
             # rename the columns
-            df = df.add_prefix(fractal + PSEP)
+            df = df.add_suffix(USEP + fractal)
             # add the fractal frame to the list
             dfs.append(df)
         # join all fractal frames
@@ -739,7 +744,7 @@ def vapply(group, market_specs, vfuncs=None):
                 dfj = dfj.merge(dfr, left_index=True, right_index=True)
             else:
                 dfj = df
-        # evaluate multi-fractal expressions
+        # evaluate multi-fractal expressions and their parent features
         if len(mfe_dict) > 0:
             dfj = vexec_multi_fractal(dfj, mfe_dict, fractals)
         # add the symbol

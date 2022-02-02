@@ -28,7 +28,7 @@
 
 from alphapy.alphapy_main import main_pipeline
 from alphapy.frame import write_frame
-from alphapy.globals import PSEP, SSEP, USEP
+from alphapy.globals import SSEP, USEP
 from alphapy.utilities import subtract_days
 
 from datetime import timedelta
@@ -213,7 +213,7 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
     #
 
     base_fractal = fractals[0]
-    target_fractal = target.split('.')[0]
+    target_fractal = target.split(USEP)[-1]
     base_prediction = True if base_fractal == target_fractal else False
 
     # Subset each individual frame and add to the master frame

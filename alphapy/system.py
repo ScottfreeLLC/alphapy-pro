@@ -31,14 +31,12 @@ from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Orders
-from alphapy.globals import PSEP, SSEP
-from alphapy.variables import vexec
+from alphapy.globals import SSEP, USEP
 from alphapy.space import Space
 from alphapy.portfolio import Trade
 from alphapy.utilities import most_recent_file
 
 import logging
-import numbers
 import pandas as pd
 from pandas import DataFrame
 
@@ -241,10 +239,10 @@ def trade_system(model, system, space, intraday, symbol, quantity):
 
     # Loop through prices and generate trades
 
-    ccol = PSEP.join([fractal, 'close'])
-    hcol = PSEP.join([fractal, 'high'])
-    lcol = PSEP.join([fractal, 'low'])
-    icol = PSEP.join([fractal, 'endofday'])
+    ccol = USEP.join(['close', fractal])
+    hcol = USEP.join(['high', fractal])
+    lcol = USEP.join(['low', fractal])
+    icol = USEP.join(['endofday', fractal])
 
     for dt, row in tframe.iterrows():
         # get prices for this row

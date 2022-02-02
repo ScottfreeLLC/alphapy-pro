@@ -327,10 +327,10 @@ def convert_data(df, intraday_data):
         df['barnumber'] = date_group.cumcount()
         df['barpct'] = date_group['barnumber'].apply(lambda x: 100.0 * x / x.count())
         # Add progressive intraday columns
-        df['opend'] = date_group['open'].first()
+        df['opend'] = date_group['open'].transform('first')
         df['highd'] = date_group['high'].cummax()
         df['lowd'] = date_group['low'].cummin()
-        df['closed'] = date_group['close'].last()
+        df['closed'] = date_group['close'].transform('last')
         # Mark the end of the trading day
         df['endofday'] = False
         df.loc[date_group.tail(1).index, 'endofday'] = True
@@ -825,11 +825,11 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
 
     if intraday_data:
         # intraday data (date and time)
-        logger.info("%s Intraday Data [%s] for %d periods",
+        logger.info("%s Intraday Data [%s] for %d days",
                     gschema, data_fractal, lookback_period)
     else:
         # daily data or higher (date only)
-        logger.info("%s Daily Data [%s] for %d periods",
+        logger.info("%s Daily Data [%s] for %d days",
                     gschema, data_fractal, lookback_period)
 
     # Get the data from the relevant feed
@@ -863,21 +863,24 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
             logger.info("Rows: %d [%s]", len(df), data_fractal)
             # set the index of the dataframe if necessary
             df.columns = df.columns.str.lower()
+            # find date or datetime column
             dt_cols = ['datetime', 'date']
-            # check if index is already set
             dt_index = None
             if df.index.name:
                 df.index.name = df.index.name.lower()
                 dt_index = [x for x in dt_cols if df.index.name == x]
-            # if the index is not already set, then find the datetime column
+            else:
+                dt_column = [x for x in df.columns if x in dt_cols]  
+            # if the index is not already set, then set with the datetime column
             if not dt_index:
-                try:
-                    dt_column = [x for x in df.columns if x in dt_cols][0]
-                except:
+                if dt_column:
+                    df.set_index(pd.DatetimeIndex(pd.to_datetime(df[dt_column[0]])),
+                                                  drop=True, inplace=True)
+                else:
                     raise ValueError("Dataframe must have a datetime or date column")
-                df.set_index(pd.DatetimeIndex(pd.to_datetime(df[dt_column])),
-                                              drop=True, inplace=True)
-            #  register the dataframe in the global namespace
+            # scope dataframe in date range
+            df = df.loc[pd.to_datetime(from_date) : pd.to_datetime(to_date)]
+            # register the dataframe in the global namespace
             df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)
             # resample data and drop any NA values
             for ff in feature_fractals:
