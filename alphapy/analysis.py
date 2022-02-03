@@ -28,7 +28,7 @@
 
 from alphapy.alphapy_main import main_pipeline
 from alphapy.frame import write_frame
-from alphapy.globals import SSEP, USEP
+from alphapy.globals import LOFF, ROFF, SSEP, USEP
 from alphapy.utilities import subtract_days
 
 from datetime import timedelta
@@ -267,6 +267,24 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
                     logger.info("%s Testing Frame has zero rows. Check prediction date.", symbol.upper())
             else:
                 logger.info("%s Training Frame has zero rows. Check data source.", symbol.upper())
+
+    # Convert column names from special characters
+
+    def new_col_name(col_name):
+        start = col_name.find(LOFF)
+        end = col_name.find(ROFF)
+        lag_string = col_name[start:end+1]
+        lag_value = lag_string[1:-1]
+        if lag_value:
+            new_name = ''.join([col_name.replace(lag_string, ''), '_lag', lag_value])
+        else:
+            new_name = col_name
+        return new_name
+
+    new_columns = [new_col_name(x) for x in train_frame.columns]
+    train_frame.columns = new_columns
+    if not test_frame.empty:
+        test_frame.columns = new_columns
 
     # Write out the frames for input into the AlphaPy pipeline
 

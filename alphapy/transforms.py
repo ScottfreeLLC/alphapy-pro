@@ -34,7 +34,7 @@ from alphapy.calendrical import biz_day_month
 from alphapy.calendrical import biz_day_week
 from alphapy.calendrical import get_rdate
 from alphapy.globals import NULLTEXT
-from alphapy.globals import BSEP, PSEP, USEP
+from alphapy.globals import BSEP, USEP
 from alphapy.variables import vexec
 
 
@@ -1405,7 +1405,7 @@ def runstest(f, c, wfuncs, w):
         if wf in all_funcs:
             new_feature = all_funcs[wf](f, c, w)
             new_feature.fillna(0, inplace=True)
-            new_column_name = PSEP.join([c, wf])
+            new_column_name = USEP.join([wf, c])
             new_feature = new_feature.rename(new_column_name)
             frames = [new_features, new_feature]
             new_features = pd.concat(frames, axis=1)
