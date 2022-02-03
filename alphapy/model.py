@@ -23,6 +23,17 @@
 
 
 #
+# Suppress Warnings
+#
+
+import pandas as pd
+import warnings
+warnings.simplefilter(action='ignore', category=DeprecationWarning)
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+
+
+#
 # Imports
 #
 
@@ -53,7 +64,6 @@ except:
 
 import logging
 import numpy as np
-import pandas as pd
 from pandas.tseries.frequencies import to_offset
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression

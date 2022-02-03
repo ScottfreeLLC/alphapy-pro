@@ -42,6 +42,16 @@
 
 
 #
+# Suppress Warnings
+#
+
+import pandas as pd
+import warnings
+warnings.simplefilter(action='ignore', category=DeprecationWarning)
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+
+#
 # Imports
 #
 

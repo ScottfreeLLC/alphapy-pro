@@ -26,9 +26,11 @@
 # Suppress Warnings
 #
 
+import pandas as pd
 import warnings
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
 
 #
@@ -40,7 +42,6 @@ from datetime import datetime
 import logging
 import numpy as np
 import os
-import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from alphapy.data import get_data
@@ -198,13 +199,13 @@ def training_pipeline(model):
     data_dir = SSEP.join([directory, 'input'])
     # train data
     df_train = X_all.iloc[:split_point, :]
-    df_train[target] = y_train
+    df_train.loc[:, target] = y_train.loc[:, target]
     output_file = USEP.join([model.train_file, datestamp])
     write_frame(df_train, data_dir, output_file, extension, separator, index=False)
     # test data
     df_test = X_all.iloc[split_point:, :]
     if model.test_labels:
-        df_test[target] = y_test
+        df_test.loc[:, target] = y_test.loc[:, target]
     output_file = USEP.join([model.test_file, datestamp])
     write_frame(df_test, data_dir, output_file, extension, separator, index=False)
 
