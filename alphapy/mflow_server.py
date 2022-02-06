@@ -54,7 +54,7 @@ app = FastAPI()
 @app.on_event("startup")
 async def startup_event():
     global market_specs
-    market_specs = get_market_config()
+    #market_specs = get_market_config()
     return
 
 
