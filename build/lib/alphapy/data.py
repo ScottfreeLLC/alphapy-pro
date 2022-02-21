@@ -97,9 +97,9 @@ def get_data(model, partition):
 
     Returns
     -------
-    X : pandas.DataFrame
+    df_X : pandas.DataFrame
         The feature set.
-    y : pandas.Series
+    df_y : pandas.DataFrame
         The array of target values, if available.
 
     """
@@ -117,8 +117,8 @@ def get_data(model, partition):
 
     # Initialize X and y
 
-    X = pd.DataFrame()
-    y = np.empty([0, 0])
+    df_X = pd.DataFrame()
+    df_y = pd.DataFrame()
 
     # Read in the file
 
@@ -138,23 +138,24 @@ def get_data(model, partition):
                 logger.info("Labels (y) for %s will not be used", partition)
             else:
                 # assign the target column to y
-                y = df[target]
+                df_y = df[target]
                 # encode label only for classification
                 if model_type == ModelType.classification:
-                    y = LabelEncoder().fit_transform(y)
+                    y = LabelEncoder().fit_transform(df_y)
                 logger.info("Labels (y) found for %s", partition)
+                df_y = pd.DataFrame(y, columns=[target])
             # drop the target from the original frame
             df = df.drop([target], axis=1)
         else:
             logger.info("Target %s not found in %s", target, partition)
         # Extract features
         if features == WILDCARD:
-            X = df
+            df_X = df
         else:
-            X = df[features]
+            df_X = df[features]
 
     # Labels are returned usually only for training data
-    return X, y
+    return df_X, df_y
 
 
 #
@@ -184,16 +185,14 @@ def shuffle_data(model):
     # Extract model data.
 
     X_train = model.X_train
-    y_train = model.y_train
 
     # Shuffle data
 
     if shuffle:
         logger.info("Shuffling Training Data")
         np.random.seed(seed)
-        new_indices = np.random.permutation(y_train.size)
-        model.X_train = X_train[new_indices]
-        model.y_train = y_train[new_indices]
+        np.random.shuffle(X_train)
+        model.X_train = X_train
     else:
         logger.info("Skipping Shuffling")
 
@@ -238,20 +237,15 @@ def sample_data(model):
 
     # Calculate the sampling ratio if one is not provided.
 
-    if sampling_ratio > 0.0:
-        ratio = sampling_ratio
-    else:
-        uv, uc = np.unique(y_train, return_counts=True)
-        target_index = np.where(uv == target_value)[0][0]
-        nontarget_index = np.where(uv != target_value)[0][0]
-        ratio = (uc[nontarget_index] / uc[target_index]) - 1.0
-    logger.info("Sampling Ratio for target %s [%r]: %f",
-                target, target_value, ratio)
+    _, uc = np.unique(y_train, return_counts=True)
+    current_ratio = uc[1] / uc[0]
+    logger.info("Sampling Ratio for target %s [%r]: %.2f => %.2f",
+                target, target_value, current_ratio, sampling_ratio)
 
     # Choose the sampling method.
 
     if sampling_method == SamplingMethod.under_random:
-        sampler = RandomUnderSampler()
+        sampler = RandomUnderSampler(sampling_strategy=sampling_ratio)
     elif sampling_method == SamplingMethod.under_tomek:
         sampler = TomekLinks()
     elif sampling_method == SamplingMethod.under_cluster:
@@ -261,19 +255,17 @@ def sample_data(model):
     elif sampling_method == SamplingMethod.under_ncr:
         sampler = NeighbourhoodCleaningRule()
     elif sampling_method == SamplingMethod.over_random:
-        sampler = RandomOverSampler(ratio=ratio)
+        sampler = RandomOverSampler(sampling_strategy=sampling_ratio)
     elif sampling_method == SamplingMethod.over_smote:
-        sampler = SMOTE(ratio=ratio, kind='regular')
+        sampler = SMOTE()
     elif sampling_method == SamplingMethod.over_smoteb:
-        sampler = SMOTE(ratio=ratio, kind='borderline1')
+        sampler = SMOTE(sampling_strategy=sampling_ratio, kind='borderline1')
     elif sampling_method == SamplingMethod.over_smotesv:
-        sampler = SMOTE(ratio=ratio, kind='svm')
+        sampler = SMOTE(sampling_strategy=sampling_ratio, kind='svm')
     elif sampling_method == SamplingMethod.overunder_smote_tomek:
-        sampler = SMOTETomek(ratio=ratio)
+        sampler = SMOTETomek(sampling_strategy=sampling_ratio)
     elif sampling_method == SamplingMethod.overunder_smote_enn:
-        sampler = SMOTEENN(ratio=ratio)
-    elif sampling_method == SamplingMethod.ensemble_bc:
-        sampler = BalanceCascade()
+        sampler = SMOTEENN(sampling_strategy=sampling_ratio)
     elif sampling_method == SamplingMethod.ensemble_easy:
         sampler = EasyEnsembleClassifier()
     else:
@@ -281,7 +273,7 @@ def sample_data(model):
 
     # Get the newly sampled features.
 
-    X, y = sampler.fit_sample(X_train, y_train)
+    X, y = sampler.fit_resample(X_train, y_train)
 
     logger.info("Original Samples : %d", X_train.shape[0])
     logger.info("New Samples      : %d", X.shape[0])
@@ -298,15 +290,13 @@ def sample_data(model):
 # Function convert_data
 #
 
-def convert_data(df, index_column, intraday_data):
+def convert_data(df, intraday_data):
     r"""Convert the market data frame to canonical format.
 
     Parameters
     ----------
     df : pandas.DataFrame
         The intraday dataframe.
-    index_column : str
-        The name of the index column in string format.
     intraday_data : bool
         Flag set to True if the frame contains intraday data.
 
@@ -317,40 +307,38 @@ def convert_data(df, index_column, intraday_data):
 
     """
 
-    if df.index.name:
-        if (df.index.name.lower() == index_column):
-            df.reset_index(inplace=True)
-        else:
-            logger.error("Dataframe must have a date or datetime column")
+    # Create the date and time columns
 
-    # Standardize column names
-    df = df.rename(columns = lambda x: x.lower().replace(' ',''))
-
-    # Create the time/date index
-
+    df['date'] = df.index
+    df['date'] = pd.to_datetime(df['date']).dt.date
     if intraday_data:
-        dt_column = df['date'] + ' ' + df['time']
-    else:
-        dt_column = df['date']
+        df['time'] = df.index
+        df['time'] = pd.to_datetime(df['time']).dt.time
 
     # Add datetime columns
 
+    # daily data
+    df = pd.concat([df, dateparts(df, 'date')], axis=1)
+    # intraday data
     if intraday_data:
         # Group by date first
         date_group = df.groupby('date')
         # Number the intraday bars
         df['barnumber'] = date_group.cumcount()
+        df['barpct'] = date_group['barnumber'].apply(lambda x: 100.0 * x / x.count())
+        # Add progressive intraday columns
+        df['opend'] = date_group['open'].transform('first')
+        df['highd'] = date_group['high'].cummax()
+        df['lowd'] = date_group['low'].cummin()
+        df['closed'] = date_group['close'].transform('last')
         # Mark the end of the trading day
         df['endofday'] = False
         df.loc[date_group.tail(1).index, 'endofday'] = True
         # get time fields
         df = pd.concat([df, timeparts(df, 'time')], axis=1)
-    # get date fields
-    df = pd.concat([df, dateparts(df, 'date')], axis=1)
 
-    # Set the index of the dataframe
+    # Drop date and time fields after extracting parts
 
-    df.set_index(pd.DatetimeIndex(pd.to_datetime(dt_column)), drop=True, inplace=True)
     del df['date']
     if intraday_data:
         del df['time']
@@ -706,10 +694,10 @@ def get_yahoo_data(schema, subschema, symbol, intraday_data, data_fractal,
     else:
         use_yahoo = True
         if use_yahoo:
-            df = yf.download(symbol, start=from_date, end=to_date)
+            df = yf.download(symbol, start=from_date, end=to_date, threads=False)
         else:
             # use pandas data reader
-            df = get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
+            df = get_pandas_data(schema, subschema, symbol.upper(), intraday_data, data_fractal,
                                  from_date, to_date, lookback_period)       
     return df
 
@@ -784,13 +772,8 @@ def standardize_data(symbol, gspace, df, fractal, intraday_data):
 
     """
 
-    # determine whether or not this is intraday data
-    if intraday_data:
-        index_column = 'datetime'
-    else:
-        index_column = 'date'
     # convert data to canonical form
-    df = convert_data(df, index_column, intraday_data)
+    df = convert_data(df, intraday_data)
     # create global pointer to dataframe
     df = assign_global_data(df, symbol, gspace, fractal)
     # return dataframe
@@ -820,6 +803,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
 
     # Unpack market specifications
 
+    data_directory = market_specs['data_directory']
     data_fractal = market_specs['data_fractal']
     feature_fractals = market_specs['fractals']
     from_date = market_specs['data_start_date']
@@ -828,7 +812,6 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
 
     # Unpack model specifications
 
-    directory = model.specs['directory']
     extension = model.specs['extension']
     separator = model.specs['separator']
 
@@ -842,15 +825,15 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
 
     if intraday_data:
         # intraday data (date and time)
-        logger.info("%s Intraday Data [%s] for %d periods",
+        logger.info("%s Intraday Data [%s] for %d days",
                     gschema, data_fractal, lookback_period)
     else:
         # daily data or higher (date only)
-        logger.info("%s Daily Data [%s] for %d periods",
+        logger.info("%s Daily Data [%s] for %d days",
                     gschema, data_fractal, lookback_period)
 
     # Get the data from the relevant feed
-    data_dir = SSEP.join([directory, 'data'])
+    data_dir = SSEP.join([data_directory, gsubject])
 
     # Get the data from the specified data feed
 
@@ -860,7 +843,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                     symbol.upper(), from_date, to_date)
         # Locate the data source
         if gschema == 'data':
-            # local intraday or daily
+            # locally stored intraday or daily data
             dspace = Space(gsubject, gschema, data_fractal)
             fname = frame_name(symbol.lower(), dspace)
             df = read_frame(data_dir, fname, extension, separator)
@@ -878,10 +861,27 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
         # Now that we have content, standardize the data
         if not df.empty:
             logger.info("Rows: %d [%s]", len(df), data_fractal)
-            # process data
+            # set the index of the dataframe if necessary
+            df.columns = df.columns.str.lower()
+            # find date or datetime column
+            dt_cols = ['datetime', 'date']
+            dt_index = None
+            if df.index.name:
+                df.index.name = df.index.name.lower()
+                dt_index = [x for x in dt_cols if df.index.name == x]
+            else:
+                dt_column = [x for x in df.columns if x in dt_cols]  
+            # if the index is not already set, then set with the datetime column
+            if not dt_index:
+                if dt_column:
+                    df.set_index(pd.DatetimeIndex(pd.to_datetime(df[dt_column[0]])),
+                                                  drop=True, inplace=True)
+                else:
+                    raise ValueError("Dataframe must have a datetime or date column")
+            # scope dataframe in date range
+            df = df.loc[pd.to_datetime(from_date) : pd.to_datetime(to_date)]
+            # register the dataframe in the global namespace
             df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)
-            # determine whether or not the target fractal is intraday
-            intraday_data = any(substring in feature_fractals[0] for substring in PD_INTRADAY_OFFSETS)
             # resample data and drop any NA values
             for ff in feature_fractals:
                 df_rs = df.resample(ff).agg({'open'   : 'first',
@@ -891,8 +891,9 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                                              'volume' : 'sum'})
                 df_rs.dropna(axis=0, how='any', inplace=True)
                 logger.info("Rows after Resampling at %s: %d", ff, len(df_rs))
-                # create global pointer
-                df_rs = assign_global_data(df_rs, symbol, gspace, ff)
+                # standardize resampled data
+                intraday_data = any(substring in ff for substring in PD_INTRADAY_OFFSETS)
+                df_rs = standardize_data(symbol, gspace, df_rs, ff, intraday_data)
         else:
             logger.info("No DataFrame for %s", symbol.upper())
     return

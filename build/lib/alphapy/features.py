@@ -198,7 +198,7 @@ def apply_transforms(model, X):
             # get lag values
             lag_values = []
             for item in fcols:
-                _, _, _, _, lag = vparse(item)
+                _, _, _, _, _, lag = vparse(item)
                 lag_values.append(lag)
             # apply transform to the most recent value
             if lag_values:
@@ -475,13 +475,15 @@ def float_factor(x, rounding):
 # Function create_crosstabs
 #
 
-def create_crosstabs(model):
+def create_crosstabs(model, target):
     r"""Create cross-tabulations for categorical variables.
 
     Parameters
     ----------
     model : alphapy.Model
         The model object containing the data.
+    target : str
+        The target variable to cross-tabulate.
 
     Returns
     -------
@@ -493,8 +495,8 @@ def create_crosstabs(model):
     logger.info("Creating Cross-Tabulations")
 
     # Extract model data
-    X = model.X_train
-    y = model.y_train
+    X_train = model.X_train
+    y_train = model.y_train
 
     # Extract model parameters
 
@@ -503,11 +505,11 @@ def create_crosstabs(model):
     # Iterate through columns, dispatching and transforming each feature.
 
     crosstabs = {}
-    for fname in X:
+    for fname in X_train:
         if fname in factors:
             logger.info("Creating crosstabs for feature %s", fname)
-            ct = pd.crosstab(X[fname], y).apply(lambda r : r / r.sum(), axis=1)
-            crosstabs[fname] = ct
+            ct_factor = pd.crosstab(X_train[fname], y_train[target]).apply(lambda r : r / r.sum(), axis=1)
+            crosstabs[fname] = ct_factor
 
     # Save crosstabs to the feature map
 
@@ -582,7 +584,7 @@ def get_factors(model, X_train, X_test, y_train, fnum, fname,
     if enc is not None:
         # fit training features
         logger.info("Fitting training features for %s", fname)
-        ftrain = enc.fit_transform(df_train, y_train)
+        ftrain = enc.fit_transform(df_train, y_train.values.ravel())
         # fit testing features
         logger.info("Transforming testing features for %s", fname)
         ftest = enc.transform(df_test)
@@ -1051,15 +1053,18 @@ def create_features(model, X, X_train, X_test, y_train):
         else:
             raise TypeError("Base Feature Error with unrecognized type %s" % dtype)
         if features.shape[0] == all_features.shape[0]:
-            # add features
-            all_features = np.column_stack((all_features, features))
-            # add feature names
-            model.feature_names.extend(fnames)
+            if features.any():
+                # add features
+                all_features = np.column_stack((all_features, features))
+                # add feature names
+                model.feature_names.extend(fnames)
+            else:
+                logger.info("Feature %d: %s is null (fractal length spans data)", fnum, fname)
         else:
             logger.info("Feature %s has the wrong number of rows: %d",
                         fname, features.shape[0])
-    all_features = np.delete(all_features, 0, axis=1)
 
+    all_features = np.delete(all_features, 0, axis=1)
     logger.info("New Feature Count : %d", all_features.shape[1])
 
     # Call standard scaler for all features
@@ -1175,7 +1180,7 @@ def select_features(model):
 
     # Perform feature selection and get the support mask
 
-    fsfit = fs.fit(X_train, y_train)
+    fsfit = fs.fit(X_train, y_train.values.ravel())
     support = fsfit.get_support()
 
     # Record the support vector
@@ -1288,7 +1293,7 @@ def create_interactions(model, X):
     y_train = model.y_train
 
     # Log parameters
-    logger.info("Initial Feature Count  : %d", X.shape[1])
+    logger.info("Initial Feature Count : %d", X.shape[1])
 
     # Initialize all features
     all_features = X
@@ -1306,7 +1311,7 @@ def create_interactions(model, X):
                 selector = SelectPercentile(f_classif, percentile=isample_pct)
             else:
                 raise TypeError("Unknown model type when creating interactions")
-            selector.fit(X_train, y_train)
+            selector.fit(X_train, y_train.values.ravel())
             support = selector.get_support()
             model.feature_map['poly_support'] = support
         else:

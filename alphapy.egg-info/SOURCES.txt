@@ -23,6 +23,7 @@ alphapy/portfolio.py
 alphapy/sflow_main.py
 alphapy/space.py
 alphapy/streamlit.py
+alphapy/streamlit_test.py
 alphapy/system.py
 alphapy/transforms.py
 alphapy/utilities.py

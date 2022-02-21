@@ -57,7 +57,6 @@ import datetime
 import logging
 import os
 import pandas as pd
-import sys
 import yaml
 
 
@@ -138,6 +137,13 @@ def get_market_config():
             raise ValueError("Either parameter data_start_date or data_history is required")
         start_date = start_date_dt.strftime('%Y-%m-%d')
         end_date = end_date_dt.strftime('%Y-%m-%d')
+
+    data_directory = cfg['market']['data_directory']
+    dir_exists = os.path.isdir(data_directory)
+    if dir_exists:
+        specs['data_directory'] = data_directory
+    else:
+        raise ValueError("Directory %s does not exist" % data_directory)
  
     specs['data_history'] = data_history
     specs['data_start_date'] = start_date
@@ -196,7 +202,7 @@ def get_market_config():
                          (feature_fractals[0], specs['data_fractal']))
     # assign to market specifications
     specs['fractals'] = feature_fractals
-
+ 
     logger.info("Getting Features")
     specs['features'] = cfg['features']
 
@@ -204,8 +210,8 @@ def get_market_config():
     # Section: groups
     #
 
+    logger.info("Defining Groups")
     try:
-        logger.info("Defining Groups")
         for g, m in list(cfg['groups'].items()):
             Group(g, space)
             Group.groups[g].add(m)
@@ -216,8 +222,8 @@ def get_market_config():
     # Section: aliases
     #
 
+    logger.info("Defining Aliases")
     try:
-        logger.info("Defining Aliases")
         for k, v in list(cfg['aliases'].items()):
             Alias(k, v)
     except:
@@ -227,8 +233,8 @@ def get_market_config():
     # Section: system
     #
 
+    logger.info("Getting System Parameters")
     try:
-        logger.info("Getting System Parameters")
         specs['system'] = cfg['system']
     except:
         logger.info("No System Parameters Found")
@@ -243,8 +249,8 @@ def get_market_config():
     Variable('phigh', 'probability > 0.7')
     Variable('plow', 'probability < 0.3')
 
+    logger.info("Defining User Variables")
     try:
-        logger.info("Defining User Variables")
         for k, v in list(cfg['variables'].items()):
             Variable(k, v)
     except:
@@ -254,8 +260,8 @@ def get_market_config():
     # Section: functions
     #
 
+    logger.info("Getting Variable Functions")
     try:
-        logger.info("Getting Variable Functions")
         specs['functions'] = cfg['functions']
     except:
         logger.info("No Variable Functions Found")
@@ -269,6 +275,7 @@ def get_market_config():
     logger.info('api_key          = %s', specs['api_key'])
     logger.info('api_key_name     = %s', specs['api_key_name'])
     logger.info('create_model     = %r', specs['create_model'])
+    logger.info('data_directory   = %s', specs['data_directory'])
     logger.info('data_end_date    = %s', specs['data_end_date'])
     logger.info('data_fractal     = %s', specs['data_fractal'])
     logger.info('data_start_date  = %s', specs['data_start_date'])
@@ -379,6 +386,7 @@ def market_pipeline(model, market_specs):
         sellexit = system_specs['sellexit']
         holdperiod = system_specs['holdperiod']
         scale = system_specs['scale']
+        trade_fractal = fractals[0]
         logger.info("Running System %s", system_name)
         logger.info("Buy Signal  : %s", buysignal)
         logger.info("Buy Stop    : %s", buystop)
@@ -388,9 +396,11 @@ def market_pipeline(model, market_specs):
         logger.info("Sell Exit   : %s", sellexit)
         logger.info("Hold Period : %d", holdperiod)
         logger.info("Scale       : %r", scale)
+        logger.info("Fractal     : %s", trade_fractal)
         # create and run the system
         system = System(system_name, buysignal, buystop, buyexit,
-                        sellsignal, sellstop, sellexit, holdperiod, scale)
+                        sellsignal, sellstop, sellexit,
+                        holdperiod, scale, trade_fractal)
         tfs = run_system(model, system, group, intraday)
         # generate a portfolio
         if tfs.empty:
@@ -425,10 +435,31 @@ def main(args=None):
 
     """
 
+    # Argument Parsing
+
+    parser = argparse.ArgumentParser(description="MarketFlow Parser")
+    parser.add_argument("-d", "--debug", action="store_true", default=False)
+    parser.add_argument('--pdate', dest='predict_date',
+                        help="prediction date is in the format: YYYY-MM-DD",
+                        required=False, type=valid_date)
+    parser.add_argument('--tdate', dest='train_date',
+                        help="training date is in the format: YYYY-MM-DD",
+                        required=False, type=valid_date)
+    parser.add_mutually_exclusive_group(required=False)
+    parser.add_argument('--predict', dest='predict_mode', action='store_true')
+    parser.add_argument('--train', dest='predict_mode', action='store_false')
+    parser.set_defaults(predict_mode=False)
+    args = parser.parse_args()
+
     # Logging
 
+    if args.debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+
     logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
-                        filename="market_flow.log", filemode='a', level=logging.DEBUG,
+                        filename="market_flow.log", filemode='a', level=log_level,
                         datefmt='%m/%d/%y %H:%M:%S')
     formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
                                   datefmt='%m/%d/%y %H:%M:%S')
@@ -442,21 +473,6 @@ def main(args=None):
     logger.info('*'*80)
     logger.info("MarketFlow Start")
     logger.info('*'*80)
-
-    # Argument Parsing
-
-    parser = argparse.ArgumentParser(description="MarketFlow Parser")
-    parser.add_argument('--pdate', dest='predict_date',
-                        help="prediction date is in the format: YYYY-MM-DD",
-                        required=False, type=valid_date)
-    parser.add_argument('--tdate', dest='train_date',
-                        help="training date is in the format: YYYY-MM-DD",
-                        required=False, type=valid_date)
-    parser.add_mutually_exclusive_group(required=False)
-    parser.add_argument('--predict', dest='predict_mode', action='store_true')
-    parser.add_argument('--train', dest='predict_mode', action='store_false')
-    parser.set_defaults(predict_mode=False)
-    args = parser.parse_args()
 
     # Set train and predict dates
 

@@ -23,6 +23,17 @@
 
 
 #
+# Suppress Warnings
+#
+
+import pandas as pd
+import warnings
+warnings.simplefilter(action='ignore', category=DeprecationWarning)
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+
+
+#
 # Imports
 #
 
@@ -42,7 +53,7 @@ from alphapy.utilities import get_datestamp
 from alphapy.utilities import most_recent_file
 
 from copy import copy
-from datetime import datetime
+from datetime import date, datetime
 import itertools
 import joblib
 
@@ -53,7 +64,7 @@ except:
 
 import logging
 import numpy as np
-import pandas as pd
+from pandas.tseries.frequencies import to_offset
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import RidgeCV
@@ -62,7 +73,6 @@ from sklearn.metrics import auc
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics import brier_score_loss
-from sklearn.metrics import classification_report
 from sklearn.metrics import cohen_kappa_score
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import explained_variance_score
@@ -76,9 +86,7 @@ from sklearn.metrics import median_absolute_error
 from sklearn.metrics import precision_score
 from sklearn.metrics import r2_score
 from sklearn.metrics import recall_score
-from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve
-from sklearn.metrics.cluster import adjusted_rand_score
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 import sys
@@ -112,14 +120,26 @@ class Model:
     ----------
     specs : dict
         The model specifications.
+    df_X_train : pandas.DataFrame
+        Original train features.
+    df_y_train : pandas.Series
+        Original train target.
+    df_X_test  : pandas.DataFrame
+        Original test features.
+    df_y_test  : pandas.Series
+        Original test target.
+    df_X_ts  : pandas.DataFrame
+        Original time series frame.
+    df_y_ts  : pandas.Series
+        Original time series target.
     X_train : pandas.DataFrame
-        Training features in matrix format.
-    X_test  : pandas.Series
-        Testing features in matrix format.
-    y_train : pandas.DataFrame
+        Selected train features in matrix format.
+    y_train : pandas.Series
         Training labels in vector format.
+    X_test  : pandas.DataFrame
+        Selected test features in matrix format.
     y_test  : pandas.Series
-        Testing labels in vector format.
+        Test labels in vector format.
     algolist : list
         Algorithms to use in training.
     estimators : dict
@@ -152,16 +172,21 @@ class Model:
         # specifications
         self.specs = specs
         # data in memory
+        self.df_X_train = None
+        self.df_y_train = None
+        self.df_X_test = None
+        self.df_y_test = None
+        self.df_X_ts = None
+        self.df_y_ts = None
         self.X_train = None
-        self.X_test = None
         self.y_train = None
+        self.X_test = None
         self.y_test = None
         # test labels
         self.test_labels = False
         # datasets
         self.train_file = datasets[Partition.train]
         self.test_file = datasets[Partition.test]
-        self.predict_file = datasets[Partition.predict]
         # algorithms
         try:
             self.algolist = self.specs['algorithms']
@@ -359,6 +384,14 @@ def get_model_config():
     # rfe
     specs['rfe'] = cfg['model']['rfe']['option']
     specs['rfe_step'] = cfg['model']['rfe']['step']
+    # time series
+    specs['ts_option'] = cfg['model']['time_series']['option']
+    specs['ts_backtests'] = cfg['model']['time_series']['backtests']
+    specs['ts_date_index'] = cfg['model']['time_series']['date_index']
+    # forecast window
+    specs['ts_forecast'] = cfg['model']['time_series']['forecast']
+    # derivation (rolling) window
+    specs['ts_window'] = cfg['model']['time_series']['window']
 
     # Section: pipeline
 
@@ -460,6 +493,11 @@ def get_model_config():
     logger.info('target [y]        = %s', specs['target'])
     logger.info('target_value      = %d', specs['target_value'])
     logger.info('transforms        = %s', specs['transforms'])
+    logger.info('ts_option         = %r', specs['ts_option'])
+    logger.info('ts_backtests      = %d', specs['ts_backtests'])
+    logger.info('ts_date_index     = %s', specs['ts_date_index'])
+    logger.info('ts_forecast       = %d', specs['ts_forecast'])
+    logger.info('ts_window         = %d', specs['ts_window'])
     logger.info('tsne              = %r', specs['tsne'])
     logger.info('tsne_components   = %d', specs['tsne_components'])
     logger.info('tsne_learn_rate   = %f', specs['tsne_learn_rate'])
@@ -517,13 +555,15 @@ def load_predictor(directory):
 # Function save_predictor
 #
 
-def save_predictor(model, timestamp):
+def save_predictor(model, tag, timestamp):
     r"""Save the time-stamped model predictor to disk.
 
     Parameters
     ----------
     model : alphapy.Model
         The model object that contains the best estimator.
+    tag : str
+        A unique identifier for a model algorithm.
     timestamp : str
         Date in yyyy-mm-dd format.
 
@@ -539,7 +579,7 @@ def save_predictor(model, timestamp):
     directory = model.specs['directory']
 
     # Get the best predictor
-    predictor = model.estimators['BEST']
+    predictor = model.estimators[tag]
 
     # Save model object
 
@@ -670,6 +710,7 @@ def first_fit(model, algo, est):
     scorer = model.specs['scorer']
     seed = model.specs['seed']
     split = model.specs['split']
+    ts_option = model.specs['ts_option']
     verbosity = model.specs['verbosity']
 
     # Extract model data.
@@ -682,27 +723,31 @@ def first_fit(model, algo, est):
     algo_xgb = 'XGB' in algo
 
     if algo_xgb and scorer in xgb_score_map:
+        shuffle_flag = False if ts_option else True
         X1, X2, y1, y2 = train_test_split(X_train, y_train, test_size=split,
-                                          random_state=seed)
+                                          random_state=seed, shuffle=shuffle_flag)
         eval_set = [(X1, y1), (X2, y2)]
         eval_metric = xgb_score_map[scorer]
-        est.fit(X1, y1, eval_set=eval_set, eval_metric=eval_metric,
+        est.fit(X1, y1.values.ravel(), eval_set=eval_set, eval_metric=eval_metric,
                 early_stopping_rounds=esr)
     else:
-        est.fit(X_train, y_train)
+        est.fit(X_train, y_train.values.ravel())
 
     # Get the initial scores
 
     logger.info("Cross-Validation")
     try:
-        scores = cross_val_score(est, X_train, y_train, scoring=scorer, cv=cv_folds,
-                                 n_jobs=n_jobs, verbose=verbosity)
+        scores = cross_val_score(est, X_train, y_train.values.ravel(), scoring=scorer,
+                                 cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
         logger.info("Cross-Validation Scores: %s", scores)
     except:
         logger.info("Cross-Validation Failed: Try setting number_jobs = 1 in model.yml")
 
     # Store the estimator
     model.estimators[algo] = est
+
+    # Copy feature name master into feature names per algorithm
+    model.fnames_algo[algo] = model.feature_names
 
     # Record importances and coefficients if necessary.
 
@@ -717,10 +762,133 @@ def first_fit(model, algo, est):
 
 
 #
+# Function time_series_model
+#
+
+def time_series_model(model, algo):
+    r"""Train a model using a walk-backward time series technique.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model object with specifications.
+    algo : str
+        Abbreviation of the algorithm to run.
+
+    Returns
+    -------
+    model : alphapy.Model
+        The model object with the predictions.
+
+    Notes
+    -----
+    We use a training window (derivation window) and a test window
+    (forecast window) to make predictions incrementally. This technique
+    is in contrast to the traditional train/test split, where the model
+    does not predict using the most recent data.
+
+    """
+
+    logger.info("Walk-Backward Time Series Model")
+
+    # Extract model parameters.
+
+    model_type = model.specs['model_type']
+    target = model.specs['target']
+    ts_backtests = model.specs['ts_backtests']
+    ts_date_index = model.specs['ts_date_index']
+    ts_forecast = model.specs['ts_forecast']
+    ts_window = model.specs['ts_window']
+
+    # Extract model data.
+
+    df = pd.concat([model.df_X_train[ts_date_index], pd.DataFrame(model.X_train), model.y_train], axis=1)
+    est = model.estimators[algo]
+
+    # Sort train and test by ascending date
+
+    df.sort_values(by=[ts_date_index], inplace=True)
+    df_y = df[[ts_date_index, target]]
+    df_X = df.drop(columns=[target])
+
+    # Walk forward through the training set, incrementally adding predictions
+
+    dates_ts = df_X[ts_date_index]
+    _, date_index = np.unique(dates_ts, return_index=True)
+
+    first_date = dates_ts.iloc[date_index[0]]
+    last_date = dates_ts.iloc[date_index[-1]]
+    test2_date = last_date
+    test1_date = dates_ts.iloc[date_index[-ts_forecast]]
+    train2_date = dates_ts.iloc[date_index[-ts_forecast - 1]]
+    train1_date = dates_ts.iloc[date_index[-ts_forecast - ts_window]]
+
+    all_indices = []
+    all_preds = []
+    all_probas = []
+
+    niters = 1
+    walk_backward = True
+
+    while walk_backward and niters <= ts_backtests:
+        logger.info("%d: Train: [%s, %s], Test: [%s, %s]",
+                    niters, train1_date, train2_date, test1_date, test2_date)
+        # define train and prediction datasets
+        df_X_sub = df_X[(df_X[ts_date_index] >= train1_date) & (df_X[ts_date_index] <= train2_date)]
+        df_y_sub = df_y[(df_y[ts_date_index] >= train1_date) & (df_y[ts_date_index] <= train2_date)]
+        # fit the model
+        est.fit(df_X_sub.drop(columns=[ts_date_index]), df_y_sub[target])
+        # make walk-forward predictions
+        df_pred_X = df_X[(df_X[ts_date_index] >= test1_date) & (df_X[ts_date_index] <= test2_date)]
+        df_pred_y = df_y[(df_y[ts_date_index] >= test1_date) & (df_y[ts_date_index] <= test2_date)]
+        preds = est.predict(df_pred_X.drop(columns=[ts_date_index]))
+        if model_type == ModelType.classification:
+            probas = est.predict_proba(df_pred_X.drop(columns=[ts_date_index]))[:, 1]
+        # save actuals and predicted
+        all_indices.extend(df_pred_y.index)
+        all_preds.extend(preds)
+        all_probas.extend(probas)
+        if train1_date > first_date:
+            # next iteration
+            next_index = -niters - ts_forecast
+            test2_date = dates_ts.iloc[date_index[-niters - 1]]
+            test1_date = dates_ts.iloc[date_index[next_index]]
+            train2_date = dates_ts.iloc[date_index[next_index - 1]]
+            train1_date = dates_ts.iloc[date_index[next_index - ts_window]]
+            niters += 1
+        else:
+            walk_backward = False
+
+    # Store the time series dataframes and training predictions
+
+    model.df_X_ts = model.df_X_train.loc[all_indices]
+    model.df_y_ts = model.df_y_train.loc[all_indices]
+
+    model.preds[(algo, Partition.train_ts)] = all_preds
+    if model_type == ModelType.classification:
+        model.probas[(algo, Partition.train_ts)] = all_probas
+
+    # Fit on the most recent train data and make test predictions
+
+    logger.info("Time Series Test Predictions")
+    train_date = dates_ts.iloc[date_index[-ts_window]]
+    df_X_sub = df_X[df_X[ts_date_index] >= train_date].drop(columns=[ts_date_index]).values
+    df_y_sub = df_y[df_y[ts_date_index] >= train_date][target].values
+    est.fit(df_X_sub, df_y_sub)
+
+    model.preds[(algo, Partition.test_ts)] = est.predict(model.X_test)
+    if model_type == ModelType.classification:
+        model.probas[(algo, Partition.test_ts)] = est.predict_proba(model.X_test)[:, 1]
+
+    # Return the model
+    return model
+
+
+#
 # Function make_predictions
 #
 
-def make_predictions(model, algo, calibrate):
+def make_predictions(model, algo):
     r"""Make predictions for the training and testing data.
 
     Parameters
@@ -729,8 +897,6 @@ def make_predictions(model, algo, calibrate):
         The model object with specifications.
     algo : str
         Abbreviation of the algorithm to make predictions.
-    calibrate : bool
-        If ``True``, calibrate the probabilities for a classifier.
 
     Returns
     -------
@@ -749,6 +915,7 @@ def make_predictions(model, algo, calibrate):
 
     # Extract model parameters.
 
+    calibrate = model.specs['calibration']
     cal_type = model.specs['cal_type']
     cv_folds = model.specs['cv_folds']
     model_type = model.specs['model_type']
@@ -757,7 +924,7 @@ def make_predictions(model, algo, calibrate):
 
     est = model.estimators[algo]
 
-    # Extract model data.
+    # Extract model data
 
     try:
         support = model.support[algo]
@@ -766,6 +933,7 @@ def make_predictions(model, algo, calibrate):
     except:
         X_train = model.X_train
         X_test = model.X_test
+
     y_train = model.y_train
 
     # Calibration
@@ -774,7 +942,7 @@ def make_predictions(model, algo, calibrate):
         if calibrate:
             logger.info("Calibrating Classifier")
             est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
-            est.fit(X_train, y_train)
+            est.fit(X_train, y_train.values.ravel())
             model.estimators[algo] = est
             logger.info("Calibration Complete")
         else:
@@ -795,16 +963,74 @@ def make_predictions(model, algo, calibrate):
 
 
 #
-# Function predict_best
+# Function predict_blend
 #
 
-def predict_best(model):
+def predict_blend(model):
+    r"""Make blended predictions.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model object.
+
+    Returns
+    -------
+    model : alphapy.Model
+        The model object with the blended predictions.
+
+    Notes
+    -----
+    Currently, we simply average the predictions. Previously, for classification,
+    AlphaPy usesd logistic regression for creating a blended model. For regression,
+    ridge regression was applied.
+
+    """
+
+    logger.info('='*80)
+    logger.info("Blended Predictions")
+
+    # Extract model parameters.
+    model_type = model.specs['model_type']
+
+    # Set the tag.
+    blend_tag = 'BLEND'
+
+    # Iterate through the partitions, averaging predictions for each one.
+
+    start_time = datetime.now()
+    logger.info("Blending Start: %s", start_time)
+
+    for partition in datasets.keys():
+        pred_set = [model.preds[key] for key, _ in model.preds.items() if partition in key]
+        model.preds[(blend_tag, partition)] = np.round(np.mean(pred_set, axis=0), 0).astype(int)
+        if model_type == ModelType.classification:
+            proba_set = [model.probas[key] for key, _ in model.probas.items() if partition in key]
+            model.probas[(blend_tag, partition)] = np.mean(proba_set, axis=0)
+            model.preds[(blend_tag, partition)] = np.round(model.probas[(blend_tag, partition)], 0).astype(int)
+
+    # Return the model with blended predictions.
+
+    end_time = datetime.now()
+    time_taken = end_time - start_time
+    logger.info("Blending Complete: %s", time_taken)
+
+    return model
+
+
+#
+# Function select_best_model
+#
+
+def select_best_model(model, partition):
     r"""Select the best model based on score.
 
     Parameters
     ----------
     model : alphapy.Model
         The model object with all of the estimators.
+    partition : alphapy.Partition
+        Reference to the dataset.
 
     Returns
     -------
@@ -818,7 +1044,6 @@ def predict_best(model):
     select the model with the algorithm that has the lowest score.
     If the objective is to maximize, then we select the algorithm
     with the highest score (e.g., AUC).
-
     For multiple algorithms, AlphaPy always creates a blended model.
     Therefore, the best algorithm that is selected could actually
     be the blended model itself.
@@ -826,7 +1051,7 @@ def predict_best(model):
     """
 
     logger.info('='*80)
-    logger.info("Selecting Best Model")
+    logger.info("Selecting Best Model for partition: %s" % partition)
 
     # Define model tags
 
@@ -838,12 +1063,6 @@ def predict_best(model):
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']
     scorer = model.specs['scorer']
-    test_labels = model.test_labels
-
-    # Determine the correct partition to select the best model
-
-    partition = Partition.test if test_labels else Partition.train
-    logger.info("Scoring for: %s", partition)
 
     # Initialize best parameters.
 
@@ -858,39 +1077,33 @@ def predict_best(model):
     start_time = datetime.now()
     logger.info("Best Model Selection Start: %s", start_time)
 
-    # Add blended model to the list of algorithms.
-
-    if len(model.algolist) > 1:
-        algolist = copy(model.algolist)
-        algolist.append(blend_tag)
-    else:
-        algolist = model.algolist
-
     # Iterate through the models, getting the best score for each one.
 
-    for algorithm in algolist:
+    for index, algorithm in enumerate(model.algolist):
         logger.info("Scoring %s Model", algorithm)
         top_score = model.metrics[(algorithm, partition, scorer)]
-        # objective is to either maximize or minimize score
-        if maximize:
-            if top_score > best_score:
-                best_score = top_score
-                best_algo = algorithm
+        if index > 0:
+            # objective is to either maximize or minimize score
+            if maximize:
+                if top_score > best_score:
+                    best_score = top_score
+                    best_algo = algorithm
+            else:
+                if top_score < best_score:
+                    best_score = top_score
+                    best_algo = algorithm
         else:
-            if top_score < best_score:
-                best_score = top_score
-                best_algo = algorithm
+            best_score = top_score
+            best_algo = algorithm
 
     # Record predictions of best estimator
 
     logger.info("Best Model is %s with a %s score of %.4f", best_algo, scorer, best_score)
     model.best_algo = best_algo
     model.estimators[best_tag] = model.estimators[best_algo]
-    model.preds[(best_tag, Partition.train)] = model.preds[(best_algo, Partition.train)]
-    model.preds[(best_tag, Partition.test)] = model.preds[(best_algo, Partition.test)]
+    model.preds[(best_tag, partition)] = model.preds[(best_algo, partition)]
     if model_type == ModelType.classification:
-        model.probas[(best_tag, Partition.train)] = model.probas[(best_algo, Partition.train)]
-        model.probas[(best_tag, Partition.test)] = model.probas[(best_algo, Partition.test)]
+        model.probas[(best_tag, partition)] = model.probas[(best_algo, partition)]
 
     # Record support vector for any recursive feature elimination
 
@@ -906,102 +1119,6 @@ def predict_best(model):
     end_time = datetime.now()
     time_taken = end_time - start_time
     logger.info("Best Model Selection Complete: %s", time_taken)
-
-    return model
-
-
-#
-# Function predict_blend
-#
-
-def predict_blend(model):
-    r"""Make predictions from a blended model.
-
-    Parameters
-    ----------
-    model : alphapy.Model
-        The model object with all of the estimators.
-
-    Returns
-    -------
-    model : alphapy.Model
-        The model object with the blended estimator.
-
-    Notes
-    -----
-    For classification, AlphaPy uses logistic regression for creating
-    a blended model. For regression, ridge regression is applied.
-
-    """
-
-    logger.info("Blending Models")
-
-    # Extract model paramters.
-
-    model_type = model.specs['model_type']
-    cv_folds = model.specs['cv_folds']
-
-    # Extract model data.
-
-    X_train = model.X_train
-    X_test = model.X_test
-    y_train = model.y_train
-
-    # Add blended algorithm.
-
-    blend_tag = 'BLEND'
-
-    # Create blended training and test sets.
-
-    n_models = len(model.algolist)
-    X_blend_train = np.zeros((X_train.shape[0], n_models))
-    X_blend_test = np.zeros((X_test.shape[0], n_models))
-
-    # Iterate through the models, cross-validating for each one.
-
-    start_time = datetime.now()
-    logger.info("Blending Start: %s", start_time)
-
-    for i, algorithm in enumerate(model.algolist):
-        # get the best estimator
-        estimator = model.estimators[algorithm]
-        # update coefficients and feature importances
-        if hasattr(estimator, "coef_"):
-            model.coefs[algorithm] = estimator.coef_
-        if hasattr(estimator, "feature_importances_"):
-            model.importances[algorithm] = estimator.feature_importances_
-        # store predictions in the blended training set
-        if model_type == ModelType.classification:
-            X_blend_train[:, i] = model.probas[(algorithm, Partition.train)]
-            X_blend_test[:, i] = model.probas[(algorithm, Partition.test)]
-        else:
-            X_blend_train[:, i] = model.preds[(algorithm, Partition.train)]
-            X_blend_test[:, i] = model.preds[(algorithm, Partition.test)]
-
-    # Use the blended estimator to make predictions
-
-    if model_type == ModelType.classification:
-        clf = LogisticRegression()
-        clf.fit(X_blend_train, y_train)
-        model.estimators[blend_tag] = clf
-        model.preds[(blend_tag, Partition.train)] = clf.predict(X_blend_train)
-        model.preds[(blend_tag, Partition.test)] = clf.predict(X_blend_test)
-        model.probas[(blend_tag, Partition.train)] = clf.predict_proba(X_blend_train)[:, 1]
-        model.probas[(blend_tag, Partition.test)] = clf.predict_proba(X_blend_test)[:, 1]
-    else:
-        alphas = [0.0001, 0.005, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5,
-                  1.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0]
-        rcvr = RidgeCV(alphas=alphas, normalize=True, cv=cv_folds)
-        rcvr.fit(X_blend_train, y_train)
-        model.estimators[blend_tag] = rcvr
-        model.preds[(blend_tag, Partition.train)] = rcvr.predict(X_blend_train)
-        model.preds[(blend_tag, Partition.test)] = rcvr.predict(X_blend_test)
-
-    # Return the model with blended estimator and predictions.
-
-    end_time = datetime.now()
-    time_taken = end_time - start_time
-    logger.info("Blending Complete: %s", time_taken)
 
     return model
 
@@ -1044,27 +1161,26 @@ def generate_metrics(model, partition):
     logger.info('='*80)
     logger.info("Metrics for: %s", partition)
 
-    # Extract model paramters.
+    # Extract model parameters
 
     model_type = model.specs['model_type']
 
-    # Extract model data.
+    # Extract model data
 
     if partition == Partition.train:
         expected = model.y_train
-    else:
+    elif partition == Partition.test:
         expected = model.y_test
+    elif partition == Partition.train_ts:
+        expected = model.df_y_ts
+    else:
+        raise ValueError("Invalid Partition: %s", partition)
 
     # Generate Metrics
 
-    if expected.any():
-        # Add blended model to the list of algorithms.
-        if len(model.algolist) > 1:
-            algolist = copy(model.algolist)
-            algolist.append('BLEND')
-        else:
-            algolist = model.algolist
-
+    if not expected.empty:
+        algolist = copy(model.algolist)
+        algolist.append('BLEND')
         # get the metrics for each algorithm
         for algo in algolist:
             # get predictions for the given algorithm
@@ -1083,7 +1199,7 @@ def generate_metrics(model, partition):
                 try:
                     model.metrics[(algo, partition, 'balanced_accuracy')] = balanced_accuracy_score(expected, predicted)
                 except:
-                    logger.info("Accuracy Score not calculated")
+                    logger.info("Balanced Accuracy Score not calculated")
                 try:
                     model.metrics[(algo, partition, 'brier_score_loss')] = brier_score_loss(expected, probas)
                 except:
@@ -1148,7 +1264,7 @@ def generate_metrics(model, partition):
                 except:
                     logger.info("R-Squared Score not calculated")
         # log the metrics for each algorithm
-        for algo in model.algolist:
+        for algo in algolist:
             logger.info('-'*80)
             logger.info("Algorithm: %s", algo)
             metrics = [(k[2], v) for k, v in list(model.metrics.items()) if k[0] == algo and k[1] == partition]
@@ -1166,26 +1282,34 @@ def generate_metrics(model, partition):
 # Function save_predictions
 #
 
-def save_predictions(model, tag, partition):
-    r"""Save the predictions to disk.
+def save_predictions(model, partition):
+    r"""Save the predictions to files.
 
     Parameters
     ----------
     model : alphapy.Model
         The model object to save.
-    tag : str
-        A unique identifier for the output files, e.g., a date stamp.
     partition : alphapy.Partition
         Reference to the dataset.
 
     Returns
     -------
-    preds : numpy array
-        The prediction vector.
-    probas : numpy array
-        The probability vector.
+    model : alphapy.Model
+        The model object with the blended estimator.
+
+    Notes
+    -----
+
+    The following components are extracted from the model object
+    and saved to disk:
+
+    * Model predictor (via joblib/pickle)
+    * Feature Map (via joblib/pickle)
 
     """
+
+    logger.info('='*80)
+    logger.info("Saving Predictions for partition: %s" % partition)
 
     # Extract model parameters.
 
@@ -1193,6 +1317,9 @@ def save_predictions(model, tag, partition):
     extension = model.specs['extension']
     model_type = model.specs['model_type']
     separator = model.specs['separator']
+    submission_file = model.specs['submission_file']
+    submit_probas = model.specs['submit_probas']
+    ts_option = model.specs['ts_option']
 
     # Get date stamp to record file creation
     timestamp = get_datestamp()
@@ -1202,142 +1329,76 @@ def save_predictions(model, tag, partition):
     input_dir = SSEP.join([directory, 'input'])
     output_dir = SSEP.join([directory, 'output'])
 
-    # Read the prediction frame
-    file_spec = ''.join([datasets[partition], '*'])
-    file_name = most_recent_file(input_dir, file_spec)
-    file_name = file_name.split(SSEP)[-1].split(PSEP)[0]
-    pf = read_frame(input_dir, file_name, extension, separator)
+    # Join train and test files
 
-    # Cull records before the prediction date
-
-    try:
-        predict_date = model.specs['predict_date']
-        found_pdate = True
-    except:
-        found_pdate = False
-
-    if found_pdate:
-        pd_indices = pf[pf.date >= predict_date].index.tolist()
-        pf = pf.iloc[pd_indices]
+    df_master = pd.DataFrame()
+    if partition == Partition.train:
+        df_master = pd.concat([model.df_X_train, model.df_y_train], axis=1)
+    elif partition == Partition.test:
+        if model.test_labels:
+            df_master = pd.concat([model.df_X_test, model.df_y_test], axis=1)
+        else:
+            df_master = model.df_X_test
+    elif partition == Partition.train_ts:
+        df_master = pd.concat([model.df_X_ts, model.df_y_ts], axis=1)
     else:
-        pd_indices = pf.index.tolist()
+        raise ValueError("Invalid Partition: %s", partition)
 
-    # Save predictions for all projects
+    # Iterate through tags, including algorithms.
 
-    logger.info("Saving Predictions")
-    output_file = USEP.join(['predictions', timestamp])
-    preds = model.preds[(tag, partition)].squeeze()
-    if found_pdate:
-        preds = np.take(preds, pd_indices)
-    pred_series = pd.Series(preds, index=pd_indices)
-    df_pred = pd.DataFrame(pred_series, columns=['prediction'])
-    write_frame(df_pred, output_dir, output_file, extension, separator)
+    logger.info("Adding Prediction Columns")
 
-    # Save probabilities for classification projects
+    partition_list = [partition]
+    if ts_option and partition == Partition.test:
+        partition_list.insert(0, Partition.test_ts)
 
-    probas = None
-    if model_type == ModelType.classification:
-        logger.info("Saving Probabilities")
-        output_file = USEP.join(['probabilities', timestamp])
-        probas = model.probas[(tag, partition)].squeeze()
-        if found_pdate:
-            probas = np.take(probas, pd_indices)
-        prob_series = pd.Series(probas, index=pd_indices)
-        df_prob = pd.DataFrame(prob_series, columns=['probability'])
-        write_frame(df_prob, output_dir, output_file, extension, separator)
+    best_tag = 'BEST'
+    blend_tag = 'BLEND'
+
+    tag_list = []
+    if partition == Partition.train or partition == Partition.train_ts:
+        sort_tag = best_tag.lower()
+        tag_list.append(best_tag)
+    else:
+        sort_tag = blend_tag.lower()
+    tag_list.append(blend_tag)
+    tag_list.extend(model.algolist)
+
+    for partition_id in partition_list:
+        for tag_id in tag_list:
+            pred_name = USEP.join(['pred', datasets[partition_id], tag_id.lower()])
+            df_master[pred_name] = model.preds[(tag_id, partition_id)]
+            if model_type == ModelType.classification:
+                prob_name = USEP.join(['prob', datasets[partition_id], tag_id.lower()])
+                df_master[prob_name] = model.probas[(tag_id, partition_id)]
 
     # Save ranked predictions
 
     logger.info("Saving Ranked Predictions")
-    pf['prediction'] = pred_series
     if model_type == ModelType.classification:
-        pf['probability'] = prob_series
-        pf.sort_values('probability', ascending=False, inplace=True)
+        prob_name = USEP.join(['prob', datasets[partition], sort_tag])
+        df_master.sort_values(prob_name, ascending=False, inplace=True)
     else:
-        pf.sort_values('prediction', ascending=False, inplace=True)
-    output_file = USEP.join(['rankings', timestamp])
-    write_frame(pf, output_dir, output_file, extension, separator)
-
-    # Return predictions and any probabilities
-    return preds, probas
-
-
-#
-# Function save_model
-#
-
-def save_model(model, tag, partition):
-    r"""Save the results in the model file.
-
-    Parameters
-    ----------
-    model : alphapy.Model
-        The model object to save.
-    tag : str
-        A unique identifier for the output files, e.g., a date stamp.
-    partition : alphapy.Partition
-        Reference to the dataset.
-
-    Returns
-    -------
-    None : None
-
-    Notes
-    -----
-
-    The following components are extracted from the model object
-    and saved to disk:
-
-    * Model predictor (via joblib/pickle)
-    * Predictions
-    * Probabilities (classification only)
-    * Rankings
-    * Submission File (optional)
-
-    """
-
-    logger.info('='*80)
-
-    # Extract model parameters.
-
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    model_type = model.specs['model_type']
-    submission_file = model.specs['submission_file']
-    submit_probas = model.specs['submit_probas']
-
-    # Get date stamp to record file creation
-
-    d = datetime.now()
-    f = "%Y%m%d"
-    timestamp = d.strftime(f)
-
-    # Save the model predictor
-    save_predictor(model, timestamp)
-
-    # Save the feature map
-    save_feature_map(model, timestamp)
-
-    # Specify input and output directories
-
-    input_dir = SSEP.join([directory, 'input'])
-    output_dir = SSEP.join([directory, 'output'])
-
-    # Save predictions
-    preds, probas = save_predictions(model, tag, partition)
+        pred_name = USEP.join(['pred', datasets[partition], sort_tag])
+        df_master.sort_values(pred_name, ascending=False, inplace=True)
+    output_file = USEP.join(['ranked', datasets[partition], timestamp])
+    write_frame(df_master, output_dir, output_file, extension, separator)
 
     # Generate submission file
 
-    if submission_file:
+    if submission_file and partition == Partition.train:
         sample_spec = PSEP.join([submission_file, extension])
         sample_input = SSEP.join([input_dir, sample_spec])
-        ss = pd.read_csv(sample_input)
+        df_sub = pd.read_csv(sample_input)
         if submit_probas and model_type == ModelType.classification:
-            ss[ss.columns[1]] = probas
+            df_sub[df_sub.columns[1]] = model.probas[(sort_tag, Partition.test)]
         else:
-            ss[ss.columns[1]] = preds
+            df_sub[df_sub.columns[1]] = model.preds[(sort_tag, Partition.test)]
         submission_base = USEP.join(['submission', timestamp])
         submission_spec = PSEP.join([submission_base, extension])
         submission_output = SSEP.join([output_dir, submission_spec])
         logger.info("Saving Submission to %s", submission_output)
-        ss.to_csv(submission_output, index=False)
+        df_sub.to_csv(submission_output, index=False)
+
+    # Return model
+    return model

@@ -37,22 +37,16 @@ import streamlit as st
 import subprocess
 import time
 
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="Viccy",
+    page_icon="🧊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # st.sidebar.image('./logo.jpg', use_column_width=True)
 # st.sidebar.markdown("<h1 style='text-align: center; color: red;'>AlphaPy :chart_with_upwards_trend: Vikki :woman:</h1>", unsafe_allow_html=True)
-st.sidebar.title('Vikki :woman: the AlphaPy :chart_with_upwards_trend: UI')
-
-st.sidebar.text('groups')
-
-base_url = 'http://localhost:8000/'
-url_item = 'groups'
-r = requests.get(base_url+url_item) # Make HTTPS call 
-groups = r.json() # Decode JSON
-
-for g in groups.items():
-    print(g)
-    st.sidebar.text(g)
+st.sidebar.title('Viccy :woman: the AlphaPy :chart_with_upwards_trend: UI')
 
 st.write('<style>div.row-widget.stRadio > div{flex-direction:row;}</style>', unsafe_allow_html=True)
 vikki_mode = st.radio('', ['Chart', 'Symbol', 'System', 'Model', 'Portfolio', 'Account'])
@@ -89,7 +83,6 @@ elif vikki_mode == 'Account':
     st.write(vikki_mode)
 
 
-"""
 option = st.sidebar.selectbox(
     'What do you want to explore?',
      ('Machine Learning', 'Markets', 'Sports'))
@@ -115,6 +108,20 @@ def get_projects(file_name, directory):
 #st.write(result.stdout)  # Do something interesting with the result
 
 st.sidebar.subheader("Projects")
+
+
+
+
+base_url = 'http://localhost:8000/'
+url_item = 'groups'
+r = requests.get(base_url+url_item) # Make HTTPS call 
+groups = r.json() # Decode JSON
+
+for g in groups.items():
+    print(g)
+    st.sidebar.text(g)
+
+
 st.sidebar.markdown(get_projects('model.yml', root_directory))
 
 
@@ -151,4 +158,3 @@ for i in range(100):
   time.sleep(0.1)
 
 '...and now we\'re done!'
-"""

@@ -28,6 +28,7 @@
 
 from alphapy.globals import PSEP, SSEP, USEP
 
+import dask.dataframe as dd
 import logging
 import pandas as pd
 
@@ -117,7 +118,7 @@ class Frame(object):
                 # add frame to frames list
                 Frame.frames[fn] = self
             else:
-                logger.info("Frame %s already exists" % fn)
+                logger.debug("Frame %s already exists" % fn)
         else:
             logger.info("df must be of type Pandas DataFrame")
         
@@ -131,8 +132,7 @@ class Frame(object):
 # Function read_frame
 #
 
-def read_frame(directory, filename, extension, separator,
-               index_col=None, squeeze=False):
+def read_frame(directory, filename, extension, separator, index_col=False):
     r"""Read a delimiter-separated file into a data frame.
 
     Parameters
@@ -147,8 +147,6 @@ def read_frame(directory, filename, extension, separator,
         The delimiter between fields in the file.
     index_col : str, optional
         Column to use as the row labels in the dataframe.
-    squeeze : bool, optional
-        If the data contains only one column, then return a pandas Series.
 
     Returns
     -------
@@ -158,14 +156,13 @@ def read_frame(directory, filename, extension, separator,
 
     """
     file_only = PSEP.join([filename, extension])
-    file_all = SSEP.join([directory, file_only])
-    logger.info("Loading data from %s", file_all)
+    file_spec = SSEP.join([directory, file_only])
+    logger.info("Loading data from %s", file_spec)
     try:
-        df = pd.read_csv(file_all, sep=separator, index_col=index_col,
-                         squeeze=squeeze, low_memory=False)
+        df = pd.read_csv(file_spec, sep=separator, index_col=index_col, low_memory=False)
     except:
         df = pd.DataFrame()
-        logger.info("Could not find or access %s", file_all)
+        logger.info("Could not find or access %s", file_spec)
     return df
 
 

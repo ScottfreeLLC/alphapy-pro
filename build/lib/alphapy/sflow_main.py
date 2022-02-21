@@ -45,6 +45,7 @@ from alphapy.globals import WILDCARD
 from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.space import Space
+from alphapy.transforms import dateparts
 from alphapy.utilities import valid_date
 
 import argparse
@@ -303,6 +304,7 @@ def get_day_offset(date_vector):
         A vector of day offsets between adjacent dates.
 
     """
+
     dv = pd.to_datetime(date_vector)
     offsets = pd.to_datetime(dv) - pd.to_datetime(dv[0])
     day_offset = offsets.astype('timedelta64[D]').astype(int)
@@ -640,10 +642,31 @@ def main(args=None):
 
     """
 
+    # Argument Parsing
+
+    parser = argparse.ArgumentParser(description="SportFlow Parser")
+    parser.add_argument("-d", "--debug", action="store_true", default=False)
+    parser.add_argument('--pdate', dest='predict_date',
+                        help="prediction date is in the format: YYYY-MM-DD",
+                        required=False, type=valid_date)
+    parser.add_argument('--tdate', dest='train_date',
+                        help="training date is in the format: YYYY-MM-DD",
+                        required=False, type=valid_date)
+    parser.add_mutually_exclusive_group(required=False)
+    parser.add_argument('--predict', dest='predict_mode', action='store_true')
+    parser.add_argument('--train', dest='predict_mode', action='store_false')
+    parser.set_defaults(predict_mode=False)
+    args = parser.parse_args()
+
     # Logging
 
+    if args.debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+
     logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
-                        filename="sport_flow.log", filemode='a', level=logging.DEBUG,
+                        filename="sport_flow.log", filemode='a', level=log_level,
                         datefmt='%m/%d/%y %H:%M:%S')
     formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
                                   datefmt='%m/%d/%y %H:%M:%S')
@@ -659,21 +682,6 @@ def main(args=None):
     logger.info('*'*80)
     logger.info("SportFlow Start")
     logger.info('*'*80)
-
-    # Argument Parsing
-
-    parser = argparse.ArgumentParser(description="SportFlow Parser")
-    parser.add_argument('--pdate', dest='predict_date',
-                        help="prediction date is in the format: YYYY-MM-DD",
-                        required=False, type=valid_date)
-    parser.add_argument('--tdate', dest='train_date',
-                        help="training date is in the format: YYYY-MM-DD",
-                        required=False, type=valid_date)
-    parser.add_mutually_exclusive_group(required=False)
-    parser.add_argument('--predict', dest='predict_mode', action='store_true')
-    parser.add_argument('--train', dest='predict_mode', action='store_false')
-    parser.set_defaults(predict_mode=False)
-    args = parser.parse_args()
 
     # Set train and predict dates
 
@@ -757,13 +765,17 @@ def main(args=None):
     logger.info("Total Game Records: %d", df.shape[0])
 
     #
-    # Locate any rows with null values
+    # Get date information
     #
 
-    null_rows = df.isnull().any(axis=1)
-    null_indices = [i for i, val in enumerate(null_rows.tolist()) if val == True]
-    for i in null_indices:
-        logger.info("Null Record: %d on Date: %s", i, df.date[i])
+    df = pd.concat([df, dateparts(df, 'date')], axis=1)
+
+    #
+    # Make all team names lower case
+    #
+
+    df['home.team'] = df['home.team'].str.lower()
+    df['away.team'] = df['away.team'].str.lower()
 
     #
     # Run the game pipeline on a seasonal loop
@@ -803,21 +815,32 @@ def main(args=None):
 
         gf = add_features(gf, game_dict, gf.shape[0])
         for index, row in gf.iterrows():
-            gf['point_margin_game'].at[index] = get_point_margin(row, 'home.score', 'away.score')
-            gf['won_on_points'].at[index] = True if gf['point_margin_game'].at[index] > 0 else False
-            gf['lost_on_points'].at[index] = True if gf['point_margin_game'].at[index] < 0 else False
-            gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['line']
-            gf['won_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] > 0 else False
-            gf['lost_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] <= 0 else False
-            gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under']
-            gf['over'].at[index] = True if gf['overunder_margin'].at[index] > 0 else False
-            gf['under'].at[index] = True if gf['overunder_margin'].at[index] < 0 else False
+            if not np.isnan(row['home.score']):
+                gf['point_margin_game'].at[index] = get_point_margin(row, 'home.score', 'away.score')
+                gf['won_on_points'].at[index] = True if gf['point_margin_game'].at[index] > 0 else False
+                gf['lost_on_points'].at[index] = True if gf['point_margin_game'].at[index] < 0 else False
+                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['line']
+                gf['won_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] > 0 else False
+                gf['lost_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] <= 0 else False
+                gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under']
+                gf['over'].at[index] = True if gf['overunder_margin'].at[index] > 0 else False
+                gf['under'].at[index] = True if gf['overunder_margin'].at[index] < 0 else False
+            else:
+                gf['point_margin_game'].at[index] = None
+                gf['won_on_points'].at[index] = None
+                gf['lost_on_points'].at[index] = None
+                gf['cover_margin_game'].at[index] = None
+                gf['won_on_spread'].at[index] = None
+                gf['lost_on_spread'].at[index] = None
+                gf['overunder_margin'].at[index] = None
+                gf['over'].at[index] = None
+                gf['under'].at[index] = None
 
         # Generate each team frame
 
         team_frames = {}
         teams = gf.groupby([home_team])
-        for team, data in teams:
+        for team, _ in teams:
             team_frame = USEP.join([league, team.lower(), series, str(season)])
             logger.info("Generating team frame: %s", team_frame)
             tf = get_team_frame(gf, team, home_team, away_team)
@@ -841,7 +864,7 @@ def main(args=None):
         #     try: np.where((gf[home_team] == 'PHI') & (gf['date'] == '09/07/14'))[0][0]
         #     Assign team frame fields to respective model frame fields: set gf.at(pos, field)
 
-        for team, data in teams:
+        for team, _ in teams:
             team_frame = USEP.join([league, team.lower(), series, str(season)])
             logger.info("Merging team frame %s into model frame", team_frame)
             tf = team_frames[team_frame]
@@ -883,16 +906,16 @@ def main(args=None):
             raise ValueError("Prediction frame has length 1 or less")
         # rewrite with all the features to the train and test files
         logger.info("Saving prediction frame")
-        write_frame(new_predict_frame, input_dir, datasets[Partition.predict],
+        write_frame(new_predict_frame, input_dir, datasets[Partition.test],
                     specs['extension'], specs['separator'])
     else:
         # split data into training and test data
         new_train_frame = ff.loc[(ff.date >= train_date) & (ff.date < predict_date)]
-        if len(new_train_frame) <= 1:
-            raise ValueError("Training frame has length 1 or less")
+        if new_train_frame.empty:
+            raise ValueError("Training frame has no rows")
         new_test_frame = ff.loc[ff.date >= predict_date]
-        if len(new_test_frame) <= 1:
-            raise ValueError("Testing frame has length 1 or less")
+        if new_test_frame.empty:
+            raise ValueError("Testing frame has no rows")
         # rewrite with all the features to the train and test files
         logger.info("Saving training frame")
         write_frame(new_train_frame, input_dir, datasets[Partition.train],
@@ -903,10 +926,13 @@ def main(args=None):
 
     # Create the model from specs
 
-    logger.info("Running Model")
     model = Model(specs)
 
     # Run the pipeline
+
+    logger.info('*'*80)
+    logger.info("Running AlphaPy")
+    logger.info('*'*80)
     model = main_pipeline(model)
 
     # Complete the pipeline

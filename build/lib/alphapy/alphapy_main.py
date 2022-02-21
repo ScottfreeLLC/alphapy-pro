@@ -4,7 +4,7 @@
 # Module    : alphapy_main
 # Created   : July 11, 2013
 #
-# Copyright 2020 ScottFree Analytics LLC
+# Copyright 2022 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,14 +26,23 @@
 # Suppress Warnings
 #
 
+import pandas as pd
 import warnings
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
 
 #
 # Imports
 #
+
+import argparse
+from datetime import datetime
+import logging
+import numpy as np
+import os
+from sklearn.model_selection import train_test_split
 
 from alphapy.data import get_data
 from alphapy.data import sample_data
@@ -49,10 +58,9 @@ from alphapy.features import remove_lv_features
 from alphapy.features import save_features
 from alphapy.features import select_features
 from alphapy.frame import write_frame
-from alphapy.globals import CSEP, PSEP, SSEP, USEP
+from alphapy.globals import SSEP, USEP
 from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
-from alphapy.globals import WILDCARD
+from alphapy.globals import Partition
 from alphapy.model import first_fit
 from alphapy.model import generate_metrics
 from alphapy.model import get_model_config
@@ -60,23 +68,16 @@ from alphapy.model import load_feature_map
 from alphapy.model import load_predictor
 from alphapy.model import make_predictions
 from alphapy.model import Model
-from alphapy.model import predict_best
+from alphapy.model import select_best_model
 from alphapy.model import predict_blend
-from alphapy.model import save_model
+from alphapy.model import save_feature_map
 from alphapy.model import save_predictions
+from alphapy.model import save_predictor
+from alphapy.model import time_series_model
 from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
 from alphapy.utilities import get_datestamp
-
-import argparse
-from datetime import datetime
-import logging
-import numpy as np
-import os
-import pandas as pd
-from sklearn.model_selection import train_test_split
-import sys
 
 
 #
@@ -115,7 +116,6 @@ def training_pipeline(model):
 
     # Unpack the model specifications
 
-    calibration = model.specs['calibration']
     directory = model.specs['directory']
     drop = model.specs['drop']
     extension = model.specs['extension']
@@ -127,8 +127,10 @@ def training_pipeline(model):
     scorer = model.specs['scorer']
     seed = model.specs['seed']
     separator = model.specs['separator']
+    shuffle = model.specs['shuffle']
     split = model.specs['split']
     target = model.specs['target']
+    ts_option = model.specs['ts_option']
 
     # Get train and test data
 
@@ -140,15 +142,25 @@ def training_pipeline(model):
     if X_test.empty:
         logger.info("No Test Data Found")
         logger.info("Splitting Training Data")
+        shuffle_flag = False if ts_option else True
         X_train, X_test, y_train, y_test = train_test_split(
-            X_train, y_train, test_size=split, random_state=seed)
+            X_train, y_train, test_size=split, random_state=seed, shuffle=shuffle_flag)
+
+    # Save original train/test data
+
+    model.df_X_train = X_train
+    model.df_y_train = y_train
+    model.df_X_test = X_test
+    model.df_y_test = y_test
+    model = save_features(model, X_train, X_test, y_train, y_test)
 
     # Determine if there are any test labels
 
-    if y_test.any():
+    if not y_test.empty:
         logger.info("Test Labels Found")
         model.test_labels = True
-    model = save_features(model, X_train, X_test, y_train, y_test)
+    else:
+        logger.info("Test Labels Not Found")
 
     # Log feature statistics
 
@@ -185,20 +197,22 @@ def training_pipeline(model):
 
     datestamp = get_datestamp()
     data_dir = SSEP.join([directory, 'input'])
+    # train data
     df_train = X_all.iloc[:split_point, :]
-    df_train[target] = y_train
+    df_train.loc[:, target] = y_train.loc[:, target]
     output_file = USEP.join([model.train_file, datestamp])
     write_frame(df_train, data_dir, output_file, extension, separator, index=False)
+    # test data
     df_test = X_all.iloc[split_point:, :]
-    if y_test.any():
-        df_test[target] = y_test
+    if model.test_labels:
+        df_test.loc[:, target] = y_test.loc[:, target]
     output_file = USEP.join([model.test_file, datestamp])
     write_frame(df_test, data_dir, output_file, extension, separator, index=False)
 
     # Create crosstabs for any categorical features
 
     if model_type == ModelType.classification:
-        create_crosstabs(model)
+        create_crosstabs(model, target)
 
     # Create initial features
 
@@ -244,7 +258,7 @@ def training_pipeline(model):
     if scorer not in scorers:
         raise KeyError("Scorer function %s not found" % scorer)
 
-    # Model Selection
+    # Model Loop
 
     logger.info("Selecting Models")
 
@@ -257,11 +271,9 @@ def training_pipeline(model):
         except KeyError:
             est = None
             logger.info("Algorithm %s not found", algo)
-        if est:
-            # initial fit
+        if est is not None:
+            # run classic train/test model pipeline
             model = first_fit(model, algo, est)
-            # copy feature name master into feature names per algorithm
-            model.fnames_algo[algo] = model.feature_names
             # recursive feature elimination
             if rfe:
                 has_coef = hasattr(est, "coef_")
@@ -274,29 +286,47 @@ def training_pipeline(model):
             if grid_search:
                 model = hyper_grid_search(model, estimator)
             # predictions
-            model = make_predictions(model, algo, calibration)
+            model = make_predictions(model, algo)
+            # walk-forward time series
+            if ts_option and not shuffle:
+                time_series_model(model, algo)
 
     # Create a blended estimator
 
     if len(model.algolist) > 1:
         model = predict_blend(model)
 
-    # Generate metrics
+    #
+    # Generate metrics, get the best estimator, generate plots, and save the model.
+    #
 
-    model = generate_metrics(model, Partition.train)
-    model = generate_metrics(model, Partition.test)
+    partition = Partition.train
+    model = generate_metrics(model, partition)
+    model = select_best_model(model, partition)
+    generate_plots(model, partition)
+    model = save_predictions(model, partition)
 
-    # Store the best estimator
-    model = predict_best(model)
-
-    # Generate plots
-
-    generate_plots(model, Partition.train)
+    partition = Partition.test
     if model.test_labels:
-        generate_plots(model, Partition.test)
+        model = generate_metrics(model, partition)
+        model = select_best_model(model, partition)
+        generate_plots(model, partition)
+        model = save_predictions(model, partition)
+    else:
+        model = save_predictions(model, partition)
 
-    # Save best features and predictions
-    save_model(model, 'BEST', Partition.test)
+    if ts_option and not shuffle:
+        partition = Partition.train_ts
+        model = generate_metrics(model, partition)
+        model = select_best_model(model, partition)
+        generate_plots(model, partition)
+        model = save_predictions(model, partition)
+
+    # Save the model
+
+    date_stamp = get_datestamp()
+    save_predictor(model, 'BEST', date_stamp)
+    save_feature_map(model, date_stamp)
 
     # Return the model
     return model
@@ -339,7 +369,7 @@ def prediction_pipeline(model):
 
     X_train, y_train = get_data(model, Partition.train)
 
-    partition = Partition.predict
+    partition = Partition.test
     X_predict, _ = get_data(model, partition)
 
     # Load feature_map
@@ -392,7 +422,7 @@ def prediction_pipeline(model):
     predictor = load_predictor(directory)
 
     # Make predictions
-    
+
     logger.info("Making Predictions")
     tag = 'BEST'
     model.preds[(tag, partition)] = predictor.predict(X_all)
@@ -456,10 +486,25 @@ def main(args=None):
 
     """
 
+    # Argument Parsing
+
+    parser = argparse.ArgumentParser(description="AlphaPy Parser")
+    parser.add_argument("-d", "--debug", action="store_true", default=False)
+    parser.add_mutually_exclusive_group(required=False)
+    parser.add_argument('--predict', dest='predict_mode', action='store_true')
+    parser.add_argument('--train', dest='predict_mode', action='store_false')
+    parser.set_defaults(predict_mode=False)
+    args = parser.parse_args()
+
     # Logging
 
+    if args.debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+
     logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
-                        filename="alphapy.log", filemode='a', level=logging.INFO,
+                        filename="alphapy.log", filemode='a', level=log_level,
                         datefmt='%m/%d/%y %H:%M:%S')
     formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
                                   datefmt='%m/%d/%y %H:%M:%S')
@@ -473,15 +518,6 @@ def main(args=None):
     logger.info('*'*80)
     logger.info("AlphaPy Start")
     logger.info('*'*80)
-
-    # Argument Parsing
-
-    parser = argparse.ArgumentParser(description="AlphaPy Parser")
-    parser.add_mutually_exclusive_group(required=False)
-    parser.add_argument('--predict', dest='predict_mode', action='store_true')
-    parser.add_argument('--train', dest='predict_mode', action='store_false')
-    parser.set_defaults(predict_mode=False)
-    args = parser.parse_args()
 
     # Read configuration file
 

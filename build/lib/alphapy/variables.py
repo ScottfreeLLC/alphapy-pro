@@ -42,25 +42,32 @@
 
 
 #
-# Imports
+# Suppress Warnings
 #
 
-from alphapy.alias import get_alias
-from alphapy.frame import Frame
-from alphapy.frame import frame_name
-from alphapy.globals import BSEP, ESEP, LOFF, PSEP, ROFF, USEP
-from alphapy.space import Space
-from alphapy.utilities import valid_name
+import pandas as pd
+import warnings
+warnings.simplefilter(action='ignore', category=DeprecationWarning)
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+
+#
+# Imports
+#
 
 import builtins
 from collections import OrderedDict
 from importlib import import_module
 import logging
-import numpy as np
-import pandas as pd
-import parser
 import re
 import sys
+
+from alphapy.alias import get_alias
+from alphapy.frame import Frame
+from alphapy.frame import frame_name
+from alphapy.globals import CARET, LOFF, ROFF, USEP
+from alphapy.space import Space
+from alphapy.utilities import valid_name
 
 
 #
@@ -95,7 +102,7 @@ class Variable(object):
 
     Examples
     --------
-    
+
     >>> Variable('rrunder', 'rr_3_20 <= 0.9')
     >>> Variable('hc', 'higher_close')
 
@@ -117,32 +124,24 @@ class Variable(object):
             key = [key for key in Variable.variables if expr in Variable.variables[key].expr]
             logger.info("Expression '%s' already exists for key %s", expr, key)
             return
-        else:
-            if replace or not name in Variable.variables:
-                if not valid_name(name):
-                    logger.info("Invalid variable key: %s", name)
-                    return
-                try:
-                    result = parser.expr(expr)
-                except:
-                    logger.info("Invalid expression: %s", expr)
-                    return
-                return super(Variable, cls).__new__(cls)
+        if replace or not name in Variable.variables:
+            if not valid_name(name):
+                logger.info("Invalid variable key: %s", name)
             else:
-                logger.info("Key %s already exists", name)
+                return super(Variable, cls).__new__(cls)
+        logger.info("Key %s already exists", name)
 
     # function __init__
 
     def __init__(self,
                  name,
-                 expr,
-                 replace = False):
+                 expr):
         # code
         self.name = name
         self.expr = expr
         # add key with expression
         Variable.variables[name] = self
-            
+       
     # function __str__
 
     def __str__(self):
@@ -163,6 +162,9 @@ def vparse(vname):
 
     Returns
     -------
+    fractal : int
+        The fractal level of the variable, with 0 being the base,
+        and +1 for each higher level. 
     vxlag : str
         Original variable name without the ``lag`` component.
     root : str
@@ -188,12 +190,19 @@ def vparse(vname):
     --------
 
     >>> vparse('lmin_5[2]')
-    # ('lmin_5', 'lmin', 'lowest_low', ['5'], 2)
+    # (0, 'lmin_5', 'lmin', 'lowest_low', ['5'], 2)
 
     """
 
-    # split along lag first
-    lsplit = vname.split(LOFF)
+    # split along fractal first
+    if vname[0] == CARET:
+        fractal = 1
+        foffset = 1
+    else:
+        fractal = 0
+        foffset = 0
+    # split along lag
+    lsplit = vname[foffset:].split(LOFF)
     vxlag = lsplit[0]
     # if necessary, substitute any alias
     vxlag1 = vxlag.split(USEP)[0]
@@ -218,21 +227,33 @@ def vparse(vname):
             lre = re.compile(lpat)
             if lre.match(slag):
                 lag = int(slag)
+    # log results in debug mode
+    logger.debug("vname   : %s", vname)
+    logger.debug("fractal : %d", fractal)
+    logger.debug("vxlag   : %s", vxlag)
+    logger.debug("root    : %s", root)
+    logger.debug("valias  : %s", valias)
+    logger.debug("plist   : %s", plist)
+    logger.debug("lag     : %s", lag)
     # return all components
-    return vxlag, root, valias, plist, lag
+    return fractal, vxlag, root, valias, plist, lag
 
 
 #
 # Function allvars
 #
 
-def allvars(expr):
+def allvars(expr, match_fractal=True, match_lag=True):
     r"""Get the list of valid names in the expression.
 
     Parameters
     ----------
     expr : str
         A valid expression conforming to the Variable Definition Language.
+    match_fractal : bool
+        Flag to match fractal special character.
+    match_lag : bool
+        Flag to match fractal special character.
 
     Returns
     -------
@@ -241,20 +262,18 @@ def allvars(expr):
 
     """
     vlist = []
-    logger.debug("Expression: %s" % expr)
-    for item in expr.split(BSEP):
-        match1_re = r'(\(|-)?[A-Za-z]\w+(\[\d+\])?'
-        match1 = re.search(match1_re, item)
-        match2_re = r'\(([^)]+)\)'
-        match2 = re.search(match2_re, item)
-        if match1 or match2:
-            if match2:
-                var = match2.group(0)[1:-1]
-            elif match1:
-                var = match1.group(0)
-            var = re.sub('[()-]', '', var)
-            vlist.append(var)
-    logger.debug("Variable Names: %s" % vlist)
+    logger.debug("Expression: %s", expr)
+    if match_fractal and match_lag:
+        pat = r'(\^)?([A-Za-z]{1}\w+)(\[\d+\])?'
+    elif match_fractal:
+        pat = r'[\^]?[A-Za-z]{1}\w+'
+    elif match_lag:
+        pat = r'[A-Za-z]{1}\w+(\[\d+\])?'
+    else:
+        pat = r'[A-Za-z]{1}\w+'
+    vgroups = re.findall(pat, expr)
+    vlist = [''.join(vgroup) for vgroup in vgroups]
+    logger.debug("Variable Names: %s", vlist)
     return vlist
 
 
@@ -289,7 +308,7 @@ def vtree(vname):
     """
     allv = []
     def vwalk(allv, vname):
-        vxlag, root, _, plist, lag = vparse(vname)
+        _, vxlag, root, _, plist, lag = vparse(vname)
         if root in Variable.variables:
             root_expr = Variable.variables[root].expr
             expr = vsub(vxlag, root_expr)
@@ -372,9 +391,123 @@ def vsub(v, expr):
 
     
 #
+# Function vexpr
+#
+
+def vexpr(f, v):
+    r"""Get the expanded expression for a variable.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the variables.
+    v : str
+        Variable to add to the dataframe.
+
+    Returns
+    -------
+    expr_new : str
+        Expanded expression for evaluation.
+
+    Other Parameters
+    ----------------
+    Variable.variables : dict
+        Global dictionary of variables
+
+    """
+
+    _, vxlag, root, _, _, _ = vparse(v)
+    if root in Variable.variables:
+        logger.debug("Found variable root %s: ", root)
+        expr = Variable.variables[root].expr
+        expr_sub = vsub(vxlag, expr)
+        expr_split = re.split('(\W)', expr_sub)
+        expr_new = ''.join([''.join(['`', e, '`']) if e in f.columns else e for e in expr_split])
+        logger.debug("Expression: %s", expr_new)
+    else:
+        expr_new = None
+        logger.debug("Could not find expression for variable: %s", v)
+    # output expanded expression for evaluation
+    return expr_new
+
+    
+#
+# Function vfunc
+#
+
+def vfunc(f, v, vfuncs):
+    r"""Find a function for defining a variable.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe to contain the new variable.
+    v : str
+        Variable representing a function.
+    vfuncs : dict, optional
+        Dictionary of external modules and functions.
+
+    Returns
+    -------
+    func    : function
+        Function to execute for defining the variable.
+    newlist : list
+        Function parameter list.
+
+    Other Parameters
+    ----------------
+    Variable.variables : dict
+        Global dictionary of variables
+
+    """
+
+    _, _, root, _, plist, _ = vparse(v)
+    func_name = root
+    # Convert the parameter list and prepend the data frame
+    newlist = []
+    for param in plist:
+        try:
+            newlist.append(int(param))
+        except:
+            try:
+                newlist.append(float(param))
+            except:
+                newlist.append(param)
+    newlist.insert(0, f)
+    # Find the module and function
+    module = None
+    if vfuncs:
+        for module_name in vfuncs:
+            funcs = vfuncs[module_name]
+            if func_name in funcs:
+                module = module_name
+                break
+    # If the module was found, import the external transform function,
+    # else search the local namespace and AlphaPy.
+    if module:
+        ext_module = import_module(module)
+        func = getattr(ext_module, func_name)
+    else:
+        modname = globals()['__name__']
+        module = sys.modules[modname]
+        if func_name in dir(module):
+            func = getattr(module, func_name)
+        else:
+            # Search the AlphaPy namespace
+            try:
+                ap_module = import_module('alphapy.transforms')
+                func = getattr(ap_module, func_name)
+            except:
+                func = None
+    # return function and parameter list
+    logger.debug("Found function %s with parameters %s", func_name, newlist)
+    return func, newlist
+
+
+#
 # Function vexec
 #
- 
+
 def vexec(f, v, vfuncs=None):
     r"""Add a variable to the given dataframe.
 
@@ -384,6 +517,7 @@ def vexec(f, v, vfuncs=None):
     own variable functions. If so, then the ``vfuncs`` parameter
     will contain the list of modules and functions to be imported
     and applied by the ``vexec`` function.
+
     To write your own variable function, your function must have
     a pandas *DataFrame* as an input parameter and must return
     a pandas *DataFrame* with the new variable(s).
@@ -409,114 +543,96 @@ def vexec(f, v, vfuncs=None):
 
     """
 
-    vxlag, root, valias, plist, lag = vparse(v)
-    logger.debug("vexec  : %s", v)
-    logger.debug("vxlag  : %s", vxlag)
-    logger.debug("root   : %s", root)
-    logger.debug("valias : %s", valias)
-    logger.debug("plist  : %s", plist)
-    logger.debug("lag    : %s", lag)
+    fractal, vxlag, root, _, _, lag = vparse(v)
     if vxlag not in f.columns:
-        if root in Variable.variables:
-            logger.debug("Found variable %s: ", root)
-            vroot = Variable.variables[root]
-            expr = vroot.expr
-            expr_new = vsub(vxlag, expr)
-            expr_split = expr_new.split(BSEP)
-            expr_split = [''.join(['`', e, '`']) if e in f.columns else e for e in expr_split]
-            expr_new = BSEP.join(expr_split)
-            estr = "%s" % BSEP.join([''.join(['`', vxlag, '`']), ESEP, expr_new])
-            logger.debug("Expression: %s" % estr)
-            # pandas eval
-            f[vxlag] = f.eval(expr_new)
-        else:
-            logger.debug("Did not find variable: %s", root)
-            # Must be a function call
-            func_name = root
-            # Convert the parameter list and prepend the data frame
-            newlist = []
-            for p in plist:
+        # find the variable to evaluate
+        veval = vexpr(f, v)
+        if veval:
+            if CARET not in veval:
                 try:
-                    newlist.append(int(p))
+                    f[vxlag] = f.eval(veval)
                 except:
-                    try:
-                        newlist.append(float(p))
-                    except:
-                        newlist.append(p)
-            newlist.insert(0, f)
-            # Find the module and function
-            module = None
-            if vfuncs:
-                for m in vfuncs:
-                    funcs = vfuncs[m]
-                    if func_name in funcs:
-                        module = m
-                        break
-            # If the module was found, import the external transform function,
-            # else search the local namespace and AlphaPy.
-            if module:
-                ext_module = import_module(module)
-                func = getattr(ext_module, func_name)
+                    logger.info("Variable %s: %s could not be evaluated", vxlag, veval)
             else:
-                modname = globals()['__name__']
-                module = sys.modules[modname]
-                if func_name in dir(module):
-                    func = getattr(module, func_name)
-                else:
-                    try:
-                        ap_module = import_module('alphapy.transforms')
-                        func = getattr(ap_module, func_name)
-                    except:
-                        func = None
+                logger.info("Variable %s: %s is multi-fractal deferred", vxlag, veval)
+        else:
+            # Must be a function call
+            func, newlist = vfunc(f, v, vfuncs)
             if func:
-                # Create the variable by calling the function
                 f[v] = func(*newlist)
-            elif func_name not in dir(builtins):
-                module_error = "*** Could not find module to execute function: {} ***".format(func_name)
-                logger.error(module_error)
-                sys.exit(module_error)
+            elif root not in dir(builtins):
+                vinfo = "Variable {} could not be defined".format(root)
+                logger.info(vinfo)
     # if necessary, add the lagged variable
     if lag > 0 and vxlag in f.columns:
-        f[v] = f[vxlag].shift(lag)
-    # output frame
+        vlag = v if fractal==0 else v[1:]
+        f[vlag] = f[vxlag].shift(lag)
+    # output frame and execution status
     return f
 
-
+    
 #
-# Function vfrac
+# Function vexec_multi_fractal
 #
 
-def vfrac(f, c, fractal, func):
-    r"""Transform a feature based on a higher-order fractal.
+def vexec_multi_fractal(f, expr_dict, fractals):
+    r"""Add multi-fractal variables to a dataframe.
+
+    Create a variable having an expression with mixed fractals. 
 
     Parameters
     ----------
     f : pandas.DataFrame
-        Dataframe containing the base fractal column ``c``.
-    c : str
-        Name of the column in the dataframe ``f``.
-    fractal : str
-        Pandas offset alias.
-    func : str
-        The Pandas function to apply.
+        Dataframe with all fractals to contain the new variable.
+    expr_dict : dict of str
+        Multi-Fractal exressions to apply to the dataframe.
+    fractals : list of str
+        Pandas offset aliases.
 
     Returns
     -------
-    new_column : pandas.Series
-        The series containing the fractal value.
+    f : pandas.DataFrame
+        Dataframe with the new variables.
+
+    Example
+    -------
+
+    If the two fractals are *1D* and *1W*, then the following variable ``vlow``
+    checks for a V pattern where the current day's low is less than last week's
+    low minus 1.5 x the daily Average True Range (ATR).
+
+        vlow : low < ^low[1] - 1.5 * atr
 
     """
 
-    if func == 'first':
-        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[0]))
-    elif func == 'last':
-        new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(lambda x: x.expanding().apply(lambda x: x.values[-1]))
-    else:
-        try:
-            new_column = f.groupby(pd.Grouper(freq=fractal))[c].transform(func)
-        except:
-            logger.info("Could not apply function %s for fractal %s" % (func, fractal))
-    return new_column
+    vpat = re.compile(r'[\^]?[A-Za-z]{1}\w+')
+    for index, fractal in enumerate(fractals):
+        for key, value in expr_dict.items():
+            var = key
+            expr = value
+            if index < len(fractals)-1:
+                all_vars = allvars(expr, match_fractal=True, match_lag=False)
+                for vindex, v in enumerate(all_vars):
+                    if v.startswith(CARET):
+                        vnew = USEP.join([v[1:], fractals[index+1]])
+                        expr = expr.replace(v, vnew)
+                    else:
+                        miter = re.finditer(vpat, expr)
+                        mspan = [m for m in miter][vindex].span()
+                        mspan_start = mspan[0]
+                        mspan_end = mspan[1]
+                        vnew = USEP.join([v, fractal])
+                        expr = expr[:mspan_start] + vnew + expr[mspan_end:]
+                expr_split = re.split('(\W)', expr)
+                expr_new = ''.join([''.join(['`', e, '`']) if e in f.columns else e for e in expr_split])
+                # define the multi-fractal variable
+                var_name = USEP.join([var, fractal])
+                f[var_name] = f.eval(expr_new)
+                logger.debug("Variable: %s, Expression: %s", var, expr_new)
+            else:
+                logger.debug("Cannot define multi-fractal variable %s at highest level", var)
+    # output frame
+    return f
 
 
 #
@@ -549,8 +665,9 @@ def vapply(group, market_specs, vfuncs=None):
 
     # Get group information
 
-    gsubject = group.space.subject
-    gschema = group.space.schema
+    gspace = group.space
+    gsubject = gspace.subject
+    gschema = gspace.schema
     symbols = [item.lower() for item in group.members]
 
     # Extract market specification fields
@@ -559,24 +676,47 @@ def vapply(group, market_specs, vfuncs=None):
     features = market_specs['features']
     ohlc_map = market_specs['ohlc_map']
 
+    # Get all dependent variables for each feature
+
+    fdict = {}
+    for feature in features:
+        fdict[feature] = vtree(feature)
+
+    # Get all multi-fractal expressions
+
+    mfe_dict = {}
+    for vname, allv in fdict.items():
+        for v in allv:
+            _, vxlag, root, _, _, _ = vparse(v)
+            if root in Variable.variables:
+                expr = Variable.variables[root].expr
+                if CARET in expr:
+                    # store fractabl variable in dictionary
+                    if v not in mfe_dict:
+                        mfe_dict[vxlag] = expr
+                    # all parent evaluations are deferred as well
+                    vlist = allv[allv.index(v)+1:]
+                    for vparent in vlist:
+                        _, vxlag, root, _, _, _ = vparse(vparent)
+                        if root in Variable.variables:
+                            expr = Variable.variables[root].expr
+                            if vparent not in mfe_dict:
+                                mfe_dict[vxlag] = expr
+
     # Initialize list of dataframes, function dictionary, and possibly OHLC mapping values
 
     dffs = []
-    func_dict = {'open'  : 'first',
-                 'high'  : 'cummax',
-                 'low'   : 'cummin',
-                 'close' : 'last'}
     if ohlc_map:
         new_names = [x+'0' for x in ohlc_map.keys()]
 
     # Apply the variables to each frame
 
     for symbol in symbols:
-        logger.info("Applying Variables to %s" % symbol.upper())
+        logger.info("Applying Variables to %s", symbol.upper())
         # apply variables to each of the fractals
         dfs = []
         for fractal in fractals:
-            logger.debug("Fractal: %s" % fractal)           
+            logger.info("Fractal: %s", fractal)           
             fspace = Space(gsubject, gschema, fractal)
             fname = frame_name(symbol.lower(), fspace)
             if fname in Frame.frames:
@@ -589,23 +729,21 @@ def vapply(group, market_specs, vfuncs=None):
                         df.rename(columns=dict(zip(ohlc_map.keys(), new_names)), inplace=True)
                         df.rename(columns=dict(zip(ohlc_map.values(), ohlc_map.keys())), inplace=True)
                     # create the features in the dataframe
-                    for vname in features:
-                        # get all the precedent variables
-                        logger.debug("%s Variable: %s.%s" % (symbol.upper(), fractal, vname))
-                        allv = vtree(vname)
+                    for vname, allv in fdict.items():
+                        logger.debug("%s Variable: %s.%s", symbol.upper(), fractal, vname)
                         for v in allv:
                             df = vexec(df, v, vfuncs)
                 else:
-                    raise RuntimeError("Empty DataFrame for %s [%s]" % (symbol, fractal))
+                    raise RuntimeError("Empty Dataframe for %s [%s]" % (symbol, fractal))
             else:
-                raise RuntimeError("DataFrame Not Found for %s [%s]" % (symbol, fractal))
+                raise RuntimeError("Dataframe Not Found for %s [%s]" % (symbol, fractal))
             # rename the columns
-            df = df.add_prefix(fractal + PSEP)
+            df = df.add_suffix(USEP + fractal)
             # add the fractal frame to the list
             dfs.append(df)
         # join all fractal frames
-        logger.info("Joining Frames: %s" % fractals)
-        for indexf, df in enumerate(dfs):     
+        logger.info("Joining Frames: %s", fractals)
+        for indexf, df in enumerate(dfs):
             # upsample successive frames
             if indexf > 0:
                 # shift higher fractals
@@ -614,21 +752,19 @@ def vapply(group, market_specs, vfuncs=None):
                 dfr = df.resample(fractals[0]).ffill()
                 # join frames
                 dfj = dfj.merge(dfr, left_index=True, right_index=True)
-                # create cumulative fractal variables
-                for j in range(indexf):
-                    for field in func_dict.keys():
-                        col1name = '.'.join([fractals[0], field])
-                        col2name = ''.join([col1name, 'f', str(j+1)])
-                        dfj[col2name] = vfrac(dfj, col1name, fractals[indexf], func_dict[field])
             else:
                 dfj = df
-        # apply fractal features
-        pass
+        # evaluate multi-fractal expressions and their parent features
+        if len(mfe_dict) > 0:
+            dfj = vexec_multi_fractal(dfj, mfe_dict, fractals)
         # add the symbol
         colsym = 'symbol'
         dfj[colsym] = symbol
         first_col = dfj.pop(colsym)
         dfj.insert(0, colsym, first_col)
+        # assign global frame for trading
+        tspace = Space(gsubject, gschema, 'ALL')
+        _ = Frame(symbol.lower(), tspace, dfj)
         # append frame to list of dataframes
         dffs.append(dfj)
     # return all of the dataframes

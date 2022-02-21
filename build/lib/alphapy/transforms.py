@@ -1,43 +1,41 @@
-################################################################################
-#
-# Package   : AlphaPy
-# Module    : transforms
-# Created   : March 14, 2020
-#
-# Copyright 2020 ScottFree Analytics LLC
-# Mark Conway & Robert D. Scott II
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-################################################################################
+"""
+Package   : AlphaPy
+Module    : transforms
+Created   : March 14, 2020
+
+Copyright 2021 ScottFree Analytics LLC
+Mark Conway & Robert D. Scott II
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+"""
 
 
 #
 # Imports
 #
 
-from alphapy.calendrical import biz_day_month
-from alphapy.calendrical import biz_day_week
-from alphapy.calendrical import get_rdate
-from alphapy.globals import NULLTEXT
-from alphapy.globals import BSEP, PSEP, USEP
-from alphapy.variables import vexec
-
 import itertools
 import logging
 import math
 import numpy as np
 import pandas as pd
+
+from alphapy.calendrical import biz_day_month
+from alphapy.calendrical import biz_day_week
+from alphapy.calendrical import get_rdate
+from alphapy.globals import NULLTEXT
+from alphapy.globals import BSEP, USEP
+from alphapy.variables import vexec
 
 
 #
@@ -105,9 +103,9 @@ def adx(f, p = 14):
 
     """
     c1 = 'diplus'
-    vexec(f, c1)
+    f = vexec(f, c1)
     c2 = 'diminus'
-    vexec(f, c2)
+    f = vexec(f, c2)
     # calculations
     dip = f[c1]
     dim = f[c2]
@@ -180,7 +178,7 @@ def bizday(f, c):
 #
 # Function c2max
 #
-    
+
 def c2max(f, c1, c2):
     r"""Take the maximum value between two columns in a dataframe.
 
@@ -243,12 +241,12 @@ def closeha(f):
 
     Returns
     -------
-    closeha : pandas.Series
+    closeha_ds : pandas.Series
         The series containing the Heikin-Ashi Close.
 
     """
-    closeha = (f['open'] + f['high'] + f['low'] + f['close']) / 4.0
-    return closeha
+    closeha_ds = (f['open'] + f['high'] + f['low'] + f['close']) / 4.0
+    return closeha_ds
 
 
 #
@@ -340,9 +338,9 @@ def diminus(f, p = 14):
 
     """
     tr = 'truerange'
-    vexec(f, tr)
+    f = vexec(f, tr)
     atr = USEP.join(['atr', str(p)])
-    vexec(f, atr)
+    f = vexec(f, atr)
     dmm = 'dmminus'
     f[dmm] = dminus(f)
     new_column = 100 * dminus(f).ewm(span=p).mean() / f[atr]
@@ -378,11 +376,11 @@ def diplus(f, p = 14):
 
     """
     tr = 'truerange'
-    vexec(f, tr)
+    f = vexec(f, tr)
     atr = USEP.join(['atr', str(p)])
-    vexec(f, atr)
+    f = vexec(f, atr)
     dmp = 'dmplus'
-    vexec(f, dmp)
+    f = vexec(f, dmp)
     new_column = 100 * f[dmp].ewm(span=p).mean() / f[atr]
     return new_column
 
@@ -579,7 +577,7 @@ def gap(f, o='open', c='close'):
 
     """
     c1 = ''.join([c, '[1]'])
-    vexec(f, c1)
+    f = vexec(f, c1)
     new_column = 100 * pchange2(f, o, c1)
     return new_column
 
@@ -746,7 +744,7 @@ def gtval(f, c1, c2):
 def gtval0(f, c1, c2):
     r"""For positive values in the first column of the dataframe
     that are greater than the second column, get the value in
-    the first column, otherwise return zero. 
+    the first column, otherwise return zero.
 
     Parameters
     ----------
@@ -837,12 +835,12 @@ def highha(f):
 
     Returns
     -------
-    highha : pandas.Series
+    highha_ds : pandas.Series
         The series containing the Heikin-Ashi High.
 
     """
-    highha = pd.DataFrame([f['high'], openha(f), closeha(f)]).max(axis=0)
-    return highha
+    highha_ds = pd.DataFrame([f['high'], openha(f), closeha(f)]).max(axis=0)
+    return highha_ds
 
 
 #
@@ -939,12 +937,12 @@ def lowha(f):
 
     Returns
     -------
-    lowha : pandas.Series
+    lowha_ds : pandas.Series
         The series containing the Heikin-Ashi Low.
 
     """
-    lowha = pd.DataFrame([f['low'], openha(f), closeha(f)]).min(axis=0)
-    return lowha
+    lowha_ds = pd.DataFrame([f['low'], openha(f), closeha(f)]).min(axis=0)
+    return lowha_ds
 
 
 #
@@ -1012,7 +1010,7 @@ def maratio(f, c, p1 = 1, p2 = 10):
 #
 # Function mval
 #
-   
+
 def mval(f, c):
     r"""Get the negative value, otherwise zero.
 
@@ -1132,7 +1130,7 @@ def openha(f):
 #
 # Function pchange1
 #
-    
+
 def pchange1(f, c, o = 1):
     r"""Calculate the percentage change within the same variable.
 
@@ -1184,7 +1182,7 @@ def pchange2(f, c1, c2):
 #
 # Function pval
 #
-  
+
 def pval(f, c):
     r"""Get the positive value, otherwise zero.
 
@@ -1278,7 +1276,7 @@ def rsi(f, c, p = 14):
 
     """
     cdiff = 'net'
-    vexec(f, cdiff)
+    f = vexec(f, cdiff)
     f['pval'] = upc(f, cdiff)
     f['mval'] = dpc(f, cdiff)
     upcs = ma(f, 'pval', p)
@@ -1407,7 +1405,7 @@ def runstest(f, c, wfuncs, w):
         if wf in all_funcs:
             new_feature = all_funcs[wf](f, c, w)
             new_feature.fillna(0, inplace=True)
-            new_column_name = PSEP.join([c, wf])
+            new_column_name = USEP.join([wf, c])
             new_feature = new_feature.rename(new_column_name)
             frames = [new_features, new_feature]
             new_features = pd.concat(frames, axis=1)
@@ -1551,7 +1549,7 @@ def timeparts(f, c):
         The dataframe containing the time features.
     """
 
-    ds_dt = pd.to_datetime(f[c])
+    ds_dt = pd.to_datetime(f[c].astype(str))
     time_features = pd.DataFrame()
     try:
         fhour = pd.Series(ds_dt.dt.hour, name='hour')
@@ -1593,7 +1591,7 @@ def truehigh(f, h='high', l='low'):
 
     """
     l1 = ''.join([l, '[1]'])
-    vexec(f, l1)
+    f = vexec(f, l1)
     new_column = f.apply(c2max, axis=1, args=[l1, h])
     return new_column
 
@@ -1625,7 +1623,7 @@ def truelow(f, h='high', l='low'):
 
     """
     h1 = ''.join([h, '[1]'])
-    vexec(f, h1)
+    f = vexec(f, h1)
     new_column = f.apply(c2min, axis=1, args=[h1, l])
     return new_column
 

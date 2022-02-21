@@ -4,7 +4,7 @@
 # Module    : globals
 # Created   : July 11, 2013
 #
-# Copyright 2020 ScottFree Analytics LLC
+# Copyright 2022 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,6 +46,7 @@ USEP = '_'
 LOFF = '['
 ROFF = ']'
 CARET = '^'
+ATSIGN = '@'
 
 #
 # Numerical Constants
@@ -184,9 +185,10 @@ class Partition(Enum):
     """AlphaPy Partitions.
 
     """
-    predict = 1
+    train = 1
     test = 2
-    train = 3
+    train_ts = 3
+    test_ts = 4
 
 
 #
@@ -242,6 +244,7 @@ class Scalers(Enum):
 # Datasets
 #
 
-datasets = {Partition.train   : 'train',
-            Partition.test    : 'test',
-            Partition.predict : 'predict'}
+datasets = {Partition.train    : 'train',
+            Partition.test     : 'test',
+            Partition.train_ts : 'train_ts',
+            Partition.test_ts  : 'test_ts'}

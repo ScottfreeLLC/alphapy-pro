@@ -4,7 +4,7 @@
 # Module    : analysis
 # Created   : July 11, 2013
 #
-# Copyright 2019 ScottFree Analytics LLC
+# Copyright 2021 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@
 
 from alphapy.alphapy_main import main_pipeline
 from alphapy.frame import write_frame
-from alphapy.globals import PSEP, SSEP, USEP
+from alphapy.globals import LOFF, ROFF, SSEP, USEP
 from alphapy.utilities import subtract_days
 
 from datetime import timedelta
@@ -166,7 +166,6 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
 
     # Unpack model data
 
-    predict_file = model.predict_file
     test_file = model.test_file
     train_file = model.train_file
 
@@ -197,10 +196,24 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
         train_frame = pd.DataFrame()
         test_frame = pd.DataFrame()
 
-    # Determine whether or not we are predicting with the base fractal or a higher fractal
+    #
+    # Determine whether or not we are predicting with the base fractal or a higher fractal.
+    #
+    # 1. Base Prediction
+    #
+    #    a. Forecast on the lowest fractal.
+    #    b. Optionally use higher-order fractals.
+    #    c. The forecast is defined as n periods forward.
+    #
+    # 2. Aggregate Prediction
+    #
+    #    a. Forecast on a higher fractal with lower-fractal data.
+    #    b. Use lower-fractal data to index into the higher fractal prediction.
+    #    c. The higher the index (nth row), the higher probability of target prediction.
+    #
 
     base_fractal = fractals[0]
-    target_fractal = target.split('.')[0]
+    target_fractal = target.split(USEP)[-1]
     base_prediction = True if base_fractal == target_fractal else False
 
     # Subset each individual frame and add to the master frame
@@ -210,14 +223,15 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
         first_date = df.index[0]
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol.upper(), first_date, last_date)
-        # shift target and leaders
+        # base or aggregate predictions
         if base_prediction:
             df[target] = df[target].shift(-forecast_period)
-            df[leaders] = df[leaders].shift(-forecast_period)
+            df[leaders] = df[leaders].shift(-1)
         else:
             fractal_shift = df.groupby(pd.Grouper(freq=target_fractal)).count().iloc(0)[0][0]
             df[target] = df[target].shift(-fractal_shift)
             df[leaders] = df[leaders].shift(-fractal_shift)
+            # if forecast period is 0, then the last row is selected
             df = df.groupby(pd.Grouper(freq=target_fractal)).nth(forecast_period-1)
         # get frame subsets
         if predict_mode:
@@ -225,35 +239,59 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
             if len(new_predict) > 0:
                 predict_frame = predict_frame.append(new_predict)
             else:
-                logger.info("Prediction frame %s has zero rows. Check prediction date.", symbol)
+                logger.info("%s Prediction Frame has zero rows. Check prediction date.", symbol.upper())
         else:
             # split data into train and test
             new_train = df.loc[(df.index >= train_date) & (df.index < predict_date)]
-            if len(new_train) > 0:
-                new_train = new_train.dropna()
+            if not new_train.empty:
+                # check if target column has NaN values
+                nan_count = new_train[target].isnull().sum()
+                if nan_count > 0:
+                    logger.info("%s has %d train records with a NaN target.", symbol.upper(), nan_count)
+                # drop records with NaN values in target column
+                new_train = new_train.dropna(subset=[target])
                 train_frame = train_frame.append(new_train)
+                # get test frame
                 new_test = df.loc[(df.index >= predict_date) & (df.index <= last_date)]
-                if len(new_test) > 0:
+                if not new_test.empty:
                     # check if target column has NaN values
-                    nan_count = df[target].isnull().sum()
+                    nan_count = new_test[target].isnull().sum()
                     forecast_check = forecast_period - 1
                     if nan_count != forecast_check:
-                        logger.info("%s has %d records with NaN targets", symbol, nan_count)
+                        logger.info("%s has %d test records with a NaN target.", symbol.upper(), nan_count)
                     # drop records with NaN values in target column
                     new_test = new_test.dropna(subset=[target])
                     # append selected records to the test frame
                     test_frame = test_frame.append(new_test)
                 else:
-                    logger.info("Testing frame %s has zero rows. Check prediction date.", symbol)
+                    logger.info("%s Testing Frame has zero rows. Check prediction date.", symbol.upper())
             else:
-                logger.info("Training frame %s has zero rows. Check data source.", symbol)
+                logger.info("%s Training Frame has zero rows. Check data source.", symbol.upper())
+
+    # Convert column names from special characters
+
+    def new_col_name(col_name):
+        start = col_name.find(LOFF)
+        end = col_name.find(ROFF)
+        lag_string = col_name[start:end+1]
+        lag_value = lag_string[1:-1]
+        if lag_value:
+            new_name = ''.join([col_name.replace(lag_string, ''), '_lag', lag_value])
+        else:
+            new_name = col_name
+        return new_name
+
+    new_columns = [new_col_name(x) for x in train_frame.columns]
+    train_frame.columns = new_columns
+    if not test_frame.empty:
+        test_frame.columns = new_columns
 
     # Write out the frames for input into the AlphaPy pipeline
 
     directory = SSEP.join([directory, 'input'])
     if predict_mode:
         # write out the predict frame
-        write_frame(predict_frame, directory, predict_file, extension, separator,
+        write_frame(test_frame, directory, test_file, extension, separator,
                     index=True, index_label='date')
     else:
         # write out the train and test frames
@@ -263,6 +301,10 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
                     index=True, index_label='date')
 
     # Run the AlphaPy pipeline
+
+    logger.info('*'*80)
+    logger.info("Running AlphaPy")
+    logger.info('*'*80)
     analysis.model = main_pipeline(model)
 
     # Return the analysis

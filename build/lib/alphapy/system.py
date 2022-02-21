@@ -31,14 +31,12 @@ from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Orders
-from alphapy.globals import BSEP, SSEP
-from alphapy.variables import vexec
+from alphapy.globals import SSEP, USEP
 from alphapy.space import Space
 from alphapy.portfolio import Trade
 from alphapy.utilities import most_recent_file
 
 import logging
-import numbers
 import pandas as pd
 from pandas import DataFrame
 
@@ -74,6 +72,8 @@ class System(object):
         Holding period of a position.
     scale : bool, optional
         Add to a position for a signal in the same direction.
+    fractal : str
+        Pandas offset alias.
 
     Attributes
     ----------
@@ -102,7 +102,8 @@ class System(object):
                 sellstop = None,
                 sellexit = None,
                 holdperiod = 0,
-                scale = False):
+                scale = False,
+                fractal = '1D'):
         # create system name
         if name not in System.systems:
             return super(System, cls).__new__(cls)
@@ -120,7 +121,8 @@ class System(object):
                  sellstop = None,
                  sellexit = None,
                  holdperiod = 0,
-                 scale = False):
+                 scale = False,
+                 fractal = '1D'):
         # initialization
         self.name = name
         self.buysignal = buysignal
@@ -131,6 +133,7 @@ class System(object):
         self.sellexit = sellexit
         self.holdperiod = holdperiod
         self.scale = scale
+        self.fractal = fractal
         # add system to systems list
         System.systems[name] = self
         
@@ -154,7 +157,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
     system : alphapy.System
         The long/short system to run.
     space : alphapy.Space
-        Namespace of instrument prices.
+        Namespace of all variables over all fractals.
     intraday : bool
         If True, then run an intraday system.
     symbol : str
@@ -190,6 +193,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
     sellexit = system.sellexit
     holdperiod = system.holdperiod
     scale = system.scale
+    fractal = system.fractal
 
     # Determine whether or not this is a model-driven system.
 
@@ -200,8 +204,10 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         if any(x in signal for x in ['phigh', 'plow']):
             use_model = True
 
-    # Read in the price frame
-    pf = Frame.frames[frame_name(symbol, space)].df
+    # Read in the price frame for all fractals and variables.
+
+    tspace = Space(space.subject, space.schema, 'ALL')
+    tframe = Frame.frames[frame_name(symbol, tspace)].df
 
     # Use model output probabilities as input to the system
 
@@ -215,13 +221,8 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         logger.info("Getting probabilities for %s" % symbol.upper())
         df_rank = rank_frame.query('symbol==@symbol')['probability']
         # join price with rankings to get probabilities for this symbol
-        pf = pf.merge(df_rank, how='left', left_index=True, right_index=True)
-        pf['probability'].fillna(0.5, inplace=True)
-
-    # Evaluate the long and short events in the price frame
-
-    for signal in active_signals:
-        pf = vexec(pf, signal)
+        tframe = tframe.merge(df_rank, how='left', left_index=True, right_index=True)
+        tframe['probability'].fillna(0.5, inplace=True)
 
     # Initialize trading state variables
 
@@ -238,13 +239,18 @@ def trade_system(model, system, space, intraday, symbol, quantity):
 
     # Loop through prices and generate trades
 
-    for dt, row in pf.iterrows():
-        # get closing price
-        c = row['close']
-        h = row['high']
-        l = row['low']
+    ccol = USEP.join(['close', fractal])
+    hcol = USEP.join(['high', fractal])
+    lcol = USEP.join(['low', fractal])
+    icol = USEP.join(['endofday', fractal])
+
+    for dt, row in tframe.iterrows():
+        # get prices for this row
+        c = row[ccol]
+        h = row[hcol]
+        l = row[lcol]
         if intraday:
-            end_of_day = row['endofday']   
+            end_of_day = row[icol]   
         # evaluate entry and exit conditions
         lerow = row[buysignal] if buysignal else None
         lsrow = row[buystop] if buystop else None
@@ -398,21 +404,23 @@ def run_system(model,
 
     # Create group trades frame
 
+    if intraday:
+        index_column = 'datetime'
+    else:
+        index_column = 'date'
+
     tf = pd.DataFrame()
     if gtlist:
-        tspace = Space(system_name, "trades", group.space.fractal)
+        tspace = Space(system_name, "trades", gspace.fractal)
         gtlist = sorted(gtlist, key=lambda x: x[0])
-        tf1 = DataFrame.from_records(gtlist, columns=['date', 'trades'])
+        tf1 = DataFrame.from_records(gtlist, columns=[index_column, 'trades'])
         tf2 = pd.DataFrame(tf1['trades'].to_list(), columns=Trade.states)
-        tf = pd.concat([tf1['date'], tf2], axis=1)
-        tf.set_index('date', inplace=True)
+        tf = pd.concat([tf1[index_column], tf2], axis=1)
+        tf.set_index(index_column, inplace=True)
         tfname = frame_name(gname, tspace)
         system_dir = SSEP.join([directory, 'systems'])
-        labels = ['date']
-        if intraday:
-            labels.append('time')
         write_frame(tf, system_dir, tfname, extension, separator,
-                    index=True, index_label=labels)
+                    index=True, index_label=index_column)
         del tspace
     else:
         logger.info("No trades were found")

@@ -79,10 +79,8 @@ from sklearn.inspection import plot_partial_dependence
 from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve
-from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import learning_curve
 from sklearn.model_selection import StratifiedKFold
-from sklearn.model_selection import train_test_split
 from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
 
@@ -128,6 +126,9 @@ def get_partition_data(model, partition):
     elif partition == Partition.test:
         X = model.X_test
         y = model.y_test
+    elif partition == Partition.train_ts:
+        X = model.df_X_ts
+        y = model.df_y_ts
     else:
         raise TypeError('Partition must be train or test')
 
@@ -396,29 +397,27 @@ def plot_importance(model, partition):
         logger.info("Feature Importances for Algorithm: %s", algo)
         try:
             # get feature importances
-            importances = np.array(model.importances[algo])
+            importances = model.importances[algo]
             imp_flag = True
         except:
             imp_flag = False
         if imp_flag:
-            # sort the importances by index
+            # get feature name indices
             indices = np.argsort(importances)[::-1]
-            # get feature names
-            feature_names = np.array(model.fnames_algo[algo])
+            importances = importances[indices]
+            feature_names = np.array(model.fnames_algo[algo])[indices]
             n_features = len(feature_names)
             # log the feature ranking
             logger.info("Feature Ranking:")
             n_min = min(n_top, n_features)
             for i in range(n_min):
-                logger.info("%d. %s (%f)" % (i + 1,
-                            feature_names[indices[i]],
-                            importances[indices[i]]))
+                logger.info("%d. %s (%f)", i + 1, feature_names[i], importances[i])
             # plot the feature importances
             title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
             plt.figure()
             plt.title(title)
-            plt.barh(range(n_min), importances[indices][:n_min][::-1])
-            plt.yticks(range(n_min), feature_names[indices][:n_min][::-1])
+            plt.barh(range(n_min), importances[:n_min][::-1])
+            plt.yticks(range(n_min), feature_names[:n_min][::-1])
             plt.ylim([-1, n_min])
             plt.xlabel('Relative Importance')
             # save the plot
@@ -475,7 +474,7 @@ def plot_learning_curve(model, partition):
 
     # Set cross-validation parameters to get mean train and test curves.
 
-    cv = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle, random_state=seed)
+    cv = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
 
     # Plot a learning curve for each algorithm.
 
@@ -498,8 +497,8 @@ def plot_learning_curve(model, partition):
         # call learning curve function
         train_sizes=np.linspace(0.1, 1.0, cv_folds)
         train_sizes, train_scores, test_scores = \
-            learning_curve(est, X, y, train_sizes=train_sizes, cv=cv,
-                           n_jobs=n_jobs, verbose=verbosity)
+            learning_curve(est, X, y.values.ravel(), train_sizes=train_sizes,
+                           cv=cv, n_jobs=n_jobs, verbose=verbosity)
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
@@ -582,7 +581,7 @@ def plot_roc_curve(model, partition):
     plt.ylim([-0.05, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    title = BSEP.join([algo, "ROC Curve [", pstring, "]"])
+    title = BSEP.join(["ROC Curve [", pstring, "]"])
     plt.title(title)
     plt.legend(loc="lower right")
     # save chart
@@ -746,7 +745,7 @@ def plot_validation_curve(model, partition, pname, prange):
         estimator = model.estimators[algo]
         # set up plot
         train_scores, test_scores = validation_curve(
-            estimator, X, y, param_name=pname, param_range=prange,
+            estimator, X, y.values.ravel(), param_name=pname, param_range=prange,
             cv=cv_folds, scoring=scorer, n_jobs=n_jobs)
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
