@@ -27,3 +27,27 @@ import streamlit as st
 
 def app():
     st.header("AlphaPy AutoML")
+
+    # Projects
+    """
+    home_directory = str(Path.home())
+    st.sidebar.subheader("Project Root Directory")
+
+    if st.sidebar.checkbox("Use Home Directory", True):
+        root_directory = home_directory
+        st.sidebar.markdown(home_directory)
+    else:
+        root_directory = st.sidebar.text_input('Root Directory', home_directory)
+        st.sidebar.markdown(root_directory)
+
+    @st.cache
+    def get_projects(file_name, directory):
+        paths = []
+        for path in Path(directory).rglob(file_name):
+            paths.append(path)
+        return paths
+
+    st.sidebar.subheader("Projects")
+
+    st.sidebar.markdown(get_projects('model.yml', root_directory))
+    """

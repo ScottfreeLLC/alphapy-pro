@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Package   : AlphaPy
-# Module    : streamlit
+# Module    : streamlit_mflow
 # Created   : February 21, 2021
 #
 # streamlit run streamlit.py
@@ -23,7 +23,64 @@
 #
 ################################################################################
 
+from finviz.screener import Screener
+import pandas as pd
 import streamlit as st
 
+
+def run_finviz_screener(screener):
+    st.write(screener)
+
+    filters = ['exch_nasd', 'idx_sp500']  # Shows companies in NASDAQ which are in the S&P500
+    stock_list = Screener(filters=filters, table='Performance', order='price')  # Get the performance table and sort it by price ascending
+
+    stock_df = pd.DataFrame(stock_list.data)
+    st.write(stock_df)
+
+
+def run_finviz_portfolio(screener):
+    st.write(screener)
+
+
+def run_index(screener):
+    st.write(screener)
+
+
+def run_stocks(market_type):
+    st.subheader(market_type)
+
+    symbol = st.text_input('Ticker Symbol', 'AAPL')
+
+    screener = st.sidebar.radio("Group", ('Finviz Screener', 'Finviz Portfolio', 'Index'))
+
+    if screener == 'Finviz Screener':
+        run_finviz_screener(screener)
+    elif screener == 'Finviz Portfolio':
+        run_finviz_portfolio(screener)
+    elif screener == 'Index':
+        run_index(screener)
+
+
+def run_crypto(market_type):
+    st.subheader(market_type)
+
+
+def run_futures(market_type):
+    st.subheader(market_type)
+
+
+def run_forex(market_type):
+    st.subheader(market_type)
+
+
 def app():
-    st.header("AlphaPy Markets")
+    market_type = st.sidebar.radio("Market Type", ('Stocks', 'Crypto', 'Futures', 'Forex'))
+
+    if market_type == 'Stocks':
+        run_stocks(market_type)
+    elif market_type == 'Crypto':
+        run_crypto(market_type)
+    elif market_type == 'Futures':
+        run_futures(market_type)
+    elif market_type == 'Forex':
+        run_forex(market_type)
