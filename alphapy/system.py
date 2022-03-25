@@ -31,7 +31,7 @@ from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Orders
-from alphapy.globals import SSEP, USEP
+from alphapy.globals import BSEP, SSEP, USEP
 from alphapy.space import Space
 from alphapy.portfolio import Trade
 from alphapy.utilities import most_recent_file
@@ -101,7 +101,7 @@ class System(object):
                 sellsignal = None,
                 sellstop = None,
                 sellexit = None,
-                holdperiod = 0,
+                holdperiod = None,
                 scale = False,
                 fractal = '1D'):
         # create system name
@@ -120,7 +120,7 @@ class System(object):
                  sellsignal = None,
                  sellstop = None,
                  sellexit = None,
-                 holdperiod = 0,
+                 holdperiod = None,
                  scale = False,
                  fractal = '1D'):
         # initialization
@@ -197,32 +197,58 @@ def trade_system(model, system, space, intraday, symbol, quantity):
 
     # Determine whether or not this is a model-driven system.
 
-    entries_and_exits = [buysignal, buystop, buyexit, sellsignal, sellstop, sellexit]
-    active_signals = [x for x in entries_and_exits if x is not None]
-    use_model = False
-    for signal in active_signals:
-        if any(x in signal for x in ['phigh', 'plow']):
-            use_model = True
+    signals = {'buysignal'  : buysignal,
+               'buystop'    : buystop,
+               'buyexit'    : buyexit,
+               'sellsignal' : sellsignal,
+               'sellstop'   : sellstop,
+               'sellexit'   : sellexit}
 
     # Read in the price frame for all fractals and variables.
 
+    symbol = symbol.lower()
     tspace = Space(space.subject, space.schema, 'ALL')
     tframe = Frame.frames[frame_name(symbol, tspace)].df
 
     # Use model output probabilities as input to the system
 
-    if use_model:
-        # get latest rankings file
-        rank_dir = SSEP.join([directory, 'output'])
-        file_path = most_recent_file(rank_dir, 'rankings*')
-        file_name = file_path.split(SSEP)[-1].split('.')[0]
+    proba_tag = 'proba'
+    proba_tag_len = len(proba_tag)
+    signals_ml = [x for x in signals.values() if x and x[:proba_tag_len] == proba_tag]
+    if any(signals_ml):
+        logger.info("Getting probabilities for %s", symbol.upper())
         # read the rankings frame for the given symbol
-        rank_frame = read_frame(rank_dir, file_name, extension, separator, index_col='date')
-        logger.info("Getting probabilities for %s" % symbol.upper())
-        df_rank = rank_frame.query('symbol==@symbol')['probability']
+        rank_dir = SSEP.join([directory, 'output'])
+        if model.test_labels:
+            partition_tag = 'test'
+            file_path = most_recent_file(rank_dir, 'ranked_test*')
+        else:
+            partition_tag = 'train'
+            file_path = most_recent_file(rank_dir, 'ranked_train*')
+        file_name = file_path.split(SSEP)[-1].split('.')[0]
+        df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
+        # select the probability column for the trading system
+        ts_opt = model.specs['ts_option']
+        ts_tag = 'ts' if ts_opt else ''
+        prob_col = USEP.join(['prob', partition_tag, ts_tag, model.best_algo.lower()])
+        df_rank = df_rank.query('symbol==@symbol')[prob_col]
         # join price with rankings to get probabilities for this symbol
         tframe = tframe.merge(df_rank, how='left', left_index=True, right_index=True)
-        tframe['probability'].fillna(0.5, inplace=True)
+        tframe[prob_col].fillna(0.5, inplace=True)
+        # substitute actual probability column into signal
+        for key in signals.keys():
+            value = signals[key]
+            if value and len(value) >= proba_tag_len:
+                vname = value[:proba_tag_len]
+                if vname == proba_tag:
+                    value_new = value.replace(vname, prob_col)
+                expr = BSEP.join([key, '=', value_new])
+                tframe.eval(expr, inplace=True)
+    else:
+        for key in signals.keys():
+            vname = signals[key]
+            if vname:
+                tframe[key] = tframe[vname]
 
     # Initialize trading state variables
 
@@ -252,12 +278,12 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         if intraday:
             end_of_day = row[icol]   
         # evaluate entry and exit conditions
-        lerow = row[buysignal] if buysignal else None
-        lsrow = row[buystop] if buystop else None
-        lxrow = row[buyexit] if buyexit else None
-        serow = row[sellsignal] if sellsignal else None
-        ssrow = row[sellstop] if sellstop else None
-        sxrow = row[sellexit] if sellexit else None
+        lerow = row['buysignal'] if buysignal else None
+        lsrow = row['buystop'] if buystop else None
+        lxrow = row['buyexit'] if buyexit else None
+        serow = row['sellsignal'] if sellsignal else None
+        ssrow = row['sellstop'] if sellstop else None
+        sxrow = row['sellexit'] if sellexit else None
         # process the long and short events
         if lerow or leactive:
             orderclose = lerow and not buystop

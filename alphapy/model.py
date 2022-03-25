@@ -709,6 +709,7 @@ def first_fit(model, algo, est):
     n_jobs = model.specs['n_jobs']
     scorer = model.specs['scorer']
     seed = model.specs['seed']
+    shuffle = model.specs['shuffle']
     split = model.specs['split']
     ts_option = model.specs['ts_option']
     verbosity = model.specs['verbosity']
@@ -723,7 +724,10 @@ def first_fit(model, algo, est):
     algo_xgb = 'XGB' in algo
 
     if algo_xgb and scorer in xgb_score_map:
-        shuffle_flag = False if ts_option else True
+        if ts_option:
+            shuffle_flag = False
+        else:
+            shuffle_flag = shuffle
         X1, X2, y1, y2 = train_test_split(X_train, y_train, test_size=split,
                                           random_state=seed, shuffle=shuffle_flag)
         eval_set = [(X1, y1), (X2, y2)]

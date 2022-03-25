@@ -44,6 +44,10 @@ def run_finviz_portfolio(screener):
 
 def run_index(screener):
     st.write(screener)
+    url = f"https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
+    df = pd.read_csv(url)
+    df.loc[df['symbol'] == '^NDX', 'name'] = 'Nasdaq 100'
+    st.write(df)
 
 
 def run_stocks(market_type):

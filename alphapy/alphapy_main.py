@@ -130,6 +130,7 @@ def training_pipeline(model):
     shuffle = model.specs['shuffle']
     split = model.specs['split']
     target = model.specs['target']
+    ts_date = model.specs['ts_date_index']
     ts_option = model.specs['ts_option']
 
     # Get train and test data
@@ -141,10 +142,22 @@ def training_pipeline(model):
 
     if X_test.empty:
         logger.info("No Test Data Found")
-        logger.info("Splitting Training Data")
-        shuffle_flag = False if ts_option else True
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_train, y_train, test_size=split, random_state=seed, shuffle=shuffle_flag)
+        if ts_option:
+            logger.info("Splitting Training Data for Time Series")
+            df_train = pd.concat([X_train, y_train], axis=1)
+            df_sorted = df_train.sort_values(by=[ts_date])
+            split_index = int((1.0 - split) * df_sorted.shape[0])
+            split_date = df_sorted.iloc[split_index][ts_date]
+            df_train = df_sorted[df_sorted[ts_date] <= split_date].reset_index()
+            y_train = pd.DataFrame(df_train[target], columns=[target])
+            X_train = df_train.drop(columns=[target])
+            df_test = df_sorted[df_sorted[ts_date] > split_date].reset_index()
+            y_test = pd.DataFrame(df_test[target], columns=[target])
+            X_test = df_test.drop(columns=[target])
+        else:
+            logger.info("Splitting Training Data")
+            X_train, X_test, y_train, y_test = train_test_split(
+                X_train, y_train, test_size=split, random_state=seed, shuffle=shuffle)
 
     # Save original train/test data
 

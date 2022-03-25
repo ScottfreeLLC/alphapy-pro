@@ -272,10 +272,10 @@ def dateparts(f, c):
     ds_dt = pd.to_datetime(f[c])
     date_features = pd.DataFrame()
     try:
-        fyear = pd.Series(ds_dt.dt.year, name='year')
-        fmonth = pd.Series(ds_dt.dt.month, name='month')
-        fday = pd.Series(ds_dt.dt.day, name='day')
-        fdow = pd.Series(ds_dt.dt.dayofweek, name='dayofweek')
+        fyear = pd.Series(ds_dt.dt.year, name='year').astype(int)
+        fmonth = pd.Series(ds_dt.dt.month, name='month').astype(int)
+        fday = pd.Series(ds_dt.dt.day, name='day').astype(int)
+        fdow = pd.Series(ds_dt.dt.dayofweek, name='dayofweek').astype(int)
         frames = [fyear, fmonth, fday, fdow]
         date_features = pd.concat(frames, axis=1)
     except:
@@ -1552,9 +1552,9 @@ def timeparts(f, c):
     ds_dt = pd.to_datetime(f[c].astype(str))
     time_features = pd.DataFrame()
     try:
-        fhour = pd.Series(ds_dt.dt.hour, name='hour')
-        fminute = pd.Series(ds_dt.dt.minute, name='minute')
-        fsecond = pd.Series(ds_dt.dt.second, name='second')
+        fhour = pd.Series(ds_dt.dt.hour, name='hour').astype(int)
+        fminute = pd.Series(ds_dt.dt.minute, name='minute').astype(int)
+        fsecond = pd.Series(ds_dt.dt.second, name='second').astype(int)
         frames = [fhour, fminute, fsecond]
         time_features = pd.concat(frames, axis=1)
     except:

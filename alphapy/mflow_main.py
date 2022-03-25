@@ -244,11 +244,6 @@ def get_market_config():
     # Section: variables
     #
 
-    logger.info("Defining AlphaPy Variables [phigh, plow]")
-
-    Variable('phigh', 'probability > 0.7')
-    Variable('plow', 'probability < 0.3')
-
     logger.info("Defining User Variables")
     try:
         for k, v in list(cfg['variables'].items()):
@@ -370,7 +365,7 @@ def market_pipeline(model, market_specs):
         a = Analysis(model, group)
         run_analysis(a, dfs, fractals, forecast_period, predict_history)
     else:
-        logger.info("No Model (System Only)")
+        logger.info("No Model Created")
 
     # Run a system
 
@@ -394,7 +389,7 @@ def market_pipeline(model, market_specs):
         logger.info("Sell Signal : %s", sellsignal)
         logger.info("Sell Stop   : %s", sellstop)
         logger.info("Sell Exit   : %s", sellexit)
-        logger.info("Hold Period : %d", holdperiod)
+        logger.info("Hold Period : %s", holdperiod)
         logger.info("Scale       : %r", scale)
         logger.info("Fractal     : %s", trade_fractal)
         # create and run the system
@@ -407,6 +402,8 @@ def market_pipeline(model, market_specs):
             logger.info("No trades to generate a portfolio")
         else:
             gen_portfolio(model, system_name, group, tfs)
+    else:
+        logger.info("System Not Run")
 
     # Return the completed model
     return model

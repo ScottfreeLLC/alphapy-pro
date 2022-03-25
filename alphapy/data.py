@@ -319,12 +319,13 @@ def convert_data(df, intraday_data):
 
     # daily data
     df = pd.concat([df, dateparts(df, 'date')], axis=1)
+
     # intraday data
     if intraday_data:
         # Group by date first
         date_group = df.groupby('date')
         # Number the intraday bars
-        df['barnumber'] = date_group.cumcount()
+        df['barnumber'] = date_group.cumcount().astype(int)
         df['barpct'] = date_group['barnumber'].apply(lambda x: 100.0 * x / x.count())
         # Add progressive intraday columns
         df['opend'] = date_group['open'].transform('first')
@@ -353,7 +354,6 @@ def convert_data(df, intraday_data):
 
     # Order the frame by increasing date if necessary
     df = df.sort_index()
-
     return df
 
 
@@ -832,9 +832,6 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
         logger.info("%s Daily Data [%s] for %d days",
                     gschema, data_fractal, lookback_period)
 
-    # Get the data from the relevant feed
-    data_dir = SSEP.join([data_directory, gsubject])
-
     # Get the data from the specified data feed
 
     df = pd.DataFrame()
@@ -846,7 +843,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
             # locally stored intraday or daily data
             dspace = Space(gsubject, gschema, data_fractal)
             fname = frame_name(symbol.lower(), dspace)
-            df = read_frame(data_dir, fname, extension, separator)
+            df = read_frame(data_directory, fname, extension, separator)
         elif gschema in data_dispatch_table.keys():
             df = data_dispatch_table[gschema](gschema,
                                               subschema,
@@ -879,21 +876,22 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                 else:
                     raise ValueError("Dataframe must have a datetime or date column")
             # scope dataframe in date range
-            df = df.loc[pd.to_datetime(from_date) : pd.to_datetime(to_date)]
+            # df = df.loc[pd.to_datetime(from_date) : pd.to_datetime(to_date)]
             # register the dataframe in the global namespace
             df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)
             # resample data and drop any NA values
             for ff in feature_fractals:
-                df_rs = df.resample(ff).agg({'open'   : 'first',
-                                             'high'   : 'max',
-                                             'low'    : 'min',
-                                             'close'  : 'last',
-                                             'volume' : 'sum'})
-                df_rs.dropna(axis=0, how='any', inplace=True)
-                logger.info("Rows after Resampling at %s: %d", ff, len(df_rs))
-                # standardize resampled data
-                intraday_data = any(substring in ff for substring in PD_INTRADAY_OFFSETS)
-                df_rs = standardize_data(symbol, gspace, df_rs, ff, intraday_data)
+                if ff != data_fractal:
+                    df_rs = df.resample(ff).agg({'open'   : 'first',
+                                                 'high'   : 'max',
+                                                 'low'    : 'min',
+                                                 'close'  : 'last',
+                                                 'volume' : 'sum'})
+                    df_rs.dropna(axis=0, how='any', inplace=True)
+                    logger.info("Rows: %d [%s] resampled", len(df_rs), ff)
+                    # standardize resampled data
+                    intraday_fractal = any(substring in ff for substring in PD_INTRADAY_OFFSETS)
+                    df_rs = standardize_data(symbol, gspace, df_rs, ff, intraday_fractal)
         else:
             logger.info("No DataFrame for %s", symbol.upper())
     return
