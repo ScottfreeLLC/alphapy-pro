@@ -230,6 +230,17 @@ def get_market_config():
         logger.info("No Aliases Found")
 
     #
+    # Section: portfolio
+    #
+
+    logger.info("Getting Portfolio Parameters")
+    try:
+        specs['portfolio'] = cfg['portfolio']
+    except:
+        logger.info("No Portfolio Parameters Found")
+        specs['portfolio'] = {}
+
+    #
     # Section: system
     #
 
@@ -279,6 +290,7 @@ def get_market_config():
     logger.info('forecast_period  = %d', specs['forecast_period'])
     logger.info('fractals         = %s', specs['fractals'])
     logger.info('ohlc_map         = %s', specs['ohlc_map'])
+    logger.info('portfolio        = %s', specs['portfolio'])
     logger.info('predict_history  = %s', specs['predict_history'])
     logger.info('run_system       = %r', specs['run_system'])
     logger.info('schema           = %s', specs['schema'])
@@ -373,6 +385,8 @@ def market_pipeline(model, market_specs):
     if run_sys and system_specs:
         # get the system specs
         system_name = system_specs['name']
+        algo = system_specs['algo']
+        ts_flag = system_specs['ts_flag']
         buysignal = system_specs['buysignal']
         buystop = system_specs['buystop']
         buyexit = system_specs['buyexit']
@@ -383,17 +397,20 @@ def market_pipeline(model, market_specs):
         scale = system_specs['scale']
         trade_fractal = fractals[0]
         logger.info("Running System %s", system_name)
-        logger.info("Buy Signal  : %s", buysignal)
-        logger.info("Buy Stop    : %s", buystop)
-        logger.info("Buy Exit    : %s", buyexit)
-        logger.info("Sell Signal : %s", sellsignal)
-        logger.info("Sell Stop   : %s", sellstop)
-        logger.info("Sell Exit   : %s", sellexit)
-        logger.info("Hold Period : %s", holdperiod)
-        logger.info("Scale       : %r", scale)
-        logger.info("Fractal     : %s", trade_fractal)
+        logger.info("Algorithm        : %s", algo)
+        logger.info("Time Series Flag : %r", ts_flag)
+        logger.info("Buy Signal       : %s", buysignal)
+        logger.info("Buy Stop         : %s", buystop)
+        logger.info("Buy Exit         : %s", buyexit)
+        logger.info("Sell Signal      : %s", sellsignal)
+        logger.info("Sell Stop        : %s", sellstop)
+        logger.info("Sell Exit        : %s", sellexit)
+        logger.info("Hold Period      : %s", holdperiod)
+        logger.info("Scale            : %r", scale)
+        logger.info("Fractal          : %s", trade_fractal)
         # create and run the system
-        system = System(system_name, buysignal, buystop, buyexit,
+        system = System(system_name, algo, ts_flag,
+                        buysignal, buystop, buyexit,
                         sellsignal, sellstop, sellexit,
                         holdperiod, scale, trade_fractal)
         tfs = run_system(model, system, group, intraday)
@@ -401,7 +418,8 @@ def market_pipeline(model, market_specs):
         if tfs.empty:
             logger.info("No trades to generate a portfolio")
         else:
-            gen_portfolio(model, system_name, group, tfs)
+            portfolio_specs = market_specs['portfolio']
+            gen_portfolio(model, portfolio_specs, system_name, group, tfs)
     else:
         logger.info("System Not Run")
 

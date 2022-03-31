@@ -4,7 +4,7 @@
 # Module    : portfolio
 # Created   : July 11, 2013
 #
-# Copyright 2020 ScottFree Analytics LLC
+# Copyright 2022 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -115,6 +115,8 @@ class Portfolio():
         The fixed fraction for any given position.
     maxloss : float, optional
         Stop loss for any given position.
+    cost_bps : float, optional
+        Cost in basis points for any position (1/100th of 1%)
 
     Attributes
     ----------
@@ -153,7 +155,8 @@ class Portfolio():
                 margin = 0.5,
                 mincash = 0.2,
                 fixedfrac = 0.1,
-                maxloss = 0.1):
+                maxloss = 0.1,
+                cost_bps = 0.0):
         # create portfolio name
         pn = portfolio_name(group_name, tag)
         if not pn in Portfolio.portfolios:
@@ -177,7 +180,8 @@ class Portfolio():
                  margin = 0.5,
                  mincash = 0.2,
                  fixedfrac = 0.1,
-                 maxloss = 0.1):
+                 maxloss = 0.1,
+                 cost_bps = 0.0):
         # initialization
         self.group_name = group_name
         self.tag = tag
@@ -199,6 +203,7 @@ class Portfolio():
         self.mincash = mincash
         self.fixedfrac = fixedfrac
         self.maxloss = maxloss
+        self.cost_bps = cost_bps
         self.value = startcap
         self.netprofit = 0.0
         self.netreturn = 0.0
@@ -993,6 +998,8 @@ def exec_trade(p, name, order, quantity, price, tdate):
     newtrade = Trade(name, order, tsize, price, tdate)
     allocation = allocate_trade(p, pos, newtrade)
     if allocation != 0:
+        # subtract trading costs
+        p.cash = p.cash - (p.cost_bps / 10000.0) * abs(tsize * price)
         # create a new position if necessary
         if newpos:
             p = add_position(p, name, pos)
@@ -1012,24 +1019,21 @@ def exec_trade(p, name, order, quantity, price, tdate):
 # Function gen_portfolio
 #
 
-def gen_portfolio(model, system, group, tframe,
-                  startcap=100000, posby='close'):
+def gen_portfolio(model, portfolio_specs, system, group, tframe):
     r"""Create a portfolio from a trades frame.
 
     Parameters
     ----------
     model : alphapy.Model
-        The model with specifications.
+        The model specifications.
+    portfolio_specs : dict
+        The portfolio specifications.
     system : str
         Name of the system.
     group : alphapy.Group
         The group of instruments in the portfolio.
     tframe : pandas.DataFrame
         The input trade list from running the system.
-    startcap : float
-        Starting capital.
-    posby : str
-        The position sizing column in the price dataframe.
 
     Returns
     -------
@@ -1061,20 +1065,29 @@ def gen_portfolio(model, system, group, tframe,
     extension = model.specs['extension']
     separator = model.specs['separator']
 
+    # Unpack the portfolio data.
+
+    startcap = portfolio_specs['capital']
+    margin = portfolio_specs['margin']
+    max_pos = portfolio_specs['max_pos']
+    cost_bps = portfolio_specs['cost_bps']
+
     # Create the portfolio.
 
     gname = group.name
     gspace = group.space
     gmembers = group.members
-    ff = 1.0 / len(gmembers)
+    fixed_frac = 1.0 / (margin * max_pos)
 
     p = Portfolio(gname,
                   system,
                   gspace,
+                  maxpos = max_pos,
                   startcap = startcap,
-                  posby = posby,
+                  margin = margin,
                   restricted = False,
-                  fixedfrac = ff)
+                  fixedfrac = fixed_frac,
+                  cost_bps = cost_bps)
     if not p:
         raise MemoryError("Could not allocate Portfolio")
 

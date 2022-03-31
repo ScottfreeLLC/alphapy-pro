@@ -62,6 +62,10 @@ class System(object):
         The system name.
     buysignal : str
         Name of the conditional feature for a long entry.
+    algo : str
+        Abbreviation of the algorithm.
+    ts_flag : bool
+        Flag indicating whether to use the walk-forward or train/test probability.
     sellsignal : str, optional
         Name of the conditional feature for a short entry.
     buyexit : str, optional
@@ -95,6 +99,8 @@ class System(object):
     
     def __new__(cls,
                 name,
+                algo,
+                ts_flag,
                 buysignal,
                 buystop = None,
                 buyexit = None,
@@ -114,6 +120,8 @@ class System(object):
     
     def __init__(self,
                  name,
+                 algo,
+                 ts_flag,
                  buysignal,
                  buystop = None,
                  buyexit = None,
@@ -125,6 +133,8 @@ class System(object):
                  fractal = '1D'):
         # initialization
         self.name = name
+        self.algo = algo
+        self.ts_flag = ts_flag
         self.buysignal = buysignal
         self.buystop = buystop
         self.buyexit = buyexit
@@ -185,6 +195,8 @@ def trade_system(model, system, space, intraday, symbol, quantity):
 
     # Unpack the system parameters.
 
+    algo = system.algo
+    ts_flag = system.ts_flag
     buysignal = system.buysignal
     buystop = system.buystop
     buyexit = system.buyexit
@@ -219,21 +231,17 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         logger.info("Getting probabilities for %s", symbol.upper())
         # read the rankings frame for the given symbol
         rank_dir = SSEP.join([directory, 'output'])
-        if model.test_labels:
-            partition_tag = 'test'
-            file_path = most_recent_file(rank_dir, 'ranked_test*')
-        else:
-            partition_tag = 'train'
-            file_path = most_recent_file(rank_dir, 'ranked_train*')
+        file_path = most_recent_file(rank_dir, 'ranked_test*')
         file_name = file_path.split(SSEP)[-1].split('.')[0]
         df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
         # select the probability column for the trading system
-        ts_opt = model.specs['ts_option']
-        ts_tag = 'ts' if ts_opt else ''
-        prob_col = USEP.join(['prob', partition_tag, ts_tag, model.best_algo.lower()])
-        df_rank = df_rank.query('symbol==@symbol')[prob_col]
+        partition_tag = 'test_'
+        ts_tag = 'ts_' if ts_flag else ''
+        prob_col = ''.join(['prob_', partition_tag, ts_tag, algo])
+        df_rank = df_rank.query('symbol==@symbol')
+        df_rank.index = pd.to_datetime(df_rank.index)
         # join price with rankings to get probabilities for this symbol
-        tframe = tframe.merge(df_rank, how='left', left_index=True, right_index=True)
+        tframe = tframe.merge(df_rank[prob_col], how='left', left_index=True, right_index=True)
         tframe[prob_col].fillna(0.5, inplace=True)
         # substitute actual probability column into signal
         for key in signals.keys():
@@ -295,7 +303,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
                 hold = 0
                 psize = 0
             if psize == 0 or scale:
-                if orderclose or orderstop:
+                if (orderclose or orderstop) and not end_of_day:
                     # go long (again)
                     if orderclose:
                         tradelist.append((dt, [symbol, Orders.le, q, c]))
@@ -317,7 +325,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
                 hold = 0
                 psize = 0
             if psize == 0 or scale:
-                if orderclose or orderstop:
+                if (orderclose or orderstop) and not end_of_day:
                     # go short (again)
                     if orderclose:
                         tradelist.append((dt, [symbol, Orders.se, -q, c]))
