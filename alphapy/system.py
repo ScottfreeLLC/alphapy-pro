@@ -283,8 +283,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         c = row[ccol]
         h = row[hcol]
         l = row[lcol]
-        if intraday:
-            end_of_day = row[icol]   
+        end_of_day = row[icol] if intraday else False  
         # evaluate entry and exit conditions
         lerow = row['buysignal'] if buysignal else None
         lsrow = row['buystop'] if buystop else None

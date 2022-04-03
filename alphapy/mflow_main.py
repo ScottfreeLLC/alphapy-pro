@@ -165,11 +165,6 @@ def get_market_config():
     if specs['api_key']:
         os.environ[specs['api_key_name']] = specs['api_key']
 
-    # Create the subject/schema/fractal namespace
-
-    sspecs = [specs['subject'], specs['schema'], specs['data_fractal']]
-    space = Space(*sspecs)
-
     #
     # Section: OHLC Map, Fractals and Features
     #
@@ -206,11 +201,16 @@ def get_market_config():
     logger.info("Getting Features")
     specs['features'] = cfg['features']
 
+    # Create the subject/schema/fractal namespace
+
+    sspecs = [specs['subject'], specs['schema'], feature_fractals[0]]
+    space = Space(*sspecs)
+
     #
     # Section: groups
     #
 
-    logger.info("Defining Groups")
+    logger.info("Defining Groups in Space: %s" % space)
     try:
         for g, m in list(cfg['groups'].items()):
             Group(g, space)
