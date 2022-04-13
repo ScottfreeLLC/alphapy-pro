@@ -266,7 +266,6 @@ def get_model_config():
 
     specs['drop'] = cfg['data']['drop']
     specs['features'] = cfg['data']['features']
-    specs['leaders'] = cfg['data']['leaders']
     specs['sentinel'] = cfg['data']['sentinel']
     specs['separator'] = cfg['data']['separator']
     specs['shuffle'] = cfg['data']['shuffle']
@@ -455,7 +454,6 @@ def get_model_config():
     logger.info('iso_components    = %d', specs['iso_components'])
     logger.info('iso_neighbors     = %d', specs['iso_neighbors'])
     logger.info('isample_pct       = %d', specs['isample_pct'])
-    logger.info('leaders           = %s', specs['leaders'])
     logger.info('learning_curve    = %r', specs['learning_curve'])
     logger.info('logtransform      = %r', specs['logtransform'])
     logger.info('lv_remove         = %r', specs['lv_remove'])

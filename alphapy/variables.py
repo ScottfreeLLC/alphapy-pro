@@ -65,6 +65,7 @@ import sys
 from alphapy.alias import get_alias
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
+from alphapy.globals import BarType
 from alphapy.globals import CARET, LOFF, ROFF, USEP
 from alphapy.space import Space
 from alphapy.utilities import valid_name
@@ -636,6 +637,89 @@ def vexec_multi_fractal(f, expr_dict, fractals):
 
 
 #
+# Function map_bar_type
+#
+
+def map_dollar_bars(df, amount=1000000):
+    r"""Map time bars to dollar bars.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe to convert to a different bar type.
+    amount : int
+        The notional amount based on price times volume.
+    """
+
+def get_dollar_bars(time_bars, dollar_threshold): #function credit to Max Bodoia
+
+    dollar_bars = []
+    running_volume = 0
+
+    # initialize the running high and low with placeholder values
+    running_high, running_low = 0, math.inf
+
+    for i in range(len(df)):
+        # get the timestamp, open, high, low, close, and volume of the next bar
+        next_close, next_high, next_low, next_open, next_timestamp, next_volume = [time_bars[i][k] for k in ['close', 'high', 'low', 'open', 'time', 'vol']]
+        # get the midpoint price of the next bar (the average of the open and the close)
+        midpoint_price = ((next_open) + (next_close))/2
+        # get the approximate dollar volume of the bar using the volume and the midpoint price
+        dollar_volume = next_volume * midpoint_price
+        # update the running high and low
+        running_high, running_low = max(running_high, next_high), min(running_low, next_low)
+        # if the next bar's dollar volume would take us over the threshold...
+        if dollar_volume + running_volume >= dollar_threshold:
+            # set the timestamp for the dollar bar as the timestamp at which the bar closed (i.e. one minute after the timestamp of the last minutely bar included in the dollar bar)
+            bar_timestamp = next_timestamp + timedelta(minutes=1)            
+            # add a new dollar bar to the list of dollar bars with the timestamp, running high/low, and next close
+            dollar_bars += [{'timestamp': bar_timestamp, 'open': next_open, 'high': running_high, 'low': running_low, 'close': next_close}]
+            # reset the running volume to zero
+            running_volume = 0
+            # reset the running high and low to placeholder values
+            running_high, running_low = 0, math.inf
+        # otherwise, increment the running volume
+        else:
+            running_volume += dollar_volume
+
+    # return the list of dollar bars
+    return dollar_bars
+    return df
+
+
+#
+# Function map_bar_type
+#
+
+def map_bar_type(df, bar_type):
+    r"""Map time bars to a different bar type.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe to convert to a different bar type.
+    bar_type : Enum.BarType
+        The bar type for conversion (Dollar Bar, Heikin-Ashi, et al).
+    """
+
+    if bar_type == BarType.dollar:
+        df = map_dollar_bars(df)
+    elif bar_type == BarType.heikinashi:
+        ha_map = {'open'  : 'openha',
+                  'high'  : 'highha',
+                  'low'   : 'lowha',
+                  'close' : 'closeha'}
+        new_names = [x+'0' for x in ha_map.keys()]
+        for v in ha_map.keys():
+            df = vexec(df, ha_map[v])
+        df.rename(columns=dict(zip(ha_map.keys(), new_names)), inplace=True)
+        df.rename(columns=dict(zip(ha_map.values(), ha_map.keys())), inplace=True)
+    else:
+        raise ValueError("Unknown Bar Type: %s" % bar_type)
+    return df
+
+
+#
 # Function vapply
 #
 
@@ -674,7 +758,7 @@ def vapply(group, market_specs, vfuncs=None):
 
     fractals = market_specs['fractals']
     features = market_specs['features']
-    ohlc_map = market_specs['ohlc_map']
+    bar_type = market_specs['bar_type']
 
     # Get all dependent variables for each feature
 
@@ -703,11 +787,8 @@ def vapply(group, market_specs, vfuncs=None):
                             if vparent not in mfe_dict:
                                 mfe_dict[vxlag] = expr
 
-    # Initialize list of dataframes, function dictionary, and possibly OHLC mapping values
-
+    # Initialize list of dataframes, function dictionary, and possibly bar type
     dffs = []
-    if ohlc_map:
-        new_names = [x+'0' for x in ohlc_map.keys()]
 
     # Apply the variables to each frame
 
@@ -722,12 +803,9 @@ def vapply(group, market_specs, vfuncs=None):
             if fname in Frame.frames:
                 df = Frame.frames[fname].df
                 if not df.empty:
-                    # Remap OHLC values if specified
-                    if ohlc_map:
-                        for v in ohlc_map.keys():
-                            df = vexec(df, ohlc_map[v])
-                        df.rename(columns=dict(zip(ohlc_map.keys(), new_names)), inplace=True)
-                        df.rename(columns=dict(zip(ohlc_map.values(), ohlc_map.keys())), inplace=True)
+                    # Remap to a different bar type if specified
+                    if bar_type != BarType.time:
+                        df = map_bar_type(df, bar_type)
                     # create the features in the dataframe
                     for vname, allv in fdict.items():
                         logger.debug("%s Variable: %s.%s", symbol.upper(), fractal, vname)

@@ -60,22 +60,20 @@ class System(object):
     ----------
     name : str
         The system name.
-    buysignal : str
-        Name of the conditional feature for a long entry.
     algo : str
         Abbreviation of the algorithm.
     ts_flag : bool
         Flag indicating whether to use the walk-forward or train/test probability.
-    sellsignal : str, optional
-        Name of the conditional feature for a short entry.
+    buysignal : str
+        Name of the conditional feature for a long entry.
     buyexit : str, optional
         Name of the conditional feature for a long exit.
+    sellsignal : str, optional
+        Name of the conditional feature for a short entry.
     sellexit : str, optional
         Name of the conditional feature for a short exit.
     holdperiod : int, optional
         Holding period of a position.
-    scale : bool, optional
-        Add to a position for a signal in the same direction.
     fractal : str
         Pandas offset alias.
 
@@ -101,6 +99,7 @@ class System(object):
                 name,
                 algo,
                 ts_flag,
+                prob_min,
                 buysignal,
                 buystop = None,
                 buyexit = None,
@@ -108,7 +107,6 @@ class System(object):
                 sellstop = None,
                 sellexit = None,
                 holdperiod = None,
-                scale = False,
                 fractal = '1D'):
         # create system name
         if name not in System.systems:
@@ -122,6 +120,7 @@ class System(object):
                  name,
                  algo,
                  ts_flag,
+                 prob_min,
                  buysignal,
                  buystop = None,
                  buyexit = None,
@@ -129,12 +128,12 @@ class System(object):
                  sellstop = None,
                  sellexit = None,
                  holdperiod = None,
-                 scale = False,
                  fractal = '1D'):
         # initialization
         self.name = name
         self.algo = algo
         self.ts_flag = ts_flag
+        self.prob_min = prob_min
         self.buysignal = buysignal
         self.buystop = buystop
         self.buyexit = buyexit
@@ -142,7 +141,6 @@ class System(object):
         self.sellstop = sellstop
         self.sellexit = sellexit
         self.holdperiod = holdperiod
-        self.scale = scale
         self.fractal = fractal
         # add system to systems list
         System.systems[name] = self
@@ -197,6 +195,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
 
     algo = system.algo
     ts_flag = system.ts_flag
+    prob_min = system.prob_min
     buysignal = system.buysignal
     buystop = system.buystop
     buyexit = system.buyexit
@@ -204,10 +203,15 @@ def trade_system(model, system, space, intraday, symbol, quantity):
     sellstop = system.sellstop
     sellexit = system.sellexit
     holdperiod = system.holdperiod
-    scale = system.scale
     fractal = system.fractal
 
-    # Determine whether or not this is a model-driven system.
+    # Read in the price frame for all fractals and variables.
+
+    symbol = symbol.lower()
+    tspace = Space(space.subject, space.schema, 'ALL')
+    tframe = Frame.frames[frame_name(symbol, tspace)].df
+
+    # Initialize signal dictionary
 
     signals = {'buysignal'  : buysignal,
                'buystop'    : buystop,
@@ -216,18 +220,9 @@ def trade_system(model, system, space, intraday, symbol, quantity):
                'sellstop'   : sellstop,
                'sellexit'   : sellexit}
 
-    # Read in the price frame for all fractals and variables.
-
-    symbol = symbol.lower()
-    tspace = Space(space.subject, space.schema, 'ALL')
-    tframe = Frame.frames[frame_name(symbol, tspace)].df
-
     # Use model output probabilities as input to the system
 
-    proba_tag = 'proba'
-    proba_tag_len = len(proba_tag)
-    signals_ml = [x for x in signals.values() if x and x[:proba_tag_len] == proba_tag]
-    if any(signals_ml):
+    if prob_min:
         logger.info("Getting probabilities for %s", symbol.upper())
         # read the rankings frame for the given symbol
         rank_dir = SSEP.join([directory, 'output'])
@@ -245,12 +240,8 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         tframe[prob_col].fillna(0.5, inplace=True)
         # substitute actual probability column into signal
         for key in signals.keys():
-            value = signals[key]
-            if value and len(value) >= proba_tag_len:
-                vname = value[:proba_tag_len]
-                if vname == proba_tag:
-                    value_new = value.replace(vname, prob_col)
-                expr = BSEP.join([key, '=', value_new])
+            if signals[key] and (key == 'buysignal' or key == 'sellsignal'):
+                expr = BSEP.join([key, '=', prob_col, '>=', str(prob_min)])
                 tframe.eval(expr, inplace=True)
     else:
         for key in signals.keys():
@@ -283,7 +274,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         c = row[ccol]
         h = row[hcol]
         l = row[lcol]
-        end_of_day = row[icol] if intraday else False  
+        end_of_day = row[icol] if intraday else False
         # evaluate entry and exit conditions
         lerow = row['buysignal'] if buysignal else None
         lsrow = row['buystop'] if buystop else None
@@ -301,7 +292,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
                 inshort = False
                 hold = 0
                 psize = 0
-            if psize == 0 or scale:
+            if psize == 0:
                 if (orderclose or orderstop) and not end_of_day:
                     # go long (again)
                     if orderclose:
@@ -323,7 +314,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
                 inlong = False
                 hold = 0
                 psize = 0
-            if psize == 0 or scale:
+            if psize == 0:
                 if (orderclose or orderstop) and not end_of_day:
                     # go short (again)
                     if orderclose:

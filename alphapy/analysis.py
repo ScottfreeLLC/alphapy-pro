@@ -132,14 +132,13 @@ class Analysis(object):
 # Function run_analysis
 #
 
-def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
+def run_analysis(analysis, dfs, fractals, system_specs, forecast_period, predict_history):
     r"""Run an analysis for a given model and group.
 
     First, the data are loaded for each member of the analysis group.
-    Then, the target value is lagged for the ``forecast_period``, and
-    any ``leaders`` are lagged as well. Each frame is split along
-    the ``predict_date`` from the ``analysis``, and finally the
-    train and test files are generated.
+    Then, the target value is lagged for the ``forecast_period``. Each frame
+    is split along the ``predict_date`` from the ``analysis``, and finally
+    the train and test files are generated.
 
     Parameters
     ----------
@@ -147,6 +146,8 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
         The analysis to run.
     dfs : list
         The list of pandas dataframes to analyze.
+    system_specs : dict
+        The system specifications containing the signals.
     fractals : list
         List of Pandas offset aliases.
     forecast_period : int
@@ -173,14 +174,19 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
 
     directory = model.specs['directory']
     extension = model.specs['extension']
-    leaders = model.specs['leaders']
     predict_date = model.specs['predict_date']
     predict_mode = model.specs['predict_mode']
     separator = model.specs['separator']
     target = model.specs['target']
     train_date = model.specs['train_date']
 
+    # Unpack system specifications
+
+    buysignal = system_specs['buysignal']
+    sellsignal = system_specs['sellsignal']
+
     # Calculate split date
+
     logger.info("Analysis Dates")
     split_date = subtract_days(predict_date, predict_history)
 
@@ -197,52 +203,46 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
         test_frame = pd.DataFrame()
 
     #
-    # Determine whether or not we are predicting with the base fractal or a higher fractal.
+    # We are creating a target variable based on whether the trade was successful.
+    # If the trade is profitable, then the target is 1 else 0.
     #
-    # 1. Base Prediction
+    # For long signals, the ROI must be greater than 0.
+    # For short signals, the ROI must be less than 0.
     #
-    #    a. Forecast on the lowest fractal.
-    #    b. Optionally use higher-order fractals.
-    #    c. The forecast is defined as n periods forward.
-    #
-    # 2. Aggregate Prediction
-    #
-    #    a. Forecast on a higher fractal with lower-fractal data.
-    #    b. Use lower-fractal data to index into the higher fractal prediction.
-    #    c. The higher the index (nth row), the higher probability of target prediction.
-    #
-
-    base_fractal = fractals[0]
-    target_fractal = target.split(USEP)[-1]
-    base_prediction = True if base_fractal == target_fractal else False
-
-    # Subset each individual frame and add to the master frame
 
     for df in dfs:
+        # subset each individual frame and add to the master frame
         symbol = df['symbol'].iloc[0]
         first_date = df.index[0]
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol.upper(), first_date, last_date)
-        # base or aggregate predictions
-        if base_prediction:
-            df[target] = df[target].shift(-forecast_period)
-            df[leaders] = df[leaders].shift(-1)
-        else:
-            fractal_shift = df.groupby(pd.Grouper(freq=target_fractal)).count().iloc(0)[0][0]
-            df[target] = df[target].shift(-fractal_shift)
-            df[leaders] = df[leaders].shift(-fractal_shift)
-            # if forecast period is 0, then the last row is selected
-            df = df.groupby(pd.Grouper(freq=target_fractal)).nth(forecast_period-1)
+        # shift ROI column back by the number of forecast periods
+        target_roi = USEP.join(['roi', str(forecast_period), fractals[0]])
+        df[target_roi] = df[target_roi].shift(-forecast_period)
+        # filter for signal
+        df_signal = pd.DataFrame()
+        if buysignal:
+            col_buy = USEP.join([buysignal, fractals[0]])
+            df_buy = df[df[col_buy] == True]
+            df_buy[target] = df_buy[target_roi] > 0.0
+            df_buy.drop(columns=[target_roi], inplace=True)
+            df_signal = pd.concat([df_signal, df_buy])
+        if sellsignal:
+            col_sell = USEP.join([sellsignal, fractals[0]])
+            df_sell = df[df[col_sell] == True]
+            df_sell[target] = df_sell[target_roi] < 0.0
+            df_sell.drop(columns=[target_roi], inplace=True)
+            df_signal = pd.concat([df_signal, df_sell])
         # get frame subsets
         if predict_mode:
-            new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)]
+            new_predict = df_signal.loc[(df_signal.index >= split_date) & (df_signal.index <= last_date)]
             if len(new_predict) > 0:
                 predict_frame = predict_frame.append(new_predict)
             else:
                 logger.info("%s Prediction Frame has zero rows. Check prediction date.", symbol.upper())
         else:
             # split data into train and test
-            new_train = df.loc[(df.index >= train_date) & (df.index < predict_date)]
+            new_train = df_signal.loc[(df_signal.index >= train_date) & (df_signal.index < predict_date)]
             if not new_train.empty:
                 # check if target column has NaN values
                 nan_count = new_train[target].isnull().sum()
@@ -252,7 +252,7 @@ def run_analysis(analysis, dfs, fractals, forecast_period, predict_history):
                 new_train = new_train.dropna(subset=[target])
                 train_frame = train_frame.append(new_train)
                 # get test frame
-                new_test = df.loc[(df.index >= predict_date) & (df.index <= last_date)]
+                new_test = df_signal.loc[(df_signal.index >= predict_date) & (df_signal.index <= last_date)]
                 if not new_test.empty:
                     # check if target column has NaN values
                     nan_count = new_test[target].isnull().sum()

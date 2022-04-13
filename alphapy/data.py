@@ -30,9 +30,9 @@ from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
+from alphapy.globals import datasets
 from alphapy.globals import PD_INTRADAY_OFFSETS
-from alphapy.globals import PSEP, SSEP, USEP
+from alphapy.globals import SSEP
 from alphapy.globals import SamplingMethod
 from alphapy.globals import WILDCARD
 from alphapy.space import Space
@@ -41,7 +41,6 @@ from alphapy.transforms import timeparts
 
 import arrow
 from datetime import datetime
-from datetime import timedelta
 from iexfinance.stocks import get_historical_data
 from iexfinance.stocks import get_historical_intraday
 from imblearn.combine import SMOTEENN

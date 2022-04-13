@@ -22,7 +22,11 @@ alphapy/plots.py
 alphapy/portfolio.py
 alphapy/sflow_main.py
 alphapy/space.py
-alphapy/streamlit.py
+alphapy/streamlit_alphapy.py
+alphapy/streamlit_main.py
+alphapy/streamlit_mflow.py
+alphapy/streamlit_multipage.py
+alphapy/streamlit_sflow.py
 alphapy/streamlit_test.py
 alphapy/system.py
 alphapy/transforms.py

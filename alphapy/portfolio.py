@@ -440,7 +440,7 @@ def valuate_position(position, tdate):
     # get current price
     pdata = position.pdata
     if tdate in pdata.index:
-        cp = float(pdata.loc[tdate]['close'])
+        cp = pdata.loc[tdate]['close'].astype(float)
         # start valuation
         multiplier = position.multiplier
         netpos = 0

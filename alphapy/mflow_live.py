@@ -58,6 +58,11 @@ if __name__ == '__main__':
     market_specs = get_market_config()
     logger.info(market_specs)
 
+    # Initialize market prediction pipeline
+
+    prediction_pipeline(model)
+    logger.info(market_specs)
+
     # Initialize Scheduler
 
     scheduler = AsyncIOScheduler()

@@ -146,6 +146,23 @@ class Objective(Enum):
 
 
 #
+# Bar Types
+#
+
+@unique
+class BarType(Enum):
+    """Bar Types.
+
+    Bar Types for running models, usually translated from a normal OHLC bar to a
+    weighted bar based on volume, dollar amount, etc.
+
+    """
+    time = 1
+    dollar = 2
+    heikinashi = 3
+
+
+#
 # Class Orders
 #
 

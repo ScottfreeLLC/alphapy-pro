@@ -39,6 +39,7 @@ from alphapy.alias import Alias
 from alphapy.analysis import Analysis
 from alphapy.analysis import run_analysis
 from alphapy.data import get_market_data
+from alphapy.globals import USEP, BarType
 from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import PSEP, SSEP
 from alphapy.group import Group
@@ -150,7 +151,6 @@ def get_market_config():
     specs['data_end_date'] = end_date
 
     specs['forecast_period'] = cfg['market']['forecast_period']
-
     specs['predict_history'] = cfg['market']['predict_history']
     specs['schema'] = cfg['market']['schema']
     specs['subschema'] = cfg['market']['subschema']
@@ -166,20 +166,22 @@ def get_market_config():
         os.environ[specs['api_key_name']] = specs['api_key']
 
     #
-    # Section: OHLC Map, Fractals and Features
+    # Section: Bar Type, Fractals and Features
     #
 
-    logger.info("Getting OHLC Map")
+    logger.info("Getting Bar Type")
 
     try:
-        specs['ohlc_map'] = cfg['ohlc_map']
-        if not all(key in specs['ohlc_map'].keys() for key in ['open', 'high', 'low', 'close']):
-            raise ValueError("Four OHLC mapping fields must be specified")
+        specs['bar_type'] = BarType[cfg['bar_type']]
     except:
-        specs['ohlc_map'] = None
+        logger.info("No valid bar type was specified. Default: time")
+        specs['bar_type'] = BarType.time
 
     logger.info("Getting Fractals")
 
+    if len(cfg['fractals']) > 1 and specs['bar_type'] != BarType.time:
+        raise ValueError("Multiple Fractals valid only on time bars")
+    
     fractals = {}
     for frac in cfg['fractals']:
         try:
@@ -216,7 +218,7 @@ def get_market_config():
             Group(g, space)
             Group.groups[g].add(m)
     except:
-        logger.info("No Groups Found")
+        raise ValueError("No Groups Found")
 
     #
     # Section: aliases
@@ -227,7 +229,7 @@ def get_market_config():
         for k, v in list(cfg['aliases'].items()):
             Alias(k, v)
     except:
-        logger.info("No Aliases Found")
+        raise ValueError("No Aliases Found")
 
     #
     # Section: portfolio
@@ -237,8 +239,7 @@ def get_market_config():
     try:
         specs['portfolio'] = cfg['portfolio']
     except:
-        logger.info("No Portfolio Parameters Found")
-        specs['portfolio'] = {}
+        raise ValueError("No Portfolio Parameters Found")
 
     #
     # Section: system
@@ -247,9 +248,9 @@ def get_market_config():
     logger.info("Getting System Parameters")
     try:
         specs['system'] = cfg['system']
+        specs['system']['holdperiod'] = specs['forecast_period']
     except:
-        logger.info("No System Parameters Found")
-        specs['system'] = {}
+        raise ValueError("No System Parameters Found")
 
     #
     # Section: variables
@@ -260,7 +261,7 @@ def get_market_config():
         for k, v in list(cfg['variables'].items()):
             Variable(k, v)
     except:
-        logger.info("No Variables Found")
+        raise ValueError("No Variables Found")
 
     #
     # Section: functions
@@ -280,6 +281,7 @@ def get_market_config():
     logger.info('MARKET PARAMETERS:')
     logger.info('api_key          = %s', specs['api_key'])
     logger.info('api_key_name     = %s', specs['api_key_name'])
+    logger.info('bar_type         = %s', specs['bar_type'])
     logger.info('create_model     = %r', specs['create_model'])
     logger.info('data_directory   = %s', specs['data_directory'])
     logger.info('data_end_date    = %s', specs['data_end_date'])
@@ -289,7 +291,6 @@ def get_market_config():
     logger.info('features         = %s', specs['features'])
     logger.info('forecast_period  = %d', specs['forecast_period'])
     logger.info('fractals         = %s', specs['fractals'])
-    logger.info('ohlc_map         = %s', specs['ohlc_map'])
     logger.info('portfolio        = %s', specs['portfolio'])
     logger.info('predict_history  = %s', specs['predict_history'])
     logger.info('run_system       = %r', specs['run_system'])
@@ -350,6 +351,22 @@ def market_pipeline(model, market_specs):
     target_group = market_specs['target_group']
     run_sys = market_specs['run_system']
 
+    # Get system specifications
+
+    system_specs = market_specs['system']
+    system_name = system_specs['name']
+    algo = system_specs['algo']
+    ts_flag = system_specs['ts_flag']
+    prob_min = system_specs['prob_min']
+    buysignal = system_specs['buysignal']
+    buystop = system_specs['buystop']
+    buyexit = system_specs['buyexit']
+    sellsignal = system_specs['sellsignal']
+    sellstop = system_specs['sellstop']
+    sellexit = system_specs['sellexit']
+    holdperiod = system_specs['holdperiod']
+    trade_fractal = fractals[0]
+
     # Set the target group
 
     group = Group.groups[target_group]
@@ -367,6 +384,12 @@ def market_pipeline(model, market_specs):
 
     # Apply the features to all frames.
 
+    target_roi = USEP.join(['roi', str(forecast_period)])
+    market_specs['features'].append(target_roi)
+    if buysignal:
+        market_specs['features'].append(buysignal)
+    if sellsignal:
+        market_specs['features'].append(sellsignal)
     dfs = vapply(group, market_specs, functions)
 
     # Run an analysis to create the model.
@@ -374,31 +397,18 @@ def market_pipeline(model, market_specs):
     if create_model:
         logger.info("Creating Model")
         # run the analysis, which calls the model pipeline
-        a = Analysis(model, group)
-        run_analysis(a, dfs, fractals, forecast_period, predict_history)
+        anal = Analysis(model, group)
+        run_analysis(anal, dfs, fractals, system_specs, forecast_period, predict_history)
     else:
         logger.info("No Model Created")
 
     # Run a system
 
-    system_specs = market_specs['system']
-    if run_sys and system_specs:
-        # get the system specs
-        system_name = system_specs['name']
-        algo = system_specs['algo']
-        ts_flag = system_specs['ts_flag']
-        buysignal = system_specs['buysignal']
-        buystop = system_specs['buystop']
-        buyexit = system_specs['buyexit']
-        sellsignal = system_specs['sellsignal']
-        sellstop = system_specs['sellstop']
-        sellexit = system_specs['sellexit']
-        holdperiod = system_specs['holdperiod']
-        scale = system_specs['scale']
-        trade_fractal = fractals[0]
+    if run_sys:
         logger.info("Running System %s", system_name)
         logger.info("Algorithm        : %s", algo)
         logger.info("Time Series Flag : %r", ts_flag)
+        logger.info("Probability Min  : %f", prob_min)
         logger.info("Buy Signal       : %s", buysignal)
         logger.info("Buy Stop         : %s", buystop)
         logger.info("Buy Exit         : %s", buyexit)
@@ -406,13 +416,12 @@ def market_pipeline(model, market_specs):
         logger.info("Sell Stop        : %s", sellstop)
         logger.info("Sell Exit        : %s", sellexit)
         logger.info("Hold Period      : %s", holdperiod)
-        logger.info("Scale            : %r", scale)
         logger.info("Fractal          : %s", trade_fractal)
         # create and run the system
-        system = System(system_name, algo, ts_flag,
+        system = System(system_name, algo, ts_flag, prob_min,
                         buysignal, buystop, buyexit,
                         sellsignal, sellstop, sellexit,
-                        holdperiod, scale, trade_fractal)
+                        holdperiod, trade_fractal)
         tfs = run_system(model, system, group, intraday)
         # generate a portfolio
         if tfs.empty:
