@@ -875,7 +875,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                 else:
                     raise ValueError("Dataframe must have a datetime or date column")
             # scope dataframe in date range
-            # df = df.loc[pd.to_datetime(from_date) : pd.to_datetime(to_date)]
+            df = df.loc[pd.to_datetime(from_date) : pd.to_datetime(to_date)]
             # register the dataframe in the global namespace
             df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)
             # resample data and drop any NA values
