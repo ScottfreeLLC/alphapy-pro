@@ -182,8 +182,8 @@ def run_analysis(analysis, dfs, fractals, system_specs, forecast_period, predict
 
     # Unpack system specifications
 
-    buysignal = system_specs['buysignal']
-    sellsignal = system_specs['sellsignal']
+    longentry = system_specs['longentry']
+    shortentry = system_specs['shortentry']
 
     # Calculate split date
 
@@ -221,14 +221,14 @@ def run_analysis(analysis, dfs, fractals, system_specs, forecast_period, predict
         df[target_roi] = df[target_roi].shift(-forecast_period)
         # filter for signal
         df_signal = pd.DataFrame()
-        if buysignal:
-            col_buy = USEP.join([buysignal, fractals[0]])
+        if longentry:
+            col_buy = USEP.join([longentry, fractals[0]])
             df_buy = df[df[col_buy] == True]
             df_buy[target] = df_buy[target_roi] > 0.0
             df_buy.drop(columns=[target_roi], inplace=True)
             df_signal = pd.concat([df_signal, df_buy])
-        if sellsignal:
-            col_sell = USEP.join([sellsignal, fractals[0]])
+        if shortentry:
+            col_sell = USEP.join([shortentry, fractals[0]])
             df_sell = df[df[col_sell] == True]
             df_sell[target] = df_sell[target_roi] < 0.0
             df_sell.drop(columns=[target_roi], inplace=True)

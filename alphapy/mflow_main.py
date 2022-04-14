@@ -358,12 +358,11 @@ def market_pipeline(model, market_specs):
     algo = system_specs['algo']
     ts_flag = system_specs['ts_flag']
     prob_min = system_specs['prob_min']
-    buysignal = system_specs['buysignal']
-    buystop = system_specs['buystop']
-    buyexit = system_specs['buyexit']
-    sellsignal = system_specs['sellsignal']
-    sellstop = system_specs['sellstop']
-    sellexit = system_specs['sellexit']
+    prob_max = system_specs['prob_max']
+    longentry = system_specs['longentry']
+    longexit = system_specs['longexit']
+    shortentry = system_specs['shortentry']
+    shortexit = system_specs['shortexit']
     holdperiod = system_specs['holdperiod']
     trade_fractal = fractals[0]
 
@@ -386,10 +385,10 @@ def market_pipeline(model, market_specs):
 
     target_roi = USEP.join(['roi', str(forecast_period)])
     market_specs['features'].append(target_roi)
-    if buysignal:
-        market_specs['features'].append(buysignal)
-    if sellsignal:
-        market_specs['features'].append(sellsignal)
+    if longentry:
+        market_specs['features'].append(longentry)
+    if shortentry:
+        market_specs['features'].append(shortentry)
     dfs = vapply(group, market_specs, functions)
 
     # Run an analysis to create the model.
@@ -409,18 +408,16 @@ def market_pipeline(model, market_specs):
         logger.info("Algorithm        : %s", algo)
         logger.info("Time Series Flag : %r", ts_flag)
         logger.info("Probability Min  : %f", prob_min)
-        logger.info("Buy Signal       : %s", buysignal)
-        logger.info("Buy Stop         : %s", buystop)
-        logger.info("Buy Exit         : %s", buyexit)
-        logger.info("Sell Signal      : %s", sellsignal)
-        logger.info("Sell Stop        : %s", sellstop)
-        logger.info("Sell Exit        : %s", sellexit)
+        logger.info("Probability Max  : %f", prob_max)
+        logger.info("Long Entry       : %s", longentry)
+        logger.info("Long Exit        : %s", longexit)
+        logger.info("Short Entry      : %s", shortentry)
+        logger.info("Short Exit       : %s", shortexit)
         logger.info("Hold Period      : %s", holdperiod)
         logger.info("Fractal          : %s", trade_fractal)
         # create and run the system
-        system = System(system_name, algo, ts_flag, prob_min,
-                        buysignal, buystop, buyexit,
-                        sellsignal, sellstop, sellexit,
+        system = System(system_name, algo, ts_flag, prob_min, prob_max,
+                        longentry, longexit, shortentry, shortexit,
                         holdperiod, trade_fractal)
         tfs = run_system(model, system, group, intraday)
         # generate a portfolio

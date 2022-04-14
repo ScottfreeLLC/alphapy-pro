@@ -64,13 +64,13 @@ class System(object):
         Abbreviation of the algorithm.
     ts_flag : bool
         Flag indicating whether to use the walk-forward or train/test probability.
-    buysignal : str
+    longentry : str
         Name of the conditional feature for a long entry.
-    buyexit : str, optional
+    longexit : str, optional
         Name of the conditional feature for a long exit.
-    sellsignal : str, optional
+    shortentry : str, optional
         Name of the conditional feature for a short entry.
-    sellexit : str, optional
+    shortexit : str, optional
         Name of the conditional feature for a short exit.
     holdperiod : int, optional
         Holding period of a position.
@@ -100,12 +100,11 @@ class System(object):
                 algo,
                 ts_flag,
                 prob_min,
-                buysignal,
-                buystop = None,
-                buyexit = None,
-                sellsignal = None,
-                sellstop = None,
-                sellexit = None,
+                prob_max,
+                longentry,
+                longexit = None,
+                shortentry = None,
+                shortexit = None,
                 holdperiod = None,
                 fractal = '1D'):
         # create system name
@@ -121,12 +120,11 @@ class System(object):
                  algo,
                  ts_flag,
                  prob_min,
-                 buysignal,
-                 buystop = None,
-                 buyexit = None,
-                 sellsignal = None,
-                 sellstop = None,
-                 sellexit = None,
+                 prob_max,
+                 longentry,
+                 longexit = None,
+                 shortentry = None,
+                 shortexit = None,
                  holdperiod = None,
                  fractal = '1D'):
         # initialization
@@ -134,12 +132,11 @@ class System(object):
         self.algo = algo
         self.ts_flag = ts_flag
         self.prob_min = prob_min
-        self.buysignal = buysignal
-        self.buystop = buystop
-        self.buyexit = buyexit
-        self.sellsignal = sellsignal
-        self.sellstop = sellstop
-        self.sellexit = sellexit
+        self.prob_max = prob_max
+        self.longentry = longentry
+        self.longexit = longexit
+        self.shortentry = shortentry
+        self.shortexit = shortexit
         self.holdperiod = holdperiod
         self.fractal = fractal
         # add system to systems list
@@ -196,12 +193,11 @@ def trade_system(model, system, space, intraday, symbol, quantity):
     algo = system.algo
     ts_flag = system.ts_flag
     prob_min = system.prob_min
-    buysignal = system.buysignal
-    buystop = system.buystop
-    buyexit = system.buyexit
-    sellsignal = system.sellsignal
-    sellstop = system.sellstop
-    sellexit = system.sellexit
+    prob_max = system.prob_max
+    longentry = system.longentry
+    longexit = system.longexit
+    shortentry = system.shortentry
+    shortexit = system.shortexit
     holdperiod = system.holdperiod
     fractal = system.fractal
 
@@ -213,16 +209,14 @@ def trade_system(model, system, space, intraday, symbol, quantity):
 
     # Initialize signal dictionary
 
-    signals = {'buysignal'  : buysignal,
-               'buystop'    : buystop,
-               'buyexit'    : buyexit,
-               'sellsignal' : sellsignal,
-               'sellstop'   : sellstop,
-               'sellexit'   : sellexit}
+    signals = {'longentry'  : longentry,
+               'longexit'   : longexit,
+               'shortentry' : shortentry,
+               'shortexit'  : shortexit}
 
     # Use model output probabilities as input to the system
 
-    if prob_min:
+    if prob_min or prob_max:
         logger.info("Getting probabilities for %s", symbol.upper())
         # read the rankings frame for the given symbol
         rank_dir = SSEP.join([directory, 'output'])
@@ -240,8 +234,15 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         tframe[prob_col].fillna(0.5, inplace=True)
         # substitute actual probability column into signal
         for key in signals.keys():
-            if signals[key] and (key == 'buysignal' or key == 'sellsignal'):
-                expr = BSEP.join([key, '=', prob_col, '>=', str(prob_min)])
+            if signals[key] and (key == 'longentry' or key == 'shortentry'):
+                if prob_min and prob_max:
+                    lhs = BSEP.join(['(', prob_col, '>=', str(prob_min), ')'])
+                    rhs = BSEP.join(['(', prob_col, '<=', str(prob_max), ')'])
+                    expr = BSEP.join([key, '=', lhs, '&', rhs])
+                elif prob_min:
+                    expr = BSEP.join([key, '=', prob_col, '>=', str(prob_min)])
+                elif prob_max:
+                    expr = BSEP.join([key, '=', prob_col, '<=', str(prob_max)])
                 tframe.eval(expr, inplace=True)
     else:
         for key in signals.keys():
@@ -252,11 +253,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
     # Initialize trading state variables
 
     inlong = False
-    leactive = False
-    hprev = 0
     inshort = False
-    seactive = False
-    lprev = 0
     hold = 0
     psize = 0
     q = quantity
@@ -276,57 +273,35 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         l = row[lcol]
         end_of_day = row[icol] if intraday else False
         # evaluate entry and exit conditions
-        lerow = row['buysignal'] if buysignal else None
-        lsrow = row['buystop'] if buystop else None
-        lxrow = row['buyexit'] if buyexit else None
-        serow = row['sellsignal'] if sellsignal else None
-        ssrow = row['sellstop'] if sellstop else None
-        sxrow = row['sellexit'] if sellexit else None
+        lerow = row['longentry'] if longentry else None
+        lxrow = row['longexit'] if longexit else None
+        serow = row['shortentry'] if shortentry else None
+        sxrow = row['shortexit'] if shortexit else None
         # process the long and short events
-        if lerow or leactive:
-            orderclose = lerow and not buystop
-            orderstop = leactive and (True if h > hprev else False)
-            if psize < 0 and (orderclose or orderstop):
+        if lerow:
+            if inshort:
                 # short active, so exit short
                 tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
                 inshort = False
                 hold = 0
                 psize = 0
-            if psize == 0:
-                if (orderclose or orderstop) and not end_of_day:
-                    # go long (again)
-                    if orderclose:
-                        tradelist.append((dt, [symbol, Orders.le, q, c]))
-                    elif orderstop:
-                        tradelist.append((dt, [symbol, Orders.le, q, hprev]))
-                    inlong = True
-                    psize = psize + q
-                    leactive = False
-                elif lerow and buystop:
-                    leactive = True
-                    hprev = lsrow
-        if serow or seactive:
-            orderclose = serow and not sellstop
-            orderstop = seactive and (True if l < lprev else False)
-            if psize > 0 and (orderclose or orderstop):
+            if psize == 0 and not end_of_day:
+                # go long
+                tradelist.append((dt, [symbol, Orders.le, q, c]))
+                inlong = True
+                psize = psize + q
+        if serow:
+            if inlong:
                 # long active, so exit long
                 tradelist.append((dt, [symbol, Orders.lx, -psize, c]))
                 inlong = False
                 hold = 0
                 psize = 0
-            if psize == 0:
-                if (orderclose or orderstop) and not end_of_day:
-                    # go short (again)
-                    if orderclose:
-                        tradelist.append((dt, [symbol, Orders.se, -q, c]))
-                    elif orderstop:
-                        tradelist.append((dt, [symbol, Orders.se, -q, lprev]))
-                    inshort = True
-                    seactive = False
-                    psize = psize - q
-                elif serow and sellstop:
-                    seactive = True
-                    lprev = ssrow
+            if psize == 0 and not end_of_day:
+                # go short
+                tradelist.append((dt, [symbol, Orders.se, -q, c]))
+                inshort = True
+                psize = psize - q
         # check exit conditions
         if inlong and hold > 0 and lxrow:
             # long active, so exit long
@@ -340,8 +315,8 @@ def trade_system(model, system, space, intraday, symbol, quantity):
             inshort = False
             hold = 0
             psize = 0
-        # if a holding period was given, then check for exit
-        if holdperiod and hold >= holdperiod:
+        # Exit when holding period is reached
+        if hold >= holdperiod:
             if inlong:
                 tradelist.append((dt, [symbol, Orders.lh, -psize, c]))
                 inlong = False
