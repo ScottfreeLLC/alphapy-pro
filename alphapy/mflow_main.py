@@ -356,7 +356,6 @@ def market_pipeline(model, market_specs):
     system_specs = market_specs['system']
     system_name = system_specs['name']
     algo = system_specs['algo']
-    ts_flag = system_specs['ts_flag']
     prob_min = system_specs['prob_min']
     prob_max = system_specs['prob_max']
     longentry = system_specs['longentry']
@@ -406,7 +405,6 @@ def market_pipeline(model, market_specs):
     if run_sys:
         logger.info("Running System %s", system_name)
         logger.info("Algorithm        : %s", algo)
-        logger.info("Time Series Flag : %r", ts_flag)
         logger.info("Probability Min  : %f", prob_min)
         logger.info("Probability Max  : %f", prob_max)
         logger.info("Long Entry       : %s", longentry)
@@ -416,7 +414,7 @@ def market_pipeline(model, market_specs):
         logger.info("Hold Period      : %s", holdperiod)
         logger.info("Fractal          : %s", trade_fractal)
         # create and run the system
-        system = System(system_name, algo, ts_flag, prob_min, prob_max,
+        system = System(system_name, algo, prob_min, prob_max,
                         longentry, longexit, shortentry, shortexit,
                         holdperiod, trade_fractal)
         tfs = run_system(model, system, group, intraday)

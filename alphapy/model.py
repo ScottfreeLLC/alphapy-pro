@@ -804,7 +804,10 @@ def time_series_model(model, algo):
 
     # Extract model data.
 
-    df = pd.concat([model.df_X_train[ts_date_index], pd.DataFrame(model.X_train), model.y_train], axis=1)
+    if model.test_labels:
+        df = pd.concat([model.df_X_test[ts_date_index], pd.DataFrame(model.X_test), model.y_test], axis=1)
+    else:
+        df = pd.concat([model.df_X_train[ts_date_index], pd.DataFrame(model.X_train), model.y_train], axis=1)
     est = model.estimators[algo]
 
     # Sort train and test by ascending date

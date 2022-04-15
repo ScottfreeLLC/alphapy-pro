@@ -62,8 +62,6 @@ class System(object):
         The system name.
     algo : str
         Abbreviation of the algorithm.
-    ts_flag : bool
-        Flag indicating whether to use the walk-forward or train/test probability.
     longentry : str
         Name of the conditional feature for a long entry.
     longexit : str, optional
@@ -98,7 +96,6 @@ class System(object):
     def __new__(cls,
                 name,
                 algo,
-                ts_flag,
                 prob_min,
                 prob_max,
                 longentry,
@@ -118,7 +115,6 @@ class System(object):
     def __init__(self,
                  name,
                  algo,
-                 ts_flag,
                  prob_min,
                  prob_max,
                  longentry,
@@ -130,7 +126,6 @@ class System(object):
         # initialization
         self.name = name
         self.algo = algo
-        self.ts_flag = ts_flag
         self.prob_min = prob_min
         self.prob_max = prob_max
         self.longentry = longentry
@@ -191,7 +186,6 @@ def trade_system(model, system, space, intraday, symbol, quantity):
     # Unpack the system parameters.
 
     algo = system.algo
-    ts_flag = system.ts_flag
     prob_min = system.prob_min
     prob_max = system.prob_max
     longentry = system.longentry
@@ -225,8 +219,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
         # select the probability column for the trading system
         partition_tag = 'test_'
-        ts_tag = 'ts_' if ts_flag else ''
-        prob_col = ''.join(['prob_', partition_tag, ts_tag, algo])
+        prob_col = ''.join(['prob_', partition_tag, algo])
         df_rank = df_rank.query('symbol==@symbol')
         df_rank.index = pd.to_datetime(df_rank.index)
         # join price with rankings to get probabilities for this symbol
