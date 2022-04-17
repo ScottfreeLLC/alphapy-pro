@@ -405,8 +405,8 @@ def market_pipeline(model, market_specs):
     if run_sys:
         logger.info("Running System %s", system_name)
         logger.info("Algorithm        : %s", algo)
-        logger.info("Probability Min  : %f", prob_min)
-        logger.info("Probability Max  : %f", prob_max)
+        logger.info("Probability Min  : %s", prob_min)
+        logger.info("Probability Max  : %s", prob_max)
         logger.info("Long Entry       : %s", longentry)
         logger.info("Long Exit        : %s", longexit)
         logger.info("Short Entry      : %s", shortentry)
