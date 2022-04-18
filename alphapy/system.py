@@ -147,7 +147,7 @@ class System(object):
 # Function trade_system
 #
 
-def trade_system(model, system, space, intraday, symbol, quantity):
+def trade_system(model, system, forecast_period, space, intraday, symbol, quantity):
     r"""Trade the given system.
 
     Parameters
@@ -156,6 +156,8 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         The model object with specifications.
     system : alphapy.System
         The long/short system to run.
+    forecast_period : int
+        The number of bars in the prediction.
     space : alphapy.Space
         Namespace of all variables over all fractals.
     intraday : bool
@@ -200,6 +202,8 @@ def trade_system(model, system, space, intraday, symbol, quantity):
     symbol = symbol.lower()
     tspace = Space(space.subject, space.schema, 'ALL')
     tframe = Frame.frames[frame_name(symbol, tspace)].df
+    print(tframe.columns)
+    print(tframe)
 
     # Initialize signal dictionary
 
@@ -212,6 +216,8 @@ def trade_system(model, system, space, intraday, symbol, quantity):
 
     if prob_min or prob_max:
         logger.info("Getting probabilities for %s", symbol.upper())
+        # set holding period for model
+        holdperiod = forecast_period
         # read the rankings frame for the given symbol
         rank_dir = SSEP.join([directory, 'output'])
         file_path = most_recent_file(rank_dir, 'ranked_test*')
@@ -241,7 +247,8 @@ def trade_system(model, system, space, intraday, symbol, quantity):
         for key in signals.keys():
             vname = signals[key]
             if vname:
-                tframe[key] = tframe[vname]
+                vname_frac = USEP.join([vname, fractal])
+                tframe[key] = tframe[vname_frac]
 
     # Initialize trading state variables
 
@@ -309,7 +316,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
             hold = 0
             psize = 0
         # Exit when holding period is reached
-        if hold >= holdperiod:
+        if holdperiod and hold >= holdperiod:
             if inlong:
                 tradelist.append((dt, [symbol, Orders.lh, -psize, c]))
                 inlong = False
@@ -341,6 +348,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
 
 def run_system(model,
                system,
+               forecast_period,
                group,
                intraday = False,
                quantity = 1):
@@ -352,6 +360,8 @@ def run_system(model,
         The model object with specifications.
     system : alphapy.System
         The system to run.
+    forecast_period : int
+        The number of bars in the prediction.
     group : alphapy.Group
         The group of symbols to trade.
     intraday : bool, optional
@@ -386,7 +396,7 @@ def run_system(model,
     gtlist = []
     for symbol in gmembers:
         # generate the trades for this member
-        tlist = trade_system(model, system, gspace, intraday, symbol, quantity)
+        tlist = trade_system(model, system, forecast_period, gspace, intraday, symbol, quantity)
         if tlist:
             # add trades to global trade list
             for item in tlist:

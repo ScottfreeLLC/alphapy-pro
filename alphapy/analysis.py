@@ -291,12 +291,15 @@ def run_analysis(analysis, dfs, fractals, system_specs, forecast_period, predict
     directory = SSEP.join([directory, 'input'])
     if predict_mode:
         # write out the predict frame
+        test_frame.sort_index(inplace=True)
         write_frame(test_frame, directory, test_file, extension, separator,
                     index=True, index_label='date')
     else:
         # write out the train and test frames
+        train_frame.sort_index(inplace=True)
         write_frame(train_frame, directory, train_file, extension, separator,
                     index=True, index_label='date')
+        test_frame.sort_index(inplace=True)
         write_frame(test_frame, directory, test_file, extension, separator,
                     index=True, index_label='date')
 

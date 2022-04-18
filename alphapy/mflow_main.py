@@ -248,7 +248,6 @@ def get_market_config():
     logger.info("Getting System Parameters")
     try:
         specs['system'] = cfg['system']
-        specs['system']['holdperiod'] = specs['forecast_period']
     except:
         raise ValueError("No System Parameters Found")
 
@@ -417,7 +416,7 @@ def market_pipeline(model, market_specs):
         system = System(system_name, algo, prob_min, prob_max,
                         longentry, longexit, shortentry, shortexit,
                         holdperiod, trade_fractal)
-        tfs = run_system(model, system, group, intraday)
+        tfs = run_system(model, system, forecast_period, group, intraday)
         # generate a portfolio
         if tfs.empty:
             logger.info("No trades to generate a portfolio")
