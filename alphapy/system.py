@@ -202,8 +202,6 @@ def trade_system(model, system, forecast_period, space, intraday, symbol, quanti
     symbol = symbol.lower()
     tspace = Space(space.subject, space.schema, 'ALL')
     tframe = Frame.frames[frame_name(symbol, tspace)].df
-    print(tframe.columns)
-    print(tframe)
 
     # Initialize signal dictionary
 
