@@ -163,9 +163,6 @@ def vparse(vname):
 
     Returns
     -------
-    fractal : int
-        The fractal level of the variable, with 0 being the base,
-        and +1 for each higher level. 
     vxlag : str
         Original variable name without the ``lag`` component.
     root : str
@@ -195,15 +192,8 @@ def vparse(vname):
 
     """
 
-    # split along fractal first
-    if vname[0] == CARET:
-        fractal = 1
-        foffset = 1
-    else:
-        fractal = 0
-        foffset = 0
     # split along lag
-    lsplit = vname[foffset:].split(LOFF)
+    lsplit = vname.split(LOFF)
     vxlag = lsplit[0]
     # if necessary, substitute any alias
     vxlag1 = vxlag.split(USEP)[0]
@@ -230,14 +220,13 @@ def vparse(vname):
                 lag = int(slag)
     # log results in debug mode
     logger.debug("vname   : %s", vname)
-    logger.debug("fractal : %d", fractal)
     logger.debug("vxlag   : %s", vxlag)
     logger.debug("root    : %s", root)
     logger.debug("valias  : %s", valias)
     logger.debug("plist   : %s", plist)
     logger.debug("lag     : %s", lag)
     # return all components
-    return fractal, vxlag, root, valias, plist, lag
+    return vxlag, root, valias, plist, lag
 
 
 #
@@ -309,7 +298,7 @@ def vtree(vname):
     """
     allv = []
     def vwalk(allv, vname):
-        _, vxlag, root, _, plist, lag = vparse(vname)
+        vxlag, root, _, plist, lag = vparse(vname)
         if root in Variable.variables:
             root_expr = Variable.variables[root].expr
             expr = vsub(vxlag, root_expr)
@@ -417,7 +406,7 @@ def vexpr(f, v):
 
     """
 
-    _, vxlag, root, _, _, _ = vparse(v)
+    vxlag, root, _, _, _ = vparse(v)
     if root in Variable.variables:
         logger.debug("Found variable root %s: ", root)
         expr = Variable.variables[root].expr
@@ -462,7 +451,7 @@ def vfunc(f, v, vfuncs):
 
     """
 
-    _, _, root, _, plist, _ = vparse(v)
+    _, root, _, plist, _ = vparse(v)
     func_name = root
     # Convert the parameter list and prepend the data frame
     newlist = []
@@ -544,18 +533,15 @@ def vexec(f, v, vfuncs=None):
 
     """
 
-    fractal, vxlag, root, _, _, lag = vparse(v)
+    vxlag, root, _, _, lag = vparse(v)
     if vxlag not in f.columns:
         # find the variable to evaluate
         veval = vexpr(f, v)
         if veval:
-            if CARET not in veval:
-                try:
-                    f[vxlag] = f.eval(veval)
-                except:
-                    logger.info("Variable %s: %s could not be evaluated", vxlag, veval)
-            else:
-                logger.info("Variable %s: %s is multi-fractal deferred", vxlag, veval)
+            try:
+                f[vxlag] = f.eval(veval)
+            except:
+                logger.info("Variable %s: %s could not be evaluated", vxlag, veval)
         else:
             # Must be a function call
             func, newlist = vfunc(f, v, vfuncs)
@@ -566,73 +552,8 @@ def vexec(f, v, vfuncs=None):
                 logger.info(vinfo)
     # if necessary, add the lagged variable
     if lag > 0 and vxlag in f.columns:
-        vlag = v if fractal==0 else v[1:]
-        f[vlag] = f[vxlag].shift(lag)
+        f[v] = f[vxlag].shift(lag)
     # output frame and execution status
-    return f
-
-    
-#
-# Function vexec_multi_fractal
-#
-
-def vexec_multi_fractal(f, expr_dict, fractals):
-    r"""Add multi-fractal variables to a dataframe.
-
-    Create a variable having an expression with mixed fractals. 
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with all fractals to contain the new variable.
-    expr_dict : dict of str
-        Multi-Fractal exressions to apply to the dataframe.
-    fractals : list of str
-        Pandas offset aliases.
-
-    Returns
-    -------
-    f : pandas.DataFrame
-        Dataframe with the new variables.
-
-    Example
-    -------
-
-    If the two fractals are *1D* and *1W*, then the following variable ``vlow``
-    checks for a V pattern where the current day's low is less than last week's
-    low minus 1.5 x the daily Average True Range (ATR).
-
-        vlow : low < ^low[1] - 1.5 * atr
-
-    """
-
-    vpat = re.compile(r'[\^]?[A-Za-z]{1}\w+')
-    for index, fractal in enumerate(fractals):
-        for key, value in expr_dict.items():
-            var = key
-            expr = value
-            if index < len(fractals)-1:
-                all_vars = allvars(expr, match_fractal=True, match_lag=False)
-                for vindex, v in enumerate(all_vars):
-                    if v.startswith(CARET):
-                        vnew = USEP.join([v[1:], fractals[index+1]])
-                        expr = expr.replace(v, vnew)
-                    else:
-                        miter = re.finditer(vpat, expr)
-                        mspan = [m for m in miter][vindex].span()
-                        mspan_start = mspan[0]
-                        mspan_end = mspan[1]
-                        vnew = USEP.join([v, fractal])
-                        expr = expr[:mspan_start] + vnew + expr[mspan_end:]
-                expr_split = re.split('(\W)', expr)
-                expr_new = ''.join([''.join(['`', e, '`']) if e in f.columns else e for e in expr_split])
-                # define the multi-fractal variable
-                var_name = USEP.join([var, fractal])
-                f[var_name] = f.eval(expr_new)
-                logger.debug("Variable: %s, Expression: %s", var, expr_new)
-            else:
-                logger.debug("Cannot define multi-fractal variable %s at highest level", var)
-    # output frame
     return f
 
 
@@ -760,33 +681,6 @@ def vapply(group, market_specs, vfuncs=None):
     features = market_specs['features']
     bar_type = market_specs['bar_type']
 
-    # Get all dependent variables for each feature
-
-    fdict = {}
-    for feature in features:
-        fdict[feature] = vtree(feature)
-
-    # Get all multi-fractal expressions
-
-    mfe_dict = {}
-    for vname, allv in fdict.items():
-        for v in allv:
-            _, vxlag, root, _, _, _ = vparse(v)
-            if root in Variable.variables:
-                expr = Variable.variables[root].expr
-                if CARET in expr:
-                    # store fractabl variable in dictionary
-                    if v not in mfe_dict:
-                        mfe_dict[vxlag] = expr
-                    # all parent evaluations are deferred as well
-                    vlist = allv[allv.index(v)+1:]
-                    for vparent in vlist:
-                        _, vxlag, root, _, _, _ = vparse(vparent)
-                        if root in Variable.variables:
-                            expr = Variable.variables[root].expr
-                            if vparent not in mfe_dict:
-                                mfe_dict[vxlag] = expr
-
     # Initialize list of dataframes, function dictionary, and possibly bar type
     dffs = []
 
@@ -807,9 +701,12 @@ def vapply(group, market_specs, vfuncs=None):
                     if bar_type != BarType.time:
                         df = map_bar_type(df, bar_type)
                     # create the features in the dataframe
-                    for vname, allv in fdict.items():
-                        logger.debug("%s Variable: %s.%s", symbol.upper(), fractal, vname)
+                    all_features = features[fractal]
+                    for feature in all_features:
+                        allv = vtree(feature)
+                        logger.debug("%s Feature: %s_%s", symbol.upper(), fractal, feature)
                         for v in allv:
+                            logger.debug("%s Variable: %s_%s", symbol.upper(), fractal, v)
                             df = vexec(df, v, vfuncs)
                 else:
                     raise RuntimeError("Empty Dataframe for %s [%s]" % (symbol, fractal))
@@ -832,9 +729,6 @@ def vapply(group, market_specs, vfuncs=None):
                 dfj = dfj.merge(dfr, left_index=True, right_index=True)
             else:
                 dfj = df
-        # evaluate multi-fractal expressions and their parent features
-        if len(mfe_dict) > 0:
-            dfj = vexec_multi_fractal(dfj, mfe_dict, fractals)
         # add the symbol
         colsym = 'symbol'
         dfj[colsym] = symbol

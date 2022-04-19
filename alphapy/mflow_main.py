@@ -166,7 +166,7 @@ def get_market_config():
         os.environ[specs['api_key_name']] = specs['api_key']
 
     #
-    # Section: Bar Type, Fractals and Features
+    # Section: Bar Type, Features and Fractals
     #
 
     logger.info("Getting Bar Type")
@@ -177,20 +177,25 @@ def get_market_config():
         logger.info("No valid bar type was specified. Default: time")
         specs['bar_type'] = BarType.time
 
+    logger.info("Getting Features")
+    specs['features'] = cfg['features']
+
     logger.info("Getting Fractals")
 
-    if len(cfg['fractals']) > 1 and specs['bar_type'] != BarType.time:
+    fractals = list(specs['features'].keys())
+    if len(fractals) > 1 and specs['bar_type'] != BarType.time:
         raise ValueError("Multiple Fractals valid only on time bars")
     
-    fractals = {}
-    for frac in cfg['fractals']:
+    fractal_dict = {}
+    for frac in fractals:
         try:
             td = pd.to_timedelta(frac)
-            fractals[td] = frac
+            fractal_dict[td] = frac
         except:
             raise ValueError("Fractal [%s] is an invalid pandas offset" % frac)
+    
     # sort by ascending fractal
-    fractals_sorted = dict(sorted(fractals.items()))
+    fractals_sorted = dict(sorted(fractal_dict.items()))
     # store features sorted by fractal
     feature_fractals = list(fractals_sorted.values())
     # first (lowest) feature fractal must be >= data fractal
@@ -200,9 +205,6 @@ def get_market_config():
     # assign to market specifications
     specs['fractals'] = feature_fractals
  
-    logger.info("Getting Features")
-    specs['features'] = cfg['features']
-
     # Create the subject/schema/fractal namespace
 
     sspecs = [specs['subject'], specs['schema'], feature_fractals[0]]
@@ -382,11 +384,11 @@ def market_pipeline(model, market_specs):
     # Apply the features to all frames.
 
     target_roi = USEP.join(['roi', str(forecast_period)])
-    market_specs['features'].append(target_roi)
+    market_specs['features'][trade_fractal].append(target_roi)
     if longentry:
-        market_specs['features'].append(longentry)
+        market_specs['features'][trade_fractal].append(longentry)
     if shortentry:
-        market_specs['features'].append(shortentry)
+        market_specs['features'][trade_fractal].append(shortentry)
     dfs = vapply(group, market_specs, functions)
 
     # Run an analysis to create the model.
