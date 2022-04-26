@@ -23,9 +23,15 @@
 #
 ################################################################################
 
+from finviz.portfolio import Portfolio
 from finviz.screener import Screener
+import finnhub
 import pandas as pd
 import streamlit as st
+
+
+def run_alphapy_groups(screener):
+    st.write(screener)
 
 
 def run_finviz_screener(screener):
@@ -39,7 +45,15 @@ def run_finviz_screener(screener):
 
 
 def run_finviz_portfolio(screener):
+    port_name = 'Test'
     st.write(screener)
+    portfolio = Portfolio('scottfree.analytics@scottfreellc.com', 'TS7$@@6dU9Nad@i', port_name)
+    if portfolio:
+        df = pd.DataFrame(portfolio.data)
+        st.write(df)
+    else:
+        error_message = f"Could not find FinViz Portfolio: {port_name}"
+        st.text(error_message)
 
 
 def run_index(screener):
@@ -55,13 +69,19 @@ def run_stocks(market_type):
 
     symbol = st.text_input('Ticker Symbol', 'AAPL')
 
-    screener = st.sidebar.radio("Group", ('Finviz Screener', 'Finviz Portfolio', 'Index'))
+    text_ap = 'AlphaPy'
+    text_fs = 'Finviz Screener'
+    text_fp = 'Finviz Portfolio'
+    text_mi = 'Market Index'
+    screener = st.sidebar.radio("Group", (text_ap, text_fs, text_fp, text_mi))
 
-    if screener == 'Finviz Screener':
+    if screener == text_ap:
+        run_alphapy_groups(screener)
+    elif screener == text_fs:
         run_finviz_screener(screener)
-    elif screener == 'Finviz Portfolio':
+    elif screener == text_fp:
         run_finviz_portfolio(screener)
-    elif screener == 'Index':
+    elif screener == text_mi:
         run_index(screener)
 
 
@@ -78,13 +98,18 @@ def run_forex(market_type):
 
 
 def app():
-    market_type = st.sidebar.radio("Market Type", ('Stocks', 'Crypto', 'Futures', 'Forex'))
+    market_stocks = 'Stocks'
+    market_crypto = 'Crypto'
+    market_futures = 'Futures'
+    market_forex = 'Forex'
+    market_type = st.sidebar.radio("Market Type",
+                      (market_stocks, market_crypto, market_futures, market_forex))
 
-    if market_type == 'Stocks':
+    if market_type == market_stocks:
         run_stocks(market_type)
-    elif market_type == 'Crypto':
+    elif market_type == market_crypto:
         run_crypto(market_type)
-    elif market_type == 'Futures':
+    elif market_type == market_futures:
         run_futures(market_type)
-    elif market_type == 'Forex':
+    elif market_type == market_forex:
         run_forex(market_type)

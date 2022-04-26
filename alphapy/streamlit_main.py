@@ -42,6 +42,7 @@ from streamlit_multipage import MultiPage
 import subprocess
 import time
 
+
 padding = 0
 st.markdown(f""" <style>
     .reportview-container .main .block-container{{
@@ -71,7 +72,7 @@ app.add_page("AlphaPy Sports", streamlit_sflow.app)
 
 base_url = 'http://localhost:8000/'
 url_item = 'groups'
-r = requests.get(base_url+url_item) # Make HTTPS call 
+r = requests.get(base_url+url_item) # Make HTTPS call
 groups = r.json() # Decode JSON
 
 for g in groups.items():
