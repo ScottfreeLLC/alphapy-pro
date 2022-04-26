@@ -59,6 +59,7 @@ import builtins
 from collections import OrderedDict
 from importlib import import_module
 import logging
+import math
 import re
 import sys
 
@@ -572,7 +573,7 @@ def map_dollar_bars(df, amount=1000000):
         The notional amount based on price times volume.
     """
 
-def get_dollar_bars(time_bars, dollar_threshold): #function credit to Max Bodoia
+    #get_dollar_bars(time_bars, dollar_threshold):
 
     dollar_bars = []
     running_volume = 0
@@ -623,7 +624,9 @@ def map_bar_type(df, bar_type):
         The bar type for conversion (Dollar Bar, Heikin-Ashi, et al).
     """
 
-    if bar_type == BarType.dollar:
+    if bar_type == BarType.time:
+        pass
+    elif bar_type == BarType.dollar:
         df = map_dollar_bars(df)
     elif bar_type == BarType.heikinashi:
         ha_map = {'open'  : 'openha',
@@ -698,8 +701,7 @@ def vapply(group, market_specs, vfuncs=None):
                 df = Frame.frames[fname].df
                 if not df.empty:
                     # Remap to a different bar type if specified
-                    if bar_type != BarType.time:
-                        df = map_bar_type(df, bar_type)
+                    df = map_bar_type(df, bar_type)
                     # create the features in the dataframe
                     all_features = features[fractal]
                     for feature in all_features:

@@ -21119,3 +21119,442 @@
 [04/04/22 22:28:00] INFO	AlphaPy Start
 [04/04/22 22:28:00] INFO	********************************************************************************
 [04/04/22 22:28:00] INFO	Model Configuration
+[04/17/22 13:50:48] INFO	********************************************************************************
+[04/17/22 13:50:48] INFO	AlphaPy Start
+[04/17/22 13:50:48] INFO	********************************************************************************
+[04/17/22 13:50:48] INFO	Model Configuration
+[04/26/22 14:30:29] INFO	********************************************************************************
+[04/26/22 14:30:29] INFO	AlphaPy Start
+[04/26/22 14:30:29] INFO	********************************************************************************
+[04/26/22 14:30:29] INFO	ALPHAPY_ROOT environment variable must be set
+[04/26/22 14:30:47] INFO	********************************************************************************
+[04/26/22 14:30:47] INFO	AlphaPy Start
+[04/26/22 14:30:47] INFO	********************************************************************************
+[04/26/22 14:30:47] INFO	Model Configuration
+[04/26/22 14:33:05] INFO	********************************************************************************
+[04/26/22 14:33:05] INFO	AlphaPy Start
+[04/26/22 14:33:05] INFO	********************************************************************************
+[04/26/22 14:33:05] INFO	Model Configuration
+[04/26/22 14:33:05] INFO	No transforms Found
+[04/26/22 14:33:05] INFO	MODEL PARAMETERS:
+[04/26/22 14:33:05] INFO	algorithms        = ['CATB', 'LGB', 'XGB']
+[04/26/22 14:33:05] INFO	calibration       = False
+[04/26/22 14:33:05] INFO	cal_type          = sigmoid
+[04/26/22 14:33:05] INFO	calibration_plot  = False
+[04/26/22 14:33:05] INFO	clustering        = True
+[04/26/22 14:33:05] INFO	cluster_inc       = 3
+[04/26/22 14:33:05] INFO	cluster_max       = 30
+[04/26/22 14:33:05] INFO	cluster_min       = 3
+[04/26/22 14:33:05] INFO	confusion_matrix  = True
+[04/26/22 14:33:05] INFO	counts            = True
+[04/26/22 14:33:05] INFO	cv_folds          = 3
+[04/26/22 14:33:05] INFO	directory         = .
+[04/26/22 14:33:05] INFO	extension         = csv
+[04/26/22 14:33:05] INFO	drop              = ['PassengerId']
+[04/26/22 14:33:05] INFO	encoder           = <Encoders.target: 14>
+[04/26/22 14:33:05] INFO	esr               = 20
+[04/26/22 14:33:05] INFO	factors           = ['Embarked']
+[04/26/22 14:33:05] INFO	features [X]      = *
+[04/26/22 14:33:05] INFO	feature_selection = False
+[04/26/22 14:33:05] INFO	fs_percentage     = 50
+[04/26/22 14:33:05] INFO	fs_score_func     = <function f_classif at 0x7fe2ead01700>
+[04/26/22 14:33:05] INFO	fs_uni_grid       = [5, 10, 15, 20, 25]
+[04/26/22 14:33:05] INFO	grid_search       = True
+[04/26/22 14:33:05] INFO	gs_iters          = 50
+[04/26/22 14:33:05] INFO	gs_random         = True
+[04/26/22 14:33:05] INFO	gs_sample         = False
+[04/26/22 14:33:05] INFO	gs_sample_pct     = 0.200000
+[04/26/22 14:33:05] INFO	importances       = True
+[04/26/22 14:33:05] INFO	interactions      = False
+[04/26/22 14:33:05] INFO	isomap            = False
+[04/26/22 14:33:05] INFO	iso_components    = 2
+[04/26/22 14:33:05] INFO	iso_neighbors     = 5
+[04/26/22 14:33:05] INFO	isample_pct       = 10
+[04/26/22 14:33:05] INFO	learning_curve    = True
+[04/26/22 14:33:05] INFO	logtransform      = False
+[04/26/22 14:33:05] INFO	lv_remove         = True
+[04/26/22 14:33:05] INFO	lv_threshold      = 0.100000
+[04/26/22 14:33:05] INFO	model_type        = <ModelType.classification: 1>
+[04/26/22 14:33:05] INFO	n_estimators      = 51
+[04/26/22 14:33:05] INFO	n_jobs            = -1
+[04/26/22 14:33:05] INFO	ngrams_max        = 2
+[04/26/22 14:33:05] INFO	numpy             = True
+[04/26/22 14:33:05] INFO	pca               = False
+[04/26/22 14:33:05] INFO	pca_inc           = 1
+[04/26/22 14:33:05] INFO	pca_max           = 10
+[04/26/22 14:33:05] INFO	pca_min           = 2
+[04/26/22 14:33:05] INFO	pca_whiten        = False
+[04/26/22 14:33:05] INFO	poly_degree       = 2
+[04/26/22 14:33:05] INFO	pvalue_level      = 0.010000
+[04/26/22 14:33:05] INFO	rfe               = True
+[04/26/22 14:33:05] INFO	rfe_step          = 3
+[04/26/22 14:33:05] INFO	roc_curve         = True
+[04/26/22 14:33:05] INFO	rounding          = 2
+[04/26/22 14:33:05] INFO	sampling          = False
+[04/26/22 14:33:05] INFO	sampling_method   = <SamplingMethod.over_random: 3>
+[04/26/22 14:33:05] INFO	sampling_ratio    = 1.000000
+[04/26/22 14:33:05] INFO	scaler_option     = True
+[04/26/22 14:33:05] INFO	scaler_type       = <Scalers.standard: 2>
+[04/26/22 14:33:05] INFO	scipy             = False
+[04/26/22 14:33:05] INFO	scorer            = roc_auc
+[04/26/22 14:33:05] INFO	seed              = 42
+[04/26/22 14:33:05] INFO	sentinel          = -1
+[04/26/22 14:33:05] INFO	separator         = ,
+[04/26/22 14:33:05] INFO	shuffle           = False
+[04/26/22 14:33:05] INFO	split             = 0.400000
+[04/26/22 14:33:05] INFO	submission_file   = gender_submission
+[04/26/22 14:33:05] INFO	submit_probas     = False
+[04/26/22 14:33:05] INFO	target [y]        = Survived
+[04/26/22 14:33:05] INFO	target_value      = 1
+[04/26/22 14:33:05] INFO	transforms        = None
+[04/26/22 14:33:05] INFO	ts_option         = False
+[04/26/22 14:33:05] INFO	ts_backtests      = 1000
+[04/26/22 14:33:05] INFO	ts_date_index     = date
+[04/26/22 14:33:05] INFO	ts_forecast       = 1
+[04/26/22 14:33:05] INFO	ts_window         = 1500
+[04/26/22 14:33:05] INFO	tsne              = False
+[04/26/22 14:33:05] INFO	tsne_components   = 2
+[04/26/22 14:33:05] INFO	tsne_learn_rate   = 1000.000000
+[04/26/22 14:33:05] INFO	tsne_perplexity   = 30.000000
+[04/26/22 14:33:05] INFO	vectorize         = False
+[04/26/22 14:33:05] INFO	verbosity         = 0
+[04/26/22 14:33:05] INFO	Creating Model
+[04/26/22 14:33:05] INFO	Calling Pipeline
+[04/26/22 14:33:05] INFO	Training Pipeline
+[04/26/22 14:33:05] INFO	Loading Data
+[04/26/22 14:33:05] INFO	Loading data from ./input/train.csv
+[04/26/22 14:33:05] INFO	Found target Survived in data frame
+[04/26/22 14:33:05] INFO	Labels (y) found for Partition.train
+[04/26/22 14:33:05] INFO	Loading Data
+[04/26/22 14:33:05] INFO	Loading data from ./input/test.csv
+[04/26/22 14:33:05] INFO	Target Survived not found in Partition.test
+[04/26/22 14:33:05] INFO	Saving New Features in Model
+[04/26/22 14:33:05] INFO	Test Labels Not Found
+[04/26/22 14:33:05] INFO	Original Feature Statistics
+[04/26/22 14:33:05] INFO	Number of Training Rows    : 891
+[04/26/22 14:33:05] INFO	Number of Training Columns : 11
+[04/26/22 14:33:05] INFO	Unique Training Values for Survived : [0 1]
+[04/26/22 14:33:05] INFO	Unique Training Counts for Survived : [549 342]
+[04/26/22 14:33:05] INFO	Number of Testing Rows     : 418
+[04/26/22 14:33:05] INFO	Number of Testing Columns  : 11
+[04/26/22 14:33:05] INFO	Original Features : Index(['PassengerId', 'Pclass', 'Name', 'Sex', 'Age', 'SibSp', 'Parch',
+       'Ticket', 'Fare', 'Cabin', 'Embarked'],
+      dtype='object')
+[04/26/22 14:33:05] INFO	Feature Count     : 11
+[04/26/22 14:33:05] INFO	Applying transforms
+[04/26/22 14:33:05] INFO	No transforms Specified
+[04/26/22 14:33:05] INFO	New Feature Count : 11
+[04/26/22 14:33:05] INFO	Dropping Features: ['PassengerId']
+[04/26/22 14:33:05] INFO	Original Feature Count : 11
+[04/26/22 14:33:05] INFO	Reduced Feature Count  : 10
+[04/26/22 14:33:05] INFO	Writing data frame to ./input/train_20220426.csv
+[04/26/22 14:33:05] INFO	Writing data frame to ./input/test_20220426.csv
+[04/26/22 14:33:05] INFO	Creating Cross-Tabulations
+[04/26/22 14:33:05] INFO	Creating crosstabs for feature Embarked
+[04/26/22 14:33:05] INFO	Original Features : Index(['Pclass', 'Name', 'Sex', 'Age', 'SibSp', 'Parch', 'Ticket', 'Fare',
+       'Cabin', 'Embarked'],
+      dtype='object')
+[04/26/22 14:33:05] INFO	Feature Count     : 10
+[04/26/22 14:33:05] INFO	Creating Count Features
+[04/26/22 14:33:05] INFO	NA Counts
+[04/26/22 14:33:05] INFO	Number Counts
+[04/26/22 14:33:05] INFO	New Feature Count : 21
+[04/26/22 14:33:05] INFO	Creating Base Features
+[04/26/22 14:33:05] INFO	Feature 1: Pclass is a numerical feature of type int64 with 3 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 2: Name is a text feature [12:82] with 1307 unique values
+[04/26/22 14:33:05] INFO	Feature 2: Name => Factorization
+[04/26/22 14:33:05] INFO	Feature 3: Sex is a text feature [4:6] with 2 unique values
+[04/26/22 14:33:05] INFO	Feature 3: Sex => Factorization
+[04/26/22 14:33:05] INFO	Feature 4: Age is a numerical feature of type float64 with 99 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type float64: Median Strategy
+[04/26/22 14:33:05] INFO	Feature 5: SibSp is a numerical feature of type int64 with 7 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 6: Parch is a numerical feature of type int64 with 8 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 7: Ticket is a text feature [3:18] with 929 unique values
+[04/26/22 14:33:05] INFO	Feature 7: Ticket => Factorization
+[04/26/22 14:33:05] INFO	Feature 8: Fare is a numerical feature of type float64 with 282 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type float64: Median Strategy
+[04/26/22 14:33:05] INFO	Feature 9: Cabin is a text feature [1:15] with 187 unique values
+[04/26/22 14:33:05] INFO	Feature 9: Cabin => Factorization
+[04/26/22 14:33:05] INFO	Feature 10: Embarked is a factor of type object with 4 unique values
+[04/26/22 14:33:05] INFO	Encoding: Encoders.target
+[04/26/22 14:33:05] INFO	Fitting training features for Embarked
+[04/26/22 14:33:05] INFO	Transforming testing features for Embarked
+[04/26/22 14:33:05] INFO	Feature 11: nan_count is a numerical feature of type int64 with 3 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 12: count_0 is a numerical feature of type int64 with 4 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 13: count_1 is a numerical feature of type int64 with 4 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 14: count_2 is a numerical feature of type int64 with 4 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 15: count_3 is a numerical feature of type int64 with 4 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 16: count_4 is a numerical feature of type int64 with 3 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 17: count_5 is a numerical feature of type int64 with 2 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 18: count_6 is a numerical feature of type int64 with 2 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 19: count_7 is a numerical feature of type int64 with 2 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 20: count_8 is a numerical feature of type int64 with 3 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	Feature 21: count_9 is a numerical feature of type int64 with 3 unique values
+[04/26/22 14:33:05] INFO	    Imputation for Data Type int64: Most Frequent Strategy
+[04/26/22 14:33:05] INFO	New Feature Count : 21
+[04/26/22 14:33:05] INFO	Scaling Base Features
+[04/26/22 14:33:05] INFO	Creating NumPy Features
+[04/26/22 14:33:05] INFO	NumPy Feature: sum
+[04/26/22 14:33:05] INFO	    Imputation for Data Type float64: Median Strategy
+[04/26/22 14:33:05] INFO	NumPy Feature: mean
+[04/26/22 14:33:05] INFO	    Imputation for Data Type float64: Median Strategy
+[04/26/22 14:33:05] INFO	NumPy Feature: std
+[04/26/22 14:33:05] INFO	    Imputation for Data Type float64: Median Strategy
+[04/26/22 14:33:05] INFO	NumPy Feature: var
+[04/26/22 14:33:05] INFO	    Imputation for Data Type float64: Median Strategy
+[04/26/22 14:33:05] INFO	NumPy Feature Count : 4
+[04/26/22 14:33:05] INFO	New Feature Count : 25
+[04/26/22 14:33:05] INFO	Creating Clustering Features
+[04/26/22 14:33:05] INFO	Cluster Minimum   : 3
+[04/26/22 14:33:05] INFO	Cluster Maximum   : 30
+[04/26/22 14:33:05] INFO	Cluster Increment : 3
+[04/26/22 14:33:05] INFO	k = 3
+[04/26/22 14:33:07] INFO	k = 6
+[04/26/22 14:33:07] INFO	k = 9
+[04/26/22 14:33:07] INFO	k = 12
+[04/26/22 14:33:07] INFO	k = 15
+[04/26/22 14:33:07] INFO	k = 18
+[04/26/22 14:33:07] INFO	k = 21
+[04/26/22 14:33:07] INFO	k = 24
+[04/26/22 14:33:07] INFO	k = 27
+[04/26/22 14:33:07] INFO	k = 30
+[04/26/22 14:33:07] INFO	Clustering Feature Count : 10
+[04/26/22 14:33:07] INFO	New Feature Count : 35
+[04/26/22 14:33:07] INFO	Saving New Features in Model
+[04/26/22 14:33:07] INFO	Creating Interactions
+[04/26/22 14:33:07] INFO	Initial Feature Count : 35
+[04/26/22 14:33:07] INFO	Skipping Interactions
+[04/26/22 14:33:07] INFO	Saving New Features in Model
+[04/26/22 14:33:07] INFO	Removing Low-Variance Features
+[04/26/22 14:33:07] INFO	Low-Variance Threshold  : 0.10
+[04/26/22 14:33:07] INFO	Original Feature Count  : 35
+[04/26/22 14:33:07] INFO	Reduced Feature Count   : 35
+[04/26/22 14:33:07] INFO	Saving New Features in Model
+[04/26/22 14:33:07] INFO	Skipping Shuffling
+[04/26/22 14:33:07] INFO	Skipping Sampling
+[04/26/22 14:33:07] INFO	Getting All Estimators
+[04/26/22 14:33:07] INFO	Algorithm Configuration
+[04/26/22 14:33:07] INFO	Selecting Models
+[04/26/22 14:33:07] INFO	Algorithm: CATB
+[04/26/22 14:33:07] INFO	Fitting Initial Model
+[04/26/22 14:33:08] INFO	Cross-Validation
+[04/26/22 14:33:09] INFO	Cross-Validation Scores: [0.83592177 0.87170453 0.87414917]
+[04/26/22 14:33:09] INFO	Recursive Feature Elimination with CV
+[04/26/22 14:33:12] INFO	RFECV took 2.41 seconds for step 3 and 3 folds
+[04/26/22 14:33:12] INFO	Algorithm: CATB, Selected Features: 17, Ranking: [1 1 1 1 1 5 1 1 1 1 2 3 4 1 5 6 7 7 7 6 2 1 1 1 1 4 2 5 1 4 3 6 1 3 1]
+[04/26/22 14:33:12] INFO	No grid is defined for grid search
+[04/26/22 14:33:12] INFO	Final Model Predictions for CATB
+[04/26/22 14:33:12] INFO	Skipping Calibration
+[04/26/22 14:33:12] INFO	Making Predictions
+[04/26/22 14:33:12] INFO	Predictions Complete
+[04/26/22 14:33:12] INFO	Algorithm: LGB
+[04/26/22 14:33:12] INFO	Fitting Initial Model
+[04/26/22 14:33:12] INFO	Cross-Validation
+[04/26/22 14:33:13] INFO	Cross-Validation Scores: [0.83024159 0.87527562 0.85135653]
+[04/26/22 14:33:13] INFO	Recursive Feature Elimination with CV
+[04/26/22 14:33:16] INFO	RFECV took 3.09 seconds for step 3 and 3 folds
+[04/26/22 14:33:16] INFO	Algorithm: LGB, Selected Features: 11, Ranking: [1 1 1 1 2 7 1 1 1 3 6 6 5 4 7 8 8 9 8 9 6 1 7 1 3 9 4 5 4 2 2 5 3 1 1]
+[04/26/22 14:33:16] INFO	No grid is defined for grid search
+[04/26/22 14:33:16] INFO	Final Model Predictions for LGB
+[04/26/22 14:33:16] INFO	Skipping Calibration
+[04/26/22 14:33:16] INFO	Making Predictions
+[04/26/22 14:33:16] INFO	Predictions Complete
+[04/26/22 14:33:16] INFO	Algorithm: XGB
+[04/26/22 14:33:16] INFO	Fitting Initial Model
+[04/26/22 14:33:16] INFO	Cross-Validation
+[04/26/22 14:33:16] INFO	Cross-Validation Scores: [0.83719202 0.88335251 0.86516154]
+[04/26/22 14:33:16] INFO	Recursive Feature Elimination with CV
+[04/26/22 14:33:18] INFO	RFECV took 2.36 seconds for step 3 and 3 folds
+[04/26/22 14:33:18] INFO	Algorithm: XGB, Selected Features: 14, Ranking: [1 1 1 1 1 2 2 1 1 1 3 4 1 2 6 7 6 8 7 7 8 1 8 1 4 5 4 3 5 1 3 5 1 6 1]
+[04/26/22 14:33:18] INFO	Randomized Grid Search
+[04/26/22 14:34:28] INFO	Grid Search took 69.90 seconds for 50 candidate parameter settings.
+[04/26/22 14:34:28] INFO	Model with rank: 1
+[04/26/22 14:34:28] INFO	Mean validation score: 0.870 (std: 0.022)
+[04/26/22 14:34:28] INFO	Parameters: {'est__subsample': 0.9, 'est__n_estimators': 21, 'est__min_child_weight': 1.1, 'est__max_depth': 15, 'est__learning_rate': 0.05, 'est__colsample_bytree': 0.5}
+[04/26/22 14:34:28] INFO	Model with rank: 2
+[04/26/22 14:34:28] INFO	Mean validation score: 0.869 (std: 0.022)
+[04/26/22 14:34:28] INFO	Parameters: {'est__subsample': 0.5, 'est__n_estimators': 101, 'est__min_child_weight': 1.0, 'est__max_depth': 5, 'est__learning_rate': 0.02, 'est__colsample_bytree': 0.7}
+[04/26/22 14:34:28] INFO	Model with rank: 3
+[04/26/22 14:34:28] INFO	Mean validation score: 0.869 (std: 0.023)
+[04/26/22 14:34:28] INFO	Parameters: {'est__subsample': 0.6, 'est__n_estimators': 101, 'est__min_child_weight': 1.1, 'est__max_depth': 10, 'est__learning_rate': 0.05, 'est__colsample_bytree': 0.5}
+[04/26/22 14:34:28] INFO	Algorithm: XGB, Best Score: 0.8697, Best Parameters: {'est__subsample': 0.9, 'est__n_estimators': 21, 'est__min_child_weight': 1.1, 'est__max_depth': 15, 'est__learning_rate': 0.05, 'est__colsample_bytree': 0.5}
+[04/26/22 14:34:28] INFO	Final Model Predictions for XGB
+[04/26/22 14:34:28] INFO	Skipping Calibration
+[04/26/22 14:34:28] INFO	Making Predictions
+[04/26/22 14:34:28] INFO	Predictions Complete
+[04/26/22 14:34:28] INFO	================================================================================
+[04/26/22 14:34:28] INFO	Blended Predictions
+[04/26/22 14:34:28] INFO	Blending Start: 2022-04-26 14:34:28.753128
+[04/26/22 14:34:28] INFO	Blending Complete: 0:00:00.007683
+[04/26/22 14:34:28] INFO	================================================================================
+[04/26/22 14:34:28] INFO	Metrics for: Partition.train
+[04/26/22 14:34:28] INFO	--------------------------------------------------------------------------------
+[04/26/22 14:34:28] INFO	Algorithm: CATB
+[04/26/22 14:34:28] INFO	accuracy: 0.8585858585858586
+[04/26/22 14:34:28] INFO	average_precision: 0.9113351686222868
+[04/26/22 14:34:28] INFO	balanced_accuracy: 0.8378391333525069
+[04/26/22 14:34:28] INFO	brier_score_loss: 0.10043404518351136
+[04/26/22 14:34:28] INFO	cohen_kappa: 0.6932572665125658
+[04/26/22 14:34:28] INFO	confusion_matrix: [[509  40]
+ [ 86 256]]
+[04/26/22 14:34:28] INFO	f1: 0.8025078369905956
+[04/26/22 14:34:28] INFO	neg_log_loss: 0.3371948718196211
+[04/26/22 14:34:28] INFO	precision: 0.8648648648648649
+[04/26/22 14:34:28] INFO	recall: 0.7485380116959064
+[04/26/22 14:34:28] INFO	roc_auc: 0.9297979313797549
+[04/26/22 14:34:28] INFO	--------------------------------------------------------------------------------
+[04/26/22 14:34:28] INFO	Algorithm: LGB
+[04/26/22 14:34:28] INFO	accuracy: 0.9730639730639731
+[04/26/22 14:34:28] INFO	average_precision: 0.9961113207491221
+[04/26/22 14:34:28] INFO	balanced_accuracy: 0.9687709711437062
+[04/26/22 14:34:28] INFO	brier_score_loss: 0.032809498448974184
+[04/26/22 14:34:28] INFO	cohen_kappa: 0.9427387092109702
+[04/26/22 14:34:28] INFO	confusion_matrix: [[542   7]
+ [ 17 325]]
+[04/26/22 14:34:28] INFO	f1: 0.9643916913946586
+[04/26/22 14:34:28] INFO	neg_log_loss: 0.1458307566281259
+[04/26/22 14:34:28] INFO	precision: 0.9789156626506024
+[04/26/22 14:34:28] INFO	recall: 0.9502923976608187
+[04/26/22 14:34:28] INFO	roc_auc: 0.9974861257576241
+[04/26/22 14:34:28] INFO	--------------------------------------------------------------------------------
+[04/26/22 14:34:28] INFO	Algorithm: XGB
+[04/26/22 14:34:28] INFO	accuracy: 0.9337822671156004
+[04/26/22 14:34:28] INFO	average_precision: 0.9704912841423872
+[04/26/22 14:34:28] INFO	balanced_accuracy: 0.923665036909213
+[04/26/22 14:34:28] INFO	brier_score_loss: 0.10954417157912225
+[04/26/22 14:34:28] INFO	cohen_kappa: 0.8582109479305741
+[04/26/22 14:34:28] INFO	confusion_matrix: [[531  18]
+ [ 41 301]]
+[04/26/22 14:34:28] INFO	f1: 0.9107413010590016
+[04/26/22 14:34:28] INFO	neg_log_loss: 0.39234137244096107
+[04/26/22 14:34:28] INFO	precision: 0.9435736677115988
+[04/26/22 14:34:28] INFO	recall: 0.8801169590643275
+[04/26/22 14:34:28] INFO	roc_auc: 0.9753326089966872
+[04/26/22 14:34:28] INFO	--------------------------------------------------------------------------------
+[04/26/22 14:34:28] INFO	Algorithm: BLEND
+[04/26/22 14:34:28] INFO	accuracy: 0.9337822671156004
+[04/26/22 14:34:28] INFO	average_precision: 0.9773191867832389
+[04/26/22 14:34:28] INFO	balanced_accuracy: 0.9231137954175055
+[04/26/22 14:34:28] INFO	brier_score_loss: 0.07068106624698171
+[04/26/22 14:34:28] INFO	cohen_kappa: 0.8580524435587742
+[04/26/22 14:34:28] INFO	confusion_matrix: [[532  17]
+ [ 42 300]]
+[04/26/22 14:34:28] INFO	f1: 0.9104704097116844
+[04/26/22 14:34:28] INFO	neg_log_loss: 0.27682149549950363
+[04/26/22 14:34:28] INFO	precision: 0.9463722397476341
+[04/26/22 14:34:28] INFO	recall: 0.8771929824561403
+[04/26/22 14:34:28] INFO	roc_auc: 0.9848847985172403
+[04/26/22 14:34:28] INFO	================================================================================
+[04/26/22 14:34:28] INFO	Selecting Best Model for partition: Partition.train
+[04/26/22 14:34:28] INFO	Best Model Selection Start: 2022-04-26 14:34:28.802045
+[04/26/22 14:34:28] INFO	Scoring CATB Model
+[04/26/22 14:34:28] INFO	Scoring LGB Model
+[04/26/22 14:34:28] INFO	Scoring XGB Model
+[04/26/22 14:34:28] INFO	Best Model is LGB with a roc_auc score of 0.9975
+[04/26/22 14:34:28] INFO	Best Model Selection Complete: 0:00:00.000257
+[04/26/22 14:34:28] INFO	================================================================================
+[04/26/22 14:34:28] INFO	Generating Plots for partition: train
+[04/26/22 14:34:28] INFO	Generating Calibration Plot
+[04/26/22 14:34:28] INFO	Calibration for Algorithm: CATB
+[04/26/22 14:34:28] INFO	Calibration for Algorithm: LGB
+[04/26/22 14:34:28] INFO	Calibration for Algorithm: XGB
+[04/26/22 14:34:28] INFO	Writing plot to ./plots/calibration_train.png
+[04/26/22 14:34:28] INFO	Generating Confusion Matrices
+[04/26/22 14:34:28] INFO	Confusion Matrix for Algorithm: CATB
+[04/26/22 14:34:28] INFO	Confusion Matrix:
+[04/26/22 14:34:28] INFO	[[509  40]
+ [ 86 256]]
+[04/26/22 14:34:29] INFO	Writing plot to ./plots/confusion_train_CATB.png
+[04/26/22 14:34:29] INFO	Confusion Matrix for Algorithm: LGB
+[04/26/22 14:34:29] INFO	Confusion Matrix:
+[04/26/22 14:34:29] INFO	[[542   7]
+ [ 17 325]]
+[04/26/22 14:34:29] INFO	Writing plot to ./plots/confusion_train_LGB.png
+[04/26/22 14:34:29] INFO	Confusion Matrix for Algorithm: XGB
+[04/26/22 14:34:29] INFO	Confusion Matrix:
+[04/26/22 14:34:29] INFO	[[531  18]
+ [ 41 301]]
+[04/26/22 14:34:29] INFO	Writing plot to ./plots/confusion_train_XGB.png
+[04/26/22 14:34:29] INFO	Generating ROC Curves
+[04/26/22 14:34:29] INFO	ROC Curve for Algorithm: CATB
+[04/26/22 14:34:29] INFO	ROC Curve for Algorithm: LGB
+[04/26/22 14:34:29] INFO	ROC Curve for Algorithm: XGB
+[04/26/22 14:34:29] INFO	Writing plot to ./plots/roc_curve_train.png
+[04/26/22 14:34:29] INFO	Generating Learning Curves
+[04/26/22 14:34:29] INFO	Algorithm Configuration
+[04/26/22 14:34:29] INFO	Learning Curve for Algorithm: CATB
+[04/26/22 14:34:30] INFO	Writing plot to ./plots/learning_curve_train_CATB.png
+[04/26/22 14:34:30] INFO	Learning Curve for Algorithm: LGB
+[04/26/22 14:34:31] INFO	Writing plot to ./plots/learning_curve_train_LGB.png
+[04/26/22 14:34:31] INFO	Learning Curve for Algorithm: XGB
+[04/26/22 14:34:32] INFO	Writing plot to ./plots/learning_curve_train_XGB.png
+[04/26/22 14:34:32] INFO	Generating Feature Importance Plots
+[04/26/22 14:34:32] INFO	Feature Importances for Algorithm: CATB
+[04/26/22 14:34:32] INFO	Feature Ranking:
+[04/26/22 14:34:32] INFO	1. Sex_factor (45.178104)
+[04/26/22 14:34:32] INFO	2. Pclass (13.721171)
+[04/26/22 14:34:32] INFO	3. Age (6.651788)
+[04/26/22 14:34:32] INFO	4. Fare (4.529770)
+[04/26/22 14:34:32] INFO	5. var (3.586590)
+[04/26/22 14:34:32] INFO	6. std (3.492385)
+[04/26/22 14:34:32] INFO	7. Ticket_factor (3.315046)
+[04/26/22 14:34:32] INFO	8. cluster_30 (2.831587)
+[04/26/22 14:34:32] INFO	9. mean (2.733389)
+[04/26/22 14:34:32] INFO	10. Name_factor (2.586310)
+[04/26/22 14:34:32] INFO	11. Cabin_factor (2.101764)
+[04/26/22 14:34:32] INFO	12. Embarked (2.086410)
+[04/26/22 14:34:32] INFO	13. SibSp (2.085405)
+[04/26/22 14:34:32] INFO	14. cluster_12 (1.876782)
+[04/26/22 14:34:32] INFO	15. cluster_24 (1.263144)
+[04/26/22 14:34:32] INFO	16. count_2 (1.004409)
+[04/26/22 14:34:32] INFO	17. sum (0.955946)
+[04/26/22 14:34:32] INFO	Writing plot to ./plots/feature_importance_train_CATB.png
+[04/26/22 14:34:32] INFO	Feature Importances for Algorithm: LGB
+[04/26/22 14:34:32] INFO	Feature Ranking:
+[04/26/22 14:34:32] INFO	1. Fare (256.000000)
+[04/26/22 14:34:32] INFO	2. sum (241.000000)
+[04/26/22 14:34:32] INFO	3. Age (232.000000)
+[04/26/22 14:34:32] INFO	4. std (201.000000)
+[04/26/22 14:34:32] INFO	5. Ticket_factor (199.000000)
+[04/26/22 14:34:32] INFO	6. Name_factor (175.000000)
+[04/26/22 14:34:32] INFO	7. cluster_30 (53.000000)
+[04/26/22 14:34:32] INFO	8. cluster_27 (46.000000)
+[04/26/22 14:34:32] INFO	9. Sex_factor (43.000000)
+[04/26/22 14:34:32] INFO	10. Pclass (43.000000)
+[04/26/22 14:34:32] INFO	11. Cabin_factor (41.000000)
+[04/26/22 14:34:32] INFO	Writing plot to ./plots/feature_importance_train_LGB.png
+[04/26/22 14:34:32] INFO	Feature Importances for Algorithm: XGB
+[04/26/22 14:34:32] INFO	Feature Ranking:
+[04/26/22 14:34:32] INFO	1. Sex_factor (0.424644)
+[04/26/22 14:34:32] INFO	2. Pclass (0.127452)
+[04/26/22 14:34:32] INFO	3. Cabin_factor (0.081307)
+[04/26/22 14:34:32] INFO	4. Age (0.051007)
+[04/26/22 14:34:32] INFO	5. SibSp (0.049620)
+[04/26/22 14:34:32] INFO	6. count_1 (0.046373)
+[04/26/22 14:34:32] INFO	7. Embarked (0.046225)
+[04/26/22 14:34:32] INFO	8. std (0.036262)
+[04/26/22 14:34:32] INFO	9. cluster_30 (0.036076)
+[04/26/22 14:34:32] INFO	10. Fare (0.032410)
+[04/26/22 14:34:32] INFO	11. cluster_24 (0.021187)
+[04/26/22 14:34:32] INFO	12. Name_factor (0.019312)
+[04/26/22 14:34:32] INFO	13. sum (0.017784)
+[04/26/22 14:34:32] INFO	14. cluster_15 (0.010340)
+[04/26/22 14:34:32] INFO	Writing plot to ./plots/feature_importance_train_XGB.png
+[04/26/22 14:34:32] INFO	================================================================================
+[04/26/22 14:34:32] INFO	Saving Predictions for partition: Partition.train
+[04/26/22 14:34:32] INFO	Adding Prediction Columns
+[04/26/22 14:34:32] INFO	Saving Ranked Predictions
+[04/26/22 14:34:32] INFO	Writing data frame to ./output/ranked_train_20220426.csv

@@ -43,6 +43,12 @@ model:
         option        : True
         step          : 3
     scoring_function  : roc_auc
+    time_series       :
+        option        : False
+        backtests     : 1000
+        date_index    : date
+        forecast      : 1
+        window        : 1500
     type              : classification
 
 features:

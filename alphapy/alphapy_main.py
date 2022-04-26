@@ -26,7 +26,9 @@
 # Suppress Warnings
 #
 
+import os
 import pandas as pd
+import sys
 import warnings
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -532,9 +534,18 @@ def main(args=None):
     logger.info("AlphaPy Start")
     logger.info('*'*80)
 
+    # Read AlphaPy root directory
+
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
+
     # Read configuration file
 
     specs = get_model_config()
+    specs['alphapy_root'] = alphapy_root
     specs['predict_mode'] = args.predict_mode
 
     # Create directories if necessary

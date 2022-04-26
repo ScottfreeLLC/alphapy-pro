@@ -58,6 +58,7 @@ import datetime
 import logging
 import os
 import pandas as pd
+import sys
 import yaml
 
 
@@ -72,12 +73,13 @@ logger = logging.getLogger(__name__)
 # Function get_market_config
 #
 
-def get_market_config():
+def get_market_config(model_specs):
     r"""Read the configuration file for MarketFlow.
 
     Parameters
     ----------
-    None : None
+    model_specs : dict
+        The specifications for the AlphaPy model.
 
     Returns
     -------
@@ -214,11 +216,15 @@ def get_market_config():
     # Section: groups
     #
 
-    logger.info("Defining Groups in Space: %s" % space)
+    full_path = SSEP.join([model_specs['alphapy_root'], 'config', 'groups.yml'])
+    with open(full_path, 'r') as ymlfile:
+        group_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Defining Groups in Space: %s", space)
     try:
-        for g, m in list(cfg['groups'].items()):
+        for g in group_specs.keys():
             Group(g, space)
-            Group.groups[g].add(m)
+            Group.groups[g].add(group_specs[g])
     except:
         raise ValueError("No Groups Found")
 
@@ -514,15 +520,25 @@ def main(args=None):
         logger.info("Training Date: %s", train_date)
         logger.info("Prediction Date: %s", predict_date)
 
-    # Read stock configuration file
-    market_specs = get_market_config()
-
     # Read model configuration file
 
     model_specs = get_model_config()
     model_specs['predict_mode'] = args.predict_mode
     model_specs['predict_date'] = predict_date
     model_specs['train_date'] = train_date
+
+    # Read AlphaPy root directory
+
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
+    else:
+        model_specs['alphapy_root'] = alphapy_root
+
+    # Read stock configuration file
+    market_specs = get_market_config(model_specs)
 
     # Create directories if necessary
 
