@@ -26,9 +26,7 @@
 # Suppress Warnings
 #
 
-import os
 import pandas as pd
-import sys
 import warnings
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -45,6 +43,8 @@ import logging
 import numpy as np
 import os
 from sklearn.model_selection import train_test_split
+import sys
+import yaml
 
 from alphapy.data import get_data
 from alphapy.data import sample_data
@@ -63,6 +63,7 @@ from alphapy.frame import write_frame
 from alphapy.globals import SSEP, USEP
 from alphapy.globals import ModelType
 from alphapy.globals import Partition
+from alphapy.group import Group
 from alphapy.model import first_fit
 from alphapy.model import generate_metrics
 from alphapy.model import get_model_config
@@ -87,6 +88,60 @@ from alphapy.utilities import get_datestamp
 #
 
 logger = logging.getLogger(__name__)
+
+
+#
+# Function get_alphapy_config
+#
+
+def get_alphapy_config(alphapy_root):
+    r"""Read the configuration file for AlphaPy.
+
+    Parameters
+    ----------
+    alphapy_root : str
+        The root directory for AlphaPy.
+
+    Returns
+    -------
+    specs : dict
+        The parameters for controlling AlphaPy.
+
+    """
+
+    logger.info("AlphaPy Configuration")
+
+    # Store configuration parameters in dictionary
+
+    specs = {}
+    specs['alphapy_root'] = alphapy_root
+    
+    #
+    # Section: groups
+    #
+
+    full_path = SSEP.join([alphapy_root, 'config', 'groups.yml'])
+    with open(full_path, 'r') as ymlfile:
+        group_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Defining Groups")
+    try:
+        for g in group_specs.keys():
+            Group(g)
+            Group.groups[g].add(group_specs[g])
+            logger.info("Added Group: %s", g)
+    except:
+        raise ValueError("No Groups Found")
+
+    #
+    # Log the AlphaPy parameters
+    #
+
+    logger.info('ALPHAPY PARAMETERS:')
+    logger.info('AlphaPy Root = %s', specs['alphapy_root'])
+
+    # AlphaPy Specifications
+    return specs
 
 
 #
@@ -542,17 +597,19 @@ def main(args=None):
         logger.info(root_error_string)
         sys.exit(root_error_string)
 
-    # Read configuration file
+    # Read the AlphaPy configuration file
+    get_alphapy_config(alphapy_root)
 
-    specs = get_model_config()
-    specs['alphapy_root'] = alphapy_root
-    specs['predict_mode'] = args.predict_mode
+    # Read the model configuration file
+
+    model_specs = get_model_config()
+    model_specs['predict_mode'] = args.predict_mode
 
     # Create directories if necessary
 
     output_dirs = ['config', 'data', 'input', 'model', 'output', 'plots']
     for od in output_dirs:
-        output_dir = SSEP.join([specs['directory'], od])
+        output_dir = SSEP.join([model_specs['directory'], od])
         if not os.path.exists(output_dir):
             logger.info("Creating directory %s", output_dir)
             os.makedirs(output_dir)
@@ -560,7 +617,7 @@ def main(args=None):
     # Create a model from the arguments
 
     logger.info("Creating Model")
-    model = Model(specs)
+    model = Model(model_specs)
 
     # Start the pipeline
 

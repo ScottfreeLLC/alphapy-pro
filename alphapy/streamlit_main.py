@@ -66,18 +66,9 @@ app.add_page("AlphaPy AutoML", streamlit_alphapy.app)
 app.add_page("AlphaPy Markets", streamlit_mflow.app)
 app.add_page("AlphaPy Sports", streamlit_sflow.app)
 
-
 #result = subprocess.run(['pyomo', 'solve', 'my_model.py', '--solver="cbc"'])
 #st.write(result.stdout)  # Do something interesting with the result
 
-base_url = 'http://localhost:8000/'
-url_item = 'groups'
-r = requests.get(base_url+url_item) # Make HTTPS call
-groups = r.json() # Decode JSON
+# Run the main application
 
-for g in groups.items():
-    print(g)
-    st.sidebar.text(g)
-
-# The main app
 app.run()

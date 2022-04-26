@@ -35,7 +35,16 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # Imports
 #
 
+import argparse
+import datetime
+import logging
+import os
+import pandas as pd
+import sys
+import yaml
+
 from alphapy.alias import Alias
+from alphapy.alphapy_main import get_alphapy_config
 from alphapy.analysis import Analysis
 from alphapy.analysis import run_analysis
 from alphapy.data import get_market_data
@@ -52,14 +61,6 @@ from alphapy.space import Space
 from alphapy.system import run_system
 from alphapy.system import System
 from alphapy.utilities import valid_date
-
-import argparse
-import datetime
-import logging
-import os
-import pandas as pd
-import sys
-import yaml
 
 
 #
@@ -206,27 +207,6 @@ def get_market_config(model_specs):
                          (feature_fractals[0], specs['data_fractal']))
     # assign to market specifications
     specs['fractals'] = feature_fractals
- 
-    # Create the subject/schema/fractal namespace
-
-    sspecs = [specs['subject'], specs['schema'], feature_fractals[0]]
-    space = Space(*sspecs)
-
-    #
-    # Section: groups
-    #
-
-    full_path = SSEP.join([model_specs['alphapy_root'], 'config', 'groups.yml'])
-    with open(full_path, 'r') as ymlfile:
-        group_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
-
-    logger.info("Defining Groups in Space: %s", space)
-    try:
-        for g in group_specs.keys():
-            Group(g, space)
-            Group.groups[g].add(group_specs[g])
-    except:
-        raise ValueError("No Groups Found")
 
     #
     # Section: aliases
@@ -355,6 +335,8 @@ def market_pipeline(model, market_specs):
     data_fractal = market_specs['data_fractal']
     functions = market_specs['functions']
     predict_history = market_specs['predict_history']
+    schema = market_specs['schema']
+    subject = market_specs['subject']
     target_group = market_specs['target_group']
     run_sys = market_specs['run_system']
 
@@ -372,9 +354,11 @@ def market_pipeline(model, market_specs):
     holdperiod = system_specs['holdperiod']
     trade_fractal = fractals[0]
 
-    # Set the target group
+    # Set the target group and space
 
     group = Group.groups[target_group]
+    group.space = Space(subject, schema, trade_fractal)
+    logger.info("Group Space: %s", group.space)
     logger.info("All Symbols: %s", group.members)
 
     # Determine whether or not this is an intraday analysis.
@@ -536,6 +520,9 @@ def main(args=None):
         sys.exit(root_error_string)
     else:
         model_specs['alphapy_root'] = alphapy_root
+
+    # Read AlphaPy configuration file
+    get_alphapy_config(alphapy_root)
 
     # Read stock configuration file
     market_specs = get_market_config(model_specs)

@@ -28,15 +28,20 @@
 # Imports
 #
 
-from alphapy.group import Group
-from alphapy.mflow_main import get_market_config
-
 from fastapi import File
 from fastapi import FastAPI
 from fastapi import UploadFile
+import logging
 import numpy as np
+import os
+import sys
 import uuid
 import uvicorn
+
+from alphapy_main import get_alphapy_config
+from alphapy.group import Group
+from alphapy.mflow_main import get_market_config
+from alphapy.model import get_model_config
 
 
 #
@@ -47,14 +52,42 @@ app = FastAPI()
 
 
 #
+# Initialize logger
+#
+
+logger = logging.getLogger(__name__)
+
+
+#
 # FastAPI Startup
 #
 
 
 @app.on_event("startup")
 async def startup_event():
-    global market_specs
-    #market_specs = get_market_config()
+    # Initialize Logging
+    logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
+                        filename="mflow_server.log", filemode='a', level=logging.INFO,
+                        datefmt='%m/%d/%y %H:%M:%S')
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
+                                  datefmt='%m/%d/%y %H:%M:%S')
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    console.setLevel(logging.INFO)
+    logging.getLogger().addHandler(console)
+    # Start the pipeline
+    logger.info('*'*80)
+    logger.info("MarketFlow Server Start")
+    logger.info('*'*80)
+    # Get the AlphaPy environment variable
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
+    # Read the AlphaPy configuration file
+    alphapy_specs = get_alphapy_config(alphapy_root)
+    # Finish Startup
     return
 
 

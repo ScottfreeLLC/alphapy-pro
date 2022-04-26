@@ -27,11 +27,20 @@ from finviz.portfolio import Portfolio
 from finviz.screener import Screener
 import finnhub
 import pandas as pd
+import requests
 import streamlit as st
 
 
 def run_alphapy_groups(screener):
     st.write(screener)
+
+    base_url = 'http://localhost:8000/'
+    url_item = 'groups'
+    r = requests.get(base_url+url_item) # Make HTTPS call
+    groups = r.json() # Decode JSON
+
+    for g in groups.items():
+        print(g)
 
 
 def run_finviz_screener(screener):
