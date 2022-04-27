@@ -322,12 +322,14 @@ def create_keras_model(nlayers,
 # Function get_estimators
 #
 
-def get_estimators(model):
+def get_estimators(alphapy_specs, model):
     r"""Define all the AlphaPy estimators based on the contents
     of the ``algos.yml`` file.
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     model : alphapy.Model
         The model object containing global AlphaPy parameters.
 
@@ -340,7 +342,6 @@ def get_estimators(model):
 
     # Extract model data
 
-    directory = model.specs['directory']
     n_estimators = model.specs['n_estimators']
     n_jobs = model.specs['n_jobs']
     seed = model.specs['seed']
@@ -367,7 +368,7 @@ def get_estimators(model):
 
     # Get algorithm specifications
 
-    config_dir = SSEP.join([directory, 'config'])
+    config_dir = SSEP.join([alphapy_specs['alphapy_root'], 'config'])
     algo_specs = get_algos_config(config_dir)
 
     # Create estimators for all of the algorithms
@@ -403,7 +404,6 @@ def get_estimators(model):
             est = func(**params)
             grid = algo_specs[algo]['grid']
             estimators[algo] = Estimator(algo, model_type, est, grid)
-            
 
     # return the entire classifier list
     return estimators

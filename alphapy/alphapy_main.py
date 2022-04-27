@@ -46,6 +46,7 @@ from sklearn.model_selection import train_test_split
 import sys
 import yaml
 
+from alphapy.alias import Alias
 from alphapy.data import get_data
 from alphapy.data import sample_data
 from alphapy.data import shuffle_data
@@ -81,6 +82,7 @@ from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
 from alphapy.utilities import get_datestamp
+from alphapy.variables import Variable
 
 
 #
@@ -124,7 +126,7 @@ def get_alphapy_config(alphapy_root):
     with open(full_path, 'r') as ymlfile:
         group_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-    logger.info("Defining Groups")
+    logger.info("Creating Groups")
     try:
         for g in group_specs.keys():
             Group(g)
@@ -134,11 +136,52 @@ def get_alphapy_config(alphapy_root):
         raise ValueError("No Groups Found")
 
     #
+    # Section: aliases
+    #
+
+    full_path = SSEP.join([alphapy_root, 'config', 'variables.yml'])
+    with open(full_path, 'r') as ymlfile:
+        var_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Creating Aliases")
+    try:
+        for k, v in list(var_specs['aliases'].items()):
+            Alias(k, v)
+    except:
+        raise ValueError("No Aliases Found")
+
+    #
+    # Section: variables
+    #
+
+    logger.info("Creating Variables")
+    try:
+        for k, v in list(var_specs['variables'].items()):
+            Variable(k, v)
+    except:
+        raise ValueError("No Variables Found")
+
+    #
+    # Section: system
+    #
+
+    full_path = SSEP.join([alphapy_root, 'config', 'systems.yml'])
+    with open(full_path, 'r') as ymlfile:
+        system_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Creating Systems")
+    try:
+        specs['systems'] = system_specs
+    except:
+        raise ValueError("No System Parameters Found")
+
+    #
     # Log the AlphaPy parameters
     #
 
     logger.info('ALPHAPY PARAMETERS:')
-    logger.info('AlphaPy Root = %s', specs['alphapy_root'])
+    logger.info('AlphaPy Root    = %s', specs['alphapy_root'])
+    logger.info('AlphaPy Systems = %s', specs['systems'])
 
     # AlphaPy Specifications
     return specs
@@ -148,11 +191,13 @@ def get_alphapy_config(alphapy_root):
 # Function training_pipeline
 #
 
-def training_pipeline(model):
+def training_pipeline(alphapy_specs, model):
     r"""AlphaPy Training Pipeline
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     model : alphapy.Model
         The model object for controlling the pipeline.
 
@@ -321,7 +366,7 @@ def training_pipeline(model):
     # Get the available classifiers and regressors 
 
     logger.info("Getting All Estimators")
-    estimators = get_estimators(model)
+    estimators = get_estimators(alphapy_specs, model)
 
     # Get the available scorers
 
@@ -406,11 +451,13 @@ def training_pipeline(model):
 # Function prediction_pipeline
 #
 
-def prediction_pipeline(model):
+def prediction_pipeline(alphapy_specs, model):
     r"""AlphaPy Prediction Pipeline
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     model : alphapy.Model
         The model object for controlling the pipeline.
 
@@ -510,7 +557,7 @@ def prediction_pipeline(model):
 # Function main_pipeline
 #
 
-def main_pipeline(model):
+def main_pipeline(alphapy_specs, model):
     r"""AlphaPy Main Pipeline
 
     Parameters
@@ -525,15 +572,19 @@ def main_pipeline(model):
 
     """
 
+    logger.info('*'*80)
+    logger.info("AlphaPy Model Pipeline")
+    logger.info('*'*80)
+
     # Extract any model specifications
     predict_mode = model.specs['predict_mode']
 
     # Prediction Only or Calibration
 
     if predict_mode:
-        model = prediction_pipeline(model)
+        model = prediction_pipeline(alphapy_specs, model)
     else:
-        model = training_pipeline(model)
+        model = training_pipeline(alphapy_specs, model)
 
     # Return the completed model
     return model
@@ -598,7 +649,7 @@ def main(args=None):
         sys.exit(root_error_string)
 
     # Read the AlphaPy configuration file
-    get_alphapy_config(alphapy_root)
+    alphapy_specs = get_alphapy_config(alphapy_root)
 
     # Read the model configuration file
 
@@ -622,7 +673,7 @@ def main(args=None):
     # Start the pipeline
 
     logger.info("Calling Pipeline")
-    model = main_pipeline(model)
+    model = main_pipeline(alphapy_specs, model)
 
     # Complete the pipeline
 

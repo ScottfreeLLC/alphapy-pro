@@ -23,6 +23,11 @@
 #
 ################################################################################
 
+
+#
+# Imports
+#
+
 from finviz.portfolio import Portfolio
 from finviz.screener import Screener
 import finnhub
@@ -37,10 +42,19 @@ def run_alphapy_groups(screener):
     base_url = 'http://localhost:8000/'
     url_item = 'groups'
     r = requests.get(base_url+url_item) # Make HTTPS call
-    groups = r.json() # Decode JSON
+    groups_json = r.json() # Decode JSON
 
-    for g in groups.items():
-        print(g)
+    group = st.selectbox('Select Group', groups_json)
+
+    with st.expander("View Symbols"):
+        df = pd.DataFrame(groups_json[group]['members'])
+        df.columns = ['symbol']
+        df['symbol'] = df['symbol'].str.upper()
+        df.sort_values(by=['symbol'], inplace=True)
+        df.reset_index(drop=True, inplace=True)
+        st.write(df)
+
+    return df
 
 
 def run_finviz_screener(screener):
@@ -51,6 +65,8 @@ def run_finviz_screener(screener):
 
     stock_df = pd.DataFrame(stock_list.data)
     st.write(stock_df)
+
+    return stock_df
 
 
 def run_finviz_portfolio(screener):
@@ -63,6 +79,7 @@ def run_finviz_portfolio(screener):
     else:
         error_message = f"Could not find FinViz Portfolio: {port_name}"
         st.text(error_message)
+    return df
 
 
 def run_index(screener):
@@ -71,12 +88,11 @@ def run_index(screener):
     df = pd.read_csv(url)
     df.loc[df['symbol'] == '^NDX', 'name'] = 'Nasdaq 100'
     st.write(df)
+    return df
 
 
 def run_stocks(market_type):
     st.subheader(market_type)
-
-    symbol = st.text_input('Ticker Symbol', 'AAPL')
 
     text_ap = 'AlphaPy'
     text_fs = 'Finviz Screener'
@@ -85,13 +101,15 @@ def run_stocks(market_type):
     screener = st.sidebar.radio("Group", (text_ap, text_fs, text_fp, text_mi))
 
     if screener == text_ap:
-        run_alphapy_groups(screener)
+        df = run_alphapy_groups(screener)
     elif screener == text_fs:
-        run_finviz_screener(screener)
+        df = run_finviz_screener(screener)
     elif screener == text_fp:
-        run_finviz_portfolio(screener)
+        df = run_finviz_portfolio(screener)
     elif screener == text_mi:
-        run_index(screener)
+        df = run_index(screener)
+
+    
 
 
 def run_crypto(market_type):
