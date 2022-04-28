@@ -35,6 +35,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # Imports
 #
 
+from alphapy.alphapy_main import get_alphapy_config
 from alphapy.alphapy_main import main_pipeline
 from alphapy.frame import read_frame
 from alphapy.frame import write_frame
@@ -717,7 +718,6 @@ def main(args=None):
     window = sport_specs['rolling_window']   
 
     # Read model configuration file
-
     specs = get_model_config()
 
     # Add command line arguments to model specifications
@@ -924,16 +924,22 @@ def main(args=None):
         write_frame(new_test_frame, input_dir, datasets[Partition.test],
                     specs['extension'], specs['separator'])
 
-    # Create the model from specs
+    # Read AlphaPy root directory
 
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
+
+    # Read the AlphaPy configuration file
+    alphapy_specs = get_alphapy_config(alphapy_root)
+
+    # Create the model from specs
     model = Model(specs)
 
     # Run the pipeline
-
-    logger.info('*'*80)
-    logger.info("Running AlphaPy")
-    logger.info('*'*80)
-    model = main_pipeline(model)
+    model = main_pipeline(alphapy_specs, model)
 
     # Complete the pipeline
 

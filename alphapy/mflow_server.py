@@ -62,9 +62,9 @@ logger = logging.getLogger(__name__)
 # FastAPI Startup
 #
 
-
 @app.on_event("startup")
 async def startup_event():
+    global alphapy_specs
     # Initialize Logging
     logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
                         filename="mflow_server.log", filemode='a', level=logging.INFO,
@@ -77,7 +77,7 @@ async def startup_event():
     logging.getLogger().addHandler(console)
     # Start the pipeline
     logger.info('*'*80)
-    logger.info("MarketFlow Server Start")
+    logger.info("Market Flow Server Start")
     logger.info('*'*80)
     # Get the AlphaPy environment variable
     alphapy_root = os.environ.get('ALPHAPY_ROOT')
@@ -100,10 +100,25 @@ def read_groups():
     return Group.groups
 
 
+#
+# Get systems
+#
+
+@app.get("/systems")
+def read_systems():
+    return alphapy_specs['systems']
+
+
+#
+# Shut down the application
+#
+
 @app.on_event("shutdown")
 def shutdown_event():
-    with open("log.txt", mode="a") as log:
-        log.write("Application shutdown")
+    # Stop the pipeline
+    logger.info('*'*80)
+    logger.info("Market Flow Server End")
+    logger.info('*'*80)
 
 
 """

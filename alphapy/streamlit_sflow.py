@@ -26,4 +26,4 @@
 import streamlit as st
 
 def app():
-    st.header("AlphaPy Sports")
+    st.header("Sports Flow")

@@ -29,19 +29,53 @@
 #
 
 import glob
+import logging
 import numpy as np
+import os
 import pandas as pd
 from pathlib import Path
 from PIL import Image
 import requests
 import streamlit as st
-import streamlit_alphapy
+import streamlit_aflow
 import streamlit_mflow
 import streamlit_sflow
 from streamlit_multipage import MultiPage
 import subprocess
+import sys
 import time
 
+
+#
+# Initialize logger
+#
+
+logger = logging.getLogger(__name__)
+
+
+#
+# Main Program
+#
+
+# Initialize Logging
+
+logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
+                    filename="streamlit_main.log", filemode='a', level=logging.INFO,
+                    datefmt='%m/%d/%y %H:%M:%S')
+formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
+                              datefmt='%m/%d/%y %H:%M:%S')
+console = logging.StreamHandler()
+console.setFormatter(formatter)
+console.setLevel(logging.INFO)
+logging.getLogger().addHandler(console)
+
+# Start Streamlit
+
+logger.info('*'*80)
+logger.info("Streamlit Start")
+logger.info('*'*80)
+
+# Set window padding
 
 padding = 0
 st.markdown(f""" <style>
@@ -62,13 +96,9 @@ st.sidebar.image(logo)
 
 # Add all your applications (pages) here
 
-app.add_page("AlphaPy AutoML", streamlit_alphapy.app)
-app.add_page("AlphaPy Markets", streamlit_mflow.app)
-app.add_page("AlphaPy Sports", streamlit_sflow.app)
-
-#result = subprocess.run(['pyomo', 'solve', 'my_model.py', '--solver="cbc"'])
-#st.write(result.stdout)  # Do something interesting with the result
+app.add_page("Alpha Flow", streamlit_aflow.app)
+app.add_page("Market Flow", streamlit_mflow.app)
+app.add_page("Sport Flow", streamlit_sflow.app)
 
 # Run the main application
-
 app.run()

@@ -113,11 +113,13 @@ def get_alphapy_config(alphapy_root):
 
     logger.info("AlphaPy Configuration")
 
-    # Store configuration parameters in dictionary
+    # Read AlphaPy configuration file
 
-    specs = {}
+    full_path = SSEP.join([alphapy_root, 'config', 'alphapy.yml'])
+    with open(full_path, 'r') as ymlfile:
+        specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
     specs['alphapy_root'] = alphapy_root
-    
+  
     #
     # Section: groups
     #
@@ -180,8 +182,8 @@ def get_alphapy_config(alphapy_root):
     #
 
     logger.info('ALPHAPY PARAMETERS:')
-    logger.info('AlphaPy Root    = %s', specs['alphapy_root'])
-    logger.info('AlphaPy Systems = %s', specs['systems'])
+    for spec in specs.keys():
+        logger.info('%s: %s', spec, specs[spec])
 
     # AlphaPy Specifications
     return specs

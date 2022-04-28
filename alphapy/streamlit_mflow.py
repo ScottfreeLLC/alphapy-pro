@@ -30,30 +30,36 @@
 
 from finviz.portfolio import Portfolio
 from finviz.screener import Screener
+from itsdangerous import json
 import finnhub
+import logging
+import os
 import pandas as pd
 import requests
 import streamlit as st
+import sys
+
+from alphapy_main import get_alphapy_config
+from streamlit_util import alphapy_request
 
 
-def run_alphapy_groups(screener):
+#
+# Initialize logger
+#
+
+logger = logging.getLogger(__name__)
+
+
+def run_alphapy_groups(screener, groups):
     st.write(screener)
-
-    base_url = 'http://localhost:8000/'
-    url_item = 'groups'
-    r = requests.get(base_url+url_item) # Make HTTPS call
-    groups_json = r.json() # Decode JSON
-
-    group = st.selectbox('Select Group', groups_json)
-
+    group = st.selectbox('Select Group', groups)
     with st.expander("View Symbols"):
-        df = pd.DataFrame(groups_json[group]['members'])
+        df = pd.DataFrame(groups[group]['members'])
         df.columns = ['symbol']
         df['symbol'] = df['symbol'].str.upper()
         df.sort_values(by=['symbol'], inplace=True)
         df.reset_index(drop=True, inplace=True)
         st.write(df)
-
     return df
 
 
@@ -82,7 +88,7 @@ def run_finviz_portfolio(screener):
     return df
 
 
-def run_index(screener):
+def run_market_index(screener):
     st.write(screener)
     url = f"https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
     df = pd.read_csv(url)
@@ -91,52 +97,43 @@ def run_index(screener):
     return df
 
 
-def run_stocks(market_type):
-    st.subheader(market_type)
+def app():
+ 
+    # Get the AlphaPy environment variable
 
-    text_ap = 'AlphaPy'
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
+    else:
+        # Read the AlphaPy configuration file
+        alphapy_specs = get_alphapy_config(alphapy_root)
+
+    text_ap = 'Market Flow'
     text_fs = 'Finviz Screener'
     text_fp = 'Finviz Portfolio'
     text_mi = 'Market Index'
     screener = st.sidebar.radio("Group", (text_ap, text_fs, text_fp, text_mi))
 
+    st.header("Market Flow")
+
+    server_url = alphapy_specs['mflow']['server_url']
     if screener == text_ap:
-        df = run_alphapy_groups(screener)
+        groups = alphapy_request(server_url, 'groups')
+        df = run_alphapy_groups(screener, groups)
     elif screener == text_fs:
         df = run_finviz_screener(screener)
     elif screener == text_fp:
         df = run_finviz_portfolio(screener)
     elif screener == text_mi:
-        df = run_index(screener)
+        df = run_market_index(screener)
 
-    
+    systems = alphapy_request(server_url, 'systems')
+    system = st.selectbox('Select System', systems)
 
+    with st.expander("View Signals"):
+        df = pd.DataFrame(systems[system].items(), columns=['signal', 'value'])
+        df.reset_index(drop=True, inplace=True)
+        st.write(df)
 
-def run_crypto(market_type):
-    st.subheader(market_type)
-
-
-def run_futures(market_type):
-    st.subheader(market_type)
-
-
-def run_forex(market_type):
-    st.subheader(market_type)
-
-
-def app():
-    market_stocks = 'Stocks'
-    market_crypto = 'Crypto'
-    market_futures = 'Futures'
-    market_forex = 'Forex'
-    market_type = st.sidebar.radio("Market Type",
-                      (market_stocks, market_crypto, market_futures, market_forex))
-
-    if market_type == market_stocks:
-        run_stocks(market_type)
-    elif market_type == market_crypto:
-        run_crypto(market_type)
-    elif market_type == market_futures:
-        run_futures(market_type)
-    elif market_type == market_forex:
-        run_forex(market_type)
