@@ -31,6 +31,7 @@ from finviz.screener import Screener
 from itsdangerous import json
 import finnhub
 import pandas as pd
+from pathlib import Path
 import requests
 import streamlit as st
 
@@ -38,9 +39,27 @@ import streamlit as st
 import datetime
 
 
+#
+# Function alphapy_request
+#
+
 def alphapy_request(url, path):
     r = requests.get(url+path)
     return r.json()
+
+
+#
+# Function alphapy_projects
+#
+
+def alphapy_projects(root_directory):
+    paths = []
+    projects = []
+    for path in Path(root_directory).rglob('market.yml'):
+        paths.append(path)
+        path_str = str(path).split('/')
+        projects.append(path_str[-3])
+    return paths, projects
 
 """
 st.title('Counter Example')

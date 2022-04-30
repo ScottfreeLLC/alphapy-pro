@@ -450,7 +450,7 @@ def set_model_targets(model, dfs, fractals, system_specs, forecast_period, predi
 #
 
 def market_pipeline(alphapy_specs, model, market_specs):
-    r"""AlphaPy MarketFlow Pipeline
+    r"""Market Flow Pipeline
 
     Parameters
     ----------
@@ -476,7 +476,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     """
 
-    logger.info("Running MarketFlow Pipeline")
+    logger.info("Running Market Flow Pipeline")
 
     # Get model specifications
 

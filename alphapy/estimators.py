@@ -47,7 +47,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
-import sys
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.models import Sequential
 import yaml
 
 
@@ -199,7 +200,6 @@ def find_optional_packages():
 
     module_name = 'keras'
     try:
-        from keras.models import Sequential
         from keras.wrappers.scikit_learn import KerasClassifier
         from keras.wrappers.scikit_learn import KerasRegressor
         estimator_map['KERASC'] = KerasClassifier

@@ -77,13 +77,15 @@ logger.info('*'*80)
 
 # Set window padding
 
-padding = 0
+vertical_padding = 2
+horizontal_padding = 2
+
 st.markdown(f""" <style>
-    .reportview-container .main .block-container{{
-        padding-top: {padding}rem;
-        padding-right: {padding}rem;
-        padding-left: {padding}rem;
-        padding-bottom: {padding}rem;
+    .appview-container .main .block-container{{
+        padding-top: {vertical_padding}rem;
+        padding-right: {horizontal_padding}rem;
+        padding-left: {horizontal_padding}rem;
+        padding-bottom: {vertical_padding}rem;
     }} </style> """, unsafe_allow_html=True)
 
 # Create an instance of the application
