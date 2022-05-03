@@ -20,7 +20,7 @@ data:
     target_value      : 1
 
 model:
-    algorithms        : ['CATB', 'KERASC', 'LGB', 'XGB']
+    algorithms        : ['CATB', 'LGB', 'XGB']
     balance_classes   : True
     calibration       :
         option        : False

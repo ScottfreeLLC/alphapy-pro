@@ -420,14 +420,14 @@ def training_pipeline(alphapy_specs, model):
     partition = Partition.train
     model = generate_metrics(model, partition)
     model = select_best_model(model, partition)
-    generate_plots(model, partition)
+    generate_plots(alphapy_specs, model, partition)
     model = save_predictions(model, partition)
 
     partition = Partition.test
     if model.test_labels:
         model = generate_metrics(model, partition)
         model = select_best_model(model, partition)
-        generate_plots(model, partition)
+        generate_plots(alphapy_specs, model, partition)
         model = save_predictions(model, partition)
     else:
         model = save_predictions(model, partition)
@@ -436,7 +436,7 @@ def training_pipeline(alphapy_specs, model):
         partition = Partition.train_ts
         model = generate_metrics(model, partition)
         model = select_best_model(model, partition)
-        generate_plots(model, partition)
+        generate_plots(alphapy_specs, model, partition)
         model = save_predictions(model, partition)
 
     # Save the model

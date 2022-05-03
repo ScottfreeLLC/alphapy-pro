@@ -121,17 +121,9 @@ def shutdown_event():
     logger.info('*'*80)
 
 
-"""
-@app.post("/{style}")
-def get_image(style: str, file: UploadFile = File(...)):
-    image = np.array(Image.open(file.file))
-    model = config.STYLES[style]
-    output, resized = inference.inference(model, image)
-    name = f"/storage/{str(uuid.uuid4())}.jpg"
-    cv2.imwrite(name, output)
-    return {"name": name}
-"""
-
+#
+# Main Program
+#
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080)

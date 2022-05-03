@@ -139,11 +139,13 @@ def get_partition_data(model, partition):
 # Function generate_plots
 #
 
-def generate_plots(model, partition):
+def generate_plots(alphapy_specs, model, partition):
     r"""Generate plots while running the pipeline.
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for running the AlphaPy pipeline.
     model : alphapy.Model
         The model object with plotting specifications.
     partition : alphapy.Partition
@@ -176,7 +178,7 @@ def generate_plots(model, partition):
         plot_roc_curve(model, partition)
     if partition == Partition.train:
         if learning_curve:
-            plot_learning_curve(model, partition)
+            plot_learning_curve(alphapy_specs, model, partition)
         if importances:
             plot_importance(model, partition)
 
@@ -431,11 +433,13 @@ def plot_importance(model, partition):
 # Function plot_learning_curve
 #
 
-def plot_learning_curve(model, partition):
+def plot_learning_curve(alphapy_specs, model, partition):
     r"""Generate learning curves for a given partition.
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for running the AlphaPy pipeline.
     model : alphapy.Model
         The model object with plotting specifications.
     partition : alphapy.Partition
@@ -466,7 +470,7 @@ def plot_learning_curve(model, partition):
 
     # Get original estimators
 
-    estimators = get_estimators(model)
+    estimators = get_estimators(alphapy_specs, model)
 
     # Get X, Y for correct partition.
 

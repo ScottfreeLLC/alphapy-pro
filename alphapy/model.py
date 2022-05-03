@@ -1396,9 +1396,9 @@ def save_predictions(model, partition):
         sample_input = SSEP.join([input_dir, sample_spec])
         df_sub = pd.read_csv(sample_input)
         if submit_probas and model_type == ModelType.classification:
-            df_sub[df_sub.columns[1]] = model.probas[(sort_tag, Partition.test)]
+            df_sub[df_sub.columns[1]] = model.probas[(model.best_algo, Partition.test)]
         else:
-            df_sub[df_sub.columns[1]] = model.preds[(sort_tag, Partition.test)]
+            df_sub[df_sub.columns[1]] = model.preds[(model.best_algo, Partition.test)]
         submission_base = USEP.join(['submission', timestamp])
         submission_spec = PSEP.join([submission_base, extension])
         submission_output = SSEP.join([output_dir, submission_spec])

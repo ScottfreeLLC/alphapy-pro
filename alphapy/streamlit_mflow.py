@@ -28,6 +28,7 @@
 # Imports
 #
 
+from datetime import datetime, timedelta
 from finviz.portfolio import Portfolio
 from finviz.screener import Screener
 from itsdangerous import json
@@ -52,12 +53,15 @@ from streamlit_util import alphapy_projects, alphapy_request
 logger = logging.getLogger(__name__)
 
 
-def get_alpha_flow_groups(server_url):
+def get_alphapy_groups(server_url):
     groups = alphapy_request(server_url, 'groups')
     return groups
 
 
 def get_finviz_screener_groups():
+
+    #filters = ['sh_price_u5','ta_gap_d5','ta_rsi_os30','ft=3']
+    #stocks = Screener(filters=filters, order="price")
 
     filters = ['exch_nasd', 'idx_sp500']  # Shows companies in NASDAQ which are in the S&P500
     stock_list = Screener(filters=filters, table='Performance', order='price')  # Get the performance table and sort it by price ascending
@@ -84,6 +88,10 @@ def get_market_index_groups():
     url = f"https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
     df = pd.read_csv(url)
     df.loc[df['symbol'] == '^NDX', 'name'] = 'Nasdaq 100'
+
+    #finnhub_client = finnhub.Client(api_key="c8m153aad3ie52go4qrg")
+    #print(finnhub_client.indices_const(symbol = "^GSPC"))
+
     st.write(df)
     return df
 
@@ -115,7 +123,7 @@ def app():
 
     server_url = alphapy_specs['mflow']['server_url']
     if screener == text_ap:
-        groups = get_alpha_flow_groups(server_url)
+        groups = get_alphapy_groups(server_url)
     elif screener == text_fs:
         groups = get_finviz_screener_groups()
     elif screener == text_fp:
@@ -155,8 +163,10 @@ def app():
     run_model_text = ' '.join(['Run', project, 'Model'])
     run_model_button = col1.button(run_model_text)
 
-    run_system_text = ' '.join(['Run', project, 'System'])
+    run_system_text = ' '.join(['Run', system, 'System'])
     run_system_button = col1.button(run_system_text)
 
-    col2.date_input('From')
+    today = datetime.now()
+    year_ago = today - timedelta(days=365)
+    col2.date_input('From', year_ago)
     col3.date_input('To')
