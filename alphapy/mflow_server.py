@@ -34,6 +34,7 @@ from fastapi import UploadFile
 import logging
 import numpy as np
 import os
+from pathlib import Path
 import sys
 import uuid
 import uvicorn
@@ -64,7 +65,6 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup_event():
-    global alphapy_specs
     # Initialize Logging
     logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
                         filename="mflow_server.log", filemode='a', level=logging.INFO,
@@ -85,8 +85,6 @@ async def startup_event():
         root_error_string = "ALPHAPY_ROOT environment variable must be set"
         logger.info(root_error_string)
         sys.exit(root_error_string)
-    # Read the AlphaPy configuration file
-    alphapy_specs = get_alphapy_config(alphapy_root)
     # Finish Startup
     return
 
@@ -96,8 +94,35 @@ async def startup_event():
 #
 
 @app.get("/groups")
-def read_groups():
+def get_groups(alphapy_specs):
     return Group.groups
+
+
+#
+# Get paths
+#
+
+@app.get("/paths")
+def get_paths(alphapy_specs):
+    root_directory = alphapy_specs['mflow']['project_root']
+    paths = []
+    for path in Path(root_directory).rglob('market.yml'):
+        paths.append(path)
+    return paths
+
+
+#
+# Get projects
+#
+
+@app.get("/projects")
+def get_projects(alphapy_specs):
+    root_directory = alphapy_specs['mflow']['project_root']
+    projects = []
+    for path in Path(root_directory).rglob('market.yml'):
+        path_str = str(path).split('/')
+        projects.append(path_str[-3])
+    return projects
 
 
 #
@@ -105,7 +130,7 @@ def read_groups():
 #
 
 @app.get("/systems")
-def read_systems():
+def get_systems(alphapy_specs):
     return alphapy_specs['systems']
 
 

@@ -879,6 +879,8 @@ def time_series_model(model, algo):
     train_date = dates_ts.iloc[date_index[-ts_window]]
     df_X_sub = df_X[df_X[ts_date_index] >= train_date].drop(columns=[ts_date_index]).values
     df_y_sub = df_y[df_y[ts_date_index] >= train_date][target].values
+
+    est = model.estimators[algo]
     est.fit(df_X_sub, df_y_sub)
 
     model.preds[(algo, Partition.test_ts)] = est.predict(model.X_test)

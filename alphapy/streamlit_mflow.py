@@ -43,7 +43,7 @@ import sys
 from torch import compiled_with_cxx11_abi
 
 from alphapy_main import get_alphapy_config
-from streamlit_util import alphapy_projects, alphapy_request
+from streamlit_requests import alphapy_request
 
 
 #
@@ -109,8 +109,7 @@ def app():
         # Read the AlphaPy configuration file
         alphapy_specs = get_alphapy_config(alphapy_root)
 
-    root_directory = alphapy_specs['mflow']['project_root']
-    paths, projects = alphapy_projects(root_directory)
+    projects = alphapy_request(alphapy_specs, 'projects')
     project = st.sidebar.selectbox("Select Project", sorted(projects, key=str.casefold))
 
     text_ap = 'Market Flow'
@@ -123,7 +122,7 @@ def app():
 
     server_url = alphapy_specs['mflow']['server_url']
     if screener == text_ap:
-        groups = get_alphapy_groups(server_url)
+        groups = alphapy_request(alphapy_specs, 'groups')
     elif screener == text_fs:
         groups = get_finviz_screener_groups()
     elif screener == text_fp:
@@ -132,13 +131,13 @@ def app():
         groups = get_market_index_groups()
 
     group_text = ' '.join(['Select', screener, 'Group'])
-    group = col1.selectbox(group_text, groups)
+    group = col1.selectbox(group_text, groups.keys())
 
-    systems = alphapy_request(server_url, 'systems')
+    systems = alphapy_request(alphapy_specs, 'systems')
     system = col2.selectbox("Select System", systems)
 
     with col1.expander("View Group Symbols"):
-        df = pd.DataFrame(groups[group]['members'])
+        df = pd.DataFrame(groups[group].members)
         df.columns = ['symbol']
         df['symbol'] = df['symbol'].str.upper()
         df.sort_values(by=['symbol'], inplace=True)

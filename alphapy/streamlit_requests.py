@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Package   : AlphaPy
-# Module    : streamlit_util
+# Module    : streamlit_requests
 # Created   : April 22, 2022
 #
 # Copyright 2022 ScottFree Analytics LLC
@@ -26,40 +26,40 @@
 # Imports
 #
 
-from finviz.portfolio import Portfolio
-from finviz.screener import Screener
-from itsdangerous import json
-import finnhub
-import pandas as pd
-from pathlib import Path
 import requests
-import streamlit as st
 
-import streamlit as st
-import datetime
+from mflow_server import get_groups
+from mflow_server import get_paths
+from mflow_server import get_projects
+from mflow_server import get_systems
+
+
+#
+# AlphaPy Dispatch Table
+#
+
+alphapy_dispatcher = {
+     'groups'   : get_groups,
+     'paths'    : get_paths,
+     'projects' : get_projects,
+     'systems'  : get_systems
+}
 
 
 #
 # Function alphapy_request
 #
 
-def alphapy_request(url, path):
-    r = requests.get(url+path)
-    return r.json()
+def alphapy_request(alphapy_specs, item):
+    use_server = alphapy_specs['use_server']
+    if use_server:
+        url = alphapy_specs['mflow']['server_url']
+        r = requests.get(url+item)
+        results = r.json()
+    else:
+        results = alphapy_dispatcher[item](alphapy_specs)
+    return results
 
-
-#
-# Function alphapy_projects
-#
-
-def alphapy_projects(root_directory):
-    paths = []
-    projects = []
-    for path in Path(root_directory).rglob('market.yml'):
-        paths.append(path)
-        path_str = str(path).split('/')
-        projects.append(path_str[-3])
-    return paths, projects
 
 """
 st.title('Counter Example')

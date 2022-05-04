@@ -35,11 +35,11 @@ import os
 import pandas as pd
 from pathlib import Path
 from PIL import Image
-import requests
 import streamlit as st
 import streamlit_aflow
 import streamlit_mflow
 import streamlit_sflow
+import streamlit_finviz
 from streamlit_multipage import MultiPage
 import subprocess
 import sys
@@ -75,6 +75,19 @@ logger.info('*'*80)
 logger.info("Streamlit Start")
 logger.info('*'*80)
 
+# Set Page Configuration (alternate names: setup_page, page, layout)
+
+st.set_page_config(
+    # Can be "centered" or "wide". In the future also "dashboard", etc.
+	layout="wide",
+    # Can be "auto", "expanded", "collapsed"
+	initial_sidebar_state="auto",
+    # String or None. Strings get appended with "• Streamlit".
+	page_title=None,
+    # String, anything supported by st.image, or None.
+	page_icon=None,
+)
+
 # Set window padding
 
 vertical_padding = 2
@@ -99,6 +112,7 @@ st.sidebar.image(logo)
 # Add all your applications (pages) here
 
 app.add_page("Alpha Flow", streamlit_aflow.app)
+app.add_page("Finviz Screener", streamlit_finviz.app)
 app.add_page("Market Flow", streamlit_mflow.app)
 app.add_page("Sport Flow", streamlit_sflow.app)
 
