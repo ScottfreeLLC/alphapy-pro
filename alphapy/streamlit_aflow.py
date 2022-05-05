@@ -35,6 +35,3 @@ import streamlit as st
 
 def app():
     st.header("Alpha Flow")
-
-    #result = subprocess.run(['pyomo', 'solve', 'my_model.py', '--solver="cbc"'])
-    #st.write(result.stdout)  # Do something interesting with the result

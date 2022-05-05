@@ -4,8 +4,6 @@
 # Module    : streamlit_mflow
 # Created   : February 21, 2021
 #
-# streamlit run streamlit.py
-#
 # Copyright 2021 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
@@ -36,14 +34,13 @@ import finnhub
 import logging
 import os
 import pandas as pd
-import requests
 import streamlit as st
 import sys
-
-from torch import compiled_with_cxx11_abi
+from alphapy.streamlit_requests import run_command
 
 from alphapy_main import get_alphapy_config
 from streamlit_requests import alphapy_request
+from streamlit_requests import run_command
 
 
 #
@@ -111,6 +108,7 @@ def app():
 
     projects = alphapy_request(alphapy_specs, 'projects')
     project = st.sidebar.selectbox("Select Project", sorted(projects, key=str.casefold))
+    project_root = '/'.join([alphapy_specs['mflow']['project_root'], project])
 
     text_ap = 'Market Flow'
     text_fs = 'Finviz Screener'
@@ -120,7 +118,6 @@ def app():
 
     col1, col2, col3, col4 = st.columns(4)
 
-    server_url = alphapy_specs['mflow']['server_url']
     if screener == text_ap:
         groups = alphapy_request(alphapy_specs, 'groups')
     elif screener == text_fs:
@@ -159,13 +156,15 @@ def app():
     with col4.expander(model_text):
         st.write(model_text)
 
-    run_model_text = ' '.join(['Run', project, 'Model'])
+    run_model_text = ' '.join(['Run', 'Model:', project])
     run_model_button = col1.button(run_model_text)
 
-    run_system_text = ' '.join(['Run', system, 'System'])
+    run_system_text = ' '.join(['Run', 'System:', system])
     run_system_button = col1.button(run_system_text)
 
     today = datetime.now()
     year_ago = today - timedelta(days=365)
     col2.date_input('From', year_ago)
     col3.date_input('To')
+
+    result = run_command(['mflow'], cwd=project_root)
