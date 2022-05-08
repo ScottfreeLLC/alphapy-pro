@@ -32,14 +32,12 @@ from fastapi import File
 from fastapi import FastAPI
 from fastapi import UploadFile
 import logging
-import numpy as np
 import os
 from pathlib import Path
 import sys
 import uuid
 import uvicorn
 
-from alphapy_main import get_alphapy_config
 from alphapy.group import Group
 from alphapy.mflow_main import get_market_config
 from alphapy.model import get_model_config
@@ -94,8 +92,28 @@ async def startup_event():
 #
 
 @app.get("/groups")
-def get_groups(alphapy_specs):
+def request_groups():
     return Group.groups
+
+
+#
+# Get market specifications
+#
+
+@app.get("/market_config")
+def request_market_config(alphapy_specs, project_root):
+    specs = get_market_config(alphapy_specs, project_root)
+    return specs
+
+
+#
+# Get model specifications
+#
+
+@app.get("/model_config")
+def request_model_config(project_root):
+    specs = get_model_config(project_root)
+    return specs
 
 
 #
@@ -103,7 +121,7 @@ def get_groups(alphapy_specs):
 #
 
 @app.get("/paths")
-def get_paths(alphapy_specs):
+def request_paths(alphapy_specs):
     root_directory = alphapy_specs['mflow']['project_root']
     paths = []
     for path in Path(root_directory).rglob('market.yml'):
@@ -116,7 +134,7 @@ def get_paths(alphapy_specs):
 #
 
 @app.get("/projects")
-def get_projects(alphapy_specs):
+def request_projects(alphapy_specs):
     root_directory = alphapy_specs['mflow']['project_root']
     projects = []
     for path in Path(root_directory).rglob('market.yml'):
@@ -130,7 +148,7 @@ def get_projects(alphapy_specs):
 #
 
 @app.get("/systems")
-def get_systems(alphapy_specs):
+def request_systems(alphapy_specs):
     return alphapy_specs['systems']
 
 

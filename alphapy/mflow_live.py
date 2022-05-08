@@ -8,6 +8,7 @@ Run a live AlphaPy model.
 #
 
 from alphapy.alphapy_main import prediction_pipeline
+from alphapy.globals import PSEP
 from alphapy.mflow_main import get_market_config
 from alphapy.model import get_model_config
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -55,7 +56,7 @@ if __name__ == '__main__':
 
     # Read stock configuration file
 
-    market_specs = get_market_config()
+    market_specs = get_market_config(alphapy_specs)
     logger.info(market_specs)
 
     # Initialize market prediction pipeline

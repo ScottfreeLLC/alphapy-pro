@@ -676,13 +676,34 @@ def main(args=None):
     console.setLevel(logging.INFO)
     logging.getLogger().addHandler(console)
 
-    logger = logging.getLogger(__name__)
-
     # Start the pipeline
 
     logger.info('*'*80)
     logger.info("SportFlow Start")
     logger.info('*'*80)
+
+    # Read AlphaPy root directory
+
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
+
+    # Read AlphaPy configuration file
+    alphapy_specs = get_alphapy_config(alphapy_root)
+
+    # Read model configuration file
+
+    directory = '.'
+    model_specs = get_model_config(directory)
+    model_specs['alphapy_root'] = alphapy_root
+
+    # Add command line arguments to model specifications
+
+    model_specs['predict_mode'] = args.predict_mode
+    model_specs['predict_date'] = args.predict_date
+    model_specs['train_date'] = args.train_date
 
     # Set train and predict dates
 
@@ -717,20 +738,6 @@ def main(args=None):
     seasons = sport_specs['seasons']
     window = sport_specs['rolling_window']   
 
-    # Read model configuration file
-    specs = get_model_config()
-
-    # Add command line arguments to model specifications
-
-    specs['predict_mode'] = args.predict_mode
-    specs['predict_date'] = args.predict_date
-    specs['train_date'] = args.train_date
-
-    # Unpack model arguments
-
-    directory = specs['directory']
-    target = specs['target']
-
     # Create directories if necessary
 
     output_dirs = ['config', 'data', 'input', 'model', 'output', 'plots']
@@ -761,7 +768,7 @@ def main(args=None):
 
     data_dir = SSEP.join([directory, 'data'])
     file_base = USEP.join([league, space.subject, space.schema, space.fractal])
-    df = read_frame(data_dir, file_base, specs['extension'], specs['separator'])
+    df = read_frame(data_dir, file_base, model_specs['extension'], model_specs['separator'])
     logger.info("Total Game Records: %d", df.shape[0])
 
     #
@@ -907,7 +914,7 @@ def main(args=None):
         # rewrite with all the features to the train and test files
         logger.info("Saving prediction frame")
         write_frame(new_predict_frame, input_dir, datasets[Partition.test],
-                    specs['extension'], specs['separator'])
+                    model_specs['extension'], model_specs['separator'])
     else:
         # split data into training and test data
         new_train_frame = ff.loc[(ff.date >= train_date) & (ff.date < predict_date)]
@@ -919,24 +926,13 @@ def main(args=None):
         # rewrite with all the features to the train and test files
         logger.info("Saving training frame")
         write_frame(new_train_frame, input_dir, datasets[Partition.train],
-                    specs['extension'], specs['separator'])
+                    model_specs['extension'], model_specs['separator'])
         logger.info("Saving testing frame")
         write_frame(new_test_frame, input_dir, datasets[Partition.test],
-                    specs['extension'], specs['separator'])
-
-    # Read AlphaPy root directory
-
-    alphapy_root = os.environ.get('ALPHAPY_ROOT')
-    if not alphapy_root:
-        root_error_string = "ALPHAPY_ROOT environment variable must be set"
-        logger.info(root_error_string)
-        sys.exit(root_error_string)
-
-    # Read the AlphaPy configuration file
-    alphapy_specs = get_alphapy_config(alphapy_root)
+                    model_specs['extension'], model_specs['separator'])
 
     # Create the model from specs
-    model = Model(specs)
+    model = Model(model_specs)
 
     # Run the pipeline
     model = main_pipeline(alphapy_specs, model)

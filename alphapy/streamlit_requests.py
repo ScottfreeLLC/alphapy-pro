@@ -30,10 +30,12 @@ import requests
 import streamlit as st
 import subprocess
 
-from mflow_server import get_groups
-from mflow_server import get_paths
-from mflow_server import get_projects
-from mflow_server import get_systems
+from mflow_server import request_groups
+from mflow_server import request_market_config
+from mflow_server import request_model_config
+from mflow_server import request_paths
+from mflow_server import request_projects
+from mflow_server import request_systems
 
 
 #
@@ -41,10 +43,12 @@ from mflow_server import get_systems
 #
 
 alphapy_dispatcher = {
-     'groups'   : get_groups,
-     'paths'    : get_paths,
-     'projects' : get_projects,
-     'systems'  : get_systems
+     'groups'        : request_groups,
+     'market_config' : request_market_config,
+     'model_config'  : request_model_config,
+     'paths'         : request_paths,
+     'projects'      : request_projects,
+     'systems'       : request_systems
 }
 
 
@@ -52,14 +56,14 @@ alphapy_dispatcher = {
 # Function alphapy_request
 #
 
-def alphapy_request(alphapy_specs, item):
+def alphapy_request(alphapy_specs, item, *args):
     use_server = alphapy_specs['use_server']
     if use_server:
         url = alphapy_specs['mflow']['server_url']
         r = requests.get(url+item)
         results = r.json()
     else:
-        results = alphapy_dispatcher[item](alphapy_specs)
+        results = alphapy_dispatcher[item](*args)
     return results
 
 
@@ -68,8 +72,6 @@ def alphapy_request(alphapy_specs, item):
 #
 
 def run_command(cmd_with_args, cwd):
-    st.info(f"Running '{' '.join(cmd_with_args)}'")
-    #result = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, cwd=cwd)
     result = subprocess.run(cmd_with_args, capture_output=True, text=True, cwd=cwd)
     try:
         result.check_returncode()

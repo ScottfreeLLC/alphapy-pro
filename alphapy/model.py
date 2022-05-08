@@ -49,7 +49,7 @@ from alphapy.globals import Partition, datasets
 from alphapy.globals import PSEP, SSEP, USEP
 from alphapy.globals import SamplingMethod
 from alphapy.globals import Scalers
-from alphapy.utilities import get_datestamp
+from alphapy.utilities import datetime_stamp
 from alphapy.utilities import most_recent_file
 
 from copy import copy
@@ -224,12 +224,13 @@ class Model:
 # Function get_model_config
 #
 
-def get_model_config():
+def get_model_config(directory='.'):
     r"""Read in the configuration file for AlphaPy.
 
     Parameters
     ----------
-    None : None
+    directory : str
+        The directory specifying the location of the configuration file.
 
     Returns
     -------
@@ -247,7 +248,7 @@ def get_model_config():
 
     # Read the configuration file
 
-    full_path = SSEP.join([PSEP, 'config', 'model.yml'])
+    full_path = SSEP.join([directory, 'config', 'model.yml'])
     with open(full_path, 'r') as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
@@ -1329,7 +1330,7 @@ def save_predictions(model, partition):
     ts_option = model.specs['ts_option']
 
     # Get date stamp to record file creation
-    timestamp = get_datestamp()
+    dt_stamp = datetime_stamp()
 
     # Specify input and output directories
 
@@ -1388,7 +1389,7 @@ def save_predictions(model, partition):
     else:
         pred_name = USEP.join(['pred', datasets[partition], sort_tag])
         df_master.sort_values(pred_name, ascending=False, inplace=True)
-    output_file = USEP.join(['ranked', datasets[partition], timestamp])
+    output_file = USEP.join(['ranked', datasets[partition], dt_stamp])
     write_frame(df_master, output_dir, output_file, extension, separator)
 
     # Generate submission file
@@ -1401,7 +1402,7 @@ def save_predictions(model, partition):
             df_sub[df_sub.columns[1]] = model.probas[(model.best_algo, Partition.test)]
         else:
             df_sub[df_sub.columns[1]] = model.preds[(model.best_algo, Partition.test)]
-        submission_base = USEP.join(['submission', timestamp])
+        submission_base = USEP.join(['submission', dt_stamp])
         submission_spec = PSEP.join([submission_base, extension])
         submission_output = SSEP.join([output_dir, submission_spec])
         logger.info("Saving Submission to %s", submission_output)

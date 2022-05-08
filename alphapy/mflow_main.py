@@ -72,13 +72,15 @@ logger = logging.getLogger(__name__)
 # Function get_market_config
 #
 
-def get_market_config(alphapy_specs):
+def get_market_config(alphapy_specs, directory='.'):
     r"""Read the configuration file for MarketFlow.
 
     Parameters
     ----------
     alphapy_specs : dict
-        The specifications for the AlphaPy pipeline.
+        The specifications for AlphaPy.
+    directory : str
+        The location of the configuration file.
 
     Returns
     -------
@@ -91,7 +93,7 @@ def get_market_config(alphapy_specs):
 
     # Read the configuration file
 
-    full_path = SSEP.join([PSEP, 'config', 'market.yml'])
+    full_path = SSEP.join([directory, 'config', 'market.yml'])
     with open(full_path, 'r') as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 

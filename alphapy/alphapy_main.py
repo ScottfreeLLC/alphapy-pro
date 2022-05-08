@@ -81,7 +81,7 @@ from alphapy.model import time_series_model
 from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
-from alphapy.utilities import get_datestamp
+from alphapy.utilities import datetime_stamp
 from alphapy.variables import Variable
 
 
@@ -312,18 +312,18 @@ def training_pipeline(alphapy_specs, model):
 
     # Save the train and test files with extracted and dropped features
 
-    datestamp = get_datestamp()
+    dt_stamp = datetime_stamp()
     data_dir = SSEP.join([directory, 'input'])
     # train data
     df_train = X_all.iloc[:split_point, :]
     df_train.loc[:, target] = y_train.loc[:, target]
-    output_file = USEP.join([model.train_file, datestamp])
+    output_file = USEP.join([model.train_file, dt_stamp])
     write_frame(df_train, data_dir, output_file, extension, separator, index=False)
     # test data
     df_test = X_all.iloc[split_point:, :]
     if model.test_labels:
         df_test.loc[:, target] = y_test.loc[:, target]
-    output_file = USEP.join([model.test_file, datestamp])
+    output_file = USEP.join([model.test_file, dt_stamp])
     write_frame(df_test, data_dir, output_file, extension, separator, index=False)
 
     # Create crosstabs for any categorical features
@@ -441,9 +441,9 @@ def training_pipeline(alphapy_specs, model):
 
     # Save the model
 
-    date_stamp = get_datestamp()
-    save_predictor(model, 'BEST', date_stamp)
-    save_feature_map(model, date_stamp)
+    dt_stamp = datetime_stamp()
+    save_predictor(model, 'BEST', dt_stamp)
+    save_feature_map(model, dt_stamp)
 
     # Return the model
     return model

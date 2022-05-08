@@ -50,10 +50,9 @@ from streamlit_requests import run_command
 logger = logging.getLogger(__name__)
 
 
-def get_alphapy_groups(server_url):
-    groups = alphapy_request(server_url, 'groups')
-    return groups
-
+#
+# Function get_finviz_screener_groups
+#
 
 def get_finviz_screener_groups():
 
@@ -69,52 +68,63 @@ def get_finviz_screener_groups():
     return stock_df
 
 
-def get_finviz_portfolios():
-    port_name = 'Test'
-    portfolio = Portfolio('scottfree.analytics@scottfreellc.com', 'TS7$@@6dU9Nad@i', port_name)
-    if portfolio:
-        df = pd.DataFrame(portfolio.data)
-        st.write(df)
-    else:
-        error_message = f"Could not find FinViz Portfolio: {port_name}"
-        st.text(error_message)
-    return df
+#
+# Function get_finviz_portfolios
+#
+
+def get_finviz_portfolios(alphapy_specs):
+    finviz_specs = alphapy_specs['finviz']
+    email = finviz_specs['email']
+    api_key = finviz_specs['api_key']
+    portfolios = finviz_specs['portfolios']
+
+    groups = {}
+    for pf in portfolios:
+        portfolio = Portfolio(email, api_key, pf)
+        if portfolio:
+            df = pd.DataFrame(portfolio.data)
+            symbols = df['Ticker'].tolist()
+            groups[pf] = symbols
+        else:
+            error_message = f"Could not find FinViz Portfolio: {pf}"
+            st.text(error_message)
+    return groups
 
 
-def get_market_index_groups():
+#
+# Function get_market_index_groups
+#
+
+@st.cache
+def get_market_index_groups(alphapy_specs):
     url = f"https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
     df = pd.read_csv(url)
     df.loc[df['symbol'] == '^NDX', 'name'] = 'Nasdaq 100'
+    finnhub_client = finnhub.Client(api_key=alphapy_specs['finnhub']['api_key'])
 
-    #finnhub_client = finnhub.Client(api_key="c8m153aad3ie52go4qrg")
-    #print(finnhub_client.indices_const(symbol = "^GSPC"))
+    groups = {}
+    for _, row in df.iterrows():
+        group_symbol = row['symbol']
+        group_name = row['name']
+        group_dict = finnhub_client.indices_const(symbol=group_symbol)
+        groups[group_name] = group_dict['constituents']
+    return groups
 
-    st.write(df)
-    return df
 
+#
+# Function run_project
+#
 
-def app():
- 
-    # Get the AlphaPy environment variable
-
-    alphapy_root = os.environ.get('ALPHAPY_ROOT')
-    if not alphapy_root:
-        root_error_string = "ALPHAPY_ROOT environment variable must be set"
-        logger.info(root_error_string)
-        sys.exit(root_error_string)
-    else:
-        # Read the AlphaPy configuration file
-        alphapy_specs = get_alphapy_config(alphapy_root)
-
-    projects = alphapy_request(alphapy_specs, 'projects')
-    project = st.sidebar.selectbox("Select Project", sorted(projects, key=str.casefold))
+def run_project(alphapy_specs, project):
     project_root = '/'.join([alphapy_specs['mflow']['project_root'], project])
+    model_specs = alphapy_request(alphapy_specs, 'model_config', project_root)
+    market_specs = alphapy_request(alphapy_specs, 'market_config', alphapy_specs, project_root)
 
     text_ap = 'Market Flow'
     text_fs = 'Finviz Screener'
     text_fp = 'Finviz Portfolio'
     text_mi = 'Market Index'
-    screener = st.sidebar.radio("Group", (text_ap, text_fs, text_fp, text_mi))
+    screener = st.sidebar.radio("Group Source", (text_ap, text_fs, text_fp, text_mi))
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -123,23 +133,28 @@ def app():
     elif screener == text_fs:
         groups = get_finviz_screener_groups()
     elif screener == text_fp:
-        groups = get_finviz_portfolios()
+        groups = get_finviz_portfolios(alphapy_specs)
     elif screener == text_mi:
-        groups = get_market_index_groups()
+        groups = get_market_index_groups(alphapy_specs)
 
     group_text = ' '.join(['Select', screener, 'Group'])
     group = col1.selectbox(group_text, groups.keys())
 
-    systems = alphapy_request(alphapy_specs, 'systems')
+    systems = alphapy_request(alphapy_specs, 'systems', alphapy_specs)
     system = col2.selectbox("Select System", systems)
 
-    with col1.expander("View Group Symbols"):
-        df = pd.DataFrame(groups[group].members)
-        df.columns = ['symbol']
-        df['symbol'] = df['symbol'].str.upper()
-        df.sort_values(by=['symbol'], inplace=True)
-        df.reset_index(drop=True, inplace=True)
-        st.write(df)
+    group_container = col1.container()
+    select_all = col1.checkbox("Select all")
+    select_text = "Select one or more symbols:"
+    if screener == text_ap:
+        symbols = sorted(map(lambda x: x.upper(), groups[group].members))
+    else:
+        symbols = sorted(map(lambda x: x.upper(), groups[group]))
+    
+    if select_all:
+        selected_symbols = group_container.multiselect(select_text, symbols, symbols)
+    else:
+        selected_symbols =  group_container.multiselect(select_text, symbols)
 
     with col2.expander("View System Signals"):
         df = pd.DataFrame(systems[system].items(), columns=['signal', 'value'])
@@ -156,15 +171,62 @@ def app():
     with col4.expander(model_text):
         st.write(model_text)
 
-    run_model_text = ' '.join(['Run', 'Model:', project])
-    run_model_button = col1.button(run_model_text)
-
-    run_system_text = ' '.join(['Run', 'System:', system])
-    run_system_button = col1.button(run_system_text)
+    run_model_text = ' '.join(['Run', 'Model', project])
+    run_system_text = ' '.join(['Run', 'System', system])
+    get_model_text = ' '.join(['Get Model', project, 'Results'])
+    get_system_text = ' '.join(['Get System', system, 'Results'])
+    select_action = col1.selectbox("Choose Action",
+                        [None, run_model_text, run_system_text, get_model_text, get_system_text])
 
     today = datetime.now()
     year_ago = today - timedelta(days=365)
     col2.date_input('From', year_ago)
     col3.date_input('To')
 
-    result = run_command(['mflow'], cwd=project_root)
+    status_ph = st.empty()
+    status_ph.info("Status")
+
+    in_progress = 'In Progress:'
+    completed = 'Completed:'
+    if select_action == run_model_text:
+        status_text = ' '.join([in_progress, run_model_text])
+        status_ph.info(status_text)
+        with st.expander('View Log'):
+            result = run_command(['mflow'], project_root)
+        status_ph.info(' '.join([completed, select_action]))
+    elif select_action == run_system_text:
+        status_text = ' '.join([in_progress, run_system_text])
+        status_ph.info(status_text)
+        with st.expander('View Log'):
+            result = run_command(['mflow'], project_root)
+        status_ph.info(' '.join([completed, select_action]))
+    elif select_action == get_model_text:
+        st.info("Model Results Placeholder")
+    elif select_action == get_system_text:
+        st.info("System Results Placeholder")
+
+
+#
+# Main Application
+#
+
+def app():
+ 
+    # Get the AlphaPy environment variable
+
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
+    else:
+        # Read the AlphaPy configuration file
+        alphapy_specs = get_alphapy_config(alphapy_root)
+
+    projects = alphapy_request(alphapy_specs, 'projects', alphapy_specs)
+    projects = sorted(projects, key=str.casefold)
+    projects.insert(0, None)
+    project = st.sidebar.selectbox("Select Project", projects)
+
+    if project:
+        run_project(alphapy_specs, project)
