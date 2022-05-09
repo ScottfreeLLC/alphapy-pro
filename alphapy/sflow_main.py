@@ -696,7 +696,7 @@ def main(args=None):
     # Read model configuration file
 
     directory = '.'
-    model_specs = get_model_config(directory)
+    _, model_specs = get_model_config(directory)
     model_specs['alphapy_root'] = alphapy_root
 
     # Add command line arguments to model specifications

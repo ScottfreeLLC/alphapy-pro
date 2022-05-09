@@ -116,9 +116,14 @@ def get_market_index_groups(alphapy_specs):
 #
 
 def run_project(alphapy_specs, project):
+
+    # Vet the model and market specifications
+
     project_root = '/'.join([alphapy_specs['mflow']['project_root'], project])
-    model_specs = alphapy_request(alphapy_specs, 'model_config', project_root)
-    market_specs = alphapy_request(alphapy_specs, 'market_config', alphapy_specs, project_root)
+    model_specs, _ = alphapy_request(alphapy_specs, 'model_config', project_root)
+    market_specs, _ = alphapy_request(alphapy_specs, 'market_config', alphapy_specs, project_root)
+
+    # Determine the source of market groups
 
     text_ap = 'Market Flow'
     text_fs = 'Finviz Screener'
@@ -140,8 +145,12 @@ def run_project(alphapy_specs, project):
     group_text = ' '.join(['Select', screener, 'Group'])
     group = col1.selectbox(group_text, groups.keys())
 
+    # Select the system to run
+
     systems = alphapy_request(alphapy_specs, 'systems', alphapy_specs)
     system = col2.selectbox("Select System", systems)
+
+    # Select the symbols
 
     group_container = col1.container()
     select_all = col1.checkbox("Select all")
@@ -156,32 +165,36 @@ def run_project(alphapy_specs, project):
     else:
         selected_symbols =  group_container.multiselect(select_text, symbols)
 
-    with col2.expander("View System Signals"):
-        df = pd.DataFrame(systems[system].items(), columns=['signal', 'value'])
-        df.reset_index(drop=True, inplace=True)
-        st.write(df)
+    # Modify any settings
 
-    market_settings = col3.selectbox('Select Market Settings', ['System', 'Portfolio', 'Features'])
+    market_settings = col3.selectbox('Select Market Settings', market_specs.keys())
     market_text = ' '.join(['View', market_settings, 'Settings'])
     with col3.expander(market_text):
         st.write(market_text)
 
-    model_settings = col4.selectbox('Select Model Settings', ['Model', 'Data'])
+    with col3.expander("View System Signals"):
+        df = pd.DataFrame(systems[system].items(), columns=['signal', 'value'])
+        df.reset_index(drop=True, inplace=True)
+        st.write(df)
+
+    model_settings = col4.selectbox('Select Model Settings', model_specs.keys())
     model_text = ' '.join(['View', model_settings, 'Settings'])
     with col4.expander(model_text):
         st.write(model_text)
 
+    # Run the selected action
+
     run_model_text = ' '.join(['Run', 'Model', project])
     run_system_text = ' '.join(['Run', 'System', system])
-    get_model_text = ' '.join(['Get Model', project, 'Results'])
-    get_system_text = ' '.join(['Get System', system, 'Results'])
+    get_model_text = ' '.join(['Model', project, 'Results'])
+    get_system_text = ' '.join(['System', system, 'Results'])
     select_action = col1.selectbox("Choose Action",
                         [None, run_model_text, run_system_text, get_model_text, get_system_text])
 
     today = datetime.now()
     year_ago = today - timedelta(days=365)
     col2.date_input('From', year_ago)
-    col3.date_input('To')
+    col2.date_input('To')
 
     status_ph = st.empty()
     status_ph.info("Status")

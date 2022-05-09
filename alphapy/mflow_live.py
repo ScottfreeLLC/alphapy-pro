@@ -52,11 +52,11 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(console)
 
     # Read model configuration file
-    specs = get_model_config()
+    _, specs = get_model_config()
 
     # Read stock configuration file
 
-    market_specs = get_market_config(alphapy_specs)
+    _, market_specs = get_market_config(alphapy_specs)
     logger.info(market_specs)
 
     # Initialize market prediction pipeline

@@ -655,7 +655,7 @@ def main(args=None):
 
     # Read the model configuration file
 
-    model_specs = get_model_config()
+    _, model_specs = get_model_config()
     model_specs['predict_mode'] = args.predict_mode
 
     # Create directories if necessary

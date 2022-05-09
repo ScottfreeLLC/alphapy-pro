@@ -84,6 +84,8 @@ def get_market_config(alphapy_specs, directory='.'):
 
     Returns
     -------
+    cfg : dict
+        The original configuration specification.
     specs : dict
         The parameters for controlling MarketFlow.
 
@@ -228,15 +230,16 @@ def get_market_config(alphapy_specs, directory='.'):
     try:
         specs['system'] = cfg['system']
         system_name = specs['system']['name']
-        if system_name in systems:
-            specs['system']['longentry'] = alphapy_specs['systems'][system_name]['longentry']
-            specs['system']['longexit'] = alphapy_specs['systems'][system_name]['longexit']
-            specs['system']['shortentry'] = alphapy_specs['systems'][system_name]['shortentry']
-            specs['system']['shortexit'] = alphapy_specs['systems'][system_name]['shortexit']
-        else:
-            raise ValueError("System %s not found in systems.yml" % system_name)
     except:
         raise ValueError("No System Parameters Found")
+
+    if system_name in systems:
+        specs['system']['longentry'] = alphapy_specs['systems'][system_name]['longentry']
+        specs['system']['longexit'] = alphapy_specs['systems'][system_name]['longexit']
+        specs['system']['shortentry'] = alphapy_specs['systems'][system_name]['shortentry']
+        specs['system']['shortexit'] = alphapy_specs['systems'][system_name]['shortexit']
+    else:
+        raise ValueError("System %s not found in systems.yml" % system_name)
 
     #
     # Section: functions
@@ -276,7 +279,7 @@ def get_market_config(alphapy_specs, directory='.'):
     logger.info('target_group     = %s', specs['target_group'])
 
     # Market Specifications
-    return specs
+    return cfg, specs
 
 
 #
@@ -666,7 +669,7 @@ def main(args=None):
 
     # Read model configuration file
 
-    model_specs = get_model_config()
+    _, model_specs = get_model_config()
     model_specs['predict_mode'] = args.predict_mode
     model_specs['predict_date'] = predict_date
     model_specs['train_date'] = train_date
@@ -685,7 +688,7 @@ def main(args=None):
     alphapy_specs = get_alphapy_config(alphapy_root)
 
     # Read market configuration file
-    market_specs = get_market_config(alphapy_specs)
+    _, market_specs = get_market_config(alphapy_specs)
 
     # Create directories if necessary
 

@@ -102,8 +102,8 @@ def request_groups():
 
 @app.get("/market_config")
 def request_market_config(alphapy_specs, project_root):
-    specs = get_market_config(alphapy_specs, project_root)
-    return specs
+    cfg, specs = get_market_config(alphapy_specs, project_root)
+    return cfg, specs
 
 
 #
@@ -112,8 +112,8 @@ def request_market_config(alphapy_specs, project_root):
 
 @app.get("/model_config")
 def request_model_config(project_root):
-    specs = get_model_config(project_root)
-    return specs
+    cfg, specs = get_model_config(project_root)
+    return cfg, specs
 
 
 #

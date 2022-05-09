@@ -234,6 +234,8 @@ def get_model_config(directory='.'):
 
     Returns
     -------
+    cfg : dict
+        The original configuration specifications.
     specs : dict
         The parameters for controlling AlphaPy.
 
@@ -505,7 +507,7 @@ def get_model_config(directory='.'):
     logger.info('verbosity         = %d', specs['verbosity'])
 
     # Specifications to create the model
-    return specs
+    return cfg, specs
 
 
 #
