@@ -435,16 +435,14 @@ def get_google_intraday_data(symbol, lookback_period, fractal):
 # Function get_google_data
 #
 
-def get_google_data(schema, subschema, symbol, intraday_data, data_fractal,
+def get_google_data(schema, symbol, intraday_data, data_fractal,
                     from_date, to_date, lookback_period):
     r"""Get data from Google.
 
     Parameters
     ----------
     schema : str
-        The schema (including any subschema) for this data feed.
-    subschema : str
-        Any subschema for this data feed.
+        The schema for this data feed.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -480,16 +478,14 @@ def get_google_data(schema, subschema, symbol, intraday_data, data_fractal,
 # Function get_iex_data
 #
 
-def get_iex_data(schema, subschema, symbol, intraday_data, data_fractal,
+def get_iex_data(schema, symbol, intraday_data, data_fractal,
                  from_date, to_date, lookback_period):
     r"""Get data from IEX.
 
     Parameters
     ----------
     schema : str
-        The schema (including any subschema) for this data feed.
-    subschema : str
-        Any subschema for this data feed.
+        The schema for this data feed.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -546,16 +542,14 @@ def get_iex_data(schema, subschema, symbol, intraday_data, data_fractal,
 # Function get_pandas_data
 #
 
-def get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
+def get_pandas_data(schema, symbol, intraday_data, data_fractal,
                     from_date, to_date, lookback_period):
     r"""Get Pandas Web Reader data.
 
     Parameters
     ----------
     schema : str
-        The schema (including any subschema) for this data feed.
-    subschema : str
-        Any subschema for this data feed.
+        The schema for this data feed.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -588,65 +582,17 @@ def get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
 
 
 #
-# Function get_quandl_data
-#
-
-def get_quandl_data(schema, subschema, symbol, intraday_data, data_fractal,
-                    from_date, to_date, lookback_period):
-    r"""Get Quandl data.
-
-    Parameters
-    ----------
-    schema : str
-        The schema for this data feed.
-    subschema : str
-        Any subschema for this data feed.
-    symbol : str
-        A valid stock symbol.
-    intraday_data : bool
-        If True, then get intraday data.
-    data_fractal : str
-        Pandas offset alias.
-    from_date : str
-        Starting date for symbol retrieval.
-    to_date : str
-        Ending date for symbol retrieval.
-    lookback_period : int
-        The number of periods of data to retrieve.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        The dataframe containing the market data.
-
-    """
-
-    # Quandl is a special case with subfeeds.
-
-    symbol = SSEP.join([subschema.upper(), symbol.upper()])
-
-    # Call the Pandas Web data reader.
-
-    df = get_pandas_data(schema, subschema, symbol, intraday_data, data_fractal,
-                         from_date, to_date, lookback_period)
-
-    return df
-
-
-#
 # Function get_yahoo_data
 #
 
-def get_yahoo_data(schema, subschema, symbol, intraday_data, data_fractal,
-                    from_date, to_date, lookback_period):
+def get_yahoo_data(schema, symbol, intraday_data, data_fractal,
+                   from_date, to_date, lookback_period):
     r"""Get Yahoo data.
 
     Parameters
     ----------
     schema : str
-        The schema (including any subschema) for this data feed.
-    subschema : str
-        Any subschema for this data feed.
+        The schema for this data feed.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -696,7 +642,7 @@ def get_yahoo_data(schema, subschema, symbol, intraday_data, data_fractal,
             df = yf.download(symbol, start=from_date, end=to_date, threads=False)
         else:
             # use pandas data reader
-            df = get_pandas_data(schema, subschema, symbol.upper(), intraday_data, data_fractal,
+            df = get_pandas_data(schema, symbol.upper(), intraday_data, data_fractal,
                                  from_date, to_date, lookback_period)       
     return df
 
@@ -708,7 +654,6 @@ def get_yahoo_data(schema, subschema, symbol, intraday_data, data_fractal,
 data_dispatch_table = {'google' : get_google_data,
                        'iex'    : get_iex_data,
                        'pandas' : get_pandas_data,
-                       'quandl' : get_quandl_data,
                        'yahoo'  : get_yahoo_data}
 
 
@@ -806,7 +751,6 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
     data_fractal = market_specs['data_fractal']
     feature_fractals = market_specs['fractals']
     from_date = market_specs['data_start_date']
-    subschema = market_specs['subschema']
     to_date = market_specs['data_end_date']
 
     # Unpack model specifications
@@ -845,7 +789,6 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
             df = read_frame(data_directory, fname, extension, separator)
         elif gschema in data_dispatch_table.keys():
             df = data_dispatch_table[gschema](gschema,
-                                              subschema,
                                               symbol,
                                               intraday_data,
                                               data_fractal,

@@ -158,17 +158,10 @@ def get_market_config(alphapy_specs, directory='.'):
     specs['forecast_period'] = cfg['market']['forecast_period']
     specs['predict_history'] = cfg['market']['predict_history']
     specs['schema'] = cfg['market']['schema']
-    specs['subschema'] = cfg['market']['subschema']
-    specs['api_key_name'] = cfg['market']['api_key_name']
-    specs['api_key'] = cfg['market']['api_key']
     specs['subject'] = cfg['market']['subject']
     specs['target_group'] = cfg['market']['target_group']
     specs['create_model'] = cfg['market']['create_model']
     specs['run_system'] = cfg['market']['run_system']
-
-    # Set API Key environment variable
-    if specs['api_key']:
-        os.environ[specs['api_key_name']] = specs['api_key']
 
     #
     # Section: Bar Type, Features and Fractals
@@ -257,8 +250,6 @@ def get_market_config(alphapy_specs, directory='.'):
     #
 
     logger.info('MARKET PARAMETERS:')
-    logger.info('api_key          = %s', specs['api_key'])
-    logger.info('api_key_name     = %s', specs['api_key_name'])
     logger.info('bar_type         = %s', specs['bar_type'])
     logger.info('create_model     = %r', specs['create_model'])
     logger.info('data_directory   = %s', specs['data_directory'])
@@ -274,7 +265,6 @@ def get_market_config(alphapy_specs, directory='.'):
     logger.info('run_system       = %r', specs['run_system'])
     logger.info('schema           = %s', specs['schema'])
     logger.info('subject          = %s', specs['subject'])
-    logger.info('subschema        = %s', specs['subschema'])
     logger.info('system           = %s', specs['system'])
     logger.info('target_group     = %s', specs['target_group'])
 
