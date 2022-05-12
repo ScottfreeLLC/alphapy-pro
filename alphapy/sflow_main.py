@@ -754,7 +754,7 @@ def main(args=None):
     # Derived Variables
     #
 
-    series = space.schema
+    series = space.source
     team1_prefix = 'home'
     team2_prefix = 'away'
     home_team = PSEP.join([team1_prefix, 'team'])
@@ -767,7 +767,7 @@ def main(args=None):
     logger.info("Reading Game Data")
 
     data_dir = SSEP.join([directory, 'data'])
-    file_base = USEP.join([league, space.subject, space.schema, space.fractal])
+    file_base = USEP.join([league, space.subject, space.source, space.fractal])
     df = read_frame(data_dir, file_base, model_specs['extension'], model_specs['separator'])
     logger.info("Total Game Records: %d", df.shape[0])
 

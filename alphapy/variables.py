@@ -675,7 +675,7 @@ def vapply(group, market_specs, vfuncs=None):
 
     gspace = group.space
     gsubject = gspace.subject
-    gschema = gspace.schema
+    gsource = gspace.source
     symbols = [item.lower() for item in group.members]
 
     # Extract market specification fields
@@ -695,7 +695,7 @@ def vapply(group, market_specs, vfuncs=None):
         dfs = []
         for fractal in fractals:
             logger.info("Fractal: %s", fractal)           
-            fspace = Space(gsubject, gschema, fractal)
+            fspace = Space(gsubject, gsource, fractal)
             fname = frame_name(symbol.lower(), fspace)
             if fname in Frame.frames:
                 df = Frame.frames[fname].df
@@ -737,7 +737,7 @@ def vapply(group, market_specs, vfuncs=None):
         first_col = dfj.pop(colsym)
         dfj.insert(0, colsym, first_col)
         # assign global frame for trading
-        tspace = Space(gsubject, gschema, 'ALL')
+        tspace = Space(gsubject, gsource, 'ALL')
         _ = Frame(symbol.lower(), tspace, dfj)
         # append frame to list of dataframes
         dffs.append(dfj)

@@ -30,7 +30,7 @@ from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.frame import write_frame
-from alphapy.globals import MULTIPLIERS, SSEP
+from alphapy.globals import SSEP
 from alphapy.globals import Orders
 from alphapy.space import Space
 
@@ -267,8 +267,6 @@ class Position:
         Total number of trades.
     pdata : pandas DataFrame
         Price data for the given ``name``.
-    multiplier : float
-        Multiple for instrument type (e.g., 1.0 for stocks).
 
     """
     
@@ -294,7 +292,6 @@ class Position:
         self.trades = []
         self.ntrades = 0
         self.pdata = Frame.frames[frame_name(name, space)].df
-        self.multiplier = MULTIPLIERS[space.subject]
 
     # __str__
     
@@ -442,7 +439,6 @@ def valuate_position(position, tdate):
     if tdate in pdata.index:
         cp = pdata.loc[tdate]['close'].astype(float)
         # start valuation
-        multiplier = position.multiplier
         netpos = 0
         tts = 0     # total traded shares
         ttv = 0     # total traded value
@@ -451,16 +447,14 @@ def valuate_position(position, tdate):
             tq = trade.quantity
             netpos = netpos + tq
             tts = tts + abs(tq)
-            tp = trade.price
-            pfactor = tq * multiplier
-            cv = pfactor * cp
+            cv = tq * cp
             cvabs = abs(cv)
             ttv = ttv + cvabs
-            ev = pfactor * tp
+            ev = tq * trade.price
             totalprofit = totalprofit + cv - ev
         position.quantity = netpos
         position.price = cp
-        position.value = abs(netpos) * multiplier * cp
+        position.value = abs(netpos) * cp
         position.profit = totalprofit
         position.costbasis = ttv / tts
         position.netreturn = totalprofit / cvabs - 1.0
@@ -624,8 +618,7 @@ def update_portfolio(p, pos, trade):
     npq = cpq - ppq
     # update portfolio
     p.date = trade.tdate
-    multiplier = pos.multiplier
-    cv = trade.price * multiplier * npq
+    cv = trade.price * npq
     p.cash -= cv
     return p
 
@@ -729,11 +722,10 @@ def balance(p, tdate, cashlevel):
         bweights = bdata / sum(bdata)
     # rebalance
     for i, pos in enumerate(positions):
-        multiplier = pos.multiplier
         bdelta = bweights[i] * pvalue - pos.value
         cp = pos.pdata.loc[tdate]['close']
         tradesize = math.trunc(bdelta / cp)
-        ntv = abs(tradesize) * cp * multiplier
+        ntv = abs(tradesize) * cp
         if tradesize > 0:
             order = Orders.le
         if tradesize < 0:
@@ -922,12 +914,11 @@ def allocate_trade(p, pos, trade):
     if restricted:
         kick_out(p, trade.tdate)
         stop_loss(p, trade.tdate)
-    multiplier = pos.multiplier
     qpold = pos.quantity
     qtrade = trade.quantity
     qpnew = qpold + qtrade
     allocation = abs(qpnew) - abs(qpold)
-    addedvalue = trade.price * multiplier * abs(allocation)
+    addedvalue = trade.price * abs(allocation)
     if restricted:
         cashreserve = mincash * cash
         freemargin = (cash - cashreserve) / margin

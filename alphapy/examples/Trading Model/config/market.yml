@@ -1,5 +1,6 @@
 market:
     create_model    : True
+    data_source     : yahoo
     data_fractal    : 1d
     data_history    : 500
     forecast_period : 1
@@ -7,10 +8,6 @@ market:
     lag_period      : 1
     leaders         : ['gap', 'gapbadown', 'gapbaup', 'gapdown', 'gapup']
     predict_history : 100
-    schema          : yahoo
-    subschema       :
-    api_key_name    :
-    api_key         :
     subject         : stock
     target_group    : test
 

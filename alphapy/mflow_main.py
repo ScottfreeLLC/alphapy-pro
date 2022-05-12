@@ -27,6 +27,8 @@
 #
 
 import warnings
+
+from numpy import source
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -107,7 +109,10 @@ def get_market_config(alphapy_specs, directory='.'):
     # Section: market [this section must be first]
     #
 
+    specs['data_source'] = cfg['market']['data_source']
+
     # Fractals must conform to the pandas offset format
+
     fractal = cfg['market']['data_fractal']
     try:
         data_fractal_td = pd.to_timedelta(fractal)
@@ -157,7 +162,6 @@ def get_market_config(alphapy_specs, directory='.'):
 
     specs['forecast_period'] = cfg['market']['forecast_period']
     specs['predict_history'] = cfg['market']['predict_history']
-    specs['schema'] = cfg['market']['schema']
     specs['subject'] = cfg['market']['subject']
     specs['target_group'] = cfg['market']['target_group']
     specs['create_model'] = cfg['market']['create_model']
@@ -252,6 +256,7 @@ def get_market_config(alphapy_specs, directory='.'):
     logger.info('MARKET PARAMETERS:')
     logger.info('bar_type         = %s', specs['bar_type'])
     logger.info('create_model     = %r', specs['create_model'])
+    logger.info('data_source      = %s', specs['data_source'])
     logger.info('data_directory   = %s', specs['data_directory'])
     logger.info('data_end_date    = %s', specs['data_end_date'])
     logger.info('data_fractal     = %s', specs['data_fractal'])
@@ -263,7 +268,6 @@ def get_market_config(alphapy_specs, directory='.'):
     logger.info('portfolio        = %s', specs['portfolio'])
     logger.info('predict_history  = %s', specs['predict_history'])
     logger.info('run_system       = %r', specs['run_system'])
-    logger.info('schema           = %s', specs['schema'])
     logger.info('subject          = %s', specs['subject'])
     logger.info('system           = %s', specs['system'])
     logger.info('target_group     = %s', specs['target_group'])
@@ -480,13 +484,13 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Get market specifications
 
     create_model = market_specs['create_model']
+    data_source = market_specs['data_source']
     data_history = market_specs['data_history']
     forecast_period = market_specs['forecast_period']
     fractals = market_specs['fractals']
     data_fractal = market_specs['data_fractal']
     functions = market_specs['functions']
     predict_history = market_specs['predict_history']
-    schema = market_specs['schema']
     subject = market_specs['subject']
     target_group = market_specs['target_group']
     run_sys = market_specs['run_system']
@@ -508,7 +512,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Set the target group and space
 
     group = Group.groups[target_group]
-    group.space = Space(subject, schema, trade_fractal)
+    group.space = Space(subject, data_source, trade_fractal)
     logger.info("Group Space: %s", group.space)
     logger.info("All Symbols: %s", group.members)
 

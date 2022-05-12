@@ -33,15 +33,15 @@ from alphapy.globals import USEP
 # Function space_name
 #
 
-def space_name(subject, schema, fractal):
+def space_name(subject, source, fractal):
     r"""Get the namespace string.
 
     Parameters
     ----------
     subject : str
         An identifier for a group of related items.
-    schema : str
-        The data related to the ``subject``.
+    source : str
+        The data source of the ``subject``.
     fractal : str
         The time fractal of the data, e.g., "5m" or "1d".
 
@@ -51,7 +51,7 @@ def space_name(subject, schema, fractal):
         The joined namespace string.
 
     """
-    name = USEP.join([subject, schema, fractal])
+    name = USEP.join([subject, source, fractal])
     return name
     
 
@@ -66,8 +66,8 @@ class Space:
     ----------
     subject : str
         An identifier for a group of related items.
-    schema : str
-        The data related to the ``subject``.
+    source : str
+        The data source of the ``subject``.
     fractal : str
         The time fractal of the data, e.g., "5m" or "1d".
 
@@ -77,14 +77,14 @@ class Space:
     
     def __init__(self,
                  subject = "stock",
-                 schema = "prices",
+                 source = "prices",
                  fractal = "1d"):
         # code
         self.subject = subject
-        self.schema = schema
+        self.source = source
         self.fractal = fractal
         
     # __str__
 
     def __str__(self):
-        return space_name(self.subject, self.schema, self.fractal)
+        return space_name(self.subject, self.source, self.fractal)

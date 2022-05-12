@@ -120,14 +120,6 @@ def get_alphapy_config(alphapy_root):
         specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
     specs['alphapy_root'] = alphapy_root
 
-    # Set API Key environment variables
-
-    for key in specs:
-        item = specs[key]
-        if isinstance(item, dict) and 'api_key_name' in item.keys():
-            if item['api_key']:
-                os.environ[item['api_key_name']] = item['api_key']
-
     #
     # Section: groups
     #
@@ -170,6 +162,27 @@ def get_alphapy_config(alphapy_root):
             Variable(k, v)
     except:
         raise ValueError("No Variables Found")
+
+    #
+    # Section: sources
+    #
+
+    full_path = SSEP.join([alphapy_root, 'config', 'sources.yml'])
+    with open(full_path, 'r') as ymlfile:
+        data_sources = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Getting Data Sources")
+    try:
+        specs['sources'] = data_sources
+    except:
+        raise ValueError("No Data Sources Found")
+
+    # Set API Key environment variables
+
+    for key in data_sources:
+        item = data_sources[key]
+        if item['api_key']:
+            os.environ[item['api_key_name']] = item['api_key']
 
     #
     # Section: system

@@ -435,14 +435,14 @@ def get_google_intraday_data(symbol, lookback_period, fractal):
 # Function get_google_data
 #
 
-def get_google_data(schema, symbol, intraday_data, data_fractal,
+def get_google_data(source, symbol, intraday_data, data_fractal,
                     from_date, to_date, lookback_period):
     r"""Get data from Google.
 
     Parameters
     ----------
-    schema : str
-        The schema for this data feed.
+    source : str
+        The data feed.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -478,14 +478,14 @@ def get_google_data(schema, symbol, intraday_data, data_fractal,
 # Function get_iex_data
 #
 
-def get_iex_data(schema, symbol, intraday_data, data_fractal,
+def get_iex_data(source, symbol, intraday_data, data_fractal,
                  from_date, to_date, lookback_period):
     r"""Get data from IEX.
 
     Parameters
     ----------
-    schema : str
-        The schema for this data feed.
+    source : str
+        The data feed.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -542,14 +542,14 @@ def get_iex_data(schema, symbol, intraday_data, data_fractal,
 # Function get_pandas_data
 #
 
-def get_pandas_data(schema, symbol, intraday_data, data_fractal,
+def get_pandas_data(source, symbol, intraday_data, data_fractal,
                     from_date, to_date, lookback_period):
     r"""Get Pandas Web Reader data.
 
     Parameters
     ----------
-    schema : str
-        The schema for this data feed.
+    source : str
+        The data feed.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -573,7 +573,7 @@ def get_pandas_data(schema, symbol, intraday_data, data_fractal,
     # Call the Pandas Web data reader.
 
     try:
-        df = web.DataReader(symbol, schema, from_date, to_date)
+        df = web.DataReader(symbol, source, from_date, to_date)
     except:
         df = pd.DataFrame()
         logger.info("Could not retrieve %s data with pandas-datareader", symbol.upper())
@@ -585,14 +585,14 @@ def get_pandas_data(schema, symbol, intraday_data, data_fractal,
 # Function get_yahoo_data
 #
 
-def get_yahoo_data(schema, symbol, intraday_data, data_fractal,
+def get_yahoo_data(source, symbol, intraday_data, data_fractal,
                    from_date, to_date, lookback_period):
     r"""Get Yahoo data.
 
     Parameters
     ----------
-    schema : str
-        The schema for this data feed.
+    source : str
+        The data feed.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -633,7 +633,7 @@ def get_yahoo_data(schema, symbol, intraday_data, data_fractal,
             df = pd.DataFrame(body['indicators']['quote'][0], index=dt)
             df = df.loc[:, ('open', 'high', 'low', 'close', 'volume')]
         else:
-            logger.info("Could not get data from %s", schema)
+            logger.info("Could not get data from %s", source)
             logger.info(response_json['error']['code'])
             logger.info(response_json['error']['description'])
     else:
@@ -642,7 +642,7 @@ def get_yahoo_data(schema, symbol, intraday_data, data_fractal,
             df = yf.download(symbol, start=from_date, end=to_date, threads=False)
         else:
             # use pandas data reader
-            df = get_pandas_data(schema, symbol.upper(), intraday_data, data_fractal,
+            df = get_pandas_data(source, symbol.upper(), intraday_data, data_fractal,
                                  from_date, to_date, lookback_period)       
     return df
 
@@ -671,7 +671,7 @@ def assign_global_data(df, symbol, gspace, fractal):
     symbol : str
         Pandas offset alias.
     gspace : alphapy.Space
-        AlphaPy data taxonomy schema and subject.
+        AlphaPy data taxonomy data source and subject.
     fractal : str
         Pandas offset alias.
 
@@ -682,7 +682,7 @@ def assign_global_data(df, symbol, gspace, fractal):
 
     """
     try:
-        space = Space(gspace.subject, gspace.schema, fractal)
+        space = Space(gspace.subject, gspace.source, fractal)
         _ = Frame(symbol.lower(), space, df)
     except:
         logger.error("Could not allocate Frame for: %s", symbol.upper())
@@ -701,7 +701,7 @@ def standardize_data(symbol, gspace, df, fractal, intraday_data):
     symbol : str
         Pandas offset alias.
     gspace : alphapy.Space
-        AlphaPy data taxonomy schema and subject.
+        AlphaPy data taxonomy data source and subject.
     df : pandas.DataFrame
         The raw output dataframe from the market datafeed.
     fractal : str
@@ -762,18 +762,18 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
 
     gspace = group.space
     gsubject = gspace.subject
-    gschema = gspace.schema
+    gsource = gspace.source
 
     # Determine the feed source
 
     if intraday_data:
         # intraday data (date and time)
         logger.info("%s Intraday Data [%s] for %d days",
-                    gschema, data_fractal, lookback_period)
+                    gsource, data_fractal, lookback_period)
     else:
         # daily data or higher (date only)
         logger.info("%s Daily Data [%s] for %d days",
-                    gschema, data_fractal, lookback_period)
+                    gsource, data_fractal, lookback_period)
 
     # Get the data from the specified data feed
 
@@ -782,13 +782,13 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
         logger.info("Getting %s data from %s to %s",
                     symbol.upper(), from_date, to_date)
         # Locate the data source
-        if gschema == 'data':
+        if gsource == 'data':
             # locally stored intraday or daily data
-            dspace = Space(gsubject, gschema, data_fractal)
+            dspace = Space(gsubject, gsource, data_fractal)
             fname = frame_name(symbol.lower(), dspace)
             df = read_frame(data_directory, fname, extension, separator)
-        elif gschema in data_dispatch_table.keys():
-            df = data_dispatch_table[gschema](gschema,
+        elif gsource in data_dispatch_table.keys():
+            df = data_dispatch_table[gsource](gsource,
                                               symbol,
                                               intraday_data,
                                               data_fractal,
@@ -796,7 +796,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                                               to_date,
                                               lookback_period)
         else:
-            logger.error("Unsupported Data Source: %s", gschema)
+            logger.error("Unsupported Data Source: %s", gsource)
         # Now that we have content, standardize the data
         if not df.empty:
             logger.info("Rows: %d [%s]", len(df), data_fractal)

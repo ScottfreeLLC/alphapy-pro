@@ -67,8 +67,7 @@ WILDCARD = '*'
 # Dictionaries
 #
 
-MULTIPLIERS = {'crypto' : 1.0,
-               'stock' : 1.0}
+SUBJECTS = ['crypto', 'etf', 'forex', 'future', 'index', 'option', 'stock']
 
 #
 # Pandas Time Offset Aliases

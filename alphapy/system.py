@@ -200,7 +200,7 @@ def trade_system(model, system, forecast_period, space, intraday, symbol, quanti
     # Read in the price frame for all fractals and variables.
 
     symbol = symbol.lower()
-    tspace = Space(space.subject, space.schema, 'ALL')
+    tspace = Space(space.subject, space.source, 'ALL')
     tframe = Frame.frames[frame_name(symbol, tspace)].df
 
     # Initialize signal dictionary
