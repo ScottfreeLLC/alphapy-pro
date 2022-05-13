@@ -36,11 +36,11 @@ import os
 import pandas as pd
 import streamlit as st
 import sys
-from alphapy.streamlit_requests import run_command
 
-from alphapy_main import get_alphapy_config
-from streamlit_requests import alphapy_request
-from streamlit_requests import run_command
+from alphapy.alphapy_main import get_alphapy_config
+import alphapy.globals as apg
+from alphapy.streamlit_requests import alphapy_request
+from alphapy.streamlit_requests import run_command
 
 
 #
@@ -112,6 +112,39 @@ def get_market_index_groups(alphapy_specs):
 
 
 #
+# Function get_market_inputs
+#
+
+def get_market_inputs(input_dict, select_dict):
+
+    # Define the market inputs map with input type and default values
+
+    inputs_map = {
+        'data_source' : [st.selectbox, select_dict['data_source']],
+        'data_directory' : [st.text_input],
+        'data_fractal' : [st.text_input, '5min'],
+        'data_history' : [st.number_input, 1, 10000],
+        'forecast_period' : [st.number_input, 1, 100],
+        'predict_history' : [st.number_input, 1, 200],
+        'subject' : [st.selectbox, select_dict['subject']],
+        'capital' : [st.number_input, 10000, 1000000],
+        'margin' : [st.number_input, 0.01, 1.0],
+        'max_pos' : [st.number_input, 1, 100],
+        'cost_bps' : [st.number_input, 0.0, 100.0],
+        'algo' : [st.selectbox, select_dict['algo']],
+        'prob_min' : [st.number_input, 0.0, 1.0],
+        'prob_max' : [st.number_input, 0.0, 1.0],
+        'holdperiod' : [st.number_input],
+        'bar_type' : [st.selectbox, select_dict['bar_type']],
+        'fractals' : [st.selectbox, select_dict['fractals']],
+        'features' : [st.multiselect, select_dict['features']]
+        }
+    
+    # Return the mapping information
+    return {k:v for k, v in inputs_map.items() if k in input_dict.keys()}
+
+
+#
 # Function run_project
 #
 
@@ -120,8 +153,8 @@ def run_project(alphapy_specs, project):
     # Vet the model and market specifications
 
     project_root = '/'.join([alphapy_specs['mflow']['project_root'], project])
-    model_specs, _ = alphapy_request(alphapy_specs, 'model_config', project_root)
-    market_specs, _ = alphapy_request(alphapy_specs, 'market_config', alphapy_specs, project_root)
+    model_specs, model_dict = alphapy_request(alphapy_specs, 'model_config', project_root)
+    market_specs, market_dict = alphapy_request(alphapy_specs, 'market_config', alphapy_specs, project_root)
 
     # Determine the source of market groups
 
@@ -142,13 +175,63 @@ def run_project(alphapy_specs, project):
     elif screener == text_mi:
         groups = get_market_index_groups(alphapy_specs)
 
+    # Select the group to test (default market:target_group)
+
+    group_default = market_specs['market']['target_group']
+    group_list = list(groups.keys())
+    group_list.remove(group_default)
+    group_list.insert(0, group_default)
     group_text = ' '.join(['Select', screener, 'Group'])
-    group = col1.selectbox(group_text, groups.keys())
+    group = col1.selectbox(group_text, group_list)
 
-    # Select the system to run
+    # Select the system to run (default system:name)
 
+    system_default = market_specs['system']['name']
     systems = alphapy_request(alphapy_specs, 'systems', alphapy_specs)
-    system = col2.selectbox("Select System", systems)
+    system_list = list(systems.keys())
+    system_list.remove(system_default)
+    system_list.insert(0, system_default)
+    system = col2.selectbox("Select System", system_list)
+
+    with col2.expander("View System Signals"):
+        df = pd.DataFrame(systems[system].items(), columns=['signal', 'value'])
+        df.reset_index(drop=True, inplace=True)
+        st.write(df)
+
+    # Select the date range (market:data_start_date and market:data_end_date)
+    # If the configuration variable market:data_history is set, then calculate the dates.
+
+    start_date_default = market_specs['market']['data_start_date']
+    end_date_default = market_specs['market']['data_end_date']
+    data_history_default = market_specs['market']['data_history']
+    today = datetime.now()
+    if data_history_default and start_date_default and end_date_default:
+        from_date = start_date_default
+        to_date = end_date_default
+    elif data_history_default and start_date_default and not end_date_default:
+        from_date = start_date_default
+        to_date = today
+    elif data_history_default and not start_date_default and end_date_default:
+        from_date = end_date_default - timedelta(days=data_history_default)
+        to_date = end_date_default
+    elif data_history_default and not start_date_default and not end_date_default:
+        from_date = today - timedelta(days=data_history_default)
+        to_date = today
+    elif not data_history_default and start_date_default and end_date_default:
+        from_date = start_date_default
+        to_date = end_date_default
+    elif not data_history_default and start_date_default and not end_date_default:
+        from_date = start_date_default
+        to_date = today
+    elif not data_history_default and not start_date_default and end_date_default:
+        from_date = end_date_default - timedelta(days=365)
+        to_date = end_date_default
+    elif not data_history_default and not start_date_default and not end_date_default:
+        from_date = today - timedelta(days=365)
+        to_date = today
+
+    col2.date_input('From', from_date)
+    col2.date_input('To', to_date)
 
     # Select the symbols
 
@@ -167,17 +250,21 @@ def run_project(alphapy_specs, project):
 
     # Modify any settings
 
-    market_settings = col3.selectbox('Select Market Settings', market_specs.keys())
-    market_text = ' '.join(['View', market_settings, 'Settings'])
+    market_setting = col3.selectbox('Select Market Settings Group', market_specs.keys())
+    select_dict = {}
+    select_dict['data_source'] = alphapy_specs['sources'].keys()
+    select_dict['subject'] = apg.SUBJECTS
+    select_dict['algo'] = market_dict
+    select_dict['bar_type'] = market_dict
+    select_dict['fractals'] = market_dict
+    select_dict['features'] = market_dict
+    market_inputs = get_market_inputs(market_dict, select_dict)
+
+    market_text = ' '.join(['View', market_setting, 'Settings'])
     with col3.expander(market_text):
         st.write(market_text)
 
-    with col3.expander("View System Signals"):
-        df = pd.DataFrame(systems[system].items(), columns=['signal', 'value'])
-        df.reset_index(drop=True, inplace=True)
-        st.write(df)
-
-    model_settings = col4.selectbox('Select Model Settings', model_specs.keys())
+    model_settings = col4.selectbox('Select Model Settings Group', model_specs.keys())
     model_text = ' '.join(['View', model_settings, 'Settings'])
     with col4.expander(model_text):
         st.write(model_text)
@@ -190,11 +277,6 @@ def run_project(alphapy_specs, project):
     get_system_text = ' '.join(['System', system, 'Results'])
     select_action = col1.selectbox("Choose Action",
                         [None, run_model_text, run_system_text, get_model_text, get_system_text])
-
-    today = datetime.now()
-    year_ago = today - timedelta(days=365)
-    col2.date_input('From', year_ago)
-    col2.date_input('To')
 
     status_ph = st.empty()
     status_ph.info("Status")
