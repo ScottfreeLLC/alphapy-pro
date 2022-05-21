@@ -542,11 +542,10 @@ def market_pipeline(alphapy_specs, model, market_specs):
         logger.info("Creating Model")
         # set model targets
         set_model_targets(model, dfs, fractals, system_specs, forecast_period, predict_history)
+        # run the AlphaPy model pipeline
+        model = main_pipeline(alphapy_specs, model)
     else:
-        logger.info("No Model Created")
-
-    # Run the AlphaPy model pipeline
-    model = main_pipeline(alphapy_specs, model)
+        logger.info("Skipping Model")
 
     # Run a system
 

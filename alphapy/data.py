@@ -795,6 +795,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                                               from_date,
                                               to_date,
                                               lookback_period)
+            df = df.copy()
         else:
             logger.error("Unsupported Data Source: %s", gsource)
         # Now that we have content, standardize the data
