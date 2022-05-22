@@ -49,9 +49,8 @@ from alphapy.alphapy_main import get_alphapy_config
 from alphapy.alphapy_main import main_pipeline
 from alphapy.data import get_market_data
 from alphapy.frame import write_frame
-from alphapy.globals import USEP, BarType
+from alphapy.globals import LOFF, ROFF, SSEP, USEP, BarType
 from alphapy.globals import PD_INTRADAY_OFFSETS
-from alphapy.globals import PSEP, SSEP
 from alphapy.group import Group
 from alphapy.model import get_model_config
 from alphapy.model import Model
@@ -355,23 +354,26 @@ def set_model_targets(model, dfs, fractals, system_specs, forecast_period, predi
         first_date = df.index[0]
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol.upper(), first_date, last_date)
-        # shift ROI column back by the number of forecast periods
-        target_roi = USEP.join(['roi', str(forecast_period), fractals[0]])
-        df[target_roi] = df[target_roi].shift(-forecast_period)
-        # filter for signal
-        df_signal = pd.DataFrame()
-        if longentry:
-            col_buy = USEP.join([longentry, fractals[0]])
-            df_buy = df[df[col_buy] == True]
-            df_buy[target] = df_buy[target_roi] > 0.0
-            df_buy.drop(columns=[target_roi], inplace=True)
-            df_signal = pd.concat([df_signal, df_buy])
-        if shortentry:
-            col_sell = USEP.join([shortentry, fractals[0]])
-            df_sell = df[df[col_sell] == True]
-            df_sell[target] = df_sell[target_roi] < 0.0
-            df_sell.drop(columns=[target_roi], inplace=True)
-            df_signal = pd.concat([df_signal, df_sell])
+        if not df.empty:
+            # shift ROI column back by the number of forecast periods
+            target_roi = USEP.join(['roi', str(forecast_period), fractals[0]])
+            df[target_roi] = df[target_roi].shift(-forecast_period)
+            # filter for signal
+            df_signal = pd.DataFrame()
+            if longentry:
+                col_buy = USEP.join([longentry, fractals[0]])
+                df_buy = df[df[col_buy] == True]
+                df_buy[target] = df_buy[target_roi] > 0.0
+                df_buy.drop(columns=[target_roi], inplace=True)
+                df_signal = pd.concat([df_signal, df_buy])
+            if shortentry:
+                col_sell = USEP.join([shortentry, fractals[0]])
+                df_sell = df[df[col_sell] == True]
+                df_sell[target] = df_sell[target_roi] < 0.0
+                df_sell.drop(columns=[target_roi], inplace=True)
+                df_signal = pd.concat([df_signal, df_sell])
+        else:
+            logger.info("%s Dataframe is empty", symbol.upper())
         # get frame subsets
         if predict_mode:
             new_predict = df_signal.loc[(df_signal.index >= split_date) & (df_signal.index <= last_date)]

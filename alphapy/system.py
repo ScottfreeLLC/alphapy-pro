@@ -187,7 +187,7 @@ def trade_system(model, system, forecast_period, space, intraday, symbol, quanti
 
     # Unpack the system parameters.
 
-    algo = system.algo
+    algo = system.algo.lower()
     prob_min = system.prob_min
     prob_max = system.prob_max
     longentry = system.longentry

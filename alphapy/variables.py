@@ -711,9 +711,9 @@ def vapply(group, market_specs, vfuncs=None):
                             logger.debug("%s Variable: %s_%s", symbol.upper(), fractal, v)
                             df = vexec(df, v, vfuncs)
                 else:
-                    raise RuntimeError("Empty Dataframe for %s [%s]" % (symbol, fractal))
+                    logger.info("Empty Dataframe for %s [%s]" % (symbol, fractal))
             else:
-                raise RuntimeError("Dataframe Not Found for %s [%s]" % (symbol, fractal))
+                logger.info("Dataframe Not Found for %s [%s]" % (symbol, fractal))
             # rename the columns
             df = df.add_suffix(USEP + fractal)
             # add the fractal frame to the list

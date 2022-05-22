@@ -1190,7 +1190,8 @@ def generate_metrics(model, partition):
 
     if not expected.empty:
         algolist = copy(model.algolist)
-        algolist.append('BLEND')
+        if len(algolist) > 1:
+            algolist.append('BLEND')
         # get the metrics for each algorithm
         for algo in algolist:
             # get predictions for the given algorithm
@@ -1366,12 +1367,10 @@ def save_predictions(model, partition):
     blend_tag = 'BLEND'
 
     tag_list = []
-    if partition == Partition.train or partition == Partition.train_ts:
-        sort_tag = best_tag.lower()
-        tag_list.append(best_tag)
-    else:
-        sort_tag = blend_tag.lower()
-    tag_list.append(blend_tag)
+    sort_tag = best_tag.lower()
+    tag_list.append(best_tag)
+    if len(model.algolist) > 1:
+        tag_list.append(blend_tag)
     tag_list.extend(model.algolist)
 
     for partition_id in partition_list:
