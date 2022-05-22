@@ -395,6 +395,10 @@ def get_model_config(directory='.'):
     # derivation (rolling) window
     specs['ts_window'] = cfg['model']['time_series']['window']
 
+    if specs['ts_option'] and specs['shuffle']:
+        logger.info("Time Series is enabled, turning off Shuffling")
+        specs['shuffle'] = False
+
     # Section: pipeline
 
     specs['n_jobs'] = cfg['pipeline']['number_jobs']
@@ -876,20 +880,6 @@ def time_series_model(model, algo):
     if model_type == ModelType.classification:
         model.probas[(algo, Partition.train_ts)] = all_probas
 
-    # Fit on the most recent train data and make test predictions
-
-    logger.info("Time Series Test Predictions")
-    train_date = dates_ts.iloc[date_index[-ts_window]]
-    df_X_sub = df_X[df_X[ts_date_index] >= train_date].drop(columns=[ts_date_index]).values
-    df_y_sub = df_y[df_y[ts_date_index] >= train_date][target].values
-
-    est = model.estimators[algo]
-    est.fit(df_X_sub, df_y_sub)
-
-    model.preds[(algo, Partition.test_ts)] = est.predict(model.X_test)
-    if model_type == ModelType.classification:
-        model.probas[(algo, Partition.test_ts)] = est.predict_proba(model.X_test)[:, 1]
-
     # Return the model
     return model
 
@@ -1359,10 +1349,6 @@ def save_predictions(model, partition):
 
     logger.info("Adding Prediction Columns")
 
-    partition_list = [partition]
-    if ts_option and partition == Partition.test:
-        partition_list.insert(0, Partition.test_ts)
-
     best_tag = 'BEST'
     blend_tag = 'BLEND'
 
@@ -1373,13 +1359,12 @@ def save_predictions(model, partition):
         tag_list.append(blend_tag)
     tag_list.extend(model.algolist)
 
-    for partition_id in partition_list:
-        for tag_id in tag_list:
-            pred_name = USEP.join(['pred', datasets[partition_id], tag_id.lower()])
-            df_master[pred_name] = model.preds[(tag_id, partition_id)]
-            if model_type == ModelType.classification:
-                prob_name = USEP.join(['prob', datasets[partition_id], tag_id.lower()])
-                df_master[prob_name] = model.probas[(tag_id, partition_id)]
+    for tag_id in tag_list:
+        pred_name = USEP.join(['pred', datasets[partition], tag_id.lower()])
+        df_master[pred_name] = model.preds[(tag_id, partition)]
+        if model_type == ModelType.classification:
+            prob_name = USEP.join(['prob', datasets[partition], tag_id.lower()])
+            df_master[prob_name] = model.probas[(tag_id, partition)]
 
     # Save ranked predictions
 

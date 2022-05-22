@@ -187,7 +187,7 @@ def trade_system(model, system, forecast_period, space, intraday, symbol, quanti
 
     # Unpack the system parameters.
 
-    algo = system.algo.lower()
+    algo = system.algo
     prob_min = system.prob_min
     prob_max = system.prob_max
     longentry = system.longentry
@@ -212,7 +212,7 @@ def trade_system(model, system, forecast_period, space, intraday, symbol, quanti
 
     # Use model output probabilities as input to the system
 
-    if prob_min or prob_max:
+    if algo and (prob_min or prob_max):
         logger.info("Getting probabilities for %s", symbol.upper())
         # set holding period for model
         holdperiod = forecast_period
@@ -223,7 +223,7 @@ def trade_system(model, system, forecast_period, space, intraday, symbol, quanti
         df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
         # select the probability column for the trading system
         partition_tag = 'test_'
-        prob_col = ''.join(['prob_', partition_tag, algo])
+        prob_col = ''.join(['prob_', partition_tag, algo.lower()])
         df_rank = df_rank.query('symbol==@symbol')
         df_rank.index = pd.to_datetime(df_rank.index)
         # join price with rankings to get probabilities for this symbol

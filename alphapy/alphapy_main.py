@@ -438,27 +438,24 @@ def training_pipeline(alphapy_specs, model):
     # Generate metrics, get the best estimator, generate plots, and save the model.
     #
 
+    def generate_results(model, partition):
+        model = generate_metrics(model, partition)
+        model = select_best_model(model, partition)
+        generate_plots(alphapy_specs, model, partition)
+        model = save_predictions(model, partition)
+
     partition = Partition.train
-    model = generate_metrics(model, partition)
-    model = select_best_model(model, partition)
-    generate_plots(alphapy_specs, model, partition)
-    model = save_predictions(model, partition)
+    generate_results(model, partition)
 
     partition = Partition.test
     if model.test_labels:
-        model = generate_metrics(model, partition)
-        model = select_best_model(model, partition)
-        generate_plots(alphapy_specs, model, partition)
-        model = save_predictions(model, partition)
+        generate_results(model, partition)
     else:
         model = save_predictions(model, partition)
 
-    if ts_option and not shuffle:
+    if ts_option:
         partition = Partition.train_ts
-        model = generate_metrics(model, partition)
-        model = select_best_model(model, partition)
-        generate_plots(alphapy_specs, model, partition)
-        model = save_predictions(model, partition)
+        generate_results(model, partition)
 
     # Save the model
 

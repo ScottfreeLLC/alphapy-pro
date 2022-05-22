@@ -130,7 +130,7 @@ def get_partition_data(model, partition):
         X = model.df_X_ts
         y = model.df_y_ts
     else:
-        raise TypeError('Partition must be train or test')
+        raise ValueError("Invalid Partition: %s", partition)
 
     return X, y
 
