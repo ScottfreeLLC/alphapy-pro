@@ -154,7 +154,7 @@ def run_project(alphapy_specs, project):
 
     project_root = '/'.join([alphapy_specs['mflow']['project_root'], project])
     model_specs, model_dict = alphapy_request(alphapy_specs, 'model_config', project_root)
-    market_specs, market_dict = alphapy_request(alphapy_specs, 'market_config', alphapy_specs, project_root)
+    market_specs, market_dict = alphapy_request(alphapy_specs, 'market_config', project_root)
 
     # Determine the source of market groups
 
@@ -183,20 +183,6 @@ def run_project(alphapy_specs, project):
     group_list.insert(0, group_default)
     group_text = ' '.join(['Select', screener, 'Group'])
     group = col1.selectbox(group_text, group_list)
-
-    # Select the system to run (default system:name)
-
-    system_default = market_specs['system']['name']
-    systems = alphapy_request(alphapy_specs, 'systems', alphapy_specs)
-    system_list = list(systems.keys())
-    system_list.remove(system_default)
-    system_list.insert(0, system_default)
-    system = col2.selectbox("Select System", system_list)
-
-    with col2.expander("View System Signals"):
-        df = pd.DataFrame(systems[system].items(), columns=['signal', 'value'])
-        df.reset_index(drop=True, inplace=True)
-        st.write(df)
 
     # Select the date range (market:data_start_date and market:data_end_date)
     # If the configuration variable market:data_history is set, then calculate the dates.
@@ -272,10 +258,10 @@ def run_project(alphapy_specs, project):
     # Run the selected action
 
     run_model_text = ' '.join(['Run', 'Model', project])
-    run_system_text = ' '.join(['Run', 'System', system])
+    run_system_text = ' '.join(['Run', 'System'])
     get_model_text = ' '.join(['Model', project, 'Results'])
-    get_system_text = ' '.join(['System', system, 'Results'])
-    select_action = col1.selectbox("Choose Action",
+    get_system_text = ' '.join(['System', 'Results'])
+    select_action = col2.selectbox("Choose Action",
                         [None, run_model_text, run_system_text, get_model_text, get_system_text])
 
     status_ph = st.empty()

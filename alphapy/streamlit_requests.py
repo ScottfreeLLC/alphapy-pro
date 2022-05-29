@@ -35,7 +35,6 @@ from mflow_server import request_market_config
 from mflow_server import request_model_config
 from mflow_server import request_paths
 from mflow_server import request_projects
-from mflow_server import request_systems
 
 
 #
@@ -47,8 +46,7 @@ alphapy_dispatcher = {
      'market_config' : request_market_config,
      'model_config'  : request_model_config,
      'paths'         : request_paths,
-     'projects'      : request_projects,
-     'systems'       : request_systems
+     'projects'      : request_projects
 }
 
 

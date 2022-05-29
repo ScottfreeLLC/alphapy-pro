@@ -136,13 +136,13 @@ def get_data(model, partition):
                 logger.info("Found %d records with NaN target values", nan_count)
                 logger.info("Labels (y) for %s will not be used", partition)
             else:
+                logger.info("Labels (y) found for %s", partition)
                 # assign the target column to y
                 df_y = df[target]
                 # encode label only for classification
                 if model_type == ModelType.classification:
                     y = LabelEncoder().fit_transform(df_y)
-                logger.info("Labels (y) found for %s", partition)
-                df_y = pd.DataFrame(y, columns=[target])
+                    df_y = pd.DataFrame(y, columns=[target])
             # drop the target from the original frame
             df = df.drop([target], axis=1)
         else:

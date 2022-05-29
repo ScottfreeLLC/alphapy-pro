@@ -830,8 +830,7 @@ def time_series_model(model, algo):
 
     first_date = dates_ts.iloc[date_index[0]]
     last_date = dates_ts.iloc[date_index[-1]]
-    test2_date = last_date
-    test1_date = dates_ts.iloc[date_index[-ts_forecast]]
+    test_date = last_date
     train2_date = dates_ts.iloc[date_index[-ts_forecast - 1]]
     train1_date = dates_ts.iloc[date_index[-ts_forecast - ts_window]]
 
@@ -843,28 +842,28 @@ def time_series_model(model, algo):
     walk_backward = True
 
     while walk_backward and niters <= ts_backtests:
-        logger.info("%d: Train: [%s, %s], Test: [%s, %s]",
-                    niters, train1_date, train2_date, test1_date, test2_date)
+        logger.info("%d: Train: [%s, %s], Test: [%s]",
+                    niters, train1_date, train2_date, test_date)
         # define train and prediction datasets
         df_X_sub = df_X[(df_X[ts_date_index] >= train1_date) & (df_X[ts_date_index] <= train2_date)]
         df_y_sub = df_y[(df_y[ts_date_index] >= train1_date) & (df_y[ts_date_index] <= train2_date)]
         # fit the model
         est.fit(df_X_sub.drop(columns=[ts_date_index]), df_y_sub[target])
         # make walk-forward predictions
-        df_pred_X = df_X[(df_X[ts_date_index] >= test1_date) & (df_X[ts_date_index] <= test2_date)]
-        df_pred_y = df_y[(df_y[ts_date_index] >= test1_date) & (df_y[ts_date_index] <= test2_date)]
+        df_pred_X = df_X[df_X[ts_date_index] == test_date]
+        df_pred_y = df_y[df_y[ts_date_index] == test_date]
         preds = est.predict(df_pred_X.drop(columns=[ts_date_index]))
         if model_type == ModelType.classification:
             probas = est.predict_proba(df_pred_X.drop(columns=[ts_date_index]))[:, 1]
         # save actuals and predicted
         all_indices.extend(df_pred_y.index)
         all_preds.extend(preds)
-        all_probas.extend(probas)
+        if model_type == ModelType.classification:
+            all_probas.extend(probas)
         if train1_date > first_date:
             # next iteration
             next_index = -niters - ts_forecast
-            test2_date = dates_ts.iloc[date_index[-niters - 1]]
-            test1_date = dates_ts.iloc[date_index[next_index]]
+            test_date = dates_ts.iloc[date_index[-niters - 1]]
             train2_date = dates_ts.iloc[date_index[next_index - 1]]
             train1_date = dates_ts.iloc[date_index[next_index - ts_window]]
             niters += 1
@@ -1349,14 +1348,21 @@ def save_predictions(model, partition):
 
     logger.info("Adding Prediction Columns")
 
-    best_tag = 'BEST'
-    blend_tag = 'BLEND'
-
     tag_list = []
-    sort_tag = best_tag.lower()
-    tag_list.append(best_tag)
+
+    best_tag = 'BEST'
+    condition1 = (partition == Partition.train or partition == Partition.train_ts)
+    condition2 = (partition == Partition.test and model.test_labels)
+    if condition1 or condition2:
+        sort_tag = best_tag
+    else:
+        sort_tag = model.best_algo
+    tag_list.append(sort_tag)
+
+    blend_tag = 'BLEND'
     if len(model.algolist) > 1:
         tag_list.append(blend_tag)
+
     tag_list.extend(model.algolist)
 
     for tag_id in tag_list:
@@ -1370,10 +1376,10 @@ def save_predictions(model, partition):
 
     logger.info("Saving Ranked Predictions")
     if model_type == ModelType.classification:
-        prob_name = USEP.join(['prob', datasets[partition], sort_tag])
+        prob_name = USEP.join(['prob', datasets[partition], sort_tag.lower()])
         df_master.sort_values(prob_name, ascending=False, inplace=True)
     else:
-        pred_name = USEP.join(['pred', datasets[partition], sort_tag])
+        pred_name = USEP.join(['pred', datasets[partition], sort_tag.lower()])
         df_master.sort_values(pred_name, ascending=False, inplace=True)
     output_file = USEP.join(['ranked', datasets[partition], dt_stamp])
     write_frame(df_master, output_dir, output_file, extension, separator)

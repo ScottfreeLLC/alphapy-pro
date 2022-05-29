@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     # Read stock configuration file
 
-    _, market_specs = get_market_config(alphapy_specs)
+    _, market_specs = get_market_config()
     logger.info(market_specs)
 
     # Initialize market prediction pipeline

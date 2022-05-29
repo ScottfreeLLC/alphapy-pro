@@ -60,17 +60,17 @@ class System(object):
     ----------
     name : str
         The system name.
+    system_type : str
+        System is long or short.
+    roi_target : float
+        Target return of the system.
     algo : str
         Abbreviation of the algorithm.
-    longentry : str
-        Name of the conditional feature for a long entry.
-    longexit : str, optional
-        Name of the conditional feature for a long exit.
-    shortentry : str, optional
-        Name of the conditional feature for a short entry.
-    shortexit : str, optional
-        Name of the conditional feature for a short exit.
-    holdperiod : int, optional
+    prob_min : float
+        Minimum probability to enter a position.
+    prob_max : float
+        Maximum probability to enter a position.
+    forecast_period : int
         Holding period of a position.
     fractal : str
         Pandas offset alias.
@@ -95,14 +95,12 @@ class System(object):
     
     def __new__(cls,
                 name,
-                algo,
-                prob_min,
-                prob_max,
-                longentry,
-                longexit = None,
-                shortentry = None,
-                shortexit = None,
-                holdperiod = None,
+                system_type = 'long',
+                roi_target = 0.0,
+                algo = 'xgb',
+                prob_min = 0.0,
+                prob_max = 0.0,
+                forecast_period = 1,
                 fractal = '1D'):
         # create system name
         if name not in System.systems:
@@ -114,25 +112,21 @@ class System(object):
     
     def __init__(self,
                  name,
-                 algo,
-                 prob_min,
-                 prob_max,
-                 longentry,
-                 longexit = None,
-                 shortentry = None,
-                 shortexit = None,
-                 holdperiod = None,
+                 system_type = 'long',
+                 roi_target = 0.0,
+                 algo = 'xgb',
+                 prob_min = 0.0,
+                 prob_max = 0.0,
+                 forecast_period = 1,
                  fractal = '1D'):
         # initialization
         self.name = name
+        self.system_type = system_type
+        self.roi_target = roi_target
         self.algo = algo
         self.prob_min = prob_min
         self.prob_max = prob_max
-        self.longentry = longentry
-        self.longexit = longexit
-        self.shortentry = shortentry
-        self.shortexit = shortexit
-        self.holdperiod = holdperiod
+        self.forecast_period = forecast_period
         self.fractal = fractal
         # add system to systems list
         System.systems[name] = self
@@ -147,17 +141,17 @@ class System(object):
 # Function trade_system
 #
 
-def trade_system(model, system, forecast_period, space, intraday, symbol, quantity):
+def trade_system(system, forecast_period, df_rank, space, intraday, symbol, quantity):
     r"""Trade the given system.
 
     Parameters
     ----------
-    model : alphapy.Model
-        The model object with specifications.
     system : alphapy.System
         The long/short system to run.
     forecast_period : int
         The number of bars in the prediction.
+    df_rank : pd.DataFrame
+        The dataframe containing the ranked predictions.
     space : alphapy.Space
         Namespace of all variables over all fractals.
     intraday : bool
@@ -179,22 +173,12 @@ def trade_system(model, system, forecast_period, space, intraday, symbol, quanti
 
     """
 
-    # Unpack the model data.
-
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    separator = model.specs['separator']
-
     # Unpack the system parameters.
 
+    system_type = system.system_type
     algo = system.algo
     prob_min = system.prob_min
     prob_max = system.prob_max
-    longentry = system.longentry
-    longexit = system.longexit
-    shortentry = system.shortentry
-    shortexit = system.shortexit
-    holdperiod = system.holdperiod
     fractal = system.fractal
 
     # Read in the price frame for all fractals and variables.
@@ -203,78 +187,59 @@ def trade_system(model, system, forecast_period, space, intraday, symbol, quanti
     tspace = Space(space.subject, space.source, 'ALL')
     tframe = Frame.frames[frame_name(symbol, tspace)].df
 
-    # Initialize signal dictionary
-
-    signals = {'longentry'  : longentry,
-               'longexit'   : longexit,
-               'shortentry' : shortentry,
-               'shortexit'  : shortexit}
-
     # Use model output probabilities as input to the system
 
-    if algo and (prob_min or prob_max):
-        logger.info("Getting probabilities for %s", symbol.upper())
-        # set holding period for model
-        holdperiod = forecast_period
-        # read the rankings frame for the given symbol
-        rank_dir = SSEP.join([directory, 'output'])
-        file_path = most_recent_file(rank_dir, 'ranked_test*')
-        file_name = file_path.split(SSEP)[-1].split('.')[0]
-        df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
-        # select the probability column for the trading system
-        partition_tag = 'test_'
-        prob_col = ''.join(['prob_', partition_tag, algo.lower()])
-        df_rank = df_rank.query('symbol==@symbol')
-        df_rank.index = pd.to_datetime(df_rank.index)
-        # join price with rankings to get probabilities for this symbol
-        tframe = tframe.merge(df_rank[prob_col], how='left', left_index=True, right_index=True)
-        tframe[prob_col].fillna(0.5, inplace=True)
-        # substitute actual probability column into signal
-        for key in signals.keys():
-            if signals[key] and (key == 'longentry' or key == 'shortentry'):
-                if prob_min and prob_max:
-                    lhs = BSEP.join(['(', prob_col, '>=', str(prob_min), ')'])
-                    rhs = BSEP.join(['(', prob_col, '<=', str(prob_max), ')'])
-                    expr = BSEP.join([key, '=', lhs, '&', rhs])
-                elif prob_min:
-                    expr = BSEP.join([key, '=', prob_col, '>=', str(prob_min)])
-                elif prob_max:
-                    expr = BSEP.join([key, '=', prob_col, '<=', str(prob_max)])
-                tframe.eval(expr, inplace=True)
-    else:
-        for key in signals.keys():
-            vname = signals[key]
-            if vname:
-                vname_frac = USEP.join([vname, fractal])
-                tframe[key] = tframe[vname_frac]
+    logger.info("Getting probabilities for %s", symbol.upper())
+
+    # extract the rankings frame for the given symbol
+
+    df_rank = df_rank.query('symbol==@symbol')
+    df_rank.index = pd.to_datetime(df_rank.index)
+
+    # entry probability function
+
+    def assign_entry(df, key, prob_col, prob_min, prob_max):
+        if prob_min and prob_max:
+            lhs = BSEP.join(['(', prob_col, '>=', str(prob_min), ')'])
+            rhs = BSEP.join(['(', prob_col, '<=', str(prob_max), ')'])
+            expr = BSEP.join([key, '=', lhs, '&', rhs])
+        elif prob_min:
+            expr = BSEP.join([key, '=', prob_col, '>=', str(prob_min)])
+        elif prob_max:
+            expr = BSEP.join([key, '=', prob_col, '<=', str(prob_max)])
+        df = df.eval(expr)
+        return df
+
+    # evaluate entries by joining price with ranked probabilities
+
+    partition_tag = 'test_'
+    pcol = ''.join(['prob_', partition_tag, algo.lower()])
+    tframe = tframe.merge(df_rank[pcol], how='left', left_index=True, right_index=True)
+    tframe[pcol].fillna(0.5, inplace=True)
+    entry_name = 'short_entry' if system_type == 'short' else 'long_entry'
+    tframe = assign_entry(tframe, entry_name, pcol, prob_min, prob_max)
 
     # Initialize trading state variables
 
     inlong = False
     inshort = False
-    hold = 0
     psize = 0
     q = quantity
+    hold = 0
     tradelist = []
 
     # Loop through prices and generate trades
 
     ccol = USEP.join(['close', fractal])
-    hcol = USEP.join(['high', fractal])
-    lcol = USEP.join(['low', fractal])
     icol = USEP.join(['endofday', fractal])
 
     for dt, row in tframe.iterrows():
         # get prices for this row
         c = row[ccol]
-        h = row[hcol]
-        l = row[lcol]
         end_of_day = row[icol] if intraday else False
         # evaluate entry and exit conditions
-        lerow = row['longentry'] if longentry else None
-        lxrow = row['longexit'] if longexit else None
-        serow = row['shortentry'] if shortentry else None
-        sxrow = row['shortexit'] if shortexit else None
+        lerow = row['long_entry'] if system_type == 'long' else None
+        serow = row['short_entry'] if system_type == 'short' else None
         # process the long and short events
         if lerow:
             if inshort:
@@ -300,21 +265,8 @@ def trade_system(model, system, forecast_period, space, intraday, symbol, quanti
                 tradelist.append((dt, [symbol, Orders.se, -q, c]))
                 inshort = True
                 psize = psize - q
-        # check exit conditions
-        if inlong and hold > 0 and lxrow:
-            # long active, so exit long
-            tradelist.append((dt, [symbol, Orders.lx, -psize, c]))
-            inlong = False
-            hold = 0
-            psize = 0
-        if inshort and hold > 0 and sxrow:
-            # short active, so exit short
-            tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
-            inshort = False
-            hold = 0
-            psize = 0
         # Exit when holding period is reached
-        if holdperiod and hold >= holdperiod:
+        if hold >= forecast_period:
             if inlong:
                 tradelist.append((dt, [symbol, Orders.lh, -psize, c]))
                 inlong = False
@@ -389,12 +341,20 @@ def run_system(model,
     gmembers = group.members
     gspace = group.space
 
+    # Get the latest rankings frame.
+
+    rank_dir = SSEP.join([directory, 'output'])
+    file_path = most_recent_file(rank_dir, 'ranked_test*')
+    file_name = file_path.split(SSEP)[-1].split('.')[0]
+    df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
+
     # Run the system for each member of the group
 
     gtlist = []
     for symbol in gmembers:
         # generate the trades for this member
-        tlist = trade_system(model, system, forecast_period, gspace, intraday, symbol, quantity)
+        tlist = trade_system(system, forecast_period, df_rank, gspace,
+                             intraday, symbol, quantity)
         if tlist:
             # add trades to global trade list
             for item in tlist:

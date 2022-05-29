@@ -162,24 +162,24 @@ def generate_plots(alphapy_specs, model, partition):
 
     # Extract model parameters
 
-    calibration_plot = model.specs['calibration_plot']
-    confusion_matrix = model.specs['confusion_matrix']
-    importances = model.specs['importances']
-    learning_curve = model.specs['learning_curve']
-    roc_curve = model.specs['roc_curve']
+    calibration_plot_flag = model.specs['calibration_plot']
+    confusion_matrix_flag = model.specs['confusion_matrix']
+    importances_flag = model.specs['importances']
+    learning_curve_flag = model.specs['learning_curve']
+    roc_curve_flag = model.specs['roc_curve']
 
     # Generate plots
 
-    if calibration_plot:
+    if calibration_plot_flag:
         plot_calibration(model, partition)
-    if confusion_matrix:
+    if confusion_matrix_flag:
         plot_confusion_matrix(model, partition)
-    if roc_curve:
+    if roc_curve_flag:
         plot_roc_curve(model, partition)
     if partition == Partition.train:
-        if learning_curve:
+        if learning_curve_flag:
             plot_learning_curve(alphapy_specs, model, partition)
-        if importances:
+        if importances_flag:
             plot_importance(model, partition)
 
 
@@ -459,6 +459,12 @@ def plot_learning_curve(alphapy_specs, model, partition):
     logger.info("Generating Learning Curves")
     plot_dir = get_plot_directory(model)
     pstring = datasets[partition]
+
+    # For classification only
+
+    if model.specs['model_type'] != ModelType.classification:
+        logger.info('Learning Curve plot is for classification only')
+        return None
 
     # Extract model parameters.
 

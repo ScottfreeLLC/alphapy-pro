@@ -185,20 +185,6 @@ def get_alphapy_config(alphapy_root):
             os.environ[item['api_key_name']] = item['api_key']
 
     #
-    # Section: system
-    #
-
-    full_path = SSEP.join([alphapy_root, 'config', 'systems.yml'])
-    with open(full_path, 'r') as ymlfile:
-        system_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
-
-    logger.info("Creating Systems")
-    try:
-        specs['systems'] = system_specs
-    except:
-        raise ValueError("No System Parameters Found")
-
-    #
     # Log the AlphaPy parameters
     #
 

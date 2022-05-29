@@ -101,8 +101,8 @@ def request_groups():
 #
 
 @app.get("/market_config")
-def request_market_config(alphapy_specs, project_root):
-    cfg, specs = get_market_config(alphapy_specs, project_root)
+def request_market_config(project_root):
+    cfg, specs = get_market_config(project_root)
     return cfg, specs
 
 
@@ -141,15 +141,6 @@ def request_projects(alphapy_specs):
         path_str = str(path).split('/')
         projects.append(path_str[-3])
     return projects
-
-
-#
-# Get systems
-#
-
-@app.get("/systems")
-def request_systems(alphapy_specs):
-    return alphapy_specs['systems']
 
 
 #

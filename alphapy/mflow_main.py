@@ -73,13 +73,11 @@ logger = logging.getLogger(__name__)
 # Function get_market_config
 #
 
-def get_market_config(alphapy_specs, directory='.'):
+def get_market_config(directory='.'):
     r"""Read the configuration file for MarketFlow.
 
     Parameters
     ----------
-    alphapy_specs : dict
-        The specifications for AlphaPy.
     directory : str
         The location of the configuration file.
 
@@ -222,20 +220,10 @@ def get_market_config(alphapy_specs, directory='.'):
 
     logger.info("Getting System Parameters")
 
-    systems = [x for x in alphapy_specs['systems']]
     try:
         specs['system'] = cfg['system']
-        system_name = specs['system']['name']
     except:
         raise ValueError("No System Parameters Found")
-
-    if system_name in systems:
-        specs['system']['longentry'] = alphapy_specs['systems'][system_name]['longentry']
-        specs['system']['longexit'] = alphapy_specs['systems'][system_name]['longexit']
-        specs['system']['shortentry'] = alphapy_specs['systems'][system_name]['shortentry']
-        specs['system']['shortexit'] = alphapy_specs['systems'][system_name]['shortexit']
-    else:
-        raise ValueError("System %s not found in systems.yml" % system_name)
 
     #
     # Section: functions
@@ -279,7 +267,7 @@ def get_market_config(alphapy_specs, directory='.'):
 # Function set_model_targets
 #
 
-def set_model_targets(model, dfs, fractals, system_specs, forecast_period, predict_history):
+def set_model_targets(model, dfs, fractals, forecast_period, predict_history):
     r"""Set the model return targets.
 
     First, the target value is lagged for the ``forecast_period``. Each frame
@@ -292,8 +280,6 @@ def set_model_targets(model, dfs, fractals, system_specs, forecast_period, predi
         The model specifications.
     dfs : list
         The list of pandas dataframes to analyze.
-    system_specs : dict
-        The system specifications containing the signals.
     fractals : list
         List of Pandas offset aliases.
     forecast_period : int
@@ -317,11 +303,6 @@ def set_model_targets(model, dfs, fractals, system_specs, forecast_period, predi
     separator = model.specs['separator']
     target = model.specs['target']
     train_date = model.specs['train_date']
-
-    # Unpack system specifications
-
-    longentry = system_specs['longentry']
-    shortentry = system_specs['shortentry']
 
     # Calculate split date
 
@@ -357,57 +338,44 @@ def set_model_targets(model, dfs, fractals, system_specs, forecast_period, predi
         if not df.empty:
             # shift ROI column back by the number of forecast periods
             target_roi = USEP.join(['roi', str(forecast_period), fractals[0]])
-            df[target_roi] = df[target_roi].shift(-forecast_period)
-            # filter for signal
-            df_signal = pd.DataFrame()
-            if longentry:
-                col_buy = USEP.join([longentry, fractals[0]])
-                df_buy = df[df[col_buy] == True]
-                df_buy[target] = df_buy[target_roi] > 0.0
-                df_buy.drop(columns=[target_roi], inplace=True)
-                df_signal = pd.concat([df_signal, df_buy])
-            if shortentry:
-                col_sell = USEP.join([shortentry, fractals[0]])
-                df_sell = df[df[col_sell] == True]
-                df_sell[target] = df_sell[target_roi] < 0.0
-                df_sell.drop(columns=[target_roi], inplace=True)
-                df_signal = pd.concat([df_signal, df_sell])
+            df[target] = df[target_roi].shift(-forecast_period)
+            df.drop(columns=[target_roi], inplace=True)
+            # get frame subsets
+            if predict_mode:
+                new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)]
+                if len(new_predict) > 0:
+                    predict_frame = predict_frame.append(new_predict)
+                else:
+                    logger.info("%s Prediction Frame has zero rows. Check prediction date.", symbol.upper())
+            else:
+                # split data into train and test
+                new_train = df.loc[(df.index >= train_date) & (df.index < predict_date)]
+                if not new_train.empty:
+                    # check if target column has NaN values
+                    nan_count = new_train[target].isnull().sum()
+                    if nan_count > 0:
+                        logger.info("%s has %d train records with a NaN target.", symbol.upper(), nan_count)
+                    # drop records with NaN values in target column
+                    new_train = new_train.dropna(subset=[target])
+                    train_frame = train_frame.append(new_train)
+                    # get test frame
+                    new_test = df.loc[(df.index >= predict_date) & (df.index <= last_date)]
+                    if not new_test.empty:
+                        # check if target column has NaN values
+                        nan_count = new_test[target].isnull().sum()
+                        forecast_check = forecast_period - 1
+                        if nan_count != forecast_check:
+                            logger.info("%s has %d test records with a NaN target.", symbol.upper(), nan_count)
+                        # drop records with NaN values in target column
+                        new_test = new_test.dropna(subset=[target])
+                        # append selected records to the test frame
+                        test_frame = test_frame.append(new_test)
+                    else:
+                        logger.info("%s Testing Frame has zero rows. Check prediction date.", symbol.upper())
+                else:
+                    logger.info("%s Training Frame has zero rows. Check data source.", symbol.upper())
         else:
             logger.info("%s Dataframe is empty", symbol.upper())
-        # get frame subsets
-        if predict_mode:
-            new_predict = df_signal.loc[(df_signal.index >= split_date) & (df_signal.index <= last_date)]
-            if len(new_predict) > 0:
-                predict_frame = predict_frame.append(new_predict)
-            else:
-                logger.info("%s Prediction Frame has zero rows. Check prediction date.", symbol.upper())
-        else:
-            # split data into train and test
-            new_train = df_signal.loc[(df_signal.index >= train_date) & (df_signal.index < predict_date)]
-            if not new_train.empty:
-                # check if target column has NaN values
-                nan_count = new_train[target].isnull().sum()
-                if nan_count > 0:
-                    logger.info("%s has %d train records with a NaN target.", symbol.upper(), nan_count)
-                # drop records with NaN values in target column
-                new_train = new_train.dropna(subset=[target])
-                train_frame = train_frame.append(new_train)
-                # get test frame
-                new_test = df_signal.loc[(df_signal.index >= predict_date) & (df_signal.index <= last_date)]
-                if not new_test.empty:
-                    # check if target column has NaN values
-                    nan_count = new_test[target].isnull().sum()
-                    forecast_check = forecast_period - 1
-                    if nan_count != forecast_check:
-                        logger.info("%s has %d test records with a NaN target.", symbol.upper(), nan_count)
-                    # drop records with NaN values in target column
-                    new_test = new_test.dropna(subset=[target])
-                    # append selected records to the test frame
-                    test_frame = test_frame.append(new_test)
-                else:
-                    logger.info("%s Testing Frame has zero rows. Check prediction date.", symbol.upper())
-            else:
-                logger.info("%s Training Frame has zero rows. Check data source.", symbol.upper())
 
     # Convert column names from special characters
 
@@ -501,14 +469,11 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     system_specs = market_specs['system']
     system_name = system_specs['name']
+    system_type = system_specs['type']
+    roi_target = system_specs['roi_target']
     algo = system_specs['algo']
     prob_min = system_specs['prob_min']
     prob_max = system_specs['prob_max']
-    longentry = system_specs['longentry']
-    longexit = system_specs['longexit']
-    shortentry = system_specs['shortentry']
-    shortexit = system_specs['shortexit']
-    holdperiod = system_specs['holdperiod']
     trade_fractal = fractals[0]
 
     # Set the target group and space
@@ -531,11 +496,8 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Apply the features to all frames.
 
     target_roi = USEP.join(['roi', str(forecast_period)])
-    market_specs['features'][trade_fractal].append(target_roi)
-    if longentry:
-        market_specs['features'][trade_fractal].append(longentry)
-    if shortentry:
-        market_specs['features'][trade_fractal].append(shortentry)
+    if target_roi not in market_specs['features'][trade_fractal]:
+        market_specs['features'][trade_fractal].append(target_roi)
     dfs = vapply(group, market_specs, functions)
 
     # Run an analysis to create the model.
@@ -543,7 +505,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
     if create_model:
         logger.info("Creating Model")
         # set model targets
-        set_model_targets(model, dfs, fractals, system_specs, forecast_period, predict_history)
+        set_model_targets(model, dfs, fractals, forecast_period, predict_history)
         # run the AlphaPy model pipeline
         model = main_pipeline(alphapy_specs, model)
     else:
@@ -552,20 +514,17 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Run a system
 
     if run_sys:
-        logger.info("Running System %s", system_name)
+        logger.info("Running System: %s", system_name)
+        logger.info("System Type      : %s", system_type)
+        logger.info("Return Target    : %s", roi_target)
         logger.info("Algorithm        : %s", algo)
-        logger.info("Probability Min  : %s", prob_min)
-        logger.info("Probability Max  : %s", prob_max)
-        logger.info("Long Entry       : %s", longentry)
-        logger.info("Long Exit        : %s", longexit)
-        logger.info("Short Entry      : %s", shortentry)
-        logger.info("Short Exit       : %s", shortexit)
-        logger.info("Hold Period      : %s", holdperiod)
-        logger.info("Fractal          : %s", trade_fractal)
+        logger.info("Prob Minimum     : %s", prob_min)
+        logger.info("Prob Maximum     : %s", prob_max)
+        logger.info("Forecast Period  : %s", forecast_period)
+        logger.info("Trade Fractal    : %s", trade_fractal)
         # create and run the system
-        system = System(system_name, algo, prob_min, prob_max,
-                        longentry, longexit, shortentry, shortexit,
-                        holdperiod, trade_fractal)
+        system = System(system_name, system_type, roi_target, algo, prob_min,
+                        prob_max, forecast_period, trade_fractal)
         tfs = run_system(model, system, forecast_period, group, intraday)
         # generate a portfolio
         if tfs.empty:
@@ -683,7 +642,7 @@ def main(args=None):
     alphapy_specs = get_alphapy_config(alphapy_root)
 
     # Read market configuration file
-    _, market_specs = get_market_config(alphapy_specs)
+    _, market_specs = get_market_config()
 
     # Create directories if necessary
 
