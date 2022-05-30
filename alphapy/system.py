@@ -211,13 +211,16 @@ def trade_system(system, forecast_period, df_rank, ts_flag,
     # evaluate entries by joining price with ranked probabilities
 
     partition_tag = 'test'
-    ts_tag = 'ts' if ts_flag else ''
-    pcol = USEP.join(['prob', partition_tag, ts_tag, algo.lower()])
+    if ts_flag:
+        pcol = USEP.join(['prob', partition_tag, 'ts', algo.lower()])
+    else:
+        pcol = USEP.join(['prob', partition_tag, algo.lower()])
     tframe = tframe.merge(df_rank[pcol], how='left', left_index=True, right_index=True)
-    tframe[pcol].fillna(0.5, inplace=True)
-    entry_name = 'short_entry' if system_type == 'short' else 'long_entry'
-    tframe = assign_entry(tframe, entry_name, pcol, prob_min, prob_max)
-
+    df_rank[pcol].fillna(0.5, inplace=True)
+    if system_type == 'short':
+        df_rank[pcol] = 1.0 - df_rank[pcol]
+    tframe = assign_entry(tframe, system_type, pcol, prob_min, prob_max)
+ 
     # Initialize trading state variables
 
     inlong = False
@@ -237,8 +240,8 @@ def trade_system(system, forecast_period, df_rank, ts_flag,
         c = row[ccol]
         end_of_day = row[icol] if intraday else False
         # evaluate entry and exit conditions
-        lerow = row['long_entry'] if system_type == 'long' else None
-        serow = row['short_entry'] if system_type == 'short' else None
+        lerow = row['long'] if system_type == 'long' else None
+        serow = row['short'] if system_type == 'short' else None
         # process the long and short events
         if lerow:
             if inshort:

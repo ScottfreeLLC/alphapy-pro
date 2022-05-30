@@ -891,9 +891,10 @@ def time_series_model(model, algo):
     est = model.estimators[algo]
     est.fit(df_X_sub, df_y_sub)
 
-    model.preds[(algo, Partition.test_ts)] = est.predict(model.X_test)
+    partition = Partition.test_ts
+    model.preds[(algo, partition)] = est.predict(model.X_test)
     if model_type == ModelType.classification:
-        model.probas[(algo, Partition.test_ts)] = est.predict_proba(model.X_test)[:, 1]
+        model.probas[(algo, partition)] = est.predict_proba(model.X_test)[:, 1]
 
     # Return the model
     return model
@@ -1337,7 +1338,6 @@ def save_predictions(model, partition):
     separator = model.specs['separator']
     submission_file = model.specs['submission_file']
     submit_probas = model.specs['submit_probas']
-    ts_option = model.specs['ts_option']
 
     # Get date stamp to record file creation
     dt_stamp = datetime_stamp()
@@ -1370,7 +1370,7 @@ def save_predictions(model, partition):
 
     best_tag = 'BEST'
     condition1 = (partition == Partition.train or partition == Partition.train_ts)
-    condition2 = (partition == Partition.test and model.test_labels)
+    condition2 = (partition == Partition.test or partition == Partition.test_ts) and model.test_labels
     if condition1 or condition2:
         sort_tag = best_tag
     else:
