@@ -778,6 +778,8 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
     # Get the data from the specified data feed
 
     df = pd.DataFrame()
+    remove_list = []
+
     for symbol in group.members:
         logger.info("Getting %s data from %s to %s",
                     symbol.upper(), from_date, to_date)
@@ -837,4 +839,11 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
                     df_rs = standardize_data(symbol, gspace, df_rs, ff, intraday_fractal)
         else:
             logger.info("No DataFrame for %s", symbol.upper())
+            remove_list.append(symbol)
+
+    # Remove any group members not found
+
+    if remove_list:
+        group.remove(remove_list)
+
     return

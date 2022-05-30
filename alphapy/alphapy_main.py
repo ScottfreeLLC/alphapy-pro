@@ -442,6 +442,11 @@ def training_pipeline(alphapy_specs, model):
     if ts_option:
         partition = Partition.train_ts
         generate_results(model, partition)
+        partition = Partition.test_ts
+        if model.test_labels:
+            generate_results(model, partition)
+        else:
+            model = save_predictions(model, partition)
 
     # Save the model
 

@@ -128,10 +128,6 @@ class Model:
         Original test features.
     df_y_test  : pandas.Series
         Original test target.
-    df_X_ts  : pandas.DataFrame
-        Original time series frame.
-    df_y_ts  : pandas.Series
-        Original time series target.
     X_train : pandas.DataFrame
         Selected train features in matrix format.
     y_train : pandas.Series
@@ -140,6 +136,10 @@ class Model:
         Selected test features in matrix format.
     y_test  : pandas.Series
         Test labels in vector format.
+    X_train_ts  : pandas.DataFrame
+        Time series training frame.
+    y_train_ts  : pandas.Series
+        Time series target.
     algolist : list
         Algorithms to use in training.
     estimators : dict
@@ -176,12 +176,14 @@ class Model:
         self.df_y_train = None
         self.df_X_test = None
         self.df_y_test = None
-        self.df_X_ts = None
-        self.df_y_ts = None
+        # transformed train/test
         self.X_train = None
         self.y_train = None
         self.X_test = None
         self.y_test = None
+        # time series train/test
+        self.X_train_ts = None
+        self.y_train_ts = None
         # test labels
         self.test_labels = False
         # datasets
@@ -872,12 +874,26 @@ def time_series_model(model, algo):
 
     # Store the time series dataframes and training predictions
 
-    model.df_X_ts = model.df_X_train.loc[all_indices]
-    model.df_y_ts = model.df_y_train.loc[all_indices]
+    model.X_train_ts = model.df_X_train.loc[all_indices]
+    model.y_train_ts = model.df_y_train.loc[all_indices]
 
     model.preds[(algo, Partition.train_ts)] = all_preds
     if model_type == ModelType.classification:
         model.probas[(algo, Partition.train_ts)] = all_probas
+
+    # Fit on the most recent train data and make test predictions
+
+    logger.info("Time Series Test Predictions")
+    train_date = dates_ts.iloc[date_index[-ts_window]]
+    df_X_sub = df_X[df_X[ts_date_index] >= train_date].drop(columns=[ts_date_index]).values
+    df_y_sub = df_y[df_y[ts_date_index] >= train_date][target].values
+
+    est = model.estimators[algo]
+    est.fit(df_X_sub, df_y_sub)
+
+    model.preds[(algo, Partition.test_ts)] = est.predict(model.X_test)
+    if model_type == ModelType.classification:
+        model.probas[(algo, Partition.test_ts)] = est.predict_proba(model.X_test)[:, 1]
 
     # Return the model
     return model
@@ -1171,7 +1187,9 @@ def generate_metrics(model, partition):
     elif partition == Partition.test:
         expected = model.y_test
     elif partition == Partition.train_ts:
-        expected = model.df_y_ts
+        expected = model.y_train_ts
+    elif partition == Partition.test_ts:
+        expected = model.y_test
     else:
         raise ValueError("Invalid Partition: %s", partition)
 
@@ -1201,7 +1219,7 @@ def generate_metrics(model, partition):
                 except:
                     logger.info("Balanced Accuracy Score not calculated")
                 try:
-                    model.metrics[(algo, partition, 'brier_score_loss')] = brier_score_loss(expected, probas)
+                    model.metrics[(algo, partition, 'neg_brier_score')] = brier_score_loss(expected, probas)
                 except:
                     logger.info("Brier Score not calculated")
                 try:
@@ -1334,13 +1352,13 @@ def save_predictions(model, partition):
     df_master = pd.DataFrame()
     if partition == Partition.train:
         df_master = pd.concat([model.df_X_train, model.df_y_train], axis=1)
-    elif partition == Partition.test:
+    elif partition == Partition.test or partition == Partition.test_ts:
         if model.test_labels:
             df_master = pd.concat([model.df_X_test, model.df_y_test], axis=1)
         else:
             df_master = model.df_X_test
     elif partition == Partition.train_ts:
-        df_master = pd.concat([model.df_X_ts, model.df_y_ts], axis=1)
+        df_master = pd.concat([model.X_train_ts, model.y_train_ts], axis=1)
     else:
         raise ValueError("Invalid Partition: %s", partition)
 

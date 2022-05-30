@@ -267,7 +267,7 @@ def get_market_config(directory='.'):
 # Function set_model_targets
 #
 
-def set_model_targets(model, dfs, fractals, forecast_period, predict_history):
+def set_model_targets(model, dfs, fractals, system_pattern, forecast_period, predict_history):
     r"""Set the model return targets.
 
     First, the target value is lagged for the ``forecast_period``. Each frame
@@ -282,6 +282,8 @@ def set_model_targets(model, dfs, fractals, forecast_period, predict_history):
         The list of pandas dataframes to analyze.
     fractals : list
         List of Pandas offset aliases.
+    system_pattern : str
+        Name of the pattern.
     forecast_period : int
         The period for forecasting the target of the analysis.
     predict_history : int
@@ -336,10 +338,17 @@ def set_model_targets(model, dfs, fractals, forecast_period, predict_history):
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol.upper(), first_date, last_date)
         if not df.empty:
+            # filter dataframe for pattern
+            sp_col = USEP.join([system_pattern, fractals[0]])
+            rows_old = df.shape[0]
+            df = df[df[sp_col] == True].copy()
+            rows_new = df.shape[0]
+            logger.info("%d Patterns Found in %d Rows", rows_new, rows_old)
             # shift ROI column back by the number of forecast periods
-            target_roi = USEP.join(['roi', str(forecast_period), fractals[0]])
-            df[target] = df[target_roi].shift(-forecast_period)
-            df.drop(columns=[target_roi], inplace=True)
+            tr_col = USEP.join(['roi', str(forecast_period), fractals[0]])
+            df[tr_col] = df[tr_col].shift(-forecast_period)
+            df[target] = df[tr_col] > 0.0
+            df.drop(columns=[tr_col], inplace=True)
             # get frame subsets
             if predict_mode:
                 new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)]
@@ -468,9 +477,8 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Get system specifications
 
     system_specs = market_specs['system']
-    system_name = system_specs['name']
+    system_pattern = system_specs['pattern']
     system_type = system_specs['type']
-    roi_target = system_specs['roi_target']
     algo = system_specs['algo']
     prob_min = system_specs['prob_min']
     prob_max = system_specs['prob_max']
@@ -505,7 +513,8 @@ def market_pipeline(alphapy_specs, model, market_specs):
     if create_model:
         logger.info("Creating Model")
         # set model targets
-        set_model_targets(model, dfs, fractals, forecast_period, predict_history)
+        set_model_targets(model, dfs, fractals, system_pattern,
+                          forecast_period, predict_history)
         # run the AlphaPy model pipeline
         model = main_pipeline(alphapy_specs, model)
     else:
@@ -514,16 +523,15 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Run a system
 
     if run_sys:
-        logger.info("Running System: %s", system_name)
+        logger.info("System Pattern   : %s", system_pattern)
         logger.info("System Type      : %s", system_type)
-        logger.info("Return Target    : %s", roi_target)
         logger.info("Algorithm        : %s", algo)
         logger.info("Prob Minimum     : %s", prob_min)
         logger.info("Prob Maximum     : %s", prob_max)
         logger.info("Forecast Period  : %s", forecast_period)
         logger.info("Trade Fractal    : %s", trade_fractal)
         # create and run the system
-        system = System(system_name, system_type, roi_target, algo, prob_min,
+        system = System(system_pattern, system_type, algo, prob_min,
                         prob_max, forecast_period, trade_fractal)
         tfs = run_system(model, system, forecast_period, group, intraday)
         # generate a portfolio
@@ -531,7 +539,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
             logger.info("No trades to generate a portfolio")
         else:
             portfolio_specs = market_specs['portfolio']
-            gen_portfolio(model, portfolio_specs, system_name, group, tfs)
+            gen_portfolio(model, portfolio_specs, system_pattern, group, tfs)
     else:
         logger.info("System Not Run")
 

@@ -129,7 +129,6 @@ def get_market_inputs(input_dict, select_dict):
         'subject' : [st.selectbox, select_dict['subject']],
         'capital' : [st.number_input, 10000, 1000000],
         'margin' : [st.number_input, 0.01, 1.0],
-        'max_pos' : [st.number_input, 1, 100],
         'cost_bps' : [st.number_input, 0.0, 100.0],
         'algo' : [st.selectbox, select_dict['algo']],
         'prob_min' : [st.number_input, 0.0, 1.0],

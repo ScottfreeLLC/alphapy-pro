@@ -710,14 +710,14 @@ def vapply(group, market_specs, vfuncs=None):
                         for v in allv:
                             logger.debug("%s Variable: %s_%s", symbol.upper(), fractal, v)
                             df = vexec(df, v, vfuncs)
+                    # rename the columns
+                    df = df.add_suffix(USEP + fractal)
+                    # add the fractal frame to the list
+                    dfs.append(df)
                 else:
                     logger.info("Empty Dataframe for %s [%s]" % (symbol, fractal))
             else:
                 logger.info("Dataframe Not Found for %s [%s]" % (symbol, fractal))
-            # rename the columns
-            df = df.add_suffix(USEP + fractal)
-            # add the fractal frame to the list
-            dfs.append(df)
         # join all fractal frames
         logger.info("Joining Frames: %s", fractals)
         for indexf, df in enumerate(dfs):

@@ -58,12 +58,10 @@ class System(object):
 
     Parameters
     ----------
-    name : str
-        The system name.
+    pattern : str
+        The name of the pattern.
     system_type : str
         System is long or short.
-    roi_target : float
-        Target return of the system.
     algo : str
         Abbreviation of the algorithm.
     prob_min : float
@@ -94,54 +92,52 @@ class System(object):
     # __new__
     
     def __new__(cls,
-                name,
+                pattern,
                 system_type = 'long',
-                roi_target = 0.0,
                 algo = 'xgb',
                 prob_min = 0.0,
                 prob_max = 0.0,
                 forecast_period = 1,
                 fractal = '1D'):
         # create system name
-        if name not in System.systems:
+        if pattern not in System.systems:
             return super(System, cls).__new__(cls)
         else:
-            logger.info("System %s already exists", name)
+            logger.info("System %s already exists", pattern)
     
     # __init__
     
     def __init__(self,
-                 name,
+                 pattern,
                  system_type = 'long',
-                 roi_target = 0.0,
                  algo = 'xgb',
                  prob_min = 0.0,
                  prob_max = 0.0,
                  forecast_period = 1,
                  fractal = '1D'):
         # initialization
-        self.name = name
+        self.pattern = pattern
         self.system_type = system_type
-        self.roi_target = roi_target
         self.algo = algo
         self.prob_min = prob_min
         self.prob_max = prob_max
         self.forecast_period = forecast_period
         self.fractal = fractal
         # add system to systems list
-        System.systems[name] = self
+        System.systems[pattern] = self
         
     # __str__
 
     def __str__(self):
-        return self.name
+        return self.pattern
 
 
 #
 # Function trade_system
 #
 
-def trade_system(system, forecast_period, df_rank, space, intraday, symbol, quantity):
+def trade_system(system, forecast_period, df_rank, ts_flag,
+                 space, intraday, symbol, quantity):
     r"""Trade the given system.
 
     Parameters
@@ -152,6 +148,8 @@ def trade_system(system, forecast_period, df_rank, space, intraday, symbol, quan
         The number of bars in the prediction.
     df_rank : pd.DataFrame
         The dataframe containing the ranked predictions.
+    ts_flag : bool
+        True if using time series probabilities.
     space : alphapy.Space
         Namespace of all variables over all fractals.
     intraday : bool
@@ -193,7 +191,7 @@ def trade_system(system, forecast_period, df_rank, space, intraday, symbol, quan
 
     # extract the rankings frame for the given symbol
 
-    df_rank = df_rank.query('symbol==@symbol')
+    df_rank = df_rank.query('symbol==@symbol').copy()
     df_rank.index = pd.to_datetime(df_rank.index)
 
     # entry probability function
@@ -212,8 +210,9 @@ def trade_system(system, forecast_period, df_rank, space, intraday, symbol, quan
 
     # evaluate entries by joining price with ranked probabilities
 
-    partition_tag = 'test_'
-    pcol = ''.join(['prob_', partition_tag, algo.lower()])
+    partition_tag = 'test'
+    ts_tag = 'ts' if ts_flag else ''
+    pcol = USEP.join(['prob', partition_tag, ts_tag, algo.lower()])
     tframe = tframe.merge(df_rank[pcol], how='left', left_index=True, right_index=True)
     tframe[pcol].fillna(0.5, inplace=True)
     entry_name = 'short_entry' if system_type == 'short' else 'long_entry'
@@ -326,8 +325,8 @@ def run_system(model,
 
     """
 
-    system_name = system.name
-    logger.info("Generating Trades for System %s", system_name)
+    system_pattern = system.pattern
+    logger.info("Generating Trades for System %s", system_pattern)
 
     # Unpack the model data.
 
@@ -347,14 +346,15 @@ def run_system(model,
     file_path = most_recent_file(rank_dir, 'ranked_test*')
     file_name = file_path.split(SSEP)[-1].split('.')[0]
     df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
+    ts_flag = '_ts_' in file_name
 
     # Run the system for each member of the group
 
     gtlist = []
     for symbol in gmembers:
         # generate the trades for this member
-        tlist = trade_system(system, forecast_period, df_rank, gspace,
-                             intraday, symbol, quantity)
+        tlist = trade_system(system, forecast_period, df_rank, ts_flag,
+                             gspace, intraday, symbol, quantity)
         if tlist:
             # add trades to global trade list
             for item in tlist:
@@ -371,7 +371,7 @@ def run_system(model,
 
     tf = pd.DataFrame()
     if gtlist:
-        tspace = Space(system_name, "trades", gspace.fractal)
+        tspace = Space(system_pattern, "trades", gspace.fractal)
         gtlist = sorted(gtlist, key=lambda x: x[0])
         tf1 = DataFrame.from_records(gtlist, columns=[index_column, 'trades'])
         tf2 = pd.DataFrame(tf1['trades'].to_list(), columns=Trade.states)

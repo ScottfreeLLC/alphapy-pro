@@ -66,7 +66,7 @@ logger = logging.getLogger(__name__)
 scorers = {'accuracy'                           : (ModelType.classification, Objective.maximize),
            'average_precision'                  : (ModelType.classification, Objective.maximize),
            'balanced_accuracy'                  : (ModelType.classification, Objective.maximize),
-           'brier_score_loss'                   : (ModelType.classification, Objective.minimize),
+           'neg_brier_score'                    : (ModelType.classification, Objective.minimize),
            'f1'                                 : (ModelType.classification, Objective.maximize),
            'f1_macro'                           : (ModelType.classification, Objective.maximize),
            'f1_micro'                           : (ModelType.classification, Objective.maximize),

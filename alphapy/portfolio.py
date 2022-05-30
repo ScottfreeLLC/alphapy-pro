@@ -1060,7 +1060,6 @@ def gen_portfolio(model, portfolio_specs, system, group, tframe):
 
     startcap = portfolio_specs['capital']
     margin = portfolio_specs['margin']
-    max_pos = portfolio_specs['max_pos']
     cost_bps = portfolio_specs['cost_bps']
 
     # Create the portfolio.
@@ -1068,6 +1067,10 @@ def gen_portfolio(model, portfolio_specs, system, group, tframe):
     gname = group.name
     gspace = group.space
     gmembers = group.members
+
+    # Set portfolio parameters.
+
+    max_pos = len(gmembers)
     fixed_frac = 1.0 / (margin * max_pos)
 
     p = Portfolio(gname,
