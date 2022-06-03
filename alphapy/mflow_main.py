@@ -505,7 +505,11 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     target_roi = USEP.join(['roi', str(forecast_period)])
     if target_roi not in market_specs['features'][trade_fractal]:
+        logger.info("Adding Feature: %s", target_roi)
         market_specs['features'][trade_fractal].append(target_roi)
+    if system_pattern not in market_specs['features'][trade_fractal]:
+        logger.info("Adding Feature: %s", system_pattern)
+        market_specs['features'][trade_fractal].append(system_pattern)
     dfs = vapply(group, market_specs, functions)
 
     # Run an analysis to create the model.
