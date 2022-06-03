@@ -3,7 +3,7 @@ Package   : AlphaPy
 Module    : transforms
 Created   : March 14, 2020
 
-Copyright 2021 ScottFree Analytics LLC
+Copyright 2022 ScottFree Analytics LLC
 Mark Conway & Robert D. Scott II
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,6 @@ limitations under the License.
 
 import itertools
 import logging
-import math
 import numpy as np
 import pandas as pd
 
@@ -225,28 +224,6 @@ def c2min(f, c1, c2):
     """
     min_val = min(f[c1], f[c2])
     return min_val
-
-
-#
-# Function closeha
-#
-
-def closeha(f):
-    r"""Calculate the Heikin-Ashi Close.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with OHLC columns.
-
-    Returns
-    -------
-    closeha_ds : pandas.Series
-        The series containing the Heikin-Ashi Close.
-
-    """
-    closeha_ds = (f['open'] + f['high'] + f['low'] + f['close']) / 4.0
-    return closeha_ds
 
 
 #
@@ -769,6 +746,99 @@ def gtval0(f, c1, c2):
 
 
 #
+# Function haclose
+#
+
+def haclose(f):
+    r"""Calculate the Heikin-Ashi Close.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with OHLC columns.
+
+    Returns
+    -------
+    haclose_ds : pandas.Series
+        The series containing the Heikin-Ashi Close.
+
+    """
+    haclose_ds = (f['open'] + f['high'] + f['low'] + f['close']) / 4.0
+    return haclose_ds
+
+
+#
+# Function hahigh
+#
+
+def hahigh(f):
+    r"""Calculate the Heikin-Ashi High.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with OHLC columns.
+
+    Returns
+    -------
+    hahigh_ds : pandas.Series
+        The series containing the Heikin-Ashi High.
+
+    """
+    hahigh_ds = pd.DataFrame([f['high'], haopen(f), haclose(f)]).max(axis=0)
+    return hahigh_ds
+
+
+#
+# Function halow
+#
+
+def halow(f):
+    r"""Calculate the Heikin-Ashi Low.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with OHLC columns.
+
+    Returns
+    -------
+    halow_ds : pandas.Series
+        The series containing the Heikin-Ashi Low.
+
+    """
+    halow_ds = pd.DataFrame([f['low'], haopen(f), haclose(f)]).min(axis=0)
+    return halow_ds
+
+
+#
+# Function haopen
+#
+
+def haopen(f):
+    r"""Calculate the Heikin-Ashi Open.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe with OHLC columns.
+
+    Returns
+    -------
+    haopen : pandas.Series
+        The series containing the Heikin-Ashi Open.
+
+    """
+    s1 = haclose(f)
+    s2 = (f['open'] + f['close']) / 2.0
+    dfha = pd.concat([s1, s2], axis=1)
+    dfha.columns = ['haclose', 'haopen']
+    for i in range(1, len(dfha)):
+        dfha.iloc[i]['haopen'] = (dfha.iloc[i-1]['haopen'] + dfha.iloc[i-1]['haclose']) / 2.0
+    return dfha['haopen']
+
+
+#
 # Function higher
 #
 
@@ -819,28 +889,6 @@ def highest(f, c, p = 20):
     """
     new_column = f[c].rolling(p).max()
     return new_column
-
-
-#
-# Function highha
-#
-
-def highha(f):
-    r"""Calculate the Heikin-Ashi High.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with OHLC columns.
-
-    Returns
-    -------
-    highha_ds : pandas.Series
-        The series containing the Heikin-Ashi High.
-
-    """
-    highha_ds = pd.DataFrame([f['high'], openha(f), closeha(f)]).max(axis=0)
-    return highha_ds
 
 
 #
@@ -921,28 +969,6 @@ def lowest(f, c, p = 20):
 
     """
     return f[c].rolling(p).min()
-
-
-#
-# Function lowha
-#
-
-def lowha(f):
-    r"""Calculate the Heikin-Ashi Low.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with OHLC columns.
-
-    Returns
-    -------
-    lowha_ds : pandas.Series
-        The series containing the Heikin-Ashi Low.
-
-    """
-    lowha_ds = pd.DataFrame([f['low'], openha(f), closeha(f)]).min(axis=0)
-    return lowha_ds
 
 
 #
@@ -1098,33 +1124,6 @@ def netreturn(f, c, o = 1):
     """
     new_column = 100 * pchange1(f, c, o)
     return new_column
-
-
-#
-# Function openha
-#
-
-def openha(f):
-    r"""Calculate the Heikin-Ashi Open.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with OHLC columns.
-
-    Returns
-    -------
-    openha : pandas.Series
-        The series containing the Heikin-Ashi Open.
-
-    """
-    s1 = closeha(f)
-    s2 = (f['open'] + f['close']) / 2.0
-    dfha = pd.concat([s1, s2], axis=1)
-    dfha.columns = ['closeha', 'openha']
-    for i in range(1, len(dfha)):
-        dfha.iloc[i]['openha'] = (dfha.iloc[i-1]['openha'] + dfha.iloc[i-1]['closeha']) / 2.0
-    return dfha['openha']
 
 
 #
