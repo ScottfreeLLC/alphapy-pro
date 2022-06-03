@@ -34,6 +34,7 @@ import finnhub
 import logging
 import os
 import pandas as pd
+from PIL import Image
 import streamlit as st
 import sys
 
@@ -287,26 +288,74 @@ def run_project(alphapy_specs, project):
 
 
 #
-# Main Application
+# Main Program
 #
 
-def app():
- 
-    # Get the AlphaPy environment variable
 
-    alphapy_root = os.environ.get('ALPHAPY_ROOT')
-    if not alphapy_root:
-        root_error_string = "ALPHAPY_ROOT environment variable must be set"
-        logger.info(root_error_string)
-        sys.exit(root_error_string)
-    else:
-        # Read the AlphaPy configuration file
-        alphapy_specs = get_alphapy_config(alphapy_root)
+# Initialize Logging
 
-    projects = alphapy_request(alphapy_specs, 'projects', alphapy_specs)
-    projects = sorted(projects, key=str.casefold)
-    projects.insert(0, None)
-    project = st.sidebar.selectbox("Select Project", projects)
+logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
+                    filename="streamlit_main.log", filemode='a', level=logging.INFO,
+                    datefmt='%m/%d/%y %H:%M:%S')
+formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
+                              datefmt='%m/%d/%y %H:%M:%S')
+console = logging.StreamHandler()
+console.setFormatter(formatter)
+console.setLevel(logging.INFO)
+logging.getLogger().addHandler(console)
 
-    if project:
-        run_project(alphapy_specs, project)
+# Start Streamlit
+
+logger.info('*'*80)
+logger.info("Streamlit Start")
+logger.info('*'*80)
+
+# Set Page Configuration (alternate names: setup_page, page, layout)
+
+st.set_page_config(
+    # Can be "centered" or "wide". In the future also "dashboard", etc.
+	layout="wide",
+    # Can be "auto", "expanded", "collapsed"
+	initial_sidebar_state="auto",
+    # String or None. Strings get appended with "• Streamlit".
+	page_title=None,
+    # String, anything supported by st.image, or None.
+	page_icon=None,
+)
+
+# Set window padding
+
+vertical_padding = 2
+horizontal_padding = 2
+
+st.markdown(f""" <style>
+    .appview-container .main .block-container{{
+        padding-top: {vertical_padding}rem;
+        padding-right: {horizontal_padding}rem;
+        padding-left: {horizontal_padding}rem;
+        padding-bottom: {vertical_padding}rem;
+    }} </style> """, unsafe_allow_html=True)
+
+# Display the Scottfree logo
+
+logo = Image.open('logo.jpg')
+st.sidebar.image(logo)
+
+# Get the AlphaPy environment variable
+
+alphapy_root = os.environ.get('ALPHAPY_ROOT')
+if not alphapy_root:
+    root_error_string = "ALPHAPY_ROOT environment variable must be set"
+    logger.info(root_error_string)
+    sys.exit(root_error_string)
+else:
+    # Read the AlphaPy configuration file
+    alphapy_specs = get_alphapy_config(alphapy_root)
+
+projects = alphapy_request(alphapy_specs, 'projects', alphapy_specs)
+projects = sorted(projects, key=str.casefold)
+projects.insert(0, None)
+project = st.sidebar.selectbox("Select Project", projects)
+
+if project:
+    run_project(alphapy_specs, project)
