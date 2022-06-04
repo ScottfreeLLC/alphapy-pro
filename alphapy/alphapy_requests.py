@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Package   : AlphaPy
-# Module    : streamlit_requests
+# Module    : alphapy_requests
 # Created   : April 22, 2022
 #
 # Copyright 2022 ScottFree Analytics LLC
@@ -26,9 +26,9 @@
 # Imports
 #
 
+import subprocess
 import requests
 import streamlit as st
-import subprocess
 
 from mflow_server import request_groups
 from mflow_server import request_market_config
