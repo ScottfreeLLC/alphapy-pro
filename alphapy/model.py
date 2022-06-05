@@ -78,6 +78,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import explained_variance_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import log_loss
+from sklearn.metrics import matthews_corrcoef
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
@@ -1223,6 +1224,10 @@ def generate_metrics(model, partition):
                     model.metrics[(algo, partition, 'neg_brier_score')] = brier_score_loss(expected, probas)
                 except:
                     logger.info("Brier Score not calculated")
+                try:
+                    model.metrics[(algo, partition, 'matthews_corrcoef')] = matthews_corrcoef(expected, predicted)
+                except:
+                    logger.info("Matthews Correlation Coefficient not calculated")
                 try:
                     model.metrics[(algo, partition, 'cohen_kappa')] = cohen_kappa_score(expected, predicted)
                 except:
