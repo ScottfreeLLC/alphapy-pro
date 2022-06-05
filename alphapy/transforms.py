@@ -1001,12 +1001,12 @@ def negval0(f, c):
 
     Returns
     -------
-    new_val : float
+    new_column : pandas.Series (float)
         Negative value or zero.
 
     """
-    new_val = -f[c] if f[c] < 0 else 0
-    return new_val
+    new_column = f[c].apply(lambda x: -x if x < 0 else 0)
+    return new_column
 
 
 #
@@ -1194,12 +1194,12 @@ def posval0(f, c):
 
     Returns
     -------
-    new_val : float
+    new_column : pandas.Series (float)
         Positive value or zero.
 
     """
-    new_val = f[c] if f[c] > 0 else 0
-    return new_val
+    new_column = f[c].apply(lambda x: x if x > 0 else 0)
+    return new_column
 
 
 #
