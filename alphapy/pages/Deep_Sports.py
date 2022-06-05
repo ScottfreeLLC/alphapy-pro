@@ -25,5 +25,4 @@
 
 import streamlit as st
 
-def app():
-    st.header("Sports Flow")
+st.header("Sports Flow")

@@ -33,5 +33,4 @@ import streamlit as st
 # Main Application Alpha Flow
 #
 
-def app():
-    st.header("Alpha Flow")
+st.header("Alpha Flow")

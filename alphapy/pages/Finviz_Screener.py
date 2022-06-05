@@ -39,7 +39,7 @@ import streamlit as st
 import sys
 
 from alphapy_main import get_alphapy_config
-from streamlit_requests import alphapy_request
+from alphapy_requests import alphapy_request
 
 
 #
@@ -60,19 +60,17 @@ def get_finviz_screener_groups():
     stock_df = pd.DataFrame(stock_list.data)
     st.write(stock_df)
 
-
-def app():
  
-    # Get the AlphaPy environment variable
+# Get the AlphaPy environment variable
 
-    alphapy_root = os.environ.get('ALPHAPY_ROOT')
-    if not alphapy_root:
-        root_error_string = "ALPHAPY_ROOT environment variable must be set"
-        logger.info(root_error_string)
-        sys.exit(root_error_string)
-    else:
-        # Read the AlphaPy configuration file
-        alphapy_specs = get_alphapy_config(alphapy_root)
+alphapy_root = os.environ.get('ALPHAPY_ROOT')
+if not alphapy_root:
+    root_error_string = "ALPHAPY_ROOT environment variable must be set"
+    logger.info(root_error_string)
+    sys.exit(root_error_string)
+else:
+    # Read the AlphaPy configuration file
+    alphapy_specs = get_alphapy_config(alphapy_root)
 
-    projects = alphapy_request(alphapy_specs, 'projects')
-    project = st.sidebar.selectbox("Select Project", sorted(projects, key=str.casefold))
+projects = alphapy_request(alphapy_specs, 'projects')
+project = st.sidebar.selectbox("Select Project", sorted(projects, key=str.casefold))
