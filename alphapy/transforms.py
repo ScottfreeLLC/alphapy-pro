@@ -441,54 +441,6 @@ def dmplus(f, h='high', l='low'):
 
 
 #
-# Function down
-#
-
-def down(f, c):
-    r"""Find the negative values in the series.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe containing the column ``c``.
-    c : str
-        Name of the column in the dataframe ``f``.
-
-    Returns
-    -------
-    new_column : pandas.Series (bool)
-        The array containing the new feature.
-
-    """
-    new_column = f[c] < 0
-    return new_column
-
-
-#
-# Function dpc
-#
-
-def dpc(f, c):
-    r"""Get the negative values, with positive values zeroed.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with column ``c``.
-    c : str
-        Name of the column.
-
-    Returns
-    -------
-    new_column : pandas.Series (float)
-        The array containing the new feature.
-
-    """
-    new_column = f.apply(mval, axis=1, args=[c])
-    return new_column
-
-
-#
 # Function ema
 #
 
@@ -1034,10 +986,10 @@ def maratio(f, c, p1 = 1, p2 = 10):
 
 
 #
-# Function mval
+# Function negval0
 #
 
-def mval(f, c):
+def negval0(f, c):
     r"""Get the negative value, otherwise zero.
 
     Parameters
@@ -1055,6 +1007,30 @@ def mval(f, c):
     """
     new_val = -f[c] if f[c] < 0 else 0
     return new_val
+
+
+#
+# Function negvals
+#
+
+def negvals(f, c):
+    r"""Find the negative values in the series.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+
+    Returns
+    -------
+    new_column : pandas.Series (bool)
+        The array containing the new feature.
+
+    """
+    new_column = f[c] < 0
+    return new_column
 
 
 #
@@ -1179,10 +1155,34 @@ def pchange2(f, c1, c2):
 
 
 #
-# Function pval
+# Function posvals
 #
 
-def pval(f, c):
+def posvals(f, c):
+    r"""Find the positive values in the series.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+
+    Returns
+    -------
+    new_column : pandas.Series (bool)
+        The array containing the new feature.
+
+    """
+    new_column = f[c] > 0
+    return new_column
+
+
+#
+# Function posval0
+#
+
+def posval0(f, c):
     r"""Get the positive value, otherwise zero.
 
     Parameters
@@ -1276,8 +1276,8 @@ def rsi(f, c, p = 14):
     """
     cdiff = 'net'
     f = vexec(f, cdiff)
-    f['pval'] = upc(f, cdiff)
-    f['mval'] = dpc(f, cdiff)
+    f['pval'] = posval0(f, cdiff)
+    f['mval'] = negval0(f, cdiff)
     upcs = ma(f, 'pval', p)
     dpcs = ma(f, 'mval', p)
     new_column = 100 - (100 / (1 + (upcs / dpcs)))
@@ -1654,59 +1654,11 @@ def truerange(f):
 
 
 #
-# Function up
-#
-
-def up(f, c):
-    r"""Find the positive values in the series.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe containing the column ``c``.
-    c : str
-        Name of the column in the dataframe ``f``.
-
-    Returns
-    -------
-    new_column : pandas.Series (bool)
-        The array containing the new feature.
-
-    """
-    new_column = f[c] > 0
-    return new_column
-
-
-#
-# Function upc
-#
-
-def upc(f, c):
-    r"""Get the positive values, with negative values zeroed.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with column ``c``.
-    c : str
-        Name of the column.
-
-    Returns
-    -------
-    new_column : pandas.Series (float)
-        The array containing the new feature.
-
-    """
-    new_column = f.apply(pval, axis=1, args=[c])
-    return new_column
-
-
-#
 # Function xmadown
 #
 
 def xmadown(f, c='close', pfast = 20, pslow = 50):
-    r"""Determine those values of the dataframe that are below the
+    r"""Determine those values of the dataframe that cross below the
     moving average.
 
     Parameters
