@@ -1061,6 +1061,7 @@ def gen_portfolio(model, portfolio_specs, system, group, tframe):
     startcap = portfolio_specs['capital']
     margin = portfolio_specs['margin']
     cost_bps = portfolio_specs['cost_bps']
+    kelly_frac = portfolio_specs['kelly_frac']
 
     # Create the portfolio.
 
@@ -1068,19 +1069,15 @@ def gen_portfolio(model, portfolio_specs, system, group, tframe):
     gspace = group.space
     gmembers = group.members
 
-    # Set portfolio parameters.
-
-    max_pos = len(gmembers)
-    fixed_frac = 1.0 / (margin * max_pos)
+    # Create the portfolio.
 
     p = Portfolio(gname,
                   system,
                   gspace,
-                  maxpos = max_pos,
                   startcap = startcap,
                   margin = margin,
                   restricted = False,
-                  fixedfrac = fixed_frac,
+                  fixedfrac = kelly_frac,
                   cost_bps = cost_bps)
     if not p:
         raise MemoryError("Could not allocate Portfolio")
