@@ -187,7 +187,10 @@ def trade_system(system, forecast_period, df_rank, ts_flag,
 
     # Use model output probabilities as input to the system
 
-    logger.info("Getting probabilities for %s", symbol.upper())
+    if algo:
+        logger.info("Getting probabilities for %s", symbol.upper())
+    else:
+        logger.info("Getting signals for %s", symbol.upper())
 
     # extract the rankings frame for the given symbol
 
@@ -211,16 +214,20 @@ def trade_system(system, forecast_period, df_rank, ts_flag,
     # evaluate entries by joining price with ranked probabilities
 
     partition_tag = 'test'
-    if ts_flag:
-        pcol = USEP.join(['prob', partition_tag, 'ts', algo.lower()])
+    if algo:
+        if ts_flag:
+            pcol = USEP.join(['prob', partition_tag, 'ts', algo.lower()])
+        else:
+            pcol = USEP.join(['prob', partition_tag, algo.lower()])
+        tframe = tframe.merge(df_rank[pcol], how='left', left_index=True, right_index=True)
+        df_rank[pcol].fillna(0.5, inplace=True)
+        if system_type == 'short':
+            df_rank[pcol] = 1.0 - df_rank[pcol]
+        tframe = assign_entry(tframe, system_type, pcol, prob_min, prob_max)
     else:
-        pcol = USEP.join(['prob', partition_tag, algo.lower()])
-    tframe = tframe.merge(df_rank[pcol], how='left', left_index=True, right_index=True)
-    df_rank[pcol].fillna(0.5, inplace=True)
-    if system_type == 'short':
-        df_rank[pcol] = 1.0 - df_rank[pcol]
-    tframe = assign_entry(tframe, system_type, pcol, prob_min, prob_max)
- 
+        tframe = tframe.merge(df_rank['target'], how='left', left_index=True, right_index=True)
+        tframe[system_type] = tframe['target'] == 1
+    
     # Initialize trading state variables
 
     inlong = False
