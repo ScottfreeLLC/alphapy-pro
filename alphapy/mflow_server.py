@@ -4,8 +4,6 @@
 # Module    : mflow_server
 # Created   : February 21, 2021
 #
-# uvicorn mflow_server:app --reload
-#
 # Copyright 2022 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
@@ -22,6 +20,14 @@
 # limitations under the License.
 #
 ################################################################################
+
+
+#
+# HOW TO RUN:
+#
+# export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-data
+# uvicorn mflow_server:app --reload
+#
 
 
 #

@@ -21,6 +21,13 @@
 #
 ################################################################################
 
+#
+# HOW TO RUN:
+#
+# export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-data
+# streamlit run Deep_Alpha.py
+#
+
 
 #
 # Imports
