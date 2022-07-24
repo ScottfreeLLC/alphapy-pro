@@ -35,23 +35,8 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # Imports
 #
 
-from alphapy.alphapy_main import get_alphapy_config
-from alphapy.alphapy_main import main_pipeline
-from alphapy.frame import read_frame
-from alphapy.frame import write_frame
-from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
-from alphapy.globals import PSEP, SSEP, USEP
-from alphapy.globals import WILDCARD
-from alphapy.model import get_model_config
-from alphapy.model import Model
-from alphapy.space import Space
-from alphapy.transforms import dateparts
-from alphapy.utilities import valid_date
-
 import argparse
 import datetime
-from itertools import groupby
 import logging
 import math
 import numpy as np
@@ -59,6 +44,18 @@ import os
 import pandas as pd
 import sys
 import yaml
+
+from alphapy.alphapy_main import get_alphapy_config
+from alphapy.alphapy_main import main_pipeline
+from alphapy.frame import read_frame
+from alphapy.frame import write_frame
+from alphapy.globals import Partition, datasets
+from alphapy.globals import SSEP, USEP
+from alphapy.model import get_model_config
+from alphapy.model import Model
+from alphapy.space import Space
+from alphapy.transforms import dateparts
+from alphapy.utilities import valid_date
 
 
 #
@@ -400,7 +397,7 @@ def add_features(frame, fdict, flen, prefix=''):
     for key, value in list(fdict.items()):
         newkey = key
         if prefix:
-            newkey = PSEP.join([prefix, newkey])
+            newkey = USEP.join([prefix, newkey])
         if value == int:
             frame[newkey] = pd.Series(seqint)
         elif value == float:
@@ -446,11 +443,11 @@ def generate_team_frame(team, tf, home_team, away_team, window):
     # Team Loop
     for index, row in tf.iterrows():
         if team == row[home_team]:
-            tf['point_margin_game'].at[index] = get_point_margin(row, 'home.score', 'away.score')
-            line = row['line']
+            tf['point_margin_game'].at[index] = get_point_margin(row, 'home_score', 'away_score')
+            spread = row['home_point_spread_close']
         elif team == row[away_team]:
-            tf['point_margin_game'].at[index] = get_point_margin(row, 'away.score', 'home.score')
-            line = -row['line']
+            tf['point_margin_game'].at[index] = get_point_margin(row, 'away_score', 'home_score')
+            spread = -row['home_point_spread_close']
         else:
             raise KeyError("Team not found in Team Frame")
         if index == 0:
@@ -463,15 +460,15 @@ def generate_team_frame(team, tf, home_team, away_team, window):
             tf['ties'].at[index] = tf['ties'].at[index-1] + get_ties(tf['point_margin_game'].at[index])
         tf['won_on_points'].at[index] = True if tf['point_margin_game'].at[index] > 0 else False
         tf['lost_on_points'].at[index] = True if tf['point_margin_game'].at[index] < 0 else False
-        tf['cover_margin_game'].at[index] = tf['point_margin_game'].at[index] + line
+        tf['cover_margin_game'].at[index] = tf['point_margin_game'].at[index] + spread
         tf['won_on_spread'].at[index] = True if tf['cover_margin_game'].at[index] > 0 else False
         tf['lost_on_spread'].at[index] = True if tf['cover_margin_game'].at[index] <= 0 else False
-        nans = math.isnan(row['home.score']) or math.isnan(row['away.score'])
+        nans = math.isnan(row['home_score']) or math.isnan(row['away_score'])
         if not nans:
-            tf['total_points'].at[index] = row['home.score'] + row['away.score']
-        nans = math.isnan(row['over_under'])
+            tf['total_points'].at[index] = row['home_score'] + row['away_score']
+        nans = math.isnan(row['over_under_close'])
         if not nans:
-            tf['overunder_margin'].at[index] = tf['total_points'].at[index] - row['over_under']
+            tf['overunder_margin'].at[index] = tf['total_points'].at[index] - row['over_under_close']
         tf['over'].at[index] = True if tf['overunder_margin'].at[index] > 0 else False
         tf['under'].at[index] = True if tf['overunder_margin'].at[index] < 0 else False
         tf['point_win_streak'].at[index] = get_streak(tf['won_on_points'], index, 0)
@@ -574,14 +571,14 @@ def insert_model_data(mf, mpos, mdict, tf, tpos, prefix):
     Returns
     -------
     mf : pandas.DataFrame
-        The .
+        The model dataframe.
 
     """
     team_row = tf.iloc[tpos]
-    for key, value in list(mdict.items()):
+    for key, _ in list(mdict.items()):
         newkey = key
         if prefix:
-            newkey = PSEP.join([prefix, newkey])
+            newkey = USEP.join([prefix, newkey])
         mf.at[mpos, newkey] = team_row[key]
     return mf
 
@@ -610,10 +607,10 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
         The completed dataframe with the delta data.
 
     """
-    for key, value in list(fdict.items()):
-        newkey = PSEP.join(['delta', key])
-        key1 = PSEP.join([prefix1, key])
-        key2 = PSEP.join([prefix2, key])
+    for key, _ in list(fdict.items()):
+        newkey = USEP.join(['delta', key])
+        key1 = USEP.join([prefix1, key])
+        key2 = USEP.join([prefix2, key])
         frame[newkey] = frame[key1] - frame[key2]
     return frame
 
@@ -757,8 +754,8 @@ def main(args=None):
     series = space.source
     team1_prefix = 'home'
     team2_prefix = 'away'
-    home_team = PSEP.join([team1_prefix, 'team'])
-    away_team = PSEP.join([team2_prefix, 'team'])
+    home_team = USEP.join([team1_prefix, 'team'])
+    away_team = USEP.join([team2_prefix, 'team'])
 
     #
     # Read in the game frame. This is the feature generation phase.
@@ -781,8 +778,8 @@ def main(args=None):
     # Make all team names lower case
     #
 
-    df['home.team'] = df['home.team'].str.lower()
-    df['away.team'] = df['away.team'].str.lower()
+    df['home_team'] = df['home_team'].str.lower()
+    df['away_team'] = df['away_team'].str.lower()
 
     #
     # Run the game pipeline on a seasonal loop
@@ -791,6 +788,7 @@ def main(args=None):
     if not seasons:
         # run model on all seasons
         seasons = df['season'].unique().tolist()
+    df['season'] = df['season'].astype(str)
 
     #
     # Initialize the final frame
@@ -806,30 +804,30 @@ def main(args=None):
 
         # Generate a frame for each season
 
-        gf = df[df['season'] == season]
+        gf = df[df['season'] == season].copy()
         gf = gf.reset_index()
 
         # Generate derived variables for the game frame
 
         total_games = gf.shape[0]
         if random_scoring:
-            gf['home.score'] = np.random.randint(points_min, points_max, total_games)
-            gf['away.score'] = np.random.randint(points_min, points_max, total_games)
-        gf['total_points'] = gf['home.score'] + gf['away.score']
+            gf['home_score'] = np.random.randint(points_min, points_max, total_games)
+            gf['away_score'] = np.random.randint(points_min, points_max, total_games)
+        gf['total_points'] = gf['home_score'] + gf['away_score']
 
         # gf['line_delta'] = gf['line'] - gf['line_open']
         # gf['over_under_delta'] = gf['over_under'] - gf['over_under_open']
 
         gf = add_features(gf, game_dict, gf.shape[0])
         for index, row in gf.iterrows():
-            if not np.isnan(row['home.score']):
-                gf['point_margin_game'].at[index] = get_point_margin(row, 'home.score', 'away.score')
+            if not np.isnan(row['home_score']):
+                gf['point_margin_game'].at[index] = get_point_margin(row, 'home_score', 'away_score')
                 gf['won_on_points'].at[index] = True if gf['point_margin_game'].at[index] > 0 else False
                 gf['lost_on_points'].at[index] = True if gf['point_margin_game'].at[index] < 0 else False
-                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['line']
+                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['home_point_spread_close']
                 gf['won_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] > 0 else False
                 gf['lost_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] <= 0 else False
-                gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under']
+                gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under_close']
                 gf['over'].at[index] = True if gf['overunder_margin'].at[index] > 0 else False
                 gf['under'].at[index] = True if gf['overunder_margin'].at[index] < 0 else False
             else:
