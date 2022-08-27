@@ -168,6 +168,13 @@ def get_sport_config():
 
     # Section: sport
 
+    data_directory = cfg['sport']['data_directory']
+    dir_exists = os.path.isdir(data_directory)
+    if dir_exists:
+        specs['data_directory'] = data_directory
+    else:
+        raise ValueError("Directory %s does not exist" % data_directory)
+
     specs['league'] = cfg['sport']['league']
     specs['points_max'] = cfg['sport']['points_max']
     specs['points_min'] = cfg['sport']['points_min']
@@ -179,6 +186,7 @@ def get_sport_config():
 
     logger.info('SPORT PARAMETERS:')
     logger.info('league           = %s', specs['league'])
+    logger.info('data_directory   = %s', specs['data_directory'])
     logger.info('points_max       = %d', specs['points_max'])
     logger.info('points_min       = %d', specs['points_min'])
     logger.info('random_scoring   = %r', specs['random_scoring'])
@@ -729,6 +737,7 @@ def main(args=None):
     # Section: game
 
     league = sport_specs['league']
+    data_directory = sport_specs['data_directory']
     points_max = sport_specs['points_max']
     points_min = sport_specs['points_min']
     random_scoring = sport_specs['random_scoring']
@@ -737,7 +746,7 @@ def main(args=None):
 
     # Create directories if necessary
 
-    output_dirs = ['config', 'data', 'input', 'model', 'output', 'plots']
+    output_dirs = ['config', 'input', 'model', 'output', 'plots']
     for od in output_dirs:
         output_dir = SSEP.join([directory, od])
         if not os.path.exists(output_dir):
@@ -763,9 +772,8 @@ def main(args=None):
 
     logger.info("Reading Game Data")
 
-    data_dir = SSEP.join([directory, 'data'])
     file_base = USEP.join([league, space.subject, space.source, space.fractal])
-    df = read_frame(data_dir, file_base, model_specs['extension'], model_specs['separator'])
+    df = read_frame(data_directory, file_base, model_specs['extension'], model_specs['separator'])
     logger.info("Total Game Records: %d", df.shape[0])
 
     #
@@ -901,6 +909,14 @@ def main(args=None):
         # Append this to final frame
         frames = [ff, mf]
         ff = pd.concat(frames)
+        
+    # Grouped Betting Results
+
+    for col_key in ['won_on_points', 'won_on_spread', 'over']:
+        ff_means = ff.groupby('date')[col_key].mean().shift(-1)
+        ds_name = USEP.join([col_key, 'daily_mean_lag1'])
+        ff_means.rename(ds_name, inplace=True)
+        ff = ff.merge(ff_means, how='left', on='date')
 
     # Write out dataframes
 
@@ -934,6 +950,10 @@ def main(args=None):
 
     # Run the pipeline
     model = main_pipeline(alphapy_specs, model)
+    
+    # Generate betting portfolio statistics
+    
+    pass
 
     # Complete the pipeline
 
