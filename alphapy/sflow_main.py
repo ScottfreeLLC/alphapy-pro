@@ -139,6 +139,15 @@ game_dict = {'point_margin_game' : int,
 
 
 #
+# Convert Boolean features to int before writing the data frame
+#
+
+features_bool = ['won_on_points', 'lost_on_points',
+                 'won_on_spread', 'lost_on_spread',
+                 'over', 'under']
+
+
+#
 # Function get_sport_config
 #
 
@@ -917,6 +926,11 @@ def main(args=None):
         ds_name = USEP.join([col_key, 'daily_mean_lag1'])
         ff_means.rename(ds_name, inplace=True)
         ff = ff.merge(ff_means, how='left', on='date')
+        
+    # Convert Boolean Features
+    
+    for bf in features_bool:
+        ff[bf] = ff[bf].astype(float)
 
     # Write out dataframes
 
