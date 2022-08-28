@@ -278,6 +278,7 @@ def get_model_config(directory='.'):
     specs['split'] = cfg['data']['split']
     specs['target'] = cfg['data']['target']
     specs['target_value'] = cfg['data']['target_value']
+    specs['allow_na_targets'] = cfg['data']['allow_na_targets']
     # sampling
     specs['sampling'] = cfg['data']['sampling']['option']
     # determine whether or not sampling method is valid
@@ -432,6 +433,7 @@ def get_model_config(directory='.'):
 
     logger.info('MODEL PARAMETERS:')
     logger.info('algorithms        = %s', specs['algorithms'])
+    logger.info('allow_na_targets  = %r', specs['allow_na_targets'])
     logger.info('calibration       = %r', specs['calibration'])
     logger.info('cal_type          = %s', specs['cal_type'])
     logger.info('calibration_plot  = %r', specs['calibration'])
@@ -830,6 +832,9 @@ def time_series_model(model, algo):
 
     dates_ts = df_X[ts_date_index]
     _, date_index = np.unique(dates_ts, return_index=True)
+    
+    if len(date_index) < ts_window:
+        raise ValueError("Window Length Exceeded. Maximum Window is: %d", len(date_index))
 
     first_date = dates_ts.iloc[date_index[0]]
     last_date = dates_ts.iloc[date_index[-1]]
