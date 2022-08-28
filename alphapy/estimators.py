@@ -27,7 +27,6 @@
 #
 
 import logging
-import numpy as np
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import ExtraTreesRegressor
@@ -211,7 +210,7 @@ def find_optional_packages():
     except Exception:
         logger.info("Cannot load %s" % module_name)
 
-    module_name = 'keras'
+    module_name = 'scikeras'
     try:
         from scikeras.wrappers import KerasClassifier
         from scikeras.wrappers import KerasRegressor
@@ -385,7 +384,7 @@ def get_estimators(alphapy_specs, model):
         try:
             algo_found = True
             func = estimator_map[algo]
-        except:
+        except Exception:
             algo_found = False
             logger.info("Algorithm %s not found (check package installation)" % algo)
         if algo_found:
