@@ -277,7 +277,6 @@ def get_model_config(directory='.'):
     specs['shuffle'] = cfg['data']['shuffle']
     specs['split'] = cfg['data']['split']
     specs['target'] = cfg['data']['target']
-    specs['target_value'] = cfg['data']['target_value']
     specs['allow_na_targets'] = cfg['data']['allow_na_targets']
     # sampling
     specs['sampling'] = cfg['data']['sampling']['option']
@@ -501,7 +500,6 @@ def get_model_config(directory='.'):
     logger.info('submission_file   = %s', specs['submission_file'])
     logger.info('submit_probas     = %r', specs['submit_probas'])
     logger.info('target [y]        = %s', specs['target'])
-    logger.info('target_value      = %d', specs['target_value'])
     logger.info('transforms        = %s', specs['transforms'])
     logger.info('ts_option         = %r', specs['ts_option'])
     logger.info('ts_backtests      = %d', specs['ts_backtests'])

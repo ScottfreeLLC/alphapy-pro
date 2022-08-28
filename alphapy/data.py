@@ -232,7 +232,6 @@ def sample_data(model):
     sampling_method = model.specs['sampling_method']
     sampling_ratio = model.specs['sampling_ratio']
     target = model.specs['target']
-    target_value = model.specs['target_value']
 
     # Extract model data.
 
@@ -244,7 +243,7 @@ def sample_data(model):
     _, uc = np.unique(y_train, return_counts=True)
     current_ratio = uc[1] / uc[0]
     logger.info("Sampling Ratio for target %s [%r]: %.2f => %.2f",
-                target, target_value, current_ratio, sampling_ratio)
+                target, uc[1], current_ratio, sampling_ratio)
 
     # Choose the sampling method.
 
