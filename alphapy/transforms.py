@@ -115,6 +115,96 @@ def adx(f, p = 14):
 
 
 #
+# Function bbands
+#
+
+def bbands(f, c='close', p=20, sd=2.0, low_band=True):
+    r"""Calculate the Bollinger Bands.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Simple Moving Average.
+    sd : float
+        The number of standard deviations.
+    low_band : bool, optional
+        If set to True, then calculate the lower band, else the upper band.
+
+    Returns
+    -------
+    bband : pandas.Series
+        The series for the selected Bollinger Band.
+    """
+
+    sma = ma(f, c, p)
+    if low_band:
+        bband = sma - sd * f[c].rolling(p).std(ddof=0)
+    else:
+        bband = sma + sd * f[c].rolling(p).std(ddof=0)
+    return bband
+
+
+#
+# Function bblower
+#
+
+def bblower(f, c='close', p=20, sd=2.0):
+    r"""Calculate the lower Bollinger Band.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Simple Moving Average.
+    sd : float
+        The number of standard deviations.
+
+    Returns
+    -------
+    lower_band : pandas.Series
+        The series containing the lower Bollinger Band.
+    """
+
+    lower_band = bbands(f, c, p, sd)
+    return lower_band
+
+
+#
+# Function bbupper
+#
+
+def bbupper(f, c='close', p=20, sd=2.0):
+    r"""Calculate the upper Bollinger Band.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Simple Moving Average.
+    sd : float
+        The number of standard deviations.
+
+    Returns
+    -------
+    upper_band : pandas.Series
+        The series containing the upper Bollinger Band.
+    """
+
+    upper_band = bbands(f, c, p, sd, low_band=False)
+    return upper_band
+
+
+#
 # Function belowma
 #
 
@@ -445,7 +535,7 @@ def dmplus(f, h='high', l='low'):
 #
 
 def ema(f, c, p = 20):
-    r"""Calculate the mean on a rolling basis.
+    r"""Calculate the Exponential Moving Average (EMA) on a rolling basis.
 
     Parameters
     ----------
@@ -454,7 +544,7 @@ def ema(f, c, p = 20):
     c : str
         Name of the column in the dataframe ``f``.
     p : int
-        The period over which to calculate the rolling mean.
+        The period over which to calculate the Exponential Moving Average (EMA).
 
     Returns
     -------
@@ -470,7 +560,7 @@ def ema(f, c, p = 20):
     .. [IP_EMA] http://www.investopedia.com/terms/e/ema.asp
 
     """
-    new_column = pd.ewma(f[c], span=p)
+    new_column = f[c].ewm(span=p).mean()
     return new_column
 
 
@@ -869,6 +959,126 @@ def hlrange(f, h='high', l='low', p = 1):
     """
     new_column = highest(f, h, p) - lowest(f, l, p)
     return new_column
+
+
+#
+# Function keltner
+#
+
+def keltner(f, c='close', p=20, atrs=2.0, channel='midline'):
+    r"""Calculate the Keltner Channels.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Exponential Moving Average.
+    atrs : float
+        The multiple of Average True Range.
+
+    Returns
+    -------
+    kc : pandas.Series
+        The series containing the Keltner Channel.
+    """
+
+    ds_ema = ema(f, c, p)
+    atr = USEP.join(['atr', str(p)])
+    f = vexec(f, atr)
+    if channel == 'lower':
+        kc = ds_ema - f[atr].apply(lambda x: atrs * x)
+    elif channel == 'upper':
+        kc = ds_ema + f[atr].apply(lambda x: atrs * x)
+    else:
+        kc = ds_ema
+    return kc
+
+
+#
+# Function keltnerlb
+#
+
+def keltnerlb(f, c='close', p=20, atrs=2.0):
+    r"""Calculate the lower Keltner Channel.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Exponential Moving Average.
+    atrs : float
+        The multiple of Average True Range.
+
+    Returns
+    -------
+    kclb : pandas.Series
+        The series containing the lower Keltner Channel.
+    """
+
+    kclb = keltner(f, c, p, atrs, channel='lower')
+    return kclb
+
+
+#
+# Function keltnerml
+#
+
+def keltnerml(f, c='close', p=20, atrs=2.0):
+    r"""Calculate the midline Keltner Channel.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Exponential Moving Average.
+    atrs : float
+        The multiple of Average True Range.
+
+    Returns
+    -------
+    kcml : pandas.Series
+        The series containing the midline Keltner Channel.
+    """
+
+    kcml = keltner(f, c, p, atrs)
+    return kcml
+
+
+#
+# Function keltnerub
+#
+
+def keltnerub(f, c='close', p=20, atrs=2.0):
+    r"""Calculate the upper Keltner Channel.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Exponential Moving Average.
+    atrs : float
+        The multiple of Average True Range.
+
+    Returns
+    -------
+    kcub : pandas.Series
+        The series containing the upper Keltner Channel.
+    """
+
+    kcub = keltner(f, c, p, atrs, channel='upper')
+    return kcub
 
 
 #

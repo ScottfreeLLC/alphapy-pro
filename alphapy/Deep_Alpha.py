@@ -36,7 +36,6 @@
 from datetime import datetime, timedelta
 from finviz.portfolio import Portfolio
 from finviz.screener import Screener
-from itsdangerous import json
 import finnhub
 import logging
 import os
