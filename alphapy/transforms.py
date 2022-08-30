@@ -965,7 +965,7 @@ def hlrange(f, h='high', l='low', p = 1):
 # Function keltner
 #
 
-def keltner(f, c='close', p=20, atrs=2.0, channel='midline'):
+def keltner(f, c='close', p=20, atrs=1.5, channel='midline'):
     r"""Calculate the Keltner Channels.
 
     Parameters
@@ -1001,7 +1001,7 @@ def keltner(f, c='close', p=20, atrs=2.0, channel='midline'):
 # Function keltnerlb
 #
 
-def keltnerlb(f, c='close', p=20, atrs=2.0):
+def keltnerlb(f, c='close', p=20, atrs=1.5):
     r"""Calculate the lower Keltner Channel.
 
     Parameters
@@ -1029,7 +1029,7 @@ def keltnerlb(f, c='close', p=20, atrs=2.0):
 # Function keltnerml
 #
 
-def keltnerml(f, c='close', p=20, atrs=2.0):
+def keltnerml(f, c='close', p=20, atrs=1.5):
     r"""Calculate the midline Keltner Channel.
 
     Parameters
@@ -1057,7 +1057,7 @@ def keltnerml(f, c='close', p=20, atrs=2.0):
 # Function keltnerub
 #
 
-def keltnerub(f, c='close', p=20, atrs=2.0):
+def keltnerub(f, c='close', p=20, atrs=1.5):
     r"""Calculate the upper Keltner Channel.
 
     Parameters
@@ -1861,6 +1861,40 @@ def truerange(f):
     """
     new_column = truehigh(f) - truelow(f)
     return new_column
+
+
+#
+# Function ttmsqueeze
+#
+
+def ttmsqueeze(f, c='close', p=20, sd=2.0, atrs=1.5):
+    r"""Determine the TTM Squeeze condition.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Exponential Moving Average.
+    sd : float
+        The number of standard deviations.
+    atrs : float
+        The multiple of Average True Range.
+
+    Returns
+    -------
+    squeeze : bool
+        The status of the TTM Squeeze Indicator.
+    """
+
+    kclb = keltner(f, c, p, atrs, channel='lower')
+    kcub = keltner(f, c, p, atrs, channel='upper')
+    bblb = bbands(f, c, p, sd)
+    bbub = bbands(f, c, p, sd, low_band=False)
+    squeeze = np.logical_and(np.less(bbub, kcub), np.greater(bblb, kclb))
+    return squeeze
 
 
 #
