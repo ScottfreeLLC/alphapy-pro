@@ -37,6 +37,8 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import argparse
 import datetime
+import glob
+import itertools
 import logging
 import math
 import numpy as np
@@ -55,6 +57,7 @@ from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.space import Space
 from alphapy.transforms import dateparts
+from alphapy.utilities import most_recent_file
 from alphapy.utilities import valid_date
 
 
@@ -633,6 +636,84 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
 
 
 #
+# Function update_live_results
+#
+
+def update_live_results(df_live, model, results_dir):
+    r"""Update the live results.
+
+    Parameters
+    ----------
+    df_live : pandas.DataFrame
+        The dataframe of live results.
+    model : alphapy.Model
+        The model specifications.
+    results_dir : str
+        The directory containing the test predictions.
+
+    Returns
+    -------
+    None
+
+    """
+    
+    # Extract model fields
+    target = model.specs['target']
+    
+    # Read in the game data
+    
+    mrf = most_recent_file(results_dir, 'ranked_train_ts*.csv')
+    df_game = pd.read_csv(mrf)
+    game_cols = ['match_id', 'season', 'date', 'away_team', 'away_score', 'away_point_spread_close',
+           'away_point_spread_line_close', 'away_money_line_close', 'home_team', 'home_score',
+           'home_point_spread_close', 'home_point_spread_line_close', 'home_money_line_close',
+           'over_under_close', 'over_line_close', 'under_line_close']
+    game_cols = list(itertools.chain(game_cols, [target]))
+    df_game = df_game[game_cols]
+    df_game.sort_values(by='date', inplace=True)
+    df_game.set_index('match_id', inplace=True)
+
+    # Read in the predictions
+    
+    search_spec = '/'.join([results_dir, 'ranked_test_ts*.csv'])
+    prediction_files = glob.glob(search_spec)
+    dfps = []
+    for pf_name in prediction_files:
+        dfp = pd.read_csv(pf_name)
+        dfps.append(dfp)
+    df_pred = pd.concat(dfps)
+    
+    # Retain the prediction columns
+    
+    df_pred.drop_duplicates(subset=['match_id'], keep='last', inplace=True)
+    pred_cols = df_pred.columns[df_pred.columns.str.startswith('pred_')]
+    prob_cols = df_pred.columns[df_pred.columns.str.startswith('prob_')]
+    df_pred_cols = list(itertools.chain(['match_id'], pred_cols, prob_cols))
+    df_pred = df_pred[df_pred_cols]
+    df_pred.set_index('match_id', inplace=True)
+    
+    # Get new results
+
+    match_ids = []
+    if not df_live.empty:
+        match_ids = df_live.index.unique()
+    new_results = []
+    for index, row in df_pred.iterrows():
+        if index in match_ids:
+            df_live.update(row)
+        else:
+            new_results.append(row)
+    df_new = pd.DataFrame(new_results)
+    
+    # Update the live results with the new results
+    
+    df_new = df_new.join(df_game, how='inner')
+    df_live = pd.concat([df_live, df_new])
+    df_live = df_live[~df_live.index.duplicated(keep='last')]
+    return df_live
+
+
+#
 # Function main
 #
 
@@ -965,7 +1046,52 @@ def main(args=None):
     # Run the pipeline
     model = main_pipeline(alphapy_specs, model)
     
-    # Generate betting portfolio statistics
+    # Update the live results
+
+    logger.info("Reading Live Results")
+
+    output_dir = SSEP.join([directory, 'output'])
+    try:
+        df_live = read_frame(output_dir, 'live_results', model_specs['extension'], model_specs['separator'])
+        df_live.set_index('match_id', inplace=True)
+        logger.info("Total Live Records: %d", df_live.shape[0])
+    except:
+        df_live = pd.DataFrame()
+        logger.info("No Live Results to Analyze")
+        
+    logger.info("Updating Live Results")
+    df_live = update_live_results(df_live, model, output_dir)
+    
+    # Calculate winning percentages and probability deltas.
+
+    if not df_live.empty:
+        mlclose = df_live['home_money_line_close']
+        df_live['prob_win'] = mlclose.apply(lambda x: 1.0 - (x / (x + 100.0)) if x > 0 else abs(x) / (abs(x) + 100.0))
+
+    prob_cols = ['prob_test_blend',
+                 'prob_test_catb',
+                 'prob_test_lgb',
+                 'prob_test_logr',
+                 'prob_test_rf',
+                 'prob_test_xgb',
+                 'prob_test_xt',
+                 'prob_test_ts_blend',
+                 'prob_test_ts_catb',
+                 'prob_test_ts_lgb',
+                 'prob_test_ts_logr',
+                 'prob_test_ts_rf',
+                 'prob_test_ts_xgb',
+                 'prob_test_ts_xt']
+    for pc in prob_cols:
+        delta_col = USEP.join([pc, 'delta'])
+        df_live[delta_col] = df_live[pc] - df_live['prob_win']
+        
+    # Save updated Live Results file.
+
+    file_spec = '/'.join([output_dir, 'live_results.csv'])
+    df_live.to_csv(file_spec, index_label='match_id')
+  
+    # Betting System Analysis
     
     pass
 
