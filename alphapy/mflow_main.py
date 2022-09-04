@@ -28,7 +28,6 @@
 
 import warnings
 
-from numpy import source
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -40,6 +39,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import argparse
 import datetime
 import logging
+import numpy as np
 import os
 import pandas as pd
 import sys
@@ -341,13 +341,12 @@ def set_model_targets(model, dfs, fractals, system_pattern, forecast_period, pre
             # filter dataframe for pattern
             sp_col = USEP.join([system_pattern, fractals[0]])
             rows_old = df.shape[0]
-            df = df[df[sp_col] == True].copy()
-            rows_new = df.shape[0]
+            rows_new = df[sp_col].sum()
             logger.info("%d Patterns Found in %d Rows", rows_new, rows_old)
             # shift ROI column back by the number of forecast periods
             tr_col = USEP.join(['roi', str(forecast_period), fractals[0]])
             df[tr_col] = df[tr_col].shift(-forecast_period)
-            df[target] = df[tr_col] > 0.0
+            df[target] = np.greater(df[tr_col], 0.0)
             df.drop(columns=[tr_col], inplace=True)
             # get frame subsets
             if predict_mode:
