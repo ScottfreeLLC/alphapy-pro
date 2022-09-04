@@ -194,13 +194,28 @@ def get_sport_config():
     specs['rolling_window'] = cfg['sport']['rolling_window']   
     specs['seasons'] = cfg['sport']['seasons']
 
+    # Section: system
+
+    specs['capital'] = cfg['system']['capital']
+    specs['kelly_frac'] = cfg['system']['kelly_frac']
+    specs['ml_min'] = cfg['system']['ml_min']
+    specs['prob_col'] = cfg['system']['prob_col']
+    specs['prob_min'] = cfg['system']['prob_min']
+    specs['prob_max'] = cfg['system']['prob_max']
+
     # Log the sports parameters
 
     logger.info('SPORT PARAMETERS:')
+    logger.info('capital          = %d', specs['capital'])
     logger.info('league           = %s', specs['league'])
     logger.info('data_directory   = %s', specs['data_directory'])
+    logger.info('kelly_frac       = %s', specs['kelly_frac'])
+    logger.info('ml_min           = %d', specs['ml_min'])
     logger.info('points_max       = %d', specs['points_max'])
     logger.info('points_min       = %d', specs['points_min'])
+    logger.info('prob_col         = %s', specs['prob_col'])
+    logger.info('prob_min         = %s', specs['prob_min'])
+    logger.info('prob_max         = %s', specs['prob_max'])
     logger.info('random_scoring   = %r', specs['random_scoring'])
     logger.info('rolling_window   = %d', specs['rolling_window'])
     logger.info('seasons          = %s', specs['seasons'])
@@ -464,10 +479,10 @@ def generate_team_frame(team, tf, home_team, away_team, window):
     for index, row in tf.iterrows():
         if team == row[home_team]:
             tf['point_margin_game'].at[index] = get_point_margin(row, 'home_score', 'away_score')
-            spread = row['home_point_spread_close']
+            spread = row['home_point_spread']
         elif team == row[away_team]:
             tf['point_margin_game'].at[index] = get_point_margin(row, 'away_score', 'home_score')
-            spread = -row['home_point_spread_close']
+            spread = -row['home_point_spread']
         else:
             raise KeyError("Team not found in Team Frame")
         if index == 0:
@@ -486,9 +501,9 @@ def generate_team_frame(team, tf, home_team, away_team, window):
         nans = math.isnan(row['home_score']) or math.isnan(row['away_score'])
         if not nans:
             tf['total_points'].at[index] = row['home_score'] + row['away_score']
-        nans = math.isnan(row['over_under_close'])
+        nans = math.isnan(row['over_under'])
         if not nans:
-            tf['overunder_margin'].at[index] = tf['total_points'].at[index] - row['over_under_close']
+            tf['overunder_margin'].at[index] = tf['total_points'].at[index] - row['over_under']
         tf['over'].at[index] = True if tf['overunder_margin'].at[index] > 0 else False
         tf['under'].at[index] = True if tf['overunder_margin'].at[index] < 0 else False
         tf['point_win_streak'].at[index] = get_streak(tf['won_on_points'], index, 0)
@@ -639,15 +654,15 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
 # Function update_live_results
 #
 
-def update_live_results(df_live, model, results_dir):
+def update_live_results(df_live, target, results_dir):
     r"""Update the live results.
 
     Parameters
     ----------
     df_live : pandas.DataFrame
         The dataframe of live results.
-    model : alphapy.Model
-        The model specifications.
+    target : str
+        The target variable to predict.
     results_dir : str
         The directory containing the test predictions.
 
@@ -657,17 +672,14 @@ def update_live_results(df_live, model, results_dir):
 
     """
     
-    # Extract model fields
-    target = model.specs['target']
-    
     # Read in the game data
     
     mrf = most_recent_file(results_dir, 'ranked_train_ts*.csv')
     df_game = pd.read_csv(mrf)
-    game_cols = ['match_id', 'season', 'date', 'away_team', 'away_score', 'away_point_spread_close',
-           'away_point_spread_line_close', 'away_money_line_close', 'home_team', 'home_score',
-           'home_point_spread_close', 'home_point_spread_line_close', 'home_money_line_close',
-           'over_under_close', 'over_line_close', 'under_line_close']
+    game_cols = ['match_id', 'season', 'date', 'away_team', 'away_score', 'away_point_spread',
+           'away_point_spread_line', 'away_money_line', 'home_team', 'home_score',
+           'home_point_spread', 'home_point_spread_line', 'home_money_line',
+           'over_under', 'over_line', 'under_line']
     game_cols = list(itertools.chain(game_cols, [target]))
     df_game = df_game[game_cols]
     df_game.sort_values(by='date', inplace=True)
@@ -793,6 +805,9 @@ def main(args=None):
     directory = '.'
     _, model_specs = get_model_config(directory)
     model_specs['alphapy_root'] = alphapy_root
+    
+    # Extract model fields
+    target = model_specs['target']
 
     # Add command line arguments to model specifications
 
@@ -826,10 +841,16 @@ def main(args=None):
 
     # Section: game
 
+    capital = sport_specs['capital']
+    kelly_frac = sport_specs['kelly_frac']
     league = sport_specs['league']
     data_directory = sport_specs['data_directory']
     points_max = sport_specs['points_max']
+    ml_min = sport_specs['ml_min']
     points_min = sport_specs['points_min']
+    prob_col = sport_specs['prob_col']
+    prob_min = sport_specs['prob_min']
+    prob_max = sport_specs['prob_max']
     random_scoring = sport_specs['random_scoring']
     seasons = sport_specs['seasons']
     window = sport_specs['rolling_window']   
@@ -922,10 +943,10 @@ def main(args=None):
                 gf['point_margin_game'].at[index] = get_point_margin(row, 'home_score', 'away_score')
                 gf['won_on_points'].at[index] = True if gf['point_margin_game'].at[index] > 0 else False
                 gf['lost_on_points'].at[index] = True if gf['point_margin_game'].at[index] < 0 else False
-                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['home_point_spread_close']
+                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['home_point_spread']
                 gf['won_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] > 0 else False
                 gf['lost_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] <= 0 else False
-                gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under_close']
+                gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under']
                 gf['over'].at[index] = True if gf['overunder_margin'].at[index] > 0 else False
                 gf['under'].at[index] = True if gf['overunder_margin'].at[index] < 0 else False
             else:
@@ -1054,46 +1075,68 @@ def main(args=None):
     try:
         df_live = read_frame(output_dir, 'live_results', model_specs['extension'], model_specs['separator'])
         df_live.set_index('match_id', inplace=True)
-        logger.info("Total Live Records: %d", df_live.shape[0])
+        logger.info("Current Live Records: %d", df_live.shape[0])
     except:
         df_live = pd.DataFrame()
         logger.info("No Live Results to Analyze")
-        
+
     logger.info("Updating Live Results")
-    df_live = update_live_results(df_live, model, output_dir)
-    
-    # Calculate winning percentages and probability deltas.
+    df_live = update_live_results(df_live, target, output_dir)
+    logger.info("Total Live Records: %d", df_live.shape[0])
 
-    if not df_live.empty:
-        mlclose = df_live['home_money_line_close']
-        df_live['prob_win'] = mlclose.apply(lambda x: 1.0 - (x / (x + 100.0)) if x > 0 else abs(x) / (abs(x) + 100.0))
-
-    prob_cols = ['prob_test_blend',
-                 'prob_test_catb',
-                 'prob_test_lgb',
-                 'prob_test_logr',
-                 'prob_test_rf',
-                 'prob_test_xgb',
-                 'prob_test_xt',
-                 'prob_test_ts_blend',
-                 'prob_test_ts_catb',
-                 'prob_test_ts_lgb',
-                 'prob_test_ts_logr',
-                 'prob_test_ts_rf',
-                 'prob_test_ts_xgb',
-                 'prob_test_ts_xt']
-    for pc in prob_cols:
-        delta_col = USEP.join([pc, 'delta'])
-        df_live[delta_col] = df_live[pc] - df_live['prob_win']
-        
     # Save updated Live Results file.
-
     file_spec = '/'.join([output_dir, 'live_results.csv'])
     df_live.to_csv(file_spec, index_label='match_id')
-  
-    # Betting System Analysis
     
-    pass
+    # Calculate winning percentages and probability deltas.
+    
+    def get_odds(x):
+        if x > 0:
+            odds = x / 100.0 + 1.0
+        elif x < 0:
+            odds = 100.0 / abs(x) + 1.0
+        else:
+            odds = 0.0
+        return odds
+    
+    def get_prob_win(x):
+        if x > 0:
+            prob = 1.0 - (x / (x + 100.0))
+        elif x < 0:
+            prob = abs(x) / (abs(x) + 100.0)
+        else:
+            prob = 0.5
+        return prob
+    
+    def get_kelly_pct(row, side):
+        colname = USEP.join([side, 'odds'])
+        odds = row[colname]
+        colname = USEP.join([side, 'prob', 'win'])
+        prob_win = row[colname]
+        prob_model = row[prob_col]
+        kelly_pct = ((odds - 1.0) * prob_win - (1.0 - prob_model)) / (odds - 1.0) * kelly_frac
+        return kelly_pct
+
+    if not df_live.empty:
+        # calculate odds and win probability
+        for side in ['away', 'home']:
+            colname = USEP.join([side, 'money', 'line'])
+            mlclose = df_live[colname]
+            colname = USEP.join([side, 'odds'])
+            df_live[colname] = mlclose.apply(get_odds)
+            colname = USEP.join([side, 'prob', 'win'])
+            df_live[colname] = mlclose.apply(get_prob_win)
+            colname = USEP.join([side, 'kelly', 'pct'])
+            df_live[colname] = df_live.apply(get_kelly_pct, args=(side,), axis=1)     
+        # Betting System Analysis
+        if ml_min:
+            df_bet = df_live.loc[(df_live['away_money_line'].abs() >= ml_min) | (df_live['home_money_line'].abs() >= ml_min)].copy()
+        working_cap = capital
+        for index, row in df_bet.iterrows():
+            if row['away_money_line'] >= ml_min:
+                pass
+            if row['home_money_line'] >= ml_min:
+                pass
 
     # Complete the pipeline
 
