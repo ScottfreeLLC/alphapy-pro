@@ -1137,7 +1137,7 @@ def lowest(f, c, p = 20):
 # Function ma
 #
 
-def ma(f, c, p = 20):
+def ma(f, c='close', p = 20):
     r"""Calculate the mean on a rolling basis.
 
     Parameters
@@ -1868,7 +1868,7 @@ def truerange(f):
 #
 
 def ttmsqueeze(f, c='close', p=20, sd=2.0, atrs=1.5):
-    r"""Determine the TTM Squeeze condition.
+    r"""Calculate the TTM Squeeze momentum oscillator.
 
     Parameters
     ----------
@@ -1885,16 +1885,165 @@ def ttmsqueeze(f, c='close', p=20, sd=2.0, atrs=1.5):
 
     Returns
     -------
-    squeeze : bool
-        The status of the TTM Squeeze Indicator.
+    ttmosc : float
+        The value of the TTM Squeeze Indicator.
+    """
+
+    # calculate Donchian midline    
+    hh = highest(f, 'high')
+    ll = lowest(f, 'low')
+    midp = (hh + ll) / 2.0
+    # calculate the Simple Moving Average
+    sma = ma(f)
+    # calculate the delta between the midline and SMA
+    delta = (f[c] - (midp + sma) / 2.0)
+    # linear regression
+    fit_y = np.array(range(0, p))
+    ttmosc = delta.rolling(window = p).apply(lambda x:
+                            np.polyfit(fit_y, x, 1)[0] * (p-1) +
+                            np.polyfit(fit_y, x, 1)[1], raw=True)
+    return ttmosc
+
+
+#
+# Function ttmsqueezelong
+#
+
+def ttmsqueezelong(f, c='close', p=20, sd=2.0, atrs=1.5):
+    r"""Signal a TTM Squeeze Long Entry.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Exponential Moving Average.
+    sd : float
+        The number of standard deviations.
+    atrs : float
+        The multiple of Average True Range.
+
+    Returns
+    -------
+    squeezelong : bool
+        True if there is a TTM Squeeze Long Entry.
+    """
+
+    squeeze_off = ttmsqueezeoff(f, c, p, sd, atrs)
+    ttm_squeeze = ttmsqueeze(f, c, p, sd, atrs)
+    squeeze1 = squeeze_off.shift(1).fillna(False)
+    squeeze2 = squeeze_off.shift(2).fillna(False)
+    long_cond1 = np.logical_and(squeeze1, ~squeeze2)
+    long_cond2 = np.greater(ttm_squeeze, 0)
+    squeezelong = np.logical_and(long_cond1, long_cond2)
+    return squeezelong
+
+
+#
+# Function ttmsqueezeoff
+#
+
+def ttmsqueezeoff(f, c='close', p=20, sd=2.0, atrs=1.5):
+    r"""Determine the TTM Squeeze Off condition.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Exponential Moving Average.
+    sd : float
+        The number of standard deviations.
+    atrs : float
+        The multiple of Average True Range.
+
+    Returns
+    -------
+    squeezeoff : bool
+        The status of the TTM Squeeze Off Indicator.
     """
 
     kclb = keltner(f, c, p, atrs, channel='lower')
     kcub = keltner(f, c, p, atrs, channel='upper')
     bblb = bbands(f, c, p, sd)
     bbub = bbands(f, c, p, sd, low_band=False)
-    squeeze = np.logical_and(np.less(bbub, kcub), np.greater(bblb, kclb))
-    return squeeze
+    squeezeoff = np.logical_and(np.greater(bbub, kcub), np.less(bblb, kclb))
+    return squeezeoff
+
+
+#
+# Function ttmsqueezeon
+#
+
+def ttmsqueezeon(f, c='close', p=20, sd=2.0, atrs=1.5):
+    r"""Determine the TTM Squeeze On condition.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Exponential Moving Average.
+    sd : float
+        The number of standard deviations.
+    atrs : float
+        The multiple of Average True Range.
+
+    Returns
+    -------
+    squeezeon : bool
+        The status of the TTM Squeeze On Indicator.
+    """
+
+    kclb = keltner(f, c, p, atrs, channel='lower')
+    kcub = keltner(f, c, p, atrs, channel='upper')
+    bblb = bbands(f, c, p, sd)
+    bbub = bbands(f, c, p, sd, low_band=False)
+    squeezeon = np.logical_and(np.less(bbub, kcub), np.greater(bblb, kclb))
+    return squeezeon
+
+
+#
+# Function ttmsqueezeshort
+#
+
+def ttmsqueezeshort(f, c='close', p=20, sd=2.0, atrs=1.5):
+    r"""Signal a TTM Squeeze Short Entry.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period over which to calculate the Exponential Moving Average.
+    sd : float
+        The number of standard deviations.
+    atrs : float
+        The multiple of Average True Range.
+
+    Returns
+    -------
+    squeezeshort : bool
+        True if there is a TTM Squeeze Short Entry.
+    """
+
+    squeeze_off = ttmsqueezeoff(f, c, p, sd, atrs)
+    ttm_squeeze = ttmsqueeze(f, c, p, sd, atrs)
+
+    squeeze1 = squeeze_off.shift(1).fillna(False)
+    squeeze2 = squeeze_off.shift(2).fillna(False)
+    short_cond1 = np.logical_and(squeeze1, ~squeeze2)
+    short_cond2 = np.less(ttm_squeeze, 0)
+    squeezeshort = np.logical_and(short_cond1, short_cond2)
+    return squeezeshort
 
 
 #

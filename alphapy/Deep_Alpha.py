@@ -24,7 +24,7 @@
 #
 # HOW TO RUN:
 #
-# export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-data
+# export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
 # streamlit run Deep_Alpha.py
 #
 

@@ -25,7 +25,7 @@
 #
 # HOW TO RUN:
 #
-# export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-data
+# export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
 # uvicorn mflow_server:app --reload
 #
 
