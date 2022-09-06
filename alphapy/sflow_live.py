@@ -1,14 +1,17 @@
 import pandas as pd
-from alphapy.globals import USEP
+from alphapy.globals import SSEP, USEP
 
 # Read in the Live Results file.
-df_live = pd.read_csv('/Users/markconway/Projects/alphapy-root/alphapy-sports/MLB/Projects/won_on_points/output/live_results.csv')
+
+directory = '/Users/markconway/Projects/alphapy-root/alphapy-sports/MLB/Projects/won_on_points/output'
+file_spec = 'live_results.csv'
+df_live = pd.read_csv(SSEP.join([directory, file_spec]))
 print(df_live.columns)
 
 # Input Parameters
 
 capital = 10000
-prob_col = 'prob_test_xgb'
+prob_col = 'prob_test_ts_blend'
 kelly_frac = 0.5
 ml_min = 150
 
@@ -51,8 +54,10 @@ if not df_live.empty:
         colname = USEP.join([side, 'prob', 'win'])
         df_live[colname] = mlclose.apply(get_prob_win)
         colname = USEP.join([side, 'kelly', 'pct'])
-        df_live[colname] = df_live.apply(get_kelly_pct, args=(side,), axis=1)     
-    #df_live.to_csv('test.csv')
+        df_live[colname] = df_live.apply(get_kelly_pct, args=(side,), axis=1)
+    # save results
+    file_spec = 'kelly_results.csv'
+    df_live.to_csv(SSEP.join([directory, file_spec]))
     # Betting System Analysis
     if ml_min:
         df_bet = df_live.loc[(df_live['away_money_line'].abs() >= ml_min) | (df_live['home_money_line'].abs() >= ml_min)].copy()
