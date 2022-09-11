@@ -11,7 +11,7 @@ print(df_live.columns)
 # Input Parameters
 
 capital = 10000
-prob_col = 'prob_test_ts_blend'
+prob_cols = ['prob_test_blend', 'prob_test_ts_blend']
 kelly_frac = 0.5
 ml_min = 150
 
@@ -41,20 +41,29 @@ def get_kelly_pct(row, side):
     colname = USEP.join([side, 'prob', 'win'])
     prob_win = row[colname]
     prob_model = row[prob_col]
-    kelly_pct = ((odds - 1.0) * prob_win - (1.0 - prob_model)) / (odds - 1.0) * kelly_frac
+    if side == 'home':
+        kelly_pct = ((odds - 1.0) * prob_win - (1.0 - prob_model)) / (odds - 1.0) * kelly_frac
+    elif side == 'away':
+        kelly_pct = ((odds - 1.0) * prob_win - prob_model) / (odds - 1.0) * kelly_frac
     return kelly_pct
 
 if not df_live.empty:
     # calculate odds and win probability
     for side in ['away', 'home']:
-        colname = USEP.join([side, 'money', 'line'])
-        mlclose = df_live[colname]
-        colname = USEP.join([side, 'odds'])
-        df_live[colname] = mlclose.apply(get_odds)
-        colname = USEP.join([side, 'prob', 'win'])
-        df_live[colname] = mlclose.apply(get_prob_win)
-        colname = USEP.join([side, 'kelly', 'pct'])
-        df_live[colname] = df_live.apply(get_kelly_pct, args=(side,), axis=1)
+        col_ml = USEP.join([side, 'money', 'line'])
+        mlclose = df_live[col_ml]
+        col_odds = USEP.join([side, 'odds'])
+        df_live[col_odds] = mlclose.apply(get_odds)
+        col_pw = USEP.join([side, 'prob', 'win'])
+        df_live[col_pw] = mlclose.apply(get_prob_win)
+        for prob_col in prob_cols:
+            colname = USEP.join([side, prob_col, 'delta'])
+            if side == 'home':
+                df_live[colname] = df_live[prob_col] - df_live[col_pw]
+            elif side == 'away':
+                df_live[colname] = (1.0 - df_live[prob_col]) - df_live[col_pw]
+            colname = USEP.join([side, prob_col, 'kelly', 'pct'])
+            df_live[colname] = df_live.apply(get_kelly_pct, args=(side,), axis=1)
     # save results
     file_spec = 'kelly_results.csv'
     df_live.to_csv(SSEP.join([directory, file_spec]))
