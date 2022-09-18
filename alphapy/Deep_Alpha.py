@@ -58,24 +58,6 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Function get_finviz_screener_groups
-#
-
-def get_finviz_screener_groups():
-
-    #filters = ['sh_price_u5','ta_gap_d5','ta_rsi_os30','ft=3']
-    #stocks = Screener(filters=filters, order="price")
-
-    filters = ['exch_nasd', 'idx_sp500']  # Shows companies in NASDAQ which are in the S&P500
-    stock_list = Screener(filters=filters, table='Performance', order='price')  # Get the performance table and sort it by price ascending
-
-    stock_df = pd.DataFrame(stock_list.data)
-    st.write(stock_df)
-
-    return stock_df
-
-
-#
 # Function get_finviz_portfolios
 #
 
@@ -165,17 +147,14 @@ def run_project(alphapy_specs, project):
     # Determine the source of market groups
 
     text_ap = 'Market Flow'
-    text_fs = 'Finviz Screener'
     text_fp = 'Finviz Portfolio'
     text_mi = 'Market Index'
-    screener = st.sidebar.radio("Group Source", (text_ap, text_fs, text_fp, text_mi))
+    screener = st.sidebar.radio("Group Source", (text_ap, text_fp, text_mi))
 
     col1, col2, col3, col4 = st.columns(4)
 
     if screener == text_ap:
         groups = alphapy_request(alphapy_specs, 'groups')
-    elif screener == text_fs:
-        groups = get_finviz_screener_groups()
     elif screener == text_fp:
         groups = get_finviz_portfolios(alphapy_specs)
     elif screener == text_mi:
