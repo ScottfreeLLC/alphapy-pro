@@ -163,6 +163,7 @@ def get_market_config(directory='.'):
     specs['target_group'] = cfg['market']['target_group']
     specs['create_model'] = cfg['market']['create_model']
     specs['run_system'] = cfg['market']['run_system']
+    specs['meta_model'] = cfg['market']['meta_model']
 
     #
     # Section: Bar Type, Features and Fractals
@@ -252,6 +253,7 @@ def get_market_config(directory='.'):
     logger.info('features         = %s', specs['features'])
     logger.info('forecast_period  = %d', specs['forecast_period'])
     logger.info('fractals         = %s', specs['fractals'])
+    logger.info('meta_model       = %r', specs['meta_model'])
     logger.info('portfolio        = %s', specs['portfolio'])
     logger.info('predict_history  = %s', specs['predict_history'])
     logger.info('run_system       = %r', specs['run_system'])
@@ -267,7 +269,7 @@ def get_market_config(directory='.'):
 # Function set_model_targets
 #
 
-def set_model_targets(model, dfs, fractals, system_pattern, forecast_period, predict_history):
+def set_model_targets(model, meta_model, dfs, fractals, forecast_period, predict_history):
     r"""Set the model return targets.
 
     First, the target value is lagged for the ``forecast_period``. Each frame
@@ -278,12 +280,12 @@ def set_model_targets(model, dfs, fractals, system_pattern, forecast_period, pre
     ----------
     model : alphapy.Model
         The model specifications.
+    meta_model : bool
+        True if meta model.
     dfs : list
         The list of pandas dataframes to analyze.
     fractals : list
         List of Pandas offset aliases.
-    system_pattern : str
-        Name of the pattern.
     forecast_period : int
         The period for forecasting the target of the analysis.
     predict_history : int
@@ -338,16 +340,18 @@ def set_model_targets(model, dfs, fractals, system_pattern, forecast_period, pre
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol.upper(), first_date, last_date)
         if not df.empty:
-            # filter dataframe for pattern
-            sp_col = USEP.join([system_pattern, fractals[0]])
+            # find patterns in dataframe
             rows_old = df.shape[0]
-            rows_new = df[sp_col].sum()
+            rows_new = df[target].sum()
             logger.info("%d Patterns Found in %d Rows", rows_new, rows_old)
-            # shift ROI column back by the number of forecast periods
-            tr_col = USEP.join(['roi', str(forecast_period), fractals[0]])
-            df[tr_col] = df[tr_col].shift(-forecast_period)
-            df[target] = np.greater(df[tr_col], 0.0)
-            df.drop(columns=[tr_col], inplace=True)
+            if meta_model:
+                # shift ROI column back by the number of forecast periods
+                roi_col = USEP.join(['roi', str(forecast_period), fractals[0]])
+                roi_shift = df[roi_col].shift(-forecast_period)
+                df[target] = np.greater(roi_shift, 0.0)
+            else:
+                # shift target column back by the number of forecast periods
+                df[target] = df[target].shift(-forecast_period)
             # get frame subsets
             if predict_mode:
                 new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)]
@@ -458,25 +462,26 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Get model specifications
 
     predict_mode = model.specs['predict_mode']
+    target = model.specs['target']
 
     # Get market specifications
 
     create_model = market_specs['create_model']
-    data_source = market_specs['data_source']
+    data_fractal = market_specs['data_fractal']
     data_history = market_specs['data_history']
+    data_source = market_specs['data_source']
     forecast_period = market_specs['forecast_period']
     fractals = market_specs['fractals']
-    data_fractal = market_specs['data_fractal']
     functions = market_specs['functions']
+    meta_model = market_specs['meta_model']
     predict_history = market_specs['predict_history']
+    run_sys = market_specs['run_system']
     subject = market_specs['subject']
     target_group = market_specs['target_group']
-    run_sys = market_specs['run_system']
 
     # Get system specifications
 
     system_specs = market_specs['system']
-    system_pattern = system_specs['pattern']
     system_type = system_specs['type']
     algo = system_specs['algo']
     prob_min = system_specs['prob_min']
@@ -501,14 +506,6 @@ def market_pipeline(alphapy_specs, model, market_specs):
     get_market_data(model, market_specs, group, lookback, intraday)
 
     # Apply the features to all frames.
-
-    target_roi = USEP.join(['roi', str(forecast_period)])
-    if target_roi not in market_specs['features'][trade_fractal]:
-        logger.info("Adding Feature: %s", target_roi)
-        market_specs['features'][trade_fractal].append(target_roi)
-    if system_pattern not in market_specs['features'][trade_fractal]:
-        logger.info("Adding Feature: %s", system_pattern)
-        market_specs['features'][trade_fractal].append(system_pattern)
     dfs = vapply(group, market_specs, functions)
 
     # Run an analysis to create the model.
@@ -516,8 +513,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
     if create_model:
         logger.info("Creating Model")
         # set model targets
-        set_model_targets(model, dfs, fractals, system_pattern,
-                          forecast_period, predict_history)
+        set_model_targets(model, meta_model, dfs, fractals, forecast_period, predict_history)
         # run the AlphaPy model pipeline
         model = main_pipeline(alphapy_specs, model)
     else:
@@ -526,7 +522,8 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Run a system
 
     if run_sys:
-        logger.info("System Pattern   : %s", system_pattern)
+        logger.info("Meta Model       : %s", meta_model)
+        logger.info("Target           : %s", target)
         logger.info("System Type      : %s", system_type)
         logger.info("Algorithm        : %s", algo)
         logger.info("Prob Minimum     : %s", prob_min)
@@ -534,15 +531,15 @@ def market_pipeline(alphapy_specs, model, market_specs):
         logger.info("Forecast Period  : %s", forecast_period)
         logger.info("Trade Fractal    : %s", trade_fractal)
         # create and run the system
-        system = System(system_pattern, system_type, algo, prob_min,
-                        prob_max, forecast_period, trade_fractal)
+        system = System(target, system_type, algo, prob_min, prob_max,
+                        forecast_period, trade_fractal)
         tfs = run_system(model, system, forecast_period, group, intraday)
         # generate a portfolio
         if tfs.empty:
             logger.info("No trades to generate a portfolio")
         else:
             portfolio_specs = market_specs['portfolio']
-            gen_portfolio(model, portfolio_specs, system_pattern, group, tfs)
+            gen_portfolio(model, portfolio_specs, target, group, tfs)
     else:
         logger.info("System Not Run")
 
