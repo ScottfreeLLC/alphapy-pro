@@ -55,34 +55,32 @@ print(__doc__)
 # Imports
 #
 
-from alphapy.estimators import get_estimators
-from alphapy.globals import BSEP, PSEP, SSEP, USEP
-from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
-from alphapy.globals import Q1, Q3
-from alphapy.utilities import remove_list_items
-
 from bokeh.plotting import figure, show, output_file
-import itertools
+from lofo import LOFOImportance, Dataset
 import logging
 import math
 import matplotlib
 matplotlib.use('PS')
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.calibration import calibration_curve
-from sklearn.inspection import partial_dependence
 from sklearn.inspection import plot_partial_dependence
 from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve
 from sklearn.model_selection import learning_curve
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
+
+from alphapy.data import get_data
+from alphapy.estimators import get_estimators
+from alphapy.globals import BSEP, PSEP, SSEP, USEP
+from alphapy.globals import ModelType
+from alphapy.globals import Partition, datasets
+from alphapy.globals import Q1, Q3
 
 
 #
@@ -180,7 +178,7 @@ def generate_plots(alphapy_specs, model, partition):
         if learning_curve_flag:
             plot_learning_curve(alphapy_specs, model, partition)
         if importances_flag:
-            plot_importance(model, partition)
+            plot_importances(model, partition)
 
 
 #
@@ -366,7 +364,7 @@ def plot_calibration(model, partition):
 # Function plot_importances
 #
 
-def plot_importance(model, partition):
+def plot_importances(model, partition):
     r"""Display scikit-learn feature importances.
 
     Parameters
@@ -390,6 +388,12 @@ def plot_importance(model, partition):
     logger.info("Generating Feature Importance Plots")
     plot_dir = get_plot_directory(model)
     pstring = datasets[partition]
+
+    # Extract model parameters.
+
+    cv_folds = model.specs['cv_folds']
+    scorer = model.specs['scorer']
+    target = model.specs['target']
 
     # For each algorithm that has importances, generate the plot.
 
@@ -426,7 +430,28 @@ def plot_importance(model, partition):
             tag = USEP.join([pstring, algo])
             write_plot('matplotlib', plt, 'feature_importance', tag, plot_dir)
         else:
-            logger.info("No Feature Importances for %s" % algo)
+            logger.info("No scikit-learn Feature Importances for %s" % algo)
+    
+    # LOFO Importances
+    
+    logger.info("Generating LOFO Feature Importance Plot")
+    # Get X, Y for correct partition.
+    X, y = get_data(model, partition)
+    df = pd.concat([X, y], axis=1)
+    # define the binary target and the features
+    dataset = Dataset(df=df, target=target, features=X.columns)
+    # define the validation scheme
+    cv = KFold(n_splits=cv_folds, shuffle=False)
+    # define the validation scheme and scorer. The default model is LightGBM
+    lofo_imp = LOFOImportance(dataset, cv=cv, scoring=scorer)
+    # get the mean and standard deviation of the importances in pandas format
+    importance_df = lofo_imp.get_importance()
+    # plot the means and standard deviations of the importances
+    importance_df['color'] = (importance_df['importance_mean'] > 0).map({True: 'g', False: 'r'})
+    importance_df.sort_values('importance_mean', inplace=True)
+    ax = importance_df.plot(x='feature', y='importance_mean', xerr='importance_std',
+                            kind='barh', color=importance_df['color'], figsize=(12, 36))
+    write_plot('matplotlib', ax.get_figure(), 'lofo_importance', pstring, plot_dir)
 
 
 #
@@ -470,7 +495,6 @@ def plot_learning_curve(alphapy_specs, model, partition):
 
     cv_folds = model.specs['cv_folds']
     n_jobs = model.specs['n_jobs']
-    seed = model.specs['seed']
     shuffle = model.specs['shuffle']
     verbosity = model.specs['verbosity']
 
@@ -479,11 +503,9 @@ def plot_learning_curve(alphapy_specs, model, partition):
     estimators = get_estimators(alphapy_specs, model)
 
     # Get X, Y for correct partition.
-
     X, y = get_partition_data(model, partition)
 
     # Set cross-validation parameters to get mean train and test curves.
-
     cv = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
 
     # Plot a learning curve for each algorithm.
