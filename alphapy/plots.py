@@ -75,7 +75,6 @@ from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
 
-from alphapy.data import get_data
 from alphapy.estimators import get_estimators
 from alphapy.globals import BSEP, PSEP, SSEP, USEP
 from alphapy.globals import ModelType
@@ -392,6 +391,7 @@ def plot_importances(model, partition):
     # Extract model parameters.
 
     cv_folds = model.specs['cv_folds']
+    n_jobs = model.specs['n_jobs']
     scorer = model.specs['scorer']
     target = model.specs['target']
 
@@ -433,24 +433,25 @@ def plot_importances(model, partition):
             logger.info("No scikit-learn Feature Importances for %s" % algo)
     
     # LOFO Importances
-    
+
     logger.info("Generating LOFO Feature Importance Plot")
     # Get X, Y for correct partition.
-    X, y = get_data(model, partition)
-    df = pd.concat([X, y], axis=1)
+    X, y = get_partition_data(model, partition)
+    X_df = pd.DataFrame(X, columns=model.feature_names)
+    df = pd.concat([X_df, y], axis=1)
     # define the binary target and the features
-    dataset = Dataset(df=df, target=target, features=X.columns)
+    dataset = Dataset(df=df, target=target, features=model.feature_names)
     # define the validation scheme
     cv = KFold(n_splits=cv_folds, shuffle=False)
     # define the validation scheme and scorer. The default model is LightGBM
-    lofo_imp = LOFOImportance(dataset, cv=cv, scoring=scorer)
+    lofo_imp = LOFOImportance(dataset, cv=cv, scoring=scorer, n_jobs=n_jobs)
     # get the mean and standard deviation of the importances in pandas format
     importance_df = lofo_imp.get_importance()
     # plot the means and standard deviations of the importances
     importance_df['color'] = (importance_df['importance_mean'] > 0).map({True: 'g', False: 'r'})
     importance_df.sort_values('importance_mean', inplace=True)
     ax = importance_df.plot(x='feature', y='importance_mean', xerr='importance_std',
-                            kind='barh', color=importance_df['color'], figsize=(12, 36))
+                            kind='barh', color=importance_df['color'], figsize=(12, 24))
     write_plot('matplotlib', ax.get_figure(), 'lofo_importance', pstring, plot_dir)
 
 
