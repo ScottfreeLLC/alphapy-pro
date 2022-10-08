@@ -59,7 +59,8 @@ from alphapy.features import create_interactions
 from alphapy.features import drop_features
 from alphapy.features import remove_lv_features
 from alphapy.features import save_features
-from alphapy.features import select_features
+from alphapy.features import select_features_lofo
+from alphapy.features import select_features_univariate
 from alphapy.frame import write_frame
 from alphapy.globals import SSEP, USEP
 from alphapy.globals import ModelType
@@ -230,7 +231,8 @@ def training_pipeline(alphapy_specs, model):
     directory = model.specs['directory']
     drop = model.specs['drop']
     extension = model.specs['extension']
-    feature_selection = model.specs['feature_selection']
+    fs_lofo = model.specs['fs_lofo']
+    fs_univariate = model.specs['fs_univariate']
     grid_search = model.specs['grid_search']
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']
@@ -369,8 +371,8 @@ def training_pipeline(alphapy_specs, model):
 
     # Perform feature selection, independent of algorithm
 
-    if feature_selection:
-        model = select_features(model)
+    if fs_univariate:
+        model = select_features_univariate(model)
 
     # Get the available classifiers and regressors 
 
@@ -396,6 +398,9 @@ def training_pipeline(alphapy_specs, model):
             est = None
             logger.info("Algorithm %s not found", algo)
         if est is not None:
+            # select LOFO features
+            if fs_lofo:
+                select_features_lofo(model, algo, est)
             # run classic train/test model pipeline
             model = first_fit(model, algo, est)
             # recursive feature elimination
@@ -489,7 +494,8 @@ def prediction_pipeline(alphapy_specs, model):
 
     directory = model.specs['directory']
     drop = model.specs['drop']
-    feature_selection = model.specs['feature_selection']
+    fs_lofo = model.specs['fs_lofo']
+    fs_univariate = model.specs['fs_univariate']
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']
 
@@ -524,12 +530,23 @@ def prediction_pipeline(alphapy_specs, model):
     # Remove low-variance features
     X_all = remove_lv_features(model, X_all)
 
+    # Load the LOFO support vector, if any
+
+    if fs_lofo:
+        logger.info("Getting LOFO Support")
+        try:
+            support = model.feature_map['support_lofo', model.best_algo]
+            X_all = X_all[:, support]
+            logger.info("New Feature Count : %d", X_all.shape[1])
+        except:
+            logger.info("No LOFO Support")
+
     # Load the univariate support vector, if any
 
-    if feature_selection:
+    if fs_univariate:
         logger.info("Getting Univariate Support")
         try:
-            support = model.feature_map['uni_support']
+            support = model.feature_map['support_uni']
             X_all = X_all[:, support]
             logger.info("New Feature Count : %d", X_all.shape[1])
         except:

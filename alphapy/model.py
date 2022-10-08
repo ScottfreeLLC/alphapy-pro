@@ -206,6 +206,7 @@ class Model:
         self.coefs = {}
         self.support = {}
         self.fnames_algo = {}
+        self.lofo_df = {}
         # Keys: (algorithm, partition)
         self.preds = {}
         self.probas = {}
@@ -319,8 +320,11 @@ def get_model_config(directory='.'):
     specs['isomap'] = cfg['features']['isomap']['option']
     specs['iso_components'] = cfg['features']['isomap']['components']
     specs['iso_neighbors'] = cfg['features']['isomap']['neighbors']
+    # LOFO
+    specs['fs_lofo'] = cfg['features']['lofo']['option']
     # log transformation
-    specs['logtransform'] = cfg['features']['logtransform']['option']
+    specs['log_transform'] = cfg['features']['log_transform']['option']
+    specs['pvalue_level'] = cfg['features']['log_transform']['pvalue_level']
     # low-variance features
     specs['lv_remove'] = cfg['features']['variance']['option']
     specs['lv_threshold'] = cfg['features']['variance']['threshold']
@@ -351,6 +355,16 @@ def get_model_config(directory='.'):
     specs['tsne_components'] = cfg['features']['tsne']['components']
     specs['tsne_learn_rate'] = cfg['features']['tsne']['learning_rate']
     specs['tsne_perplexity'] = cfg['features']['tsne']['perplexity']
+    # univariate
+    specs['fs_univariate'] = cfg['features']['univariate']['option']
+    specs['fs_uni_pct'] = cfg['features']['univariate']['percentage']
+    specs['fs_uni_grid'] = cfg['features']['univariate']['uni_grid']
+    score_func = cfg['features']['univariate']['score_func']
+    if score_func in feature_scorers:
+        specs['fs_uni_score_func'] = feature_scorers[score_func]
+    else:
+        raise ValueError("model.yml features:univariate:score_func %s unrecognized" %
+                         score_func)
 
     # Section: model
 
@@ -365,21 +379,10 @@ def get_model_config(directory='.'):
         raise ValueError("model.yml model:type %s unrecognized" % model_type)
     # end of model type
     specs['n_estimators'] = cfg['model']['estimators']
-    specs['pvalue_level'] = cfg['model']['pvalue_level']
     specs['scorer'] = cfg['model']['scoring_function']
     # calibration
     specs['calibration'] = cfg['model']['calibration']['option']
     specs['cal_type'] = cfg['model']['calibration']['type']
-    # feature selection
-    specs['feature_selection'] = cfg['model']['feature_selection']['option']
-    specs['fs_percentage'] = cfg['model']['feature_selection']['percentage']
-    specs['fs_uni_grid'] = cfg['model']['feature_selection']['uni_grid']
-    score_func = cfg['model']['feature_selection']['score_func']
-    if score_func in feature_scorers:
-        specs['fs_score_func'] = feature_scorers[score_func]
-    else:
-        raise ValueError("model.yml model:feature_selection:score_func %s unrecognized" %
-                         score_func)
     # grid search
     specs['grid_search'] = cfg['model']['grid_search']['option']
     specs['gs_iters'] = cfg['model']['grid_search']['iterations']
@@ -450,10 +453,11 @@ def get_model_config(directory='.'):
     logger.info('esr               = %d', specs['esr'])
     logger.info('factors           = %s', specs['factors'])
     logger.info('features [X]      = %s', specs['features'])
-    logger.info('feature_selection = %r', specs['feature_selection'])
-    logger.info('fs_percentage     = %d', specs['fs_percentage'])
-    logger.info('fs_score_func     = %s', specs['fs_score_func'])
+    logger.info('fs_lofo           = %r', specs['fs_lofo'])
+    logger.info('fs_univariate     = %r', specs['fs_univariate'])
     logger.info('fs_uni_grid       = %s', specs['fs_uni_grid'])
+    logger.info('fs_uni_pct        = %d', specs['fs_uni_pct'])
+    logger.info('fs_uni_score_func = %s', specs['fs_uni_score_func'])
     logger.info('grid_search       = %r', specs['grid_search'])
     logger.info('gs_iters          = %d', specs['gs_iters'])
     logger.info('gs_random         = %r', specs['gs_random'])
@@ -466,7 +470,7 @@ def get_model_config(directory='.'):
     logger.info('iso_neighbors     = %d', specs['iso_neighbors'])
     logger.info('isample_pct       = %d', specs['isample_pct'])
     logger.info('learning_curve    = %r', specs['learning_curve'])
-    logger.info('logtransform      = %r', specs['logtransform'])
+    logger.info('log_transform     = %r', specs['log_transform'])
     logger.info('lv_remove         = %r', specs['lv_remove'])
     logger.info('lv_threshold      = %f', specs['lv_threshold'])
     logger.info('model_type        = %r', specs['model_type'])

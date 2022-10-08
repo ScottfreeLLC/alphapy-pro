@@ -37,8 +37,8 @@ from alphapy.variables import vparse
 import category_encoders as ce
 from importlib import import_module
 import itertools
+import lofo
 import logging
-import math
 import numpy as np
 import os
 import pandas as pd
@@ -60,6 +60,7 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn.impute import SimpleImputer
 from sklearn.manifold import Isomap
 from sklearn.manifold import TSNE
+from sklearn.model_selection import KFold
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.preprocessing import StandardScaler
@@ -1001,7 +1002,7 @@ def create_features(model, X, X_train, X_test, y_train):
     encoder = model.specs['encoder']
     factors = model.specs['factors']
     isomap = model.specs['isomap']
-    logtransform = model.specs['logtransform']
+    log_transform = model.specs['log_transform']
     ngrams_max = model.specs['ngrams_max']
     numpy_flag = model.specs['numpy']
     pca = model.specs['pca']
@@ -1047,7 +1048,7 @@ def create_features(model, X, X_train, X_test, y_train):
                                            nunique, dtype, encoder, rounding, sentinel)
         elif dtype == 'float64' or dtype == 'int64' or dtype == 'bool':
             features, fnames = get_numerical_features(fnum, fname, X, nunique, dtype,
-                                                      sentinel, logtransform, pvalue_level)
+                                                      sentinel, log_transform, pvalue_level)
         elif dtype == 'object':
             features, fnames = get_text_features(fnum, fname, X, nunique, vectorize, ngrams_max)
         else:
@@ -1137,10 +1138,93 @@ def create_features(model, X, X_train, X_test, y_train):
 
 
 #
-# Function select_features
+# Function select_features_lofo
 #
 
-def select_features(model):
+def select_features_lofo(model, algo, est):
+    r"""Select LOFO features.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        Model object with the feature selection specifications.
+    algo : str
+        Abbreviation of the algorithm to run.
+    est : alphapy.Estimator
+        The estimator to fit.
+
+    Returns
+    -------
+    model : alphapy.Model
+        Model object with the revised number of features.
+
+    References
+    ----------
+    You can find more information on LOFO feature selection here [LOFO]_.
+
+    .. [LOFO] http://https://github.com/aerdem4/lofo-importance
+
+    """
+
+    logger.info("LOFO Feature Selection for %s", algo)
+
+    # Extract model data.
+
+    X_train = model.X_train
+    y_train = model.y_train
+
+    # Extract model parameters.
+
+    cv_folds = model.specs['cv_folds']
+    n_jobs = model.specs['n_jobs']
+    scorer = model.specs['scorer']
+    target = model.specs['target']
+
+    # Construct the LOFO dataset.
+
+    X_df = pd.DataFrame(X_train, columns=model.feature_names)
+    df = pd.concat([X_df, y_train], axis=1)
+    dataset = lofo.Dataset(df=df, target=target, features=model.feature_names)
+
+    # Calculate the feature importances.
+
+    cv = KFold(n_splits=cv_folds, shuffle=False)
+    lofo_imp = lofo.LOFOImportance(dataset, model=est, cv=cv, scoring=scorer, n_jobs=n_jobs)
+    importance_df = lofo_imp.get_importance()
+    importance_df.sort_values('importance_mean', ascending=False, inplace=True)
+    
+    # Filter the feature names and store.
+    
+    importance_df = importance_df[importance_df['importance_mean'] > 0.0]
+    feature_names_lofo = importance_df['feature'].tolist()
+    model.lofo_df[algo] = importance_df.copy()
+
+    # Create the support vector
+
+    support = []
+    for fname in model.feature_names:
+        support.append(any(fname == x for x in feature_names_lofo))
+
+    # Record the support vector
+
+    logger.info("Saving LOFO Support")
+    model.feature_map['support_lofo', algo] = support
+
+    # Count the number of new features.
+
+    X_train_new = model.X_train[:, support]
+    logger.info("Old Feature Count : %d", X_train.shape[1])
+    logger.info("New Feature Count : %d", X_train_new.shape[1])
+
+    # Return the modified model
+    return model
+
+
+#
+# Function select_features_univariate
+#
+
+def select_features_univariate(model):
     r"""Select features with univariate selection.
 
     Parameters
@@ -1161,7 +1245,7 @@ def select_features(model):
 
     """
 
-    logger.info("Feature Selection")
+    logger.info("Univariate Feature Selection")
 
     # Extract model data.
 
@@ -1170,13 +1254,13 @@ def select_features(model):
 
     # Extract model parameters.
 
-    fs_percentage = model.specs['fs_percentage']
-    fs_score_func = model.specs['fs_score_func']
+    fs_uni_pct = model.specs['fs_uni_pct']
+    fs_uni_score_func = model.specs['fs_uni_score_func']
 
     # Select top features based on percentile.
 
-    fs = SelectPercentile(score_func=fs_score_func,
-                          percentile=fs_percentage)
+    fs = SelectPercentile(score_func=fs_uni_score_func,
+                          percentile=fs_uni_pct)
 
     # Perform feature selection and get the support mask
 
@@ -1186,27 +1270,23 @@ def select_features(model):
     # Record the support vector
 
     logger.info("Saving Univariate Support")
-    model.feature_map['uni_support'] = support
-
-    # Record the support vector
-
-    X_train_new = model.X_train[:, support]
-    X_test_new = model.X_test[:, support]
+    model.feature_map['support_uni'] = support
 
     # Count the number of new features.
 
+    X_train_new = model.X_train[:, support]
     logger.info("Old Feature Count : %d", X_train.shape[1])
     logger.info("New Feature Count : %d", X_train_new.shape[1])
 
-    # Store the reduced features in the model.
-
-    model.X_train = X_train_new
-    model.X_test = X_test_new
-
     # Mask the feature names and test that feature and name lengths are equal
 
-    model.feature_names = list(itertools.compress(model.feature_names, support))
-    assert X_train_new.shape[1] == len(model.feature_names), "Mismatched Features and Names"
+    feature_names = list(itertools.compress(model.feature_names, support))
+    assert X_train_new.shape[1] == len(feature_names), "Mismatched Features and Names"
+    
+    # Propagate features name to each algorithm.
+    
+    for algo in model.algolist:
+        model.fnames_algo[algo] = feature_names
 
     # Return the modified model
     return model
@@ -1411,11 +1491,13 @@ def remove_lv_features(model, X):
         else:
             support = model.feature_map['lv_support']
         X_reduced = X[:, support]
-        model.feature_names = list(itertools.compress(model.feature_names, support))
+        feature_names = list(itertools.compress(model.feature_names, support))
+        for algo in model.algolist:
+            model.fnames_algo[algo] = feature_names
         logger.info("Reduced Feature Count   : %d", X_reduced.shape[1])
+        assert X_reduced.shape[1] == len(feature_names), "Mismatched Features and Names"
     else:
         X_reduced = X
         logger.info("Skipping Low-Variance Features")
 
-    assert X_reduced.shape[1] == len(model.feature_names), "Mismatched Features and Names"
     return X_reduced

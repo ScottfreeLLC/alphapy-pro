@@ -56,7 +56,6 @@ print(__doc__)
 #
 
 from bokeh.plotting import figure, show, output_file
-from lofo import LOFOImportance, Dataset
 import logging
 import math
 import matplotlib
@@ -76,7 +75,7 @@ from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
 
 from alphapy.estimators import get_estimators
-from alphapy.globals import BSEP, PSEP, SSEP, USEP
+from alphapy.globals import BSEP, SSEP, USEP
 from alphapy.globals import ModelType
 from alphapy.globals import Partition, datasets
 from alphapy.globals import Q1, Q3
@@ -390,69 +389,47 @@ def plot_importances(model, partition):
 
     # Extract model parameters.
 
-    cv_folds = model.specs['cv_folds']
-    n_jobs = model.specs['n_jobs']
-    scorer = model.specs['scorer']
-    target = model.specs['target']
+    fs_lofo = model.specs['fs_lofo']
 
     # For each algorithm that has importances, generate the plot.
 
-    n_top = 20
-
     for algo in model.algolist:
-        logger.info("Feature Importances for Algorithm: %s", algo)
-        try:
-            # get feature importances
-            importances = model.importances[algo]
-            imp_flag = True
-        except:
-            imp_flag = False
-        if imp_flag:
-            # get feature name indices
-            indices = np.argsort(importances)[::-1]
-            importances = importances[indices]
-            feature_names = np.array(model.fnames_algo[algo])[indices]
-            n_features = len(feature_names)
-            # log the feature ranking
-            logger.info("Feature Ranking:")
-            n_min = min(n_top, n_features)
-            for i in range(n_min):
-                logger.info("%d. %s (%f)", i + 1, feature_names[i], importances[i])
-            # plot the feature importances
-            title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
-            plt.figure()
-            plt.title(title)
-            plt.barh(range(n_min), importances[:n_min][::-1])
-            plt.yticks(range(n_min), feature_names[:n_min][::-1])
-            plt.ylim([-1, n_min])
-            plt.xlabel('Relative Importance')
-            # save the plot
-            tag = USEP.join([pstring, algo])
-            write_plot('matplotlib', plt, 'feature_importance', tag, plot_dir)
+        tag = USEP.join([pstring, algo])
+        # LOFO Feature Importances
+        if fs_lofo:
+            logger.info("LOFO Importances for Algorithm: %s", algo)
+            importance_df = model.lofo_df[algo].copy()
+            importance_df['color'] = (importance_df['importance_mean'] > 0).map({True: 'g', False: 'r'})
+            importance_df.sort_values('importance_mean', inplace=True)
+            ax = importance_df.plot(x='feature', y='importance_mean', xerr='importance_std',
+                                    kind='barh', color=importance_df['color'], figsize=(12, 24))
+            write_plot('matplotlib', ax.get_figure(), 'lofo_importance', tag, plot_dir)
         else:
-            logger.info("No scikit-learn Feature Importances for %s" % algo)
-    
-    # LOFO Importances
-
-    logger.info("Generating LOFO Feature Importance Plot")
-    # Get X, Y for correct partition.
-    X, y = get_partition_data(model, partition)
-    X_df = pd.DataFrame(X, columns=model.feature_names)
-    df = pd.concat([X_df, y], axis=1)
-    # define the binary target and the features
-    dataset = Dataset(df=df, target=target, features=model.feature_names)
-    # define the validation scheme
-    cv = KFold(n_splits=cv_folds, shuffle=False)
-    # define the validation scheme and scorer. The default model is LightGBM
-    lofo_imp = LOFOImportance(dataset, cv=cv, scoring=scorer, n_jobs=n_jobs)
-    # get the mean and standard deviation of the importances in pandas format
-    importance_df = lofo_imp.get_importance()
-    # plot the means and standard deviations of the importances
-    importance_df['color'] = (importance_df['importance_mean'] > 0).map({True: 'g', False: 'r'})
-    importance_df.sort_values('importance_mean', inplace=True)
-    ax = importance_df.plot(x='feature', y='importance_mean', xerr='importance_std',
-                            kind='barh', color=importance_df['color'], figsize=(12, 24))
-    write_plot('matplotlib', ax.get_figure(), 'lofo_importance', pstring, plot_dir)
+            logger.info("Feature Importances for Algorithm: %s", algo)
+            try:
+                # get feature importances
+                importances = model.importances[algo]
+                imp_flag = True
+            except:
+                imp_flag = False
+            if imp_flag:
+                # get feature name indices
+                indices = np.argsort(importances)[::-1]
+                importances = importances[indices]
+                feature_names = np.array(model.fnames_algo[algo])[indices]
+                n_features = len(feature_names)
+                # plot the feature importances
+                title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
+                plt.figure()
+                plt.title(title)
+                plt.barh(range(n_features), importances[:n_features][::-1])
+                plt.yticks(range(n_features), feature_names[:n_features][::-1])
+                plt.ylim([-1, n_features])
+                plt.xlabel('Relative Importance')
+                # save the plot
+                write_plot('matplotlib', plt, 'feature_importance', tag, plot_dir)
+            else:
+                logger.info("No scikit-learn Feature Importances for %s" % algo)
 
 
 #

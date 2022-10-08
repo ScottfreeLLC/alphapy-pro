@@ -216,9 +216,9 @@ def hyper_grid_search(model, estimator):
     # Extract model parameters.
 
     cv_folds = model.specs['cv_folds']
-    feature_selection = model.specs['feature_selection']
-    fs_percentage = model.specs['fs_percentage']
-    fs_score_func = model.specs['fs_score_func']
+    fs_univariate = model.specs['fs_univariate']
+    fs_uni_pct = model.specs['fs_uni_pct']
+    fs_uni_score_func = model.specs['fs_uni_score_func']
     fs_uni_grid = model.specs['fs_uni_grid']
     gs_iters = model.specs['gs_iters']
     gs_random = model.specs['gs_random']
@@ -246,10 +246,10 @@ def hyper_grid_search(model, estimator):
 
     # Create the pipeline for grid search
 
-    if feature_selection:
+    if fs_univariate:
         # Augment the grid for feature selection.
-        fs = SelectPercentile(score_func=fs_score_func,
-                              percentile=fs_percentage)
+        fs = SelectPercentile(score_func=fs_uni_score_func,
+                              percentile=fs_uni_pct)
         # Combine the feature selection and estimator grids.
         fs_grid = dict(fs__percentile=fs_uni_grid)
         grid_new.update(fs_grid)
