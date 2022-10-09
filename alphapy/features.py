@@ -1176,15 +1176,26 @@ def select_features_lofo(model, algo, est):
     # Extract model parameters.
 
     cv_folds = model.specs['cv_folds']
+    fs_univariate = model.specs['fs_univariate']
     n_jobs = model.specs['n_jobs']
     scorer = model.specs['scorer']
     target = model.specs['target']
+    
+    # Filter features with preliminary univariate support.
+
+    if fs_univariate:
+        support_uni = model.feature_map['support_uni']
+        X_fs = model.X_train[:, support_uni].copy()
+        fnames = list(itertools.compress(model.feature_names, support_uni))
+    else:
+        X_fs = model.X_train.copy()
+        fnames = model.feature_names
 
     # Construct the LOFO dataset.
 
-    X_df = pd.DataFrame(X_train, columns=model.feature_names)
+    X_df = pd.DataFrame(X_fs, columns=fnames)
     df = pd.concat([X_df, y_train], axis=1)
-    dataset = lofo.Dataset(df=df, target=target, features=model.feature_names)
+    dataset = lofo.Dataset(df=df, target=target, features=fnames)
 
     # Calculate the feature importances.
 
