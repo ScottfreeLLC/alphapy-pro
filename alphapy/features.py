@@ -1223,9 +1223,8 @@ def select_features_lofo(model, algo, est):
 
     # Count the number of new features.
 
-    X_train_new = model.X_train[:, support]
-    logger.info("Old Feature Count : %d", X_train.shape[1])
-    logger.info("New Feature Count : %d", X_train_new.shape[1])
+    logger.info("Old Feature Count : %d", X_fs.shape[1])
+    logger.info("New Feature Count : %d", len(feature_names_lofo))
 
     # Return the modified model
     return model
