@@ -402,7 +402,7 @@ def plot_importances(model, partition):
             importance_df['color'] = (importance_df['importance_mean'] > 0).map({True: 'g', False: 'r'})
             importance_df.sort_values('importance_mean', inplace=True)
             ax = importance_df.plot(x='feature', y='importance_mean', xerr='importance_std',
-                                    kind='barh', color=importance_df['color'], figsize=(12, 24))
+                                    kind='barh', color=importance_df['color'], figsize=(12, 16))
             write_plot('matplotlib', ax.get_figure(), 'lofo_importance', tag, plot_dir)
         else:
             logger.info("Feature Importances for Algorithm: %s", algo)
@@ -417,7 +417,7 @@ def plot_importances(model, partition):
                 indices = np.argsort(importances)[::-1]
                 importances = importances[indices]
                 feature_names = np.array(model.fnames_algo[algo])[indices]
-                n_features = len(feature_names)
+                n_features = 20
                 # plot the feature importances
                 title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
                 plt.figure()
