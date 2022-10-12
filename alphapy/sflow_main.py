@@ -651,6 +651,111 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
 
 
 #
+# Function record_live_results
+#
+
+def record_live_results(sport_specs, model_specs, directory):
+    r"""Update the live results.
+
+    Parameters
+    ----------
+    sport_specs : dict
+        The input sports parameters.
+    model_specs : dict
+        The input model parameters.
+    directory : str
+        The directory containing the test predictions.
+
+    Returns
+    -------
+    df_live : pandas.DataFrame
+        The dataframe of live results.
+
+    """
+
+    # Extract model fields
+    
+    capital = sport_specs['capital']
+    kelly_frac = sport_specs['kelly_frac']
+    ml_min = sport_specs['ml_min']
+    prob_col = sport_specs['prob_col']
+    prob_min = sport_specs['prob_min']
+    prob_max = sport_specs['prob_max']
+    target = model_specs['target']
+    
+    # Read the Live Results File.
+
+    logger.info("Reading Live Results")
+    output_dir = SSEP.join([directory, 'output'])
+    try:
+        df_live = read_frame(output_dir, 'live_results', model_specs['extension'], model_specs['separator'])
+        df_live.set_index('match_id', inplace=True)
+        logger.info("Current Live Records: %d", df_live.shape[0])
+    except:
+        df_live = pd.DataFrame()
+        logger.info("No Live Results to Analyze")
+
+    logger.info("Updating Live Results")
+    df_live = update_live_results(df_live, target, output_dir)
+    logger.info("Total Live Records: %d", df_live.shape[0])
+
+    # Save updated Live Results file.
+    file_spec = '/'.join([output_dir, 'live_results.csv'])
+    df_live.to_csv(file_spec, index_label='match_id')
+    
+    # Calculate winning percentages and probability deltas.
+    
+    def get_odds(x):
+        if x > 0:
+            odds = x / 100.0 + 1.0
+        elif x < 0:
+            odds = 100.0 / abs(x) + 1.0
+        else:
+            odds = 0.0
+        return odds
+    
+    def get_prob_win(x):
+        if x > 0:
+            prob = 1.0 - (x / (x + 100.0))
+        elif x < 0:
+            prob = abs(x) / (abs(x) + 100.0)
+        else:
+            prob = 0.5
+        return prob
+    
+    def get_kelly_pct(row, side):
+        colname = USEP.join([side, 'odds'])
+        odds = row[colname]
+        colname = USEP.join([side, 'prob', 'win'])
+        prob_win = row[colname]
+        prob_model = row[prob_col]
+        kelly_pct = ((odds - 1.0) * prob_win - (1.0 - prob_model)) / (odds - 1.0) * kelly_frac
+        return kelly_pct
+
+    if not df_live.empty:
+        # calculate odds and win probability
+        for side in ['away', 'home']:
+            colname = USEP.join([side, 'money', 'line'])
+            mlclose = df_live[colname]
+            colname = USEP.join([side, 'odds'])
+            df_live[colname] = mlclose.apply(get_odds)
+            colname = USEP.join([side, 'prob', 'win'])
+            df_live[colname] = mlclose.apply(get_prob_win)
+            colname = USEP.join([side, 'kelly', 'pct'])
+            df_live[colname] = df_live.apply(get_kelly_pct, args=(side,), axis=1)     
+        # Betting System Analysis
+        if ml_min:
+            df_bet = df_live.loc[(df_live['away_money_line'].abs() >= ml_min) | (df_live['home_money_line'].abs() >= ml_min)].copy()
+        working_cap = capital
+        for index, row in df_bet.iterrows():
+            if row['away_money_line'] >= ml_min:
+                pass
+            if row['home_money_line'] >= ml_min:
+                pass
+    return df_live
+
+
+#
 # Function update_live_results
 #
 
@@ -807,7 +912,8 @@ def main(args=None):
     model_specs['alphapy_root'] = alphapy_root
     
     # Extract model fields
-    target = model_specs['target']
+    
+    live_results = model_specs['live_results']
 
     # Add command line arguments to model specifications
 
@@ -841,16 +947,10 @@ def main(args=None):
 
     # Section: game
 
-    capital = sport_specs['capital']
-    kelly_frac = sport_specs['kelly_frac']
-    league = sport_specs['league']
     data_directory = sport_specs['data_directory']
+    league = sport_specs['league']
     points_max = sport_specs['points_max']
-    ml_min = sport_specs['ml_min']
     points_min = sport_specs['points_min']
-    prob_col = sport_specs['prob_col']
-    prob_min = sport_specs['prob_min']
-    prob_max = sport_specs['prob_max']
     random_scoring = sport_specs['random_scoring']
     seasons = sport_specs['seasons']
     window = sport_specs['rolling_window']   
@@ -1068,75 +1168,9 @@ def main(args=None):
     model = main_pipeline(alphapy_specs, model)
     
     # Update the live results
-
-    logger.info("Reading Live Results")
-
-    output_dir = SSEP.join([directory, 'output'])
-    try:
-        df_live = read_frame(output_dir, 'live_results', model_specs['extension'], model_specs['separator'])
-        df_live.set_index('match_id', inplace=True)
-        logger.info("Current Live Records: %d", df_live.shape[0])
-    except:
-        df_live = pd.DataFrame()
-        logger.info("No Live Results to Analyze")
-
-    logger.info("Updating Live Results")
-    df_live = update_live_results(df_live, target, output_dir)
-    logger.info("Total Live Records: %d", df_live.shape[0])
-
-    # Save updated Live Results file.
-    file_spec = '/'.join([output_dir, 'live_results.csv'])
-    df_live.to_csv(file_spec, index_label='match_id')
     
-    # Calculate winning percentages and probability deltas.
-    
-    def get_odds(x):
-        if x > 0:
-            odds = x / 100.0 + 1.0
-        elif x < 0:
-            odds = 100.0 / abs(x) + 1.0
-        else:
-            odds = 0.0
-        return odds
-    
-    def get_prob_win(x):
-        if x > 0:
-            prob = 1.0 - (x / (x + 100.0))
-        elif x < 0:
-            prob = abs(x) / (abs(x) + 100.0)
-        else:
-            prob = 0.5
-        return prob
-    
-    def get_kelly_pct(row, side):
-        colname = USEP.join([side, 'odds'])
-        odds = row[colname]
-        colname = USEP.join([side, 'prob', 'win'])
-        prob_win = row[colname]
-        prob_model = row[prob_col]
-        kelly_pct = ((odds - 1.0) * prob_win - (1.0 - prob_model)) / (odds - 1.0) * kelly_frac
-        return kelly_pct
-
-    if not df_live.empty:
-        # calculate odds and win probability
-        for side in ['away', 'home']:
-            colname = USEP.join([side, 'money', 'line'])
-            mlclose = df_live[colname]
-            colname = USEP.join([side, 'odds'])
-            df_live[colname] = mlclose.apply(get_odds)
-            colname = USEP.join([side, 'prob', 'win'])
-            df_live[colname] = mlclose.apply(get_prob_win)
-            colname = USEP.join([side, 'kelly', 'pct'])
-            df_live[colname] = df_live.apply(get_kelly_pct, args=(side,), axis=1)     
-        # Betting System Analysis
-        if ml_min:
-            df_bet = df_live.loc[(df_live['away_money_line'].abs() >= ml_min) | (df_live['home_money_line'].abs() >= ml_min)].copy()
-        working_cap = capital
-        for index, row in df_bet.iterrows():
-            if row['away_money_line'] >= ml_min:
-                pass
-            if row['home_money_line'] >= ml_min:
-                pass
+    if live_results:
+        df_live = record_live_results(sport_specs, model_specs, directory)
 
     # Complete the pipeline
 

@@ -266,6 +266,7 @@ def get_model_config(directory='.'):
 
     specs['directory'] = cfg['project']['directory']
     specs['extension'] = cfg['project']['file_extension']
+    specs['live_results'] = cfg['project']['live_results']
     specs['submission_file'] = cfg['project']['submission_file']
     specs['submit_probas'] = cfg['project']['submit_probas']
 
@@ -470,6 +471,7 @@ def get_model_config(directory='.'):
     logger.info('iso_neighbors     = %d', specs['iso_neighbors'])
     logger.info('isample_pct       = %d', specs['isample_pct'])
     logger.info('learning_curve    = %r', specs['learning_curve'])
+    logger.info('live_results      = %r', specs['live_results'])
     logger.info('log_transform     = %r', specs['log_transform'])
     logger.info('lv_remove         = %r', specs['lv_remove'])
     logger.info('lv_threshold      = %f', specs['lv_threshold'])
