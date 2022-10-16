@@ -61,11 +61,12 @@ logger = logging.getLogger(__name__)
 # Function get_finviz_portfolios
 #
 
-def get_finviz_portfolios(alphapy_specs):
+def get_finviz_portfolios():
     finviz_specs = alphapy_specs['finviz']
     email = finviz_specs['email']
     api_key = finviz_specs['api_key']
     portfolios = finviz_specs['portfolios']
+    print(portfolios)
 
     groups = {}
     for pf in portfolios:
@@ -85,7 +86,7 @@ def get_finviz_portfolios(alphapy_specs):
 #
 
 @st.cache
-def get_market_index_groups(alphapy_specs):
+def get_market_index_groups():
     url = f"https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
     df = pd.read_csv(url)
     df.loc[df['symbol'] == '^NDX', 'name'] = 'Nasdaq 100'
@@ -136,7 +137,7 @@ def get_market_inputs(input_dict, select_dict):
 # Function run_project
 #
 
-def run_project(alphapy_specs, project):
+def run_project(project):
 
     # Vet the model and market specifications
 
@@ -156,16 +157,17 @@ def run_project(alphapy_specs, project):
     if screener == text_ap:
         groups = alphapy_request(alphapy_specs, 'groups')
     elif screener == text_fp:
-        groups = get_finviz_portfolios(alphapy_specs)
+        groups = get_finviz_portfolios()
     elif screener == text_mi:
-        groups = get_market_index_groups(alphapy_specs)
+        groups = get_market_index_groups()
 
-    # Select the group to test (default market:target_group)
+    # Select the group to test
 
-    group_default = market_specs['market']['target_group']
     group_list = list(groups.keys())
-    group_list.remove(group_default)
-    group_list.insert(0, group_default)
+    if screener == text_ap:
+        group_default = market_specs['market']['target_group']
+        group_list.remove(group_default)
+        group_list.insert(0, group_default)
     group_text = ' '.join(['Select', screener, 'Group'])
     group = col1.selectbox(group_text, group_list)
 
@@ -343,4 +345,4 @@ projects.insert(0, None)
 project = st.sidebar.selectbox("Select Project", projects)
 
 if project:
-    run_project(alphapy_specs, project)
+    run_project(project)

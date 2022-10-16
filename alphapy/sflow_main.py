@@ -194,28 +194,13 @@ def get_sport_config():
     specs['rolling_window'] = cfg['sport']['rolling_window']   
     specs['seasons'] = cfg['sport']['seasons']
 
-    # Section: system
-
-    specs['capital'] = cfg['system']['capital']
-    specs['kelly_frac'] = cfg['system']['kelly_frac']
-    specs['ml_min'] = cfg['system']['ml_min']
-    specs['prob_col'] = cfg['system']['prob_col']
-    specs['prob_min'] = cfg['system']['prob_min']
-    specs['prob_max'] = cfg['system']['prob_max']
-
     # Log the sports parameters
 
     logger.info('SPORT PARAMETERS:')
-    logger.info('capital          = %d', specs['capital'])
     logger.info('league           = %s', specs['league'])
     logger.info('data_directory   = %s', specs['data_directory'])
-    logger.info('kelly_frac       = %s', specs['kelly_frac'])
-    logger.info('ml_min           = %d', specs['ml_min'])
     logger.info('points_max       = %d', specs['points_max'])
     logger.info('points_min       = %d', specs['points_min'])
-    logger.info('prob_col         = %s', specs['prob_col'])
-    logger.info('prob_min         = %s', specs['prob_min'])
-    logger.info('prob_max         = %s', specs['prob_max'])
     logger.info('random_scoring   = %r', specs['random_scoring'])
     logger.info('rolling_window   = %d', specs['rolling_window'])
     logger.info('seasons          = %s', specs['seasons'])
@@ -654,13 +639,11 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
 # Function record_live_results
 #
 
-def record_live_results(sport_specs, model_specs, directory):
-    r"""Update the live results.
+def record_live_results(model_specs, directory):
+    r"""Record the live results.
 
     Parameters
     ----------
-    sport_specs : dict
-        The input sports parameters.
     model_specs : dict
         The input model parameters.
     directory : str
@@ -675,12 +658,6 @@ def record_live_results(sport_specs, model_specs, directory):
 
     # Extract model fields
     
-    capital = sport_specs['capital']
-    kelly_frac = sport_specs['kelly_frac']
-    ml_min = sport_specs['ml_min']
-    prob_col = sport_specs['prob_col']
-    prob_min = sport_specs['prob_min']
-    prob_max = sport_specs['prob_max']
     target = model_specs['target']
     
     # Read the Live Results File.
@@ -700,58 +677,9 @@ def record_live_results(sport_specs, model_specs, directory):
     logger.info("Total Live Records: %d", df_live.shape[0])
 
     # Save updated Live Results file.
+
     file_spec = '/'.join([output_dir, 'live_results.csv'])
     df_live.to_csv(file_spec, index_label='match_id')
-    
-    # Calculate winning percentages and probability deltas.
-    
-    def get_odds(x):
-        if x > 0:
-            odds = x / 100.0 + 1.0
-        elif x < 0:
-            odds = 100.0 / abs(x) + 1.0
-        else:
-            odds = 0.0
-        return odds
-    
-    def get_prob_win(x):
-        if x > 0:
-            prob = 1.0 - (x / (x + 100.0))
-        elif x < 0:
-            prob = abs(x) / (abs(x) + 100.0)
-        else:
-            prob = 0.5
-        return prob
-    
-    def get_kelly_pct(row, side):
-        colname = USEP.join([side, 'odds'])
-        odds = row[colname]
-        colname = USEP.join([side, 'prob', 'win'])
-        prob_win = row[colname]
-        prob_model = row[prob_col]
-        kelly_pct = ((odds - 1.0) * prob_win - (1.0 - prob_model)) / (odds - 1.0) * kelly_frac
-        return kelly_pct
-
-    if not df_live.empty:
-        # calculate odds and win probability
-        for side in ['away', 'home']:
-            colname = USEP.join([side, 'money', 'line'])
-            mlclose = df_live[colname]
-            colname = USEP.join([side, 'odds'])
-            df_live[colname] = mlclose.apply(get_odds)
-            colname = USEP.join([side, 'prob', 'win'])
-            df_live[colname] = mlclose.apply(get_prob_win)
-            colname = USEP.join([side, 'kelly', 'pct'])
-            df_live[colname] = df_live.apply(get_kelly_pct, args=(side,), axis=1)     
-        # Betting System Analysis
-        if ml_min:
-            df_bet = df_live.loc[(df_live['away_money_line'].abs() >= ml_min) | (df_live['home_money_line'].abs() >= ml_min)].copy()
-        working_cap = capital
-        for index, row in df_bet.iterrows():
-            if row['away_money_line'] >= ml_min:
-                pass
-            if row['home_money_line'] >= ml_min:
-                pass
     return df_live
 
 
@@ -1170,7 +1098,7 @@ def main(args=None):
     # Update the live results
     
     if live_results:
-        df_live = record_live_results(sport_specs, model_specs, directory)
+        df_live = record_live_results(model_specs, directory)
 
     # Complete the pipeline
 
