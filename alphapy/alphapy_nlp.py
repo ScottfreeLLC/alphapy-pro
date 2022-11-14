@@ -1,6 +1,6 @@
 """
 Package   : AlphaPy
-Module    : transforms_nlp
+Module    : alphapy_nlp
 Created   : October 29, 2022
 
 Copyright 2022 ScottFree Analytics LLC
@@ -45,10 +45,23 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Function abovema
+# Encoding Dictionary
 #
 
-def abovema(f, c, p = 50):
+encodings = {
+    'gaps'       : encode_gaps,
+    'pivots'     : encode_pivots,
+    'range'      : encode_range,
+    'sequential' : encode_sequential,
+    'volume'     : encode_volume
+}
+
+
+#
+# Function encode_nlp
+#
+
+def encode_nlp(f, p = 50):
     r"""Determine those values of the dataframe that are above the
     moving average.
 
@@ -56,8 +69,6 @@ def abovema(f, c, p = 50):
     ----------
     f : pandas.DataFrame
         Dataframe containing the column ``c``.
-    c : str
-        Name of the column in the dataframe ``f``.
     p : int
         The period of the moving average.
 
