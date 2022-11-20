@@ -278,7 +278,6 @@ def get_model_config(directory='.'):
     specs['separator'] = cfg['data']['separator']
     specs['shuffle'] = cfg['data']['shuffle']
     specs['split'] = cfg['data']['split']
-    specs['target'] = cfg['data']['target']
     specs['allow_na_targets'] = cfg['data']['allow_na_targets']
     # sampling
     specs['sampling'] = cfg['data']['sampling']['option']
@@ -393,6 +392,8 @@ def get_model_config(directory='.'):
     # rfe
     specs['rfe'] = cfg['model']['rfe']['option']
     specs['rfe_step'] = cfg['model']['rfe']['step']
+    # target
+    specs['target'] = cfg['model']['target']
     # time series
     specs['ts_option'] = cfg['model']['time_series']['option']
     specs['ts_backtests'] = cfg['model']['time_series']['backtests']

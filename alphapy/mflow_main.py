@@ -101,26 +101,26 @@ def get_market_config(directory='.'):
     specs = {}
 
     #
-    # Section: market [this section must be first]
+    # Section: data [this section must be first]
     #
 
-    specs['data_source'] = cfg['market']['data_source']
+    specs['data_source'] = cfg['data']['data_source']
 
     # Fractals must conform to the pandas offset format
 
-    fractal = cfg['market']['data_fractal']
+    fractal = cfg['data']['data_fractal']
     try:
         data_fractal_td = pd.to_timedelta(fractal)
     except:
         raise ValueError("Fractal [%s] is an invalid pandas offset" % fractal)
     specs['data_fractal'] = fractal
 
-    data_history = cfg['market']['data_history']
+    data_history = cfg['data']['data_history']
     if not data_history:
         data_history = 0
 
-    start_date = cfg['market']['data_start_date']
-    end_date = cfg['market']['data_end_date']
+    start_date = cfg['data']['data_start_date']
+    end_date = cfg['data']['data_end_date']
 
     if not start_date or not end_date:
         data_history_dt = pd.to_timedelta(data_history, unit='d')
@@ -144,7 +144,7 @@ def get_market_config(directory='.'):
         start_date = start_date_dt.strftime('%Y-%m-%d')
         end_date = end_date_dt.strftime('%Y-%m-%d')
 
-    data_directory = cfg['market']['data_directory']
+    data_directory = cfg['data']['data_directory']
     dir_exists = os.path.isdir(data_directory)
     if dir_exists:
         specs['data_directory'] = data_directory
@@ -154,14 +154,9 @@ def get_market_config(directory='.'):
     specs['data_history'] = data_history
     specs['data_start_date'] = start_date
     specs['data_end_date'] = end_date
-
-    specs['forecast_period'] = cfg['market']['forecast_period']
-    specs['predict_history'] = cfg['market']['predict_history']
-    specs['subject'] = cfg['market']['subject']
-    specs['target_group'] = cfg['market']['target_group']
-    specs['create_model'] = cfg['market']['create_model']
-    specs['run_system'] = cfg['market']['run_system']
-    specs['meta_model'] = cfg['market']['meta_model']
+    specs['predict_history'] = cfg['data']['predict_history']
+    specs['subject'] = cfg['data']['subject']
+    specs['target_group'] = cfg['data']['target_group']
 
     #
     # Section: Bar Type, Features and Fractals
@@ -241,7 +236,6 @@ def get_market_config(directory='.'):
 
     logger.info('MARKET PARAMETERS:')
     logger.info('bar_type         = %s', specs['bar_type'])
-    logger.info('create_model     = %r', specs['create_model'])
     logger.info('data_source      = %s', specs['data_source'])
     logger.info('data_directory   = %s', specs['data_directory'])
     logger.info('data_end_date    = %s', specs['data_end_date'])
@@ -249,12 +243,9 @@ def get_market_config(directory='.'):
     logger.info('data_start_date  = %s', specs['data_start_date'])
     logger.info('data_history     = %d', specs['data_history'])
     logger.info('features         = %s', specs['features'])
-    logger.info('forecast_period  = %d', specs['forecast_period'])
     logger.info('fractals         = %s', specs['fractals'])
-    logger.info('meta_model       = %r', specs['meta_model'])
     logger.info('portfolio        = %s', specs['portfolio'])
-    logger.info('predict_history  = %s', specs['predict_history'])
-    logger.info('run_system       = %r', specs['run_system'])
+    logger.info('predict_history  = %d', specs['predict_history'])
     logger.info('subject          = %s', specs['subject'])
     logger.info('system           = %s', specs['system'])
     logger.info('target_group     = %s', specs['target_group'])
@@ -324,8 +315,9 @@ def set_model_targets(model, meta_model, dfs, fractals, forecast_period, predict
         test_frame = pd.DataFrame()
 
     #
-    # We are creating a target variable based on whether the trade was successful.
-    # If the trade is profitable, then the target is 1 else 0.
+    # For the metamodel, we are creating a target variable based on
+    # whether the trade was successful. If the trade is profitable,
+    # then the target is 1 else 0.
     #
     # For long signals, the ROI must be greater than 0.
     # For short signals, the ROI must be less than 0.
@@ -352,14 +344,14 @@ def set_model_targets(model, meta_model, dfs, fractals, forecast_period, predict
                 df[target] = df[target].shift(-forecast_period)
             # get frame subsets
             if predict_mode:
-                new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)]
+                new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)].copy()
                 if len(new_predict) > 0:
                     predict_frame = predict_frame.append(new_predict)
                 else:
                     logger.info("%s Prediction Frame has zero rows. Check prediction date.", symbol.upper())
             else:
                 # split data into train and test
-                new_train = df.loc[(df.index >= train_date) & (df.index < predict_date)]
+                new_train = df.loc[(df.index >= train_date) & (df.index < predict_date)].copy()
                 if not new_train.empty:
                     # check if target column has NaN values
                     nan_count = new_train[target].isnull().sum()
@@ -464,23 +456,22 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     # Get market specifications
 
-    create_model = market_specs['create_model']
     data_fractal = market_specs['data_fractal']
     data_history = market_specs['data_history']
     data_source = market_specs['data_source']
-    forecast_period = market_specs['forecast_period']
     fractals = market_specs['fractals']
     functions = market_specs['functions']
-    meta_model = market_specs['meta_model']
     predict_history = market_specs['predict_history']
-    run_sys = market_specs['run_system']
     subject = market_specs['subject']
     target_group = market_specs['target_group']
 
     # Get system specifications
 
     system_specs = market_specs['system']
-    system_type = system_specs['type']
+    run_model = system_specs['run_model']
+    meta_model = system_specs['meta_model']
+    forecast_period = system_specs['forecast_period']
+    system_type = system_specs['system_type']
     algo = system_specs['algo']
     prob_min = system_specs['prob_min']
     prob_max = system_specs['prob_max']
@@ -508,38 +499,31 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     # Run an analysis to create the model.
 
-    if create_model:
+    if run_model:
         logger.info("Creating Model")
         # set model targets
         set_model_targets(model, meta_model, dfs, fractals, forecast_period, predict_history)
         # run the AlphaPy model pipeline
         model = main_pipeline(alphapy_specs, model)
-    else:
-        logger.info("Skipping Model")
 
     # Run a system
 
-    if run_sys:
-        logger.info("Meta Model       : %s", meta_model)
-        logger.info("Target           : %s", target)
-        logger.info("System Type      : %s", system_type)
-        logger.info("Algorithm        : %s", algo)
-        logger.info("Prob Minimum     : %s", prob_min)
-        logger.info("Prob Maximum     : %s", prob_max)
-        logger.info("Forecast Period  : %s", forecast_period)
-        logger.info("Trade Fractal    : %s", trade_fractal)
-        # create and run the system
-        system = System(target, system_type, algo, prob_min, prob_max,
-                        forecast_period, trade_fractal)
-        tfs = run_system(model, system, forecast_period, group, intraday)
-        # generate a portfolio
-        if tfs.empty:
-            logger.info("No trades to generate a portfolio")
-        else:
-            portfolio_specs = market_specs['portfolio']
-            gen_portfolio(model, portfolio_specs, target, group, tfs)
+    logger.info("Target           : %s", target)
+    logger.info("System Type      : %s", system_type)
+    logger.info("Forecast Period  : %s", forecast_period)
+    logger.info("Algorithm        : %s", algo)
+    logger.info("Prob Minimum     : %s", prob_min)
+    logger.info("Prob Maximum     : %s", prob_max)
+    logger.info("Trade Fractal    : %s", trade_fractal)
+    # create and run the system
+    system = System(target, system_type, algo, prob_min, prob_max, forecast_period, trade_fractal)
+    tfs = run_system(model, system, forecast_period, group, intraday)
+    # generate a portfolio
+    if tfs.empty:
+        logger.info("No trades to generate a portfolio")
     else:
-        logger.info("System Not Run")
+        portfolio_specs = market_specs['portfolio']
+        gen_portfolio(model, portfolio_specs, target, group, tfs)
 
     # Return the completed model
     return model
