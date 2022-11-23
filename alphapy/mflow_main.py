@@ -144,19 +144,13 @@ def get_market_config(directory='.'):
         start_date = start_date_dt.strftime('%Y-%m-%d')
         end_date = end_date_dt.strftime('%Y-%m-%d')
 
-    data_directory = cfg['data']['data_directory']
-    dir_exists = os.path.isdir(data_directory)
-    if dir_exists:
-        specs['data_directory'] = data_directory
-    else:
-        raise ValueError("Directory %s does not exist" % data_directory)
- 
     specs['data_history'] = data_history
     specs['data_start_date'] = start_date
     specs['data_end_date'] = end_date
     specs['predict_history'] = cfg['data']['predict_history']
     specs['subject'] = cfg['data']['subject']
     specs['target_group'] = cfg['data']['target_group']
+    specs['cohort_group'] = cfg['data']['cohort_group']
 
     #
     # Section: Bar Type, Features and Fractals
@@ -237,7 +231,6 @@ def get_market_config(directory='.'):
     logger.info('MARKET PARAMETERS:')
     logger.info('bar_type         = %s', specs['bar_type'])
     logger.info('data_source      = %s', specs['data_source'])
-    logger.info('data_directory   = %s', specs['data_directory'])
     logger.info('data_end_date    = %s', specs['data_end_date'])
     logger.info('data_fractal     = %s', specs['data_fractal'])
     logger.info('data_start_date  = %s', specs['data_start_date'])
@@ -249,6 +242,7 @@ def get_market_config(directory='.'):
     logger.info('subject          = %s', specs['subject'])
     logger.info('system           = %s', specs['system'])
     logger.info('target_group     = %s', specs['target_group'])
+    logger.info('cohort_group     = %s', specs['cohort_group'])
 
     # Market Specifications
     return cfg, specs
@@ -448,6 +442,10 @@ def market_pipeline(alphapy_specs, model, market_specs):
     """
 
     logger.info("Running Market Flow Pipeline")
+    
+    # Get AlphaPy specifications
+
+    data_dir = alphapy_specs['data_dir']
 
     # Get model specifications
 
@@ -464,6 +462,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
     predict_history = market_specs['predict_history']
     subject = market_specs['subject']
     target_group = market_specs['target_group']
+    cohort_group = market_specs['cohort_group']
 
     # Get system specifications
 
@@ -484,15 +483,23 @@ def market_pipeline(alphapy_specs, model, market_specs):
     logger.info("Group Space: %s", group.space)
     logger.info("All Symbols: %s", group.members)
 
+    # Set the cohort group and space
+
+    group_cohort = Group.groups[cohort_group]
+    group_cohort.space = Space(subject, data_source, trade_fractal)
+    logger.info("Cohort Group Space: %s", group_cohort.space)
+    logger.info("Cohort Symbols: %s", group_cohort.members)
+
     # Determine whether or not this is an intraday analysis.
 
     intraday = any(substring in data_fractal for substring in PD_INTRADAY_OFFSETS)
 
-    # Get stock data. If we can't get all the data, then
+    # Get the market data. If we can't get all the data, then
     # predict_history resets to the actual history obtained.
 
     lookback = predict_history if predict_mode else data_history
-    get_market_data(model, market_specs, group, lookback, intraday)
+    get_market_data(model, market_specs, group, lookback, intraday, local_dir=data_dir)
+    get_market_data(model, market_specs, group_cohort, lookback, intraday, local_dir=data_dir)
 
     # Apply the features to all frames.
     dfs = vapply(group, market_specs, functions)

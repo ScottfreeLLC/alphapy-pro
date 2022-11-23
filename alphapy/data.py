@@ -732,7 +732,8 @@ def standardize_data(symbol, gspace, df, fractal, intraday_data):
 # Function get_market_data
 #
 
-def get_market_data(model, market_specs, group, lookback_period, intraday_data=False):
+def get_market_data(model, market_specs, group, lookback_period,
+                    intraday_data=False, local_dir=''):
     r"""Get data from an external feed.
 
     Parameters
@@ -747,11 +748,12 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
         The number of periods of data to retrieve.
     intraday_data : bool
         If True, then get intraday data.
+    local_dir : str
+        Local data directory, if needed.
     """
 
     # Unpack market specifications
 
-    data_directory = market_specs['data_directory']
     data_fractal = market_specs['data_fractal']
     feature_fractals = market_specs['fractals']
     from_date = market_specs['data_start_date']
@@ -792,7 +794,7 @@ def get_market_data(model, market_specs, group, lookback_period, intraday_data=F
             # locally stored intraday or daily data
             dspace = Space(gsubject, gsource, data_fractal)
             fname = frame_name(symbol.lower(), dspace)
-            df = read_frame(data_directory, fname, extension, separator)
+            df = read_frame(local_dir, fname, extension, separator)
         elif gsource in data_dispatch_table.keys():
             df = data_dispatch_table[gsource](gsource,
                                               symbol,

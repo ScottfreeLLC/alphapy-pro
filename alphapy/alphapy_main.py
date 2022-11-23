@@ -181,9 +181,16 @@ def get_alphapy_config(alphapy_root):
     # Set API Key environment variables
 
     for key in data_sources:
-        item = data_sources[key]
-        if item['api_key']:
-            os.environ[item['api_key_name']] = item['api_key']
+        key_dict = data_sources[key]
+        if 'api_key' in key_dict and 'api_key_name' in key_dict and key_dict['api_key_name']:
+            os.environ[key_dict['api_key_name']] = key_dict['api_key']
+        if 'directory' in key_dict:
+            dir = key_dict['directory']
+            dir_exists = os.path.isdir(dir)
+            if dir_exists:
+                specs['data_dir'] = dir
+            else:
+                raise ValueError("Directory %s does not exist" % dir)
 
     #
     # Log the AlphaPy parameters
