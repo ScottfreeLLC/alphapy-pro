@@ -45,8 +45,8 @@
 # Suppress Warnings
 #
 
-import pandas as pd
 import warnings
+import pandas as pd
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
@@ -63,11 +63,13 @@ import math
 import re
 import sys
 
+# AlphaPy Imports
+
 from alphapy.alias import get_alias
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.globals import BarType
-from alphapy.globals import CARET, LOFF, ROFF, USEP
+from alphapy.globals import LOFF, ROFF, USEP
 from alphapy.space import Space
 from alphapy.utilities import valid_name
 
@@ -83,7 +85,7 @@ logger = logging.getLogger(__name__)
 # Class Variable
 #
 
-class Variable(object):
+class Variable():
     """Create a new variable as a key-value pair. All variables are stored
     in ``Variable.variables``. Duplicate keys or values are not allowed,
     unless the ``replace`` parameter is ``True``.
@@ -715,9 +717,9 @@ def vapply(group, market_specs, vfuncs=None):
                     # add the fractal frame to the list
                     dfs.append(df)
                 else:
-                    logger.info("Empty Dataframe for %s [%s]" % (symbol, fractal))
+                    logger.info("Empty Dataframe for %s [%s]", symbol, fractal)
             else:
-                logger.info("Dataframe Not Found for %s [%s]" % (symbol, fractal))
+                logger.info("Dataframe Not Found for %s [%s]", symbol, fractal)
         # join all fractal frames
         logger.info("Joining Frames: %s", fractals)
         for indexf, df in enumerate(dfs):

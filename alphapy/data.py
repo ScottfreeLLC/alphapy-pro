@@ -774,12 +774,12 @@ def get_market_data(model, market_specs, group, lookback_period,
 
     if intraday_data:
         # intraday data (date and time)
-        logger.info("%s Intraday Data [%s] for %d days",
-                    gsource, data_fractal, lookback_period)
+        logger.info("Source: %s Intraday Data [%s] for %d days",
+                    gsource.upper(), data_fractal, lookback_period)
     else:
         # daily data or higher (date only)
-        logger.info("%s Daily Data [%s] for %d days",
-                    gsource, data_fractal, lookback_period)
+        logger.info("Source: %s Daily Data [%s] for %d days",
+                    gsource.upper(), data_fractal, lookback_period)
 
     # Get the data from the specified data feed
 

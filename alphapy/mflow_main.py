@@ -46,6 +46,8 @@ import yaml
 from alphapy.alphapy_main import get_alphapy_config
 from alphapy.alphapy_main import main_pipeline
 from alphapy.data import get_market_data
+from alphapy.frame import Frame
+from alphapy.frame import frame_name
 from alphapy.frame import write_frame
 from alphapy.globals import LOFF, ROFF, SSEP, USEP, BarType
 from alphapy.globals import PD_INTRADAY_OFFSETS
@@ -56,6 +58,7 @@ from alphapy.portfolio import gen_portfolio
 from alphapy.space import Space
 from alphapy.system import run_system
 from alphapy.system import System
+from alphapy.transforms import netreturn
 from alphapy.utilities import subtract_days, valid_date
 from alphapy.variables import vapply
 
@@ -411,6 +414,55 @@ def set_model_targets(model, meta_model, dfs, fractals, forecast_period, predict
 
 
 #
+# Function get_cohort_returns
+#
+
+def get_cohort_returns(dfs, group, fractal):
+    r"""Calculate returns for the cohorts.
+
+    Parameters
+    ----------
+    dfs : list
+        The list of pandas dataframes to apply the cohort returns.
+    group : alphapy.Group
+        The cohort group for calculating returns.
+    fractal : str
+        Pandas offset alias.
+
+    """
+
+    logger.info("Calculating Cohort Returns")
+
+    # Get cohort group information
+
+    gspace = group.space
+    gsubject = gspace.subject
+    gsource = gspace.source
+    symbols = [item.lower() for item in group.members]
+
+    #
+    # For each frame, calculate the difference in returns
+    #
+
+    col_roi = USEP.join(['roi', '1', fractal])
+    for symbol in symbols:
+        fspace = Space(gsubject, gsource, fractal)
+        fname = frame_name(symbol.lower(), fspace)
+        if fname in Frame.frames:
+            df_cohort = Frame.frames[fname].df
+            if not df_cohort.empty:
+                roi_cohort = netreturn(df_cohort, 'close')
+                col_roi_symbol = USEP.join([col_roi, symbol])
+                for df in dfs:
+                    df[col_roi_symbol] = df[col_roi] - roi_cohort
+            else:
+                logger.info("Empty Dataframe for %s [%s]", symbol, fractal)
+        else:
+            logger.info("Dataframe Not Found for %s [%s]", symbol, fractal)               
+    return
+
+
+#
 # Function market_pipeline
 #
 
@@ -503,6 +555,9 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     # Apply the features to all frames.
     dfs = vapply(group, market_specs, functions)
+    
+    # Apply the cohort returns to all frames.
+    get_cohort_returns(dfs, group_cohort, trade_fractal)
 
     # Run an analysis to create the model.
 
