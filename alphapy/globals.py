@@ -115,15 +115,14 @@ class Encoders(Enum):
 class ModelType(Enum):
     """AlphaPy Model Types.
 
-    .. note:: One-Class Classification ``oneclass`` is not yet
+    .. note:: Multiclass Classification ``multiclass`` is not yet
        implemented.
 
     """
     classification = 1
-    clustering = 2
-    multiclass = 3
-    oneclass = 4
-    regression = 5
+    multiclass = 2
+    ranker = 3
+    regression = 4
 
 
 #
