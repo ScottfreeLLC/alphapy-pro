@@ -376,7 +376,7 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, num_threads,
     Returns
     -------
     df_events : pandas.DataFrame
-        The record of events
+        The record of Triple Barrier events
         - df_events.index is event's starttime
         - df_events.t1 is the event's endtime
         - df_events.trgt is the event's target
@@ -384,7 +384,7 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, num_threads,
 
     """
 
-    logger.info('Getting Target Events')
+    logger.info('Getting the Triple Barrier Method Events')
 
     # Get the target based on volatility.
 
@@ -424,3 +424,112 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, num_threads,
         df_events = df_events.drop('side', axis=1)
 
     return df_events
+
+
+#
+# Function barrier_touched
+#
+
+def barrier_touched(df_meta):
+    r"""Determine whether the barriers have been touched.
+
+    Parameters
+    ----------
+    df_meta : pandas.DataFrame
+        The meta-labeled events
+
+    Returns
+    -------
+    df_meta : pandas.DataFrame
+        The dataframe containing TBM returns, target, and labels
+
+    """
+
+    store = []
+    for i in np.arange(len(df_meta)):
+        date_time = df_meta.index[i]
+        ret = df_meta.loc[date_time, 'ret']
+        target = df_meta.loc[date_time, 'trgt']
+
+        if ret > 0.0 and ret > target:
+            # Top barrier reached
+            store.append(1)
+        elif ret < 0.0 and ret < -target:
+            # Bottom barrier reached
+            store.append(-1)
+        else:
+            # Vertical barrier reached
+            store.append(0)
+
+    df_meta['bin'] = store
+    return df_meta
+
+
+#
+# Function get_bins
+#
+
+def get_bins(df_events, ds_close):
+    r"""Get the dataframe of meta-label events.
+
+    Parameters
+    ----------
+
+    df_events : pandas.DataFrame
+        The record of Triple Barrier events
+        - df_events.index is event's starttime
+        - df_events.t1 is the event's endtime
+        - df_events.trgt is the event's target
+        - df_events.side implies the algorithm's position side
+            Case 1: Side Not in Events: bin in (-1, 1) <- label by price action
+            Case 2: Side In Events    : bin in ( 0, 1) <- label by P&L (meta-labeling)
+
+    ds_close : pandas.Series
+        Array of closing values.
+
+    Returns
+    -------
+
+    df_meta : pandas.DataFrame
+        The meta-labeled events
+
+    """
+
+    # Align prices with their respective events.
+
+    df_events_ = df_events.dropna(subset=['t1'])
+    prices = df_events_.index.union(df_events_['t1'].values)
+    prices = prices.drop_duplicates()
+    prices = ds_close.reindex(prices, method='bfill')
+
+    # Create the output dataframe.
+    df_meta = pd.DataFrame(index=df_events_.index)
+
+    # Calculate the log returns, else the results will be skewed for short positions.
+
+    df_meta['ret'] = np.log(prices.loc[df_events_['t1'].values].values) - np.log(prices.loc[df_events_.index])
+    df_meta['trgt'] = df_events_['trgt']
+
+    # Meta Labeling: Events that are correct will have positive returns.
+
+    if 'side' in df_events_:
+        df_meta['ret'] = df_meta['ret'] * df_events_['side']
+
+    # Meta Labeling: Apply label 0 when the vertical barrier is reached.
+    df_meta = barrier_touched(df_meta)
+
+    # Meta Labeling: Label incorrect events with label 0.
+
+    if 'side' in df_events_:
+        df_meta.loc[df_meta['ret'] <= 0, 'bin'] = 0
+
+    # Transform the log returns back to normal returns.
+    df_meta['ret'] = np.exp(df_meta['ret']) - 1
+
+    # Add the side to the output. This is used when a meta-label model must be fit.
+
+    tb_cols = df_events.columns
+    if 'side' in tb_cols:
+        df_meta['side'] = df_events['side']
+
+    return df_meta
