@@ -112,6 +112,24 @@ class Encoders(Enum):
 #
 
 @unique
+class ModelLevel(Enum):
+    """AlphaPy Model Levels.
+
+    We can run models at different levels, ranging from a typical system
+    to a machine learning model to a metalabel model such as the
+    Triple Barrier Method.
+
+    """
+    system = 1
+    model = 2
+    metamodel = 3
+
+
+#
+# Model Types
+#
+
+@unique
 class ModelType(Enum):
     """AlphaPy Model Types.
 
