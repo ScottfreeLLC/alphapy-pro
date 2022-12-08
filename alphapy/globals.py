@@ -112,22 +112,6 @@ class Encoders(Enum):
 #
 
 @unique
-class ModelLevel(Enum):
-    """AlphaPy Model Levels.
-
-    We can run models at different levels, meaning that we can either
-    run the original system or apply a model to it.
-
-    """
-    system = 1
-    model = 2
-
-
-#
-# Model Types
-#
-
-@unique
 class ModelType(Enum):
     """AlphaPy Model Types.
 
