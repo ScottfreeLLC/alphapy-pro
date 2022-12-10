@@ -104,7 +104,17 @@ def get_market_config(directory='.'):
     specs = {}
 
     #
-    # Section: data [this section must be first]
+    # Section: trading
+    #
+
+    logger.info("Getting Trading Parameters")
+    try:
+        specs['trading'] = cfg['trading']
+    except:
+        raise ValueError("No Trading Parameters Found")
+
+    #
+    # Section: data
     #
 
     specs['data_source'] = cfg['data']['data_source']
@@ -196,27 +206,6 @@ def get_market_config(directory='.'):
     specs['fractals'] = feature_fractals
 
     #
-    # Section: portfolio
-    #
-
-    logger.info("Getting Portfolio Parameters")
-    try:
-        specs['portfolio'] = cfg['portfolio']
-    except:
-        raise ValueError("No Portfolio Parameters Found")
-
-    #
-    # Section: system
-    #
-
-    logger.info("Getting System Parameters")
-
-    try:
-        specs['system'] = cfg['system']
-    except:
-        raise ValueError("No System Parameters Found")
-
-    #
     # Section: functions
     #
 
@@ -240,12 +229,11 @@ def get_market_config(directory='.'):
     logger.info('data_history     = %d', specs['data_history'])
     logger.info('features         = %s', specs['features'])
     logger.info('fractals         = %s', specs['fractals'])
-    logger.info('portfolio        = %s', specs['portfolio'])
     logger.info('predict_history  = %d', specs['predict_history'])
     logger.info('subject          = %s', specs['subject'])
-    logger.info('system           = %s', specs['system'])
     logger.info('target_group     = %s', specs['target_group'])
     logger.info('cohort_group     = %s', specs['cohort_group'])
+    logger.info('trading          = %s', specs['trading'])
 
     # Market Specifications
     return cfg, specs
@@ -510,23 +498,12 @@ def market_pipeline(alphapy_specs, model, market_specs):
     data_history = market_specs['data_history']
     data_source = market_specs['data_source']
     fractals = market_specs['fractals']
+    trade_fractal = fractals[0]
     functions = market_specs['functions']
     predict_history = market_specs['predict_history']
     subject = market_specs['subject']
     target_group = market_specs['target_group']
-    cohort_group = market_specs['cohort_group']
-
-    # Get system specifications
-
-    system_specs = market_specs['system']
-    run_model = system_specs['run_model']
-    meta_model = system_specs['meta_model']
-    forecast_period = system_specs['forecast_period']
-    system_type = system_specs['system_type']
-    algo = system_specs['algo']
-    prob_min = system_specs['prob_min']
-    prob_max = system_specs['prob_max']
-    trade_fractal = fractals[0]
+    cohort_group = market_specs['cohort_group']    
 
     # Set the target group and space
 
@@ -555,18 +532,17 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     # Apply the features to all frames.
     dfs = vapply(group, market_specs, functions)
-    
+
     # Apply the cohort returns to all frames.
     get_cohort_returns(dfs, group_cohort, trade_fractal)
 
     # Run an analysis to create the model.
 
-    if run_model:
-        logger.info("Creating Model")
-        # set model targets
-        set_model_targets(model, meta_model, dfs, fractals, forecast_period, predict_history)
-        # run the AlphaPy model pipeline
-        model = main_pipeline(alphapy_specs, model)
+    logger.info("Creating Model")
+    # set model targets
+    set_model_targets(model, meta_model, dfs, fractals, forecast_period, predict_history)
+    # run the AlphaPy model pipeline
+    model = main_pipeline(alphapy_specs, model)
 
     # Run a system
 
@@ -584,8 +560,8 @@ def market_pipeline(alphapy_specs, model, market_specs):
     if tfs.empty:
         logger.info("No trades to generate a portfolio")
     else:
-        portfolio_specs = market_specs['portfolio']
-        gen_portfolio(model, portfolio_specs, target, group, tfs)
+        trading_specs = market_specs['trading']
+        gen_portfolio(model, trading_specs, target, group, tfs)
 
     # Return the completed model
     return model

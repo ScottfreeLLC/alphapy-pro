@@ -75,7 +75,6 @@ scorers = {'accuracy'                           : (ModelType.classification, Obj
            'precision'                          : (ModelType.classification, Objective.maximize),
            'recall'                             : (ModelType.classification, Objective.maximize),
            'roc_auc'                            : (ModelType.classification, Objective.maximize),
-           'adjusted_rand_score'                : (ModelType.clustering,     Objective.maximize),
            'explained_variance'                 : (ModelType.regression,     Objective.maximize),
            'neg_mean_absolute_error'            : (ModelType.regression,     Objective.minimize),
            'neg_mean_absolute_percentage_error' : (ModelType.regression,     Objective.minimize),

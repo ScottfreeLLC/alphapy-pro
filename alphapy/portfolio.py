@@ -1010,14 +1010,14 @@ def exec_trade(p, name, order, quantity, price, tdate):
 # Function gen_portfolio
 #
 
-def gen_portfolio(model, portfolio_specs, system, group, tframe):
+def gen_portfolio(model, trading_specs, system, group, tframe):
     r"""Create a portfolio from a trades frame.
 
     Parameters
     ----------
     model : alphapy.Model
         The model specifications.
-    portfolio_specs : dict
+    trading_specs : dict
         The portfolio specifications.
     system : str
         Name of the system.
@@ -1058,10 +1058,10 @@ def gen_portfolio(model, portfolio_specs, system, group, tframe):
 
     # Unpack the portfolio data.
 
-    startcap = portfolio_specs['capital']
-    margin = portfolio_specs['margin']
-    cost_bps = portfolio_specs['cost_bps']
-    kelly_frac = portfolio_specs['kelly_frac']
+    startcap = trading_specs['capital']
+    margin = trading_specs['margin']
+    cost_bps = trading_specs['cost_bps']
+    kelly_frac = trading_specs['kelly_frac']
 
     # Create the portfolio.
 

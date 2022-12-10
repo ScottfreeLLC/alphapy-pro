@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Package   : AlphaPy
-# Module    : streamlit_mflow
+# Module    : Deep_Alpha
 # Created   : February 21, 2021
 #
 # Copyright 2021 ScottFree Analytics LLC

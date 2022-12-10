@@ -70,6 +70,7 @@ from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.globals import BarType
 from alphapy.globals import LOFF, ROFF, USEP
+from alphapy.metalabel import get_daily_dollar_vol
 from alphapy.space import Space
 from alphapy.utilities import valid_name
 
@@ -618,7 +619,7 @@ def vapply(group, market_specs, vfuncs=None):
                 df = Frame.frames[fname].df
                 if not df.empty:
                     # Remap to a different bar type if specified
-                    df = map_bar_type(df, bar_type)
+                    df = map_bar_type(df, bar_type, fractal)
                     # create the features in the dataframe
                     all_features = features[fractal]
                     for feature in all_features:
@@ -660,3 +661,128 @@ def vapply(group, market_specs, vfuncs=None):
         dffs.append(dfj)
     # return all of the dataframes
     return dffs
+
+
+#
+# Function map_dollar_bars
+#
+
+def map_dollar_bars(df, cols, fractal, p=100, pv_factor=1.0):
+    r"""Map time bars to dollar bars.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe to convert to a different bar type.
+    cols: list
+        List of column names in the price dataframe.
+    fractal : str
+        Pandas offset alias.
+    p : int
+        The period over which to calculate dollar volume.
+    pv_factor : float
+        The multiple of daily dollar volume for the dollar bar threshold.
+
+    Returns
+    -------
+    dollar_bars : list
+        The list of dollar bar records.
+
+    """
+
+    # Get the daily dollar volume.
+
+    ddv = get_daily_dollar_vol(df, p)
+    time_factor = pd.Timedelta(fractal) / pd.Timedelta('1D')
+    dollar_threshold = pv_factor * time_factor * ddv
+    print(dollar_threshold)
+
+    # Create a dictionary from the original dataframe.
+    df_dict = df.to_dict('records')
+
+    # Initialize an empty list of dollar bars.
+    dollar_bars = []
+
+    # Initialize the running dollar volume at zero.
+    running_volume = 0
+
+    # Initialize the running high and low with placeholder values.
+    running_high, running_low = 0, math.inf
+
+    # Iterate over each time bar.
+
+    for i in range(len(df_dict)):
+        next_timestamp, next_open, next_high, next_low, next_close, next_volume = \
+            [df_dict[i][k] for k in cols]
+        # calculate the midpoint price
+        midpoint_price = ((next_open) + (next_close))/2
+        # get the approximate dollar volume of the bar with the volume and midpoint price
+        dollar_volume = next_volume * midpoint_price
+        # update the running high and low
+        running_high, running_low = max(running_high, next_high), min(running_low, next_low)
+        # check if the dollar volume exceeds the threshold
+        if dollar_volume + running_volume >= dollar_threshold:
+            # set the timestamp for the dollar bar as the next incremental fractal
+            bar_timestamp = next_timestamp + pd.Timedelta(fractal)
+            # add a new dollar bar to the list of dollar bars
+            dollar_bars += [{'timestamp': bar_timestamp,
+                             'open': next_open,
+                             'high': running_high,
+                             'low': running_low,
+                             'close': next_close}]
+            # reset the running volume to zero
+            running_volume = 0
+            # reset the running high and low to placeholder values
+            running_high, running_low = 0, math.inf
+        # otherwise, increment the running volume
+        else:
+            running_volume += dollar_volume
+
+    # return the list of dollar bars
+    return dollar_bars
+
+
+#
+# Function map_bar_type
+#
+
+def map_bar_type(df, bar_type, fractal, p=100, pv_factor=1.0):
+    r"""Map time bars to a different bar type.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe to convert to a different bar type.
+    bar_type : Enum.BarType
+        The bar type for conversion (Dollar Bar, Heikin-Ashi, et al).
+    fractal : str
+        Pandas offset alias.
+    p : int
+        The period over which to calculate dollar volume.
+    pv_factor : float
+        The multiple of daily dollar volume for the dollar bar threshold.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        The converted dataframe for the target bar type.
+    """
+
+    if bar_type == BarType.time:
+        pass
+    elif bar_type == BarType.dollar:
+        cols = ['datetime', 'open', 'high', 'low', 'close', 'volume']
+        df = map_dollar_bars(df, cols, fractal, p, pv_factor)
+    elif bar_type == BarType.heikinashi:
+        ha_map = {'open'  : 'openha',
+                  'high'  : 'highha',
+                  'low'   : 'lowha',
+                  'close' : 'closeha'}
+        new_names = [x+'0' for x in ha_map.keys()]
+        for v in ha_map.items():
+            df = vexec(df, ha_map[v])
+        df.rename(columns=dict(zip(ha_map.keys(), new_names)), inplace=True)
+        df.rename(columns=dict(zip(ha_map.values(), ha_map.keys())), inplace=True)
+    else:
+        raise ValueError("Unknown Bar Type: %s" % bar_type)
+    return df

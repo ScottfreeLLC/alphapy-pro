@@ -200,7 +200,7 @@ def get_daily_vol(ds_close, p = 100):
         The array of volatilities.
 
     """
-    
+
     logger.info('Calculating daily volatility for dynamic thresholds')
 
     ds_vol = ds_close.index.searchsorted(ds_close.index - pd.Timedelta(days=1))
@@ -210,6 +210,39 @@ def get_daily_vol(ds_close, p = 100):
     ds_vol = ds_close.loc[ds_vol.index] / ds_close.loc[ds_vol.values].values - 1
     ds_vol = ds_vol.ewm(span=p).std()
     return ds_vol
+
+
+#
+# Function get_daily_dollar_vol
+#
+
+def get_daily_dollar_vol(df, p = 100):
+    r"""Calculate daily dollar volume.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Frame containing the close and volume values.
+    p : int
+        The lookback period for computing daily dollar volume.
+
+    Returns
+    -------
+    ds_dv : pandas.Series (float)
+        The array of dollar volumes.
+
+    """
+
+    logger.info('Calculating daily dollar volume')
+
+    fractal_daily = '1D'
+    df_index = df.set_index('datetime')
+    ds_price_avg = df_index['close'].groupby(pd.Grouper(freq=fractal_daily)).mean().dropna()
+    ds_volume_sum = df_index['volume'].groupby(pd.Grouper(freq=fractal_daily)).sum()
+    ds_volume_sum = ds_volume_sum[ds_volume_sum > 0]
+    ds_dv = ds_price_avg * ds_volume_sum
+    ds_dv = ds_dv.ewm(span=p).mean()
+    return ds_dv[-1]
 
 
 #
