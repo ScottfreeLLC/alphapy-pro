@@ -25,9 +25,6 @@ limitations under the License.
 #
 
 import logging
-import multiprocessing as mp
-import sys
-import time
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -41,156 +38,16 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Class MultiProcessingFunctions
-#
-
-class MultiProcessingFunctions:
-    """ This static functions in this class enable multi-processing"""
-    def __init__(self):
-        pass
-
-    @staticmethod
-    def lin_parts(num_atoms, num_threads):
-        """ This function partitions a list of atoms in subsets (molecules) of equal size.
-        An atom is a set of indivisible set of tasks.
-        """
-
-        # partition of atoms with a single loop
-        parts = np.linspace(0, num_atoms, min(num_threads, num_atoms) + 1)
-        parts = np.ceil(parts).astype(int)
-        return parts
-
-    @staticmethod
-    def nested_parts(num_atoms, num_threads, upper_triangle=False):
-        """ This function enables parallelization of nested loops.
-        """
-        # partition of atoms with an inner loop
-        parts = []
-        num_threads_ = min(num_threads, num_atoms)
-
-        for num in range(num_threads_):
-            part = 1 + 4 * (parts[-1] ** 2 + parts[-1] + num_atoms * (num_atoms + 1.) / num_threads_)
-            part = (-1 + part ** .5) / 2.
-            parts.append(part)
-
-        parts = np.round(parts).astype(int)
-
-        if upper_triangle:  # the first rows are heaviest
-            parts = np.cumsum(np.diff(parts)[::-1])
-            parts = np.append(np.array([0]), parts)
-        return parts
-
-    @staticmethod
-    def mp_pandas_obj(func, pd_obj, num_threads=24, mp_batches=1, lin_mols=True, **kargs):
-        """
-        :param func: (string) function to be parallelized
-        :param pd_obj: (vector) Element 0, is name of argument used to pass the molecule;
-                        Element 1, is the list of atoms to be grouped into a molecule
-        :param num_threads: (int) number of threads
-        :param mp_batches: (int) number of batches
-        :param lin_mols: (bool) Tells if the method should use linear or nested partitioning
-        :param kargs: (var args)
-        :return: (data frame) of results
-        """
-
-        if lin_mols:
-            parts = MultiProcessingFunctions.lin_parts(len(pd_obj[1]), num_threads * mp_batches)
-        else:
-            parts = MultiProcessingFunctions.nested_parts(len(pd_obj[1]), num_threads * mp_batches)
-
-        jobs = []
-        for i in range(1, len(parts)):
-            job = {pd_obj[0]: pd_obj[1][parts[i - 1]:parts[i]], 'func': func}
-            job.update(kargs)
-            jobs.append(job)
-
-        if num_threads == 1:
-            out = MultiProcessingFunctions.process_jobs_(jobs)
-        else:
-            out = MultiProcessingFunctions.process_jobs(jobs, num_threads=num_threads)
-
-        if isinstance(out[0], pd.DataFrame):
-            df0 = pd.DataFrame()
-        elif isinstance(out[0], pd.Series):
-            df0 = pd.Series()
-        else:
-            return out
-
-        for i in out:
-            df0 = df0.append(i)
-
-        df0 = df0.sort_index()
-        return df0
-
-    @staticmethod
-    def process_jobs_(jobs):
-        """ Run jobs sequentially, for debugging """
-        out = []
-        for job in jobs:
-            out_ = MultiProcessingFunctions.expand_call(job)
-            out.append(out_)
-        return out
-
-    @staticmethod
-    def expand_call(kargs):
-        """ Expand the arguments of a callback function, kargs['func'] """
-        func = kargs['func']
-        del kargs['func']
-        out = func(**kargs)
-        return out
-
-    @staticmethod
-    def report_progress(job_num, num_jobs, time0, task):
-        """ Report progress as async jobs are completed """
-
-        msg = [float(job_num) / num_jobs, (time.time() - time0)/60.]
-        msg.append(msg[1] * (1/msg[0] - 1))
-        time_stamp = str(dt.datetime.fromtimestamp(time.time()))
-
-        msg = time_stamp + ' ' + str(round(msg[0]*100, 2)) + '% '+task+' done after ' + \
-            str(round(msg[1], 2)) + ' minutes. Remaining ' + str(round(msg[2], 2)) + ' minutes.'
-
-        if job_num < num_jobs:
-            sys.stderr.write(msg+'\r')
-        else:
-            sys.stderr.write(msg+'\n')
-
-        return
-
-    @staticmethod
-    def process_jobs(jobs, task=None, num_threads=24):
-        """ Run in parallel. jobs must contain a 'func' callback, for expand_call"""
-
-        if task is None:
-            task = jobs[0]['func'].__name__
-
-        pool = mp.Pool(processes=num_threads)
-        # outputs, out, time0 = pool.imap_unordered(MultiProcessingFunctions.expand_call,jobs),[],time.time()
-        outputs = pool.imap_unordered(MultiProcessingFunctions.expand_call, jobs)
-        out = []
-        time0 = time.time()
-
-        # Process async output, report progress
-        for i, out_ in enumerate(outputs, 1):
-            out.append(out_)
-            MultiProcessingFunctions.report_progress(i, len(jobs), time0, task)
-
-        pool.close()
-        pool.join()  # this is needed to prevent memory leaks
-        return out
-
-
-#
 # Function get_daily_vol
 #
 
-def get_daily_vol(ds_close, p = 100):
+def get_daily_vol(df, p = 100):
     r"""Calculate daily volatility for dynamic thresholds.
 
     Parameters
     ----------
-    ds_close : pandas.Series
-        Array of closing values.
+    df : pandas.DataFrame
+        Frame containing the close values.
     p : int
         The lookback period for computing volatility.
 
@@ -203,12 +60,10 @@ def get_daily_vol(ds_close, p = 100):
 
     logger.info('Calculating daily volatility for dynamic thresholds')
 
-    ds_vol = ds_close.index.searchsorted(ds_close.index - pd.Timedelta(days=1))
-    ds_vol = ds_vol[ds_vol > 0]
-    ds_vol = (pd.Series(ds_close.index[ds_vol - 1], index=ds_close.index[ds_close.shape[0] - ds_vol.shape[0]:]))
-    # calculate daily returns
-    ds_vol = ds_close.loc[ds_vol.index] / ds_close.loc[ds_vol.values].values - 1
-    ds_vol = ds_vol.ewm(span=p).std()
+    fractal_daily = '1D'
+    ds_close = df['close'].groupby(pd.Grouper(freq=fractal_daily)).last().dropna()
+    ds_returns = np.log(ds_close / ds_close.shift())
+    ds_vol = ds_returns.ewm(span=p).std().dropna()
     return ds_vol
 
 
@@ -236,9 +91,8 @@ def get_daily_dollar_vol(df, p = 100):
     logger.info('Calculating daily dollar volume')
 
     fractal_daily = '1D'
-    df_index = df.set_index('datetime')
-    ds_price_avg = df_index['close'].groupby(pd.Grouper(freq=fractal_daily)).mean().dropna()
-    ds_volume_sum = df_index['volume'].groupby(pd.Grouper(freq=fractal_daily)).sum()
+    ds_price_avg = df['close'].groupby(pd.Grouper(freq=fractal_daily)).mean().dropna()
+    ds_volume_sum = df['volume'].groupby(pd.Grouper(freq=fractal_daily)).sum()
     ds_volume_sum = ds_volume_sum[ds_volume_sum > 0]
     ds_dv = ds_price_avg * ds_volume_sum
     ds_dv = ds_dv.ewm(span=p).mean()
@@ -329,7 +183,7 @@ def add_vertical_barrier(t_events, ds_close, num_days = 1.0):
 # Function apply_pt_sl_on_t1
 #
 
-def apply_pt_sl_on_t1(ds_close, df_events, pt_sl, molecule):
+def apply_pt_sl_on_t1(ds_close, df_events, pt_sl):
     r"""Apply Profit Targets and Stop Losses.
 
     Parameters
@@ -340,8 +194,6 @@ def apply_pt_sl_on_t1(ds_close, df_events, pt_sl, molecule):
         The record of events
     pt_sl : list[2]
         The profit-taking and stop-loss percentage levels, with 0 disabling the respective level.
-    molecule : pandas.Series (datetime)
-        A set of datetime index values for processing
 
     Returns
     -------
@@ -352,25 +204,24 @@ def apply_pt_sl_on_t1(ds_close, df_events, pt_sl, molecule):
 
     logger.info('Applying Profit Targets and Stop Losses')
 
-    # apply stop loss/profit taking, if it takes place before t1 (end of event)
+    # Apply stop loss and profit taking, if either event occurs before t1 (end of event).
 
-    df_events_ = df_events.loc[molecule]
-    df_touch = df_events_[['t1']].copy(deep=True)
+    df_touch = df_events[['t1']].copy(deep=True)
     if pt_sl[0] > 0:
-        pt = pt_sl[0] * df_events_['trgt']
+        pt = pt_sl[0] * df_events['trgt']
     else:
-        pt = pd.Series(index=df_events.index)  # NaNs
+        pt = pd.Series(index=df_events.index)
 
     if pt_sl[1] > 0:
-        sl = -pt_sl[1] * df_events_['trgt']
+        sl = -pt_sl[1] * df_events['trgt']
     else:
-        sl = pd.Series(index=df_events.index)  # NaNs
+        sl = pd.Series(index=df_events.index)
 
-    for loc, t1 in df_events_['t1'].fillna(ds_close.index[-1]).iteritems():
+    for loc, t1 in df_events['t1'].fillna(ds_close.index[-1]).iteritems():
         # path prices
         df0 = ds_close[loc:t1]
         # path returns
-        df0 = (df0 / ds_close[loc] - 1) * df_events_.at[loc, 'side']
+        df0 = (df0 / ds_close[loc] - 1) * df_events.at[loc, 'side']
         # earliest stop loss
         df_touch.loc[loc, 'sl'] = df0[df0 < sl[loc]].index.min()
         # earliest profit taking
@@ -383,8 +234,7 @@ def apply_pt_sl_on_t1(ds_close, df_events, pt_sl, molecule):
 # Function get_events
 #
 
-def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, num_threads, 
-               ds_vb=False, ds_side=None):
+def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, ds_vb=False, ds_side=None):
     r"""Get the dataframe of target events.
 
     Parameters
@@ -399,8 +249,6 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, num_threads,
         The array of volatilities used in conjuntion with ``pt_sl``.
     min_ret : float
         The minimum target return required for running a triple barrier search.
-    num_threads : int
-        The number of threads concurrently used by the function.
     ds_vb : pandas.Series (datetime)
         The vector of timestamps for the vertical barriers.
     ds_side : pandas.Series (datetime)
@@ -438,20 +286,14 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, num_threads,
         ds_side_ = ds_side.loc[ds_vol.index]
         pt_sl_ = pt_sl[:2]
 
-    df_events = pd.concat({'t1': ds_vb, 'trgt': ds_vol, 'side': ds_side_},
-                           axis=1)
-    df_events = df_events.dropna(subset=['trgt'])
+    df_events = pd.concat({'t1': ds_vb, 'trgt': ds_vol, 'side': ds_side_}, axis=1)
+    df_events = df_events.dropna(subset=['side'])
 
     # Apply the Triple Barrier.
 
-    df0 = MultiProcessingFunctions.mp_pandas_obj(func=apply_pt_sl_on_t1,
-                                                 pd_obj=('molecule', df_events.index),
-                                                 num_threads=num_threads,
-                                                 close=ds_close,
-                                                 events=df_events,
-                                                 pt_sl=pt_sl_)
+    df_tbm = apply_pt_sl_on_t1(ds_close, df_events, pt_sl_)
 
-    df_events['t1'] = df0.dropna(how='all').min(axis=1)  # pd.min ignores nan
+    df_events['t1'] = df_tbm.dropna(how='all').min(axis=1)  # pd.min ignores nan
 
     if ds_side is None:
         df_events = df_events.drop('side', axis=1)
