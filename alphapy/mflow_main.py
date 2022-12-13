@@ -91,6 +91,7 @@ def get_market_config(directory='.'):
 
     """
 
+    logger.info('*'*80)
     logger.info("MarketFlow Configuration")
 
     # Read the configuration file

@@ -112,6 +112,7 @@ def get_alphapy_config(alphapy_root):
 
     """
 
+    logger.info('*'*80)
     logger.info("AlphaPy Configuration")
 
     # Read AlphaPy configuration file
@@ -191,6 +192,20 @@ def get_alphapy_config(alphapy_root):
                 specs['data_dir'] = dir
             else:
                 raise ValueError("Directory %s does not exist" % dir)
+
+    #
+    # Section: systems
+    #
+
+    full_path = SSEP.join([alphapy_root, 'config', 'systems.yml'])
+    with open(full_path, 'r') as ymlfile:
+        trading_systems = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Getting Trading Systems")
+    try:
+        specs['systems'] = trading_systems
+    except:
+        raise ValueError("No Trading Systems Found")
 
     #
     # Log the AlphaPy parameters
