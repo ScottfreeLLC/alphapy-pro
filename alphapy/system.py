@@ -58,16 +58,18 @@ class System(object):
 
     Parameters
     ----------
-    pattern : str
+    system_name : str
         The name of the pattern.
-    system_type : str
-        System is long or short.
-    algo : str
-        Abbreviation of the algorithm.
-    prob_min : float
-        Minimum probability to enter a position.
-    prob_max : float
-        Maximum probability to enter a position.
+    signal_long : str
+        The entry condition for a long position.
+    signal_short : str
+        The entry condition for a short position.
+    profit_factor : float
+        The multiple of volatility for taking a profit.
+    stoploss_factor : float
+        The multiple of volatility for taking a loss.
+    minimum_return : float
+        The minimum return required to take a profit.
     forecast_period : int
         Holding period of a position.
     fractal : str
@@ -80,7 +82,7 @@ class System(object):
 
     Examples
     --------
-    
+
     >>> System('closer', hc, lc)
 
     """
@@ -90,62 +92,62 @@ class System(object):
     systems = {}
 
     # __new__
-    
+
     def __new__(cls,
-                pattern,
-                system_type = 'long',
-                algo = 'xgb',
-                prob_min = 0.0,
-                prob_max = 0.0,
+                system_name,
+                signal_long,
+                signal_short,
+                profit_factor = 1.0,
+                stoploss_factor = 1.0,
+                minimum_return = 0.05,
                 forecast_period = 1,
                 fractal = '1D'):
         # create system name
-        if pattern not in System.systems:
+        if system_name not in System.systems:
             return super(System, cls).__new__(cls)
         else:
-            logger.info("System %s already exists", pattern)
-    
+            logger.info("System %s already exists", system_name)
+
     # __init__
-    
+
     def __init__(self,
-                 pattern,
-                 system_type = 'long',
-                 algo = 'xgb',
-                 prob_min = 0.0,
-                 prob_max = 0.0,
+                 system_name,
+                 signal_long,
+                 signal_short,
+                 profit_factor = 1.0,
+                 stoploss_factor = 1.0,
+                 minimum_return = 0.05,
                  forecast_period = 1,
                  fractal = '1D'):
         # initialization
-        self.pattern = pattern
-        self.system_type = system_type
-        self.algo = algo
-        self.prob_min = prob_min
-        self.prob_max = prob_max
+        self.system_name = system_name
+        self.signal_long = signal_long
+        self.signal_short = signal_short
+        self.profit_factor = profit_factor
+        self.stoploss_factor = stoploss_factor
+        self.minimum_return = minimum_return
         self.forecast_period = forecast_period
         self.fractal = fractal
         # add system to systems list
-        System.systems[pattern] = self
-        
+        System.systems[system_name] = self
+
     # __str__
 
     def __str__(self):
-        return self.pattern
+        return self.system_name
 
 
 #
 # Function trade_system
 #
 
-def trade_system(system, forecast_period, df_rank, ts_flag,
-                 space, intraday, symbol, quantity):
+def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
     r"""Trade the given system.
 
     Parameters
     ----------
     system : alphapy.System
         The long/short system to run.
-    forecast_period : int
-        The number of bars in the prediction.
     df_rank : pd.DataFrame
         The dataframe containing the ranked predictions.
     ts_flag : bool
@@ -174,6 +176,7 @@ def trade_system(system, forecast_period, df_rank, ts_flag,
     # Unpack the system parameters.
 
     system_type = system.system_type
+    forecast_period = system.forecast_period
     algo = system.algo
     prob_min = system.prob_min
     prob_max = system.prob_max
@@ -301,7 +304,6 @@ def trade_system(system, forecast_period, df_rank, ts_flag,
 
 def run_system(model,
                system,
-               forecast_period,
                group,
                intraday = False,
                quantity = 1):
@@ -313,8 +315,6 @@ def run_system(model,
         The model object with specifications.
     system : alphapy.System
         The system to run.
-    forecast_period : int
-        The number of bars in the prediction.
     group : alphapy.Group
         The group of symbols to trade.
     intraday : bool, optional
@@ -329,8 +329,8 @@ def run_system(model,
 
     """
 
-    system_pattern = system.pattern
-    logger.info("Generating Trades for System %s", system_pattern)
+    system_name = system.system_name
+    logger.info("Generating Trades for System %s", system_name)
 
     # Unpack the model data.
 
@@ -357,8 +357,7 @@ def run_system(model,
     gtlist = []
     for symbol in gmembers:
         # generate the trades for this member
-        tlist = trade_system(system, forecast_period, df_rank, ts_flag,
-                             gspace, intraday, symbol, quantity)
+        tlist = trade_system(system, df_rank, ts_flag, gspace, intraday, symbol, quantity)
         if tlist:
             # add trades to global trade list
             for item in tlist:
@@ -375,7 +374,7 @@ def run_system(model,
 
     tf = pd.DataFrame()
     if gtlist:
-        tspace = Space(system_pattern, "trades", gspace.fractal)
+        tspace = Space(system_name, "trades", gspace.fractal)
         gtlist = sorted(gtlist, key=lambda x: x[0])
         tf1 = DataFrame.from_records(gtlist, columns=[index_column, 'trades'])
         tf2 = pd.DataFrame(tf1['trades'].to_list(), columns=Trade.states)
