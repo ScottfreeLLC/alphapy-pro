@@ -590,7 +590,7 @@ def get_pandas_data(source, symbol, intraday_data, data_fractal,
 
 def get_yahoo_data(source, symbol, intraday_data, data_fractal,
                    from_date, to_date, lookback_period):
-    r"""Get Yahoo data.
+    r"""Get Yahoo daily and intraday data.
 
     Parameters
     ----------
@@ -617,36 +617,21 @@ def get_yahoo_data(source, symbol, intraday_data, data_fractal,
     """
 
     df = pd.DataFrame()
-    if intraday_data:
-        url = 'https://query1.finance.yahoo.com/v8/finance/chart/'
-        data_range = ''.join([str(lookback_period), 'd'])
-        interval = int(''.join(filter(str.isdigit, data_fractal)))
-        fractal = re.sub(r'\d+', '', data_fractal)
-        mapper = {'H': 60, 'T': 1, 'min':1, 'S': 1./60}
-        interval = math.ceil(interval * mapper[fractal])
-        data_interval = ''.join([str(interval), 'm'])
-        qualifiers = '{}?range={}&interval={}'.format(symbol, data_range, data_interval)
-        request = url + qualifiers
-        logger.info(request)
-        response = requests.get(request)
-        response_json = response.json()['chart']
-        if response_json['result']:
-            body = response_json['result'][0]
-            dt = pd.Series(map(lambda x: arrow.get(x).to('EST').datetime.replace(tzinfo=None), body['timestamp']), name='dt')
-            df = pd.DataFrame(body['indicators']['quote'][0], index=dt)
-            df = df.loc[:, ('open', 'high', 'low', 'close', 'volume')]
-        else:
-            logger.info("Could not get data from %s", source)
-            logger.info(response_json['error']['code'])
-            logger.info(response_json['error']['description'])
+    data_fractal = data_fractal.lower()
+    yahoo_fractals = {'min' : 'm',
+                      'h'   : 'h',
+                      'd'   : 'd',
+                      'w'   : 'wk',
+                      'm'   : 'mo'}
+    pandas_offsets = yahoo_fractals.keys()
+    fractal = [offset for offset in pandas_offsets if offset in data_fractal]
+    if fractal:
+        fvalue = fractal[0]
+        yahoo_fractal = data_fractal.replace(fvalue, yahoo_fractals[fvalue])
+        # intraday limit is 60 days
+        df = yf.download(symbol, start=from_date, end=to_date, interval=yahoo_fractal, threads=False)
     else:
-        use_yahoo = True
-        if use_yahoo:
-            df = yf.download(symbol, start=from_date, end=to_date, threads=False)
-        else:
-            # use pandas data reader
-            df = get_pandas_data(source, symbol.upper(), intraday_data, data_fractal,
-                                 from_date, to_date, lookback_period)       
+        logger.error("Valid Pandas Offsets for Yahoo Data are: %s", pandas_offsets)
     return df
 
 
