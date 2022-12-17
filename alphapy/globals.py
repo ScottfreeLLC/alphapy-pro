@@ -74,6 +74,7 @@ SUBJECTS = ['crypto', 'etf', 'forex', 'future', 'index', 'option', 'stock']
 #
 
 PD_INTRADAY_OFFSETS = ['H', 'T', 'min', 'S', 'L', 'ms', 'U', 'us', 'N']
+PD_DAILY_OFFSETS = ['D', 'W', 'M', 'Q', 'A']
 
 #
 # Encoder Types
