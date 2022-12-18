@@ -41,13 +41,13 @@ logger = logging.getLogger(__name__)
 # Function get_daily_vol
 #
 
-def get_daily_vol(df, p = 100):
+def get_daily_vol(ds_close, p = 100):
     r"""Calculate daily volatility for dynamic thresholds.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        Frame containing the close values.
+    ds_close : pandas.Series
+        Array of closing values.
     p : int
         The lookback period for computing volatility.
 
@@ -60,12 +60,13 @@ def get_daily_vol(df, p = 100):
 
     logger.info('Calculating daily volatility for dynamic thresholds')
 
-    fractal_daily = '1D'
-    ds_close = df['close'].groupby(pd.Grouper(freq=fractal_daily)).last().dropna()
-    ds_returns = np.log(ds_close / ds_close.shift())
-    ds_vol = ds_returns.ewm(span=p).std().dropna()
+    ds_vol = ds_close.index.searchsorted(ds_close.index - pd.Timedelta(days=1))
+    ds_vol = ds_vol[ds_vol > 0]
+    ds_vol = (pd.Series(ds_close.index[ds_vol - 1], index=ds_close.index[ds_close.shape[0] - ds_vol.shape[0]:]))
+    # calculate daily returns
+    ds_vol = ds_close.loc[ds_vol.index] / ds_close.loc[ds_vol.values].values - 1
+    ds_vol = ds_vol.ewm(span=p).std()
     return ds_vol
-
 
 #
 # Function get_daily_dollar_vol
@@ -246,7 +247,7 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, ds_vb=False, ds_side=Non
     pt_sl : list[2]
         The profit-taking and stop-loss percentage levels, with 0 disabling the respective level.
     ds_vol : pandas.Series (float)
-        The array of volatilities used in conjuntion with ``pt_sl``.
+        The array of volatilities used in conjunction with ``pt_sl``.
     min_ret : float
         The minimum target return required for running a triple barrier search.
     ds_vb : pandas.Series (datetime)

@@ -152,7 +152,7 @@ def bbands(f, c='close', p=20, sd=2.0, low_band=True):
 # Function bblower
 #
 
-def bblower(f, c='close', p=20, sd=2.0):
+def bblower(f, c='close', p=20, sd=1.5):
     r"""Calculate the lower Bollinger Band.
 
     Parameters
@@ -180,7 +180,7 @@ def bblower(f, c='close', p=20, sd=2.0):
 # Function bbupper
 #
 
-def bbupper(f, c='close', p=20, sd=2.0):
+def bbupper(f, c='close', p=20, sd=1.5):
     r"""Calculate the upper Bollinger Band.
 
     Parameters

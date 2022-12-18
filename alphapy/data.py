@@ -29,6 +29,7 @@
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.frame import read_frame
+from alphapy.globals import datasets
 from alphapy.globals import ModelType
 from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import SSEP
@@ -38,7 +39,6 @@ from alphapy.space import Space
 from alphapy.transforms import dateparts
 from alphapy.transforms import timeparts
 
-import arrow
 from datetime import datetime
 from iexfinance.stocks import get_historical_data
 from iexfinance.stocks import get_historical_intraday
@@ -58,15 +58,12 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.under_sampling import RepeatedEditedNearestNeighbours
 from imblearn.under_sampling import TomekLinks
 import logging
-import math
 import numpy as np
-import os
 import pandas as pd
 pd.core.common.is_list_like = pd.api.types.is_list_like
 import pandas_datareader.data as web
 import re
 import requests
-from scipy import sparse
 from sklearn.preprocessing import LabelEncoder
 import sys
 import yfinance as yf
@@ -629,7 +626,10 @@ def get_yahoo_data(source, symbol, intraday_data, data_fractal,
         fvalue = fractal[0]
         yahoo_fractal = data_fractal.replace(fvalue, yahoo_fractals[fvalue])
         # intraday limit is 60 days
-        df = yf.download(symbol, start=from_date, end=to_date, interval=yahoo_fractal, threads=False)
+        ignore_tz = True if intraday_data else False
+        df = yf.download(symbol, start=from_date, end=to_date, interval=yahoo_fractal,
+                         ignore_tz=ignore_tz, threads=False)
+        df.index = df.index.tz_localize(None)
     else:
         logger.error("Valid Pandas Offsets for Yahoo Data are: %s", pandas_offsets)
     return df
@@ -793,17 +793,18 @@ def get_market_data(model, market_specs, group, lookback_period,
         # Now that we have content, standardize the data
         if not df.empty:
             logger.info("Rows: %d [%s]", len(df), data_fractal)
-            # set the index of the dataframe if necessary
+            # reset the index to find the correct datetime column
+            df.reset_index(inplace=True)
             df.columns = df.columns.str.lower()
             # find date or datetime column
-            dt_cols = ['datetime', 'date']
+            dt_cols = ['datetime', 'date', 'index']
             dt_index = None
             if df.index.name:
                 df.index.name = df.index.name.lower()
                 dt_index = [x for x in dt_cols if df.index.name == x]
             else:
-                dt_column = [x for x in df.columns if x in dt_cols]  
-            # if the index is not already set, then set with the datetime column
+                dt_column = [x for x in df.columns if x in dt_cols]
+            # Set the dataframe's index to the relevant column
             if not dt_index:
                 if dt_column:
                     df.set_index(pd.DatetimeIndex(pd.to_datetime(df[dt_column[0]])),
