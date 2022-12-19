@@ -74,6 +74,12 @@ class System(object):
         Holding period of a position.
     fractal : str
         Pandas offset alias.
+    algo : str
+        Pandas offset alias.
+    prob_min : float
+        A probability between 0.0 and 1.0.
+    prob_max : float
+        A probability between 0.0 and 1.0.
 
     Attributes
     ----------
@@ -101,6 +107,9 @@ class System(object):
                 stoploss_factor = 1.0,
                 minimum_return = 0.05,
                 forecast_period = 1,
+                algo = 'xgb',
+                prob_min = 0.0,
+                prob_max = 1.0,
                 fractal = '1D'):
         # create system name
         if system_name not in System.systems:
@@ -118,6 +127,9 @@ class System(object):
                  stoploss_factor = 1.0,
                  minimum_return = 0.05,
                  forecast_period = 1,
+                 algo = 'xgb',
+                 prob_min = 0.0,
+                 prob_max = 1.0,
                  fractal = '1D'):
         # initialization
         self.system_name = system_name
@@ -127,6 +139,9 @@ class System(object):
         self.stoploss_factor = stoploss_factor
         self.minimum_return = minimum_return
         self.forecast_period = forecast_period
+        self.algo = algo
+        self.prob_min = prob_min
+        self.prob_min = prob_max
         self.fractal = fractal
         # add system to systems list
         System.systems[system_name] = self
@@ -175,12 +190,17 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
 
     # Unpack the system parameters.
 
-    system_type = system.system_type
+    system_name = system.system_name
+    signal_long = system.signal_long
+    signal_short = system.signal_short
     forecast_period = system.forecast_period
+    profit_factor = system.profit_factor
+    stoploss_factor = system.stoploss_factor
+    minimum_return = system.minimum_return
+    trade_fractal = system.trade_fractal
     algo = system.algo
     prob_min = system.prob_min
     prob_max = system.prob_max
-    fractal = system.fractal
 
     # Read in the price frame for all fractals and variables.
 
