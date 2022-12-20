@@ -634,7 +634,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
         logger.info("No trades to generate a portfolio")
     else:
         trading_specs = market_specs['trading']
-        gen_portfolio(model, trading_specs, target, group, tfs)
+        gen_portfolio(model, trading_specs, group, tfs)
 
     # Return the completed model.
     return model

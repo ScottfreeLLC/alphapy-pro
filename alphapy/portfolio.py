@@ -1010,7 +1010,7 @@ def exec_trade(p, name, order, quantity, price, tdate):
 # Function gen_portfolio
 #
 
-def gen_portfolio(model, trading_specs, system, group, tframe):
+def gen_portfolio(model, trading_specs, group, tframe):
     r"""Create a portfolio from a trades frame.
 
     Parameters
@@ -1019,8 +1019,6 @@ def gen_portfolio(model, trading_specs, system, group, tframe):
         The model specifications.
     trading_specs : dict
         The portfolio specifications.
-    system : str
-        Name of the system.
     group : alphapy.Group
         The group of instruments in the portfolio.
     tframe : pandas.DataFrame
@@ -1048,8 +1046,6 @@ def gen_portfolio(model, trading_specs, system, group, tframe):
 
     """
 
-    logger.info("Creating Portfolio for System %s", system)
-
     # Unpack the model data.
 
     directory = model.specs['directory']
@@ -1058,6 +1054,7 @@ def gen_portfolio(model, trading_specs, system, group, tframe):
 
     # Unpack the portfolio data.
 
+    system_name = trading_specs['system']
     startcap = trading_specs['capital']
     margin = trading_specs['margin']
     cost_bps = trading_specs['cost_bps']
@@ -1071,8 +1068,10 @@ def gen_portfolio(model, trading_specs, system, group, tframe):
 
     # Create the portfolio.
 
+    logger.info("Creating Portfolio for System %s", system_name)
+
     p = Portfolio(gname,
-                  system,
+                  system_name,
                   gspace,
                   startcap = startcap,
                   margin = margin,
@@ -1131,7 +1130,7 @@ def gen_portfolio(model, trading_specs, system, group, tframe):
     # Create and record the returns frame for this system.
 
     logger.info("Recording Returns Frame")
-    rspace = Space(system, 'returns', gspace.fractal)
+    rspace = Space(system_name, 'returns', gspace.fractal)
     rf1 = pd.DataFrame.from_records(rs, columns=['date', 'return'])
     rf2 = pd.DataFrame(rf1['return'].to_list(), columns=['return'])
     rf = pd.concat([rf1['date'], rf2], axis=1)
@@ -1144,7 +1143,7 @@ def gen_portfolio(model, trading_specs, system, group, tframe):
     # Record the positions frame for this system.
 
     logger.info("Recording Positions Frame")
-    pspace = Space(system, 'positions', gspace.fractal)
+    pspace = Space(system_name, 'positions', gspace.fractal)
     pfname = frame_name(gname, pspace)
     write_frame(pf, system_dir, pfname, extension, separator,
                 index=True, index_label='date')
@@ -1153,7 +1152,7 @@ def gen_portfolio(model, trading_specs, system, group, tframe):
     # Create and record the transactions frame for this system.
 
     logger.info("Recording Transactions Frame")
-    tspace = Space(system, 'transactions', gspace.fractal)
+    tspace = Space(system_name, 'transactions', gspace.fractal)
     tf1 = pd.DataFrame.from_records(ts, columns=['date', 'transactions'])
     tf2 = pd.DataFrame(tf1['transactions'].to_list(), columns=['amount', 'price', 'symbol'])
     tf = pd.concat([tf1['date'], tf2], axis=1)
