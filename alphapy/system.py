@@ -32,6 +32,7 @@ from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Orders
 from alphapy.globals import BSEP, SSEP, USEP
+from alphapy.metalabel import get_daily_vol
 from alphapy.space import Space
 from alphapy.portfolio import Trade
 from alphapy.utilities import most_recent_file
@@ -64,22 +65,22 @@ class System(object):
         The entry condition for a long position.
     signal_short : str
         The entry condition for a short position.
+    forecast_period : int
+        Holding period of a position.
     profit_factor : float
         The multiple of volatility for taking a profit.
     stoploss_factor : float
         The multiple of volatility for taking a loss.
     minimum_return : float
         The minimum return required to take a profit.
-    forecast_period : int
-        Holding period of a position.
-    fractal : str
-        Pandas offset alias.
     algo : str
         Pandas offset alias.
     prob_min : float
         A probability between 0.0 and 1.0.
     prob_max : float
         A probability between 0.0 and 1.0.
+    fractal : str
+        Pandas offset alias.
 
     Attributes
     ----------
@@ -103,10 +104,10 @@ class System(object):
                 system_name,
                 signal_long,
                 signal_short,
+                forecast_period = 1,
                 profit_factor = 1.0,
                 stoploss_factor = 1.0,
                 minimum_return = 0.05,
-                forecast_period = 1,
                 algo = 'xgb',
                 prob_min = 0.0,
                 prob_max = 1.0,
@@ -123,10 +124,10 @@ class System(object):
                  system_name,
                  signal_long,
                  signal_short,
+                 forecast_period = 1,
                  profit_factor = 1.0,
                  stoploss_factor = 1.0,
                  minimum_return = 0.05,
-                 forecast_period = 1,
                  algo = 'xgb',
                  prob_min = 0.0,
                  prob_max = 1.0,
@@ -135,13 +136,13 @@ class System(object):
         self.system_name = system_name
         self.signal_long = signal_long
         self.signal_short = signal_short
+        self.forecast_period = forecast_period
         self.profit_factor = profit_factor
         self.stoploss_factor = stoploss_factor
         self.minimum_return = minimum_return
-        self.forecast_period = forecast_period
         self.algo = algo
         self.prob_min = prob_min
-        self.prob_min = prob_max
+        self.prob_max = prob_max
         self.fractal = fractal
         # add system to systems list
         System.systems[system_name] = self
@@ -190,14 +191,10 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
 
     # Unpack the system parameters.
 
-    system_name = system.system_name
-    signal_long = system.signal_long
-    signal_short = system.signal_short
     forecast_period = system.forecast_period
     profit_factor = system.profit_factor
     stoploss_factor = system.stoploss_factor
-    minimum_return = system.minimum_return
-    trade_fractal = system.trade_fractal
+    trade_fractal = system.fractal
     algo = system.algo
     prob_min = system.prob_min
     prob_max = system.prob_max
@@ -206,7 +203,15 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
 
     symbol = symbol.lower()
     tspace = Space(space.subject, space.source, 'ALL')
-    tframe = Frame.frames[frame_name(symbol, tspace)].df.copy()
+    df_trade = Frame.frames[frame_name(symbol, tspace)].df.copy()
+
+    # Get daily volatility and calculate the profit target and stop loss.
+
+    close_col = USEP.join(['close', trade_fractal])
+    ds_close = df_trade[close_col]
+    daily_vol = get_daily_vol(ds_close)
+    profit_target = profit_factor * daily_vol
+    stop_loss = stoploss_factor * daily_vol
 
     # extract the rankings frame for the given symbol
 
@@ -215,19 +220,19 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
 
     # entry probability function
 
-    def assign_entry(df, key, prob_col, prob_min, prob_max):
+    def assign_entry(df, prob_col, prob_min, prob_max):
         if prob_min and prob_max:
             lhs = BSEP.join(['(', prob_col, '>=', str(prob_min), ')'])
             rhs = BSEP.join(['(', prob_col, '<=', str(prob_max), ')'])
-            expr = BSEP.join([key, '=', lhs, '&', rhs])
+            expr = BSEP.join(['entry', '=', lhs, '&', rhs])
         elif prob_min:
-            expr = BSEP.join([key, '=', prob_col, '>=', str(prob_min)])
+            expr = BSEP.join(['entry', '=', prob_col, '>=', str(prob_min)])
         elif prob_max:
-            expr = BSEP.join([key, '=', prob_col, '<=', str(prob_max)])
+            expr = BSEP.join(['entry', '=', prob_col, '<=', str(prob_max)])
         else:
-            lhs = BSEP.join(['(', prob_col, '>= 0.0'])
-            rhs = BSEP.join(['(', prob_col, '<= 1.0'])
-            expr = BSEP.join([key, '=', lhs, '&', rhs])
+            lhs = BSEP.join(['(', prob_col, '>= 0.0)'])
+            rhs = BSEP.join(['(', prob_col, '<= 1.0)'])
+            expr = BSEP.join(['entry', '=', lhs, '&', rhs])
         df = df.eval(expr)
         return df
 
@@ -239,12 +244,10 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
         pcol = USEP.join(['prob', partition_tag, 'ts', algo.lower()])
     else:
         pcol = USEP.join(['prob', partition_tag, algo.lower()])
-    tframe = tframe.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
+    df_trade = df_trade.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
     df_sym[pcol].fillna(0.5, inplace=True)
-    if system_type == 'short':
-        df_sym[pcol] = 1.0 - df_sym[pcol]
-    tframe = assign_entry(tframe, system_type, pcol, prob_min, prob_max)
-    
+    df_trade = assign_entry(df_trade, pcol, prob_min, prob_max)
+
     # Initialize trading state variables
 
     inlong = False
@@ -256,16 +259,16 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
 
     # Loop through prices and generate trades
 
-    ccol = USEP.join(['close', fractal])
-    icol = USEP.join(['endofday', fractal])
+    ccol = USEP.join(['close', trade_fractal])
+    icol = USEP.join(['endofday', trade_fractal])
 
-    for dt, row in tframe.iterrows():
+    for dt, row in df_trade.iterrows():
         # get prices for this row
         c = row[ccol]
         end_of_day = row[icol] if intraday else False
         # evaluate entry and exit conditions
-        lerow = row['long'] if system_type == 'long' else None
-        serow = row['short'] if system_type == 'short' else None
+        lerow = row['entry'] and row['side'] == 1
+        serow = row['entry'] and row['side'] == -1
         # process the long and short events
         if lerow:
             if inshort:

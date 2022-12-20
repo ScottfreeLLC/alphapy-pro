@@ -295,12 +295,11 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
     train_date = model.specs['train_date']
 
     # Unpack trading specifications
-    
-    system_name = trading_specs['system']
+
     forecast_period = trading_specs['forecast_period']
     profit_factor = trading_specs['profit_factor']
     stoploss_factor = trading_specs['stoploss_factor']
-    minimum_return = trading_specs['minimum_return']    
+    minimum_return = trading_specs['minimum_return']
 
     # Calculate split date
 
