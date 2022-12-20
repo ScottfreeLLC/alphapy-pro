@@ -629,7 +629,10 @@ def get_yahoo_data(source, symbol, intraday_data, data_fractal,
         ignore_tz = True if intraday_data else False
         df = yf.download(symbol, start=from_date, end=to_date, interval=yahoo_fractal,
                          ignore_tz=ignore_tz, threads=False)
-        df.index = df.index.tz_localize(None)
+        if df.empty:
+            logger.info("Could not get data for: %s", symbol)
+        else:
+            df.index = df.index.tz_localize(None)
     else:
         logger.error("Valid Pandas Offsets for Yahoo Data are: %s", pandas_offsets)
     return df
