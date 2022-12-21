@@ -626,15 +626,15 @@ def market_pipeline(alphapy_specs, model, market_specs):
     system = System(system_name, signal_long, signal_short, forecast_period,
                     profit_factor, stoploss_factor, minimum_return,
                     algo, prob_min, prob_max, trade_fractal)
-    tfs = run_system(model, system, group, intraday)
+    df_trades = run_system(model, system, group, intraday)
 
     # Generate the portfolio.
 
-    if tfs.empty:
+    if df_trades.empty:
         logger.info("No trades to generate a portfolio")
     else:
         trading_specs = market_specs['trading']
-        gen_portfolio(model, trading_specs, group, tfs)
+        gen_portfolio(model, trading_specs, group, df_trades)
 
     # Return the completed model.
     return model
