@@ -291,7 +291,7 @@ class Position:
         self.costbasis = 0.0
         self.trades = []
         self.ntrades = 0
-        self.pdata = Frame.frames[frame_name(name, space)].df
+        self.pdata = Frame.frames[frame_name(name.lower(), space)].df
 
     # __str__
     
@@ -978,7 +978,7 @@ def exec_trade(p, name, order, quantity, price, tdate):
         tsize = quantity
     else:
         if order == Orders.le or order == Orders.se:
-            pf = Frame.frames[frame_name(name, p.space)].df
+            pf = Frame.frames[frame_name(name.lower(), p.space)].df
             cv = float(pf.loc[tdate][p.posby])
             tsize = math.trunc((p.value * p.fixedfrac) / cv)
             if quantity < 0:
@@ -1108,7 +1108,7 @@ def gen_portfolio(model, trading_specs, group, tframe):
                 row = t[1]
                 tsize = exec_trade(p, row['name'], row['order'], row['quantity'], row['price'], tdate)
                 if tsize != 0:
-                    ts.append((d, [tsize, row['price'], row['name']]))
+                    ts.append((t[0], [row['name'], tsize, row['price']]))
         # iterate through current positions to create valuation snapshots
         positions = p.positions
         for key in positions:
@@ -1154,7 +1154,7 @@ def gen_portfolio(model, trading_specs, group, tframe):
     logger.info("Recording Transactions Frame")
     tspace = Space(system_name, 'transactions', gspace.fractal)
     tf1 = pd.DataFrame.from_records(ts, columns=['date', 'transactions'])
-    tf2 = pd.DataFrame(tf1['transactions'].to_list(), columns=['amount', 'price', 'symbol'])
+    tf2 = pd.DataFrame(tf1['transactions'].to_list(), columns=['symbol', 'amount', 'price'])
     tf = pd.concat([tf1['date'], tf2], axis=1)
     tf.set_index('date', inplace=True)
     tfname = frame_name(gname, tspace)

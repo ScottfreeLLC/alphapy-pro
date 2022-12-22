@@ -238,7 +238,8 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
 
     # evaluate entries by joining price with ranked probabilities
 
-    logger.info("Getting probabilities for %s", symbol.upper())
+    symbol = symbol.upper()
+    logger.info("Getting probabilities for %s", symbol)
     partition_tag = 'test'
     if ts_flag:
         pcol = USEP.join(['prob', partition_tag, 'ts', algo.lower()])
