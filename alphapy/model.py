@@ -64,10 +64,7 @@ except:
 
 import logging
 import numpy as np
-from pandas.tseries.frequencies import to_offset
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.linear_model import LogisticRegression
-from sklearn.linear_model import RidgeCV
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import auc
 from sklearn.metrics import average_precision_score

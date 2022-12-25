@@ -45,33 +45,6 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Function abovema
-#
-
-def abovema(f, c, p = 50):
-    r"""Determine those values of the dataframe that are above the
-    moving average.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe containing the column ``c``.
-    c : str
-        Name of the column in the dataframe ``f``.
-    p : int
-        The period of the moving average.
-
-    Returns
-    -------
-    new_column : pandas.Series (bool)
-        The array containing the new feature.
-
-    """
-    new_column = f[c] > ma(f, c, p)
-    return new_column
-
-
-#
 # Function adx
 #
 
@@ -202,33 +175,6 @@ def bbupper(f, c='close', p=20, sd=1.5):
 
     upper_band = bbands(f, c, p, sd, low_band=False)
     return upper_band
-
-
-#
-# Function belowma
-#
-
-def belowma(f, c, p = 50):
-    r"""Determine those values of the dataframe that are below the
-    moving average.
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe containing the column ``c``.
-    c : str
-        Name of the column in the dataframe ``f``.
-    p : int
-        The period of the moving average.
-
-    Returns
-    -------
-    new_column : pandas.Series (bool)
-        The array containing the new feature.
-
-    """
-    new_column = f[c] < ma(f, c, p)
-    return new_column
 
 
 #
@@ -1164,6 +1110,60 @@ def ma(f, c='close', p = 20):
 
     """
     new_column = f[c].rolling(p).mean()
+    return new_column
+
+
+#
+# Function maabove
+#
+
+def maabove(f, c, p = 50):
+    r"""Determine those values of the dataframe that are above the
+    moving average.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period of the moving average.
+
+    Returns
+    -------
+    new_column : pandas.Series (bool)
+        The array containing the new feature.
+
+    """
+    new_column = f[c] > ma(f, c, p)
+    return new_column
+
+
+#
+# Function mabelow
+#
+
+def mabelow(f, c, p = 50):
+    r"""Determine those values of the dataframe that are below the
+    moving average.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+    p : int
+        The period of the moving average.
+
+    Returns
+    -------
+    new_column : pandas.Series (bool)
+        The array containing the new feature.
+
+    """
+    new_column = f[c] < ma(f, c, p)
     return new_column
 
 
