@@ -1048,7 +1048,7 @@ def gen_portfolio(model, trading_specs, group, tframe):
 
     # Unpack the model data.
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     separator = model.specs['separator']
 
@@ -1125,7 +1125,7 @@ def gen_portfolio(model, trading_specs, group, tframe):
 
     # Create systems directory path
 
-    system_dir = SSEP.join([directory, 'systems'])
+    system_dir = SSEP.join([run_dir, 'systems'])
 
     # Create and record the returns frame for this system.
 

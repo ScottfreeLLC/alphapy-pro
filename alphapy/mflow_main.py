@@ -254,10 +254,9 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
                   trade_fractal, predict_history):
     r"""Prepare the model for training and validation.
 
-    1. xxx
-    2. The target value is lagged for the ``forecast_period``.
-    3. Each frame is split along the ``predict_date`` from the ``analysis``, and finally
-       the train and test files are generated.
+    1. Extract the signal for long and short entries.
+    2. Run the Triple Barrier Method analysis.
+    3. Split the dataframe into train and test files.
 
     Parameters
     ----------
@@ -324,8 +323,8 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
     # whether the trade was successful. If the trade is profitable,
     # then the target is 1 else 0.
     #
-    # For long signals, the ROI must be greater than 0.
-    # For short signals, the ROI must be less than 0.
+    # Note that we are using the side feature (trade direction) as
+    # input into the model.
     #
 
     for df in dfs:
@@ -764,7 +763,7 @@ def main(args=None):
         os.makedirs(run_dir)
         model_specs['run_dir'] = run_dir
         # create the subdirectories of the runs directory
-        sub_dirs = ['config', 'input', 'model', 'output', 'plots']
+        sub_dirs = ['config', 'input', 'model', 'output', 'plots', 'systems']
         for sd in sub_dirs:
             output_dir = SSEP.join([run_dir, sd])
             if not os.path.exists(output_dir):

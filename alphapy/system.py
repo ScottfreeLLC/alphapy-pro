@@ -358,7 +358,7 @@ def run_system(model,
 
     # Unpack the model data.
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     separator = model.specs['separator']
 
@@ -370,7 +370,7 @@ def run_system(model,
 
     # Get the latest rankings frame.
 
-    rank_dir = SSEP.join([directory, 'output'])
+    rank_dir = SSEP.join([run_dir, 'output'])
     file_path = most_recent_file(rank_dir, 'ranked_test*')
     file_name = file_path.split(SSEP)[-1].split('.')[0]
     df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
@@ -405,7 +405,7 @@ def run_system(model,
         tf = pd.concat([tf1[index_column], tf2], axis=1)
         tf.set_index(index_column, inplace=True)
         tfname = frame_name(gname, tspace)
-        system_dir = SSEP.join([directory, 'systems'])
+        system_dir = SSEP.join([run_dir, 'systems'])
         write_frame(tf, system_dir, tfname, extension, separator,
                     index=True, index_label=index_column)
         del tspace

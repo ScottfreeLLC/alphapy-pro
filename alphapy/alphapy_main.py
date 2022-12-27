@@ -581,7 +581,7 @@ def prediction_pipeline(alphapy_specs, model):
             logger.info("No RFE Support")
 
     # Load predictor
-    predictor = load_predictor(directory)
+    predictor = load_predictor(run_dir)
 
     # Make predictions
 
