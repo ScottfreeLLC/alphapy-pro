@@ -38,7 +38,6 @@ warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 #
 
 import argparse
-from datetime import datetime
 import logging
 import numpy as np
 import os
@@ -250,7 +249,7 @@ def training_pipeline(alphapy_specs, model):
 
     # Unpack the model specifications
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     drop = model.specs['drop']
     extension = model.specs['extension']
     fs_lofo = model.specs['fs_lofo']
@@ -343,19 +342,16 @@ def training_pipeline(alphapy_specs, model):
 
     # Save the train and test files with extracted and dropped features
 
-    dt_stamp = datetime_stamp()
-    data_dir = SSEP.join([directory, 'input'])
+    data_dir = SSEP.join([run_dir, 'input'])
     # train data
     df_train = X_all.iloc[:split_point, :]
     df_train.loc[:, target] = y_train.loc[:, target]
-    output_file = USEP.join([model.train_file, dt_stamp])
-    write_frame(df_train, data_dir, output_file, extension, separator, index=False)
+    write_frame(df_train, data_dir, model.train_file, extension, separator, index=False)
     # test data
     df_test = X_all.iloc[split_point:, :]
     if model.test_labels:
         df_test.loc[:, target] = y_test.loc[:, target]
-    output_file = USEP.join([model.test_file, dt_stamp])
-    write_frame(df_test, data_dir, output_file, extension, separator, index=False)
+    write_frame(df_test, data_dir, model.test_file, extension, separator, index=False)
 
     # Create crosstabs for any categorical features
 
@@ -477,9 +473,8 @@ def training_pipeline(alphapy_specs, model):
 
     # Save the model
 
-    dt_stamp = datetime_stamp()
-    save_predictor(model, 'BEST', dt_stamp)
-    save_feature_map(model, dt_stamp)
+    save_predictor(model, 'BEST')
+    save_feature_map(model)
 
     # Return the model
     return model
@@ -514,7 +509,7 @@ def prediction_pipeline(alphapy_specs, model):
 
     # Unpack the model specifications
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     drop = model.specs['drop']
     fs_lofo = model.specs['fs_lofo']
     fs_univariate = model.specs['fs_univariate']
@@ -529,7 +524,7 @@ def prediction_pipeline(alphapy_specs, model):
     X_predict, _ = get_data(model, partition)
 
     # Load feature_map
-    model = load_feature_map(model, directory)
+    model = load_feature_map(model, run_dir)
 
     # Log feature statistics
 
@@ -706,14 +701,32 @@ def main(args=None):
     _, model_specs = get_model_config()
     model_specs['predict_mode'] = args.predict_mode
 
-    # Create directories if necessary
+    # If not in prediction mode, then create the training infrastructure.
 
-    output_dirs = ['config', 'data', 'input', 'model', 'output', 'plots']
-    for od in output_dirs:
-        output_dir = SSEP.join([model_specs['directory'], od])
-        if not os.path.exists(output_dir):
-            logger.info("Creating directory %s", output_dir)
-            os.makedirs(output_dir)
+    if not model_specs['predict_mode']:
+        # create the directory infrastructure if necessary
+        output_dirs = ['config', 'data', 'runs']
+        for od in output_dirs:
+            output_dir = SSEP.join([model_specs['directory'], od])
+            if not os.path.exists(output_dir):
+                logger.info("Creating directory %s", output_dir)
+                os.makedirs(output_dir)
+        # create the run directory
+        dt_stamp = datetime_stamp()
+        run_dir_name = USEP.join(['run', dt_stamp])
+        run_dir = SSEP.join([model_specs['directory'], 'runs', run_dir_name])
+        os.makedirs(run_dir)
+        model_specs['run_dir'] = run_dir
+        # create the subdirectories of the runs directory
+        sub_dirs = ['config', 'input', 'model', 'output', 'plots']
+        for sd in sub_dirs:
+            output_dir = SSEP.join([run_dir, sd])
+            if not os.path.exists(output_dir):
+                logger.info("Creating directory %s", output_dir)
+                os.makedirs(output_dir)
+    else:
+        # model_specs['run_dir'] = run_dir
+        pass
 
     # Create a model from the arguments
 

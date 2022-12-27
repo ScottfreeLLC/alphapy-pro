@@ -40,7 +40,6 @@ warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 from alphapy.estimators import scorers
 from alphapy.estimators import xgb_score_map
 from alphapy.features import feature_scorers
-from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Encoders
 from alphapy.globals import ModelType
@@ -49,7 +48,6 @@ from alphapy.globals import Partition, datasets
 from alphapy.globals import PSEP, SSEP, USEP
 from alphapy.globals import SamplingMethod
 from alphapy.globals import Scalers
-from alphapy.utilities import datetime_stamp
 from alphapy.utilities import most_recent_file
 
 from copy import copy
@@ -567,8 +565,8 @@ def load_predictor(directory):
 # Function save_predictor
 #
 
-def save_predictor(model, tag, timestamp):
-    r"""Save the time-stamped model predictor to disk.
+def save_predictor(model, tag):
+    r"""Save the model predictor to the run directory.
 
     Parameters
     ----------
@@ -576,8 +574,6 @@ def save_predictor(model, tag, timestamp):
         The model object that contains the best estimator.
     tag : str
         A unique identifier for a model algorithm.
-    timestamp : str
-        Date in yyyy-mm-dd format.
 
     Returns
     -------
@@ -588,7 +584,7 @@ def save_predictor(model, tag, timestamp):
     logger.info("Saving Model Predictor")
 
     # Extract model parameters.
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
 
     # Get the best predictor
     predictor = model.estimators[tag]
@@ -596,13 +592,13 @@ def save_predictor(model, tag, timestamp):
     # Save model object
 
     if 'KERAS' in model.best_algo:
-        filename = 'model_' + timestamp + '.h5'
-        full_path = SSEP.join([directory, 'model', filename])
+        filename = PSEP.join(['model', 'h5'])
+        full_path = SSEP.join([run_dir, 'model', filename])
         logger.info("Writing model predictor to %s", full_path)
         predictor.model.save(full_path)
     else:
-        filename = 'model_' + timestamp + '.pkl'
-        full_path = SSEP.join([directory, 'model', filename])
+        filename = PSEP.join(['model', 'pkl'])
+        full_path = SSEP.join([run_dir, 'model', filename])
         logger.info("Writing model predictor to %s", full_path)
         joblib.dump(predictor, full_path)
 
@@ -649,15 +645,13 @@ def load_feature_map(model, directory):
 # Function save_feature_map
 #
 
-def save_feature_map(model, timestamp):
+def save_feature_map(model):
     r"""Save the feature map to disk.
 
     Parameters
     ----------
     model : alphapy.Model
         The model object containing the feature map.
-    timestamp : str
-        Date in yyyy-mm-dd format.
 
     Returns
     -------
@@ -668,12 +662,12 @@ def save_feature_map(model, timestamp):
     logger.info("Saving Feature Map")
 
     # Extract model parameters.
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
 
     # Create full path name.
 
-    filename = 'feature_map_' + timestamp + '.pkl'
-    full_path = SSEP.join([directory, 'model', filename])
+    filename = PSEP.join(['feature_map', 'pkl'])
+    full_path = SSEP.join([run_dir, 'model', filename])
 
     # Save model object
 
@@ -1344,20 +1338,17 @@ def save_predictions(model, partition):
 
     # Extract model parameters.
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     model_type = model.specs['model_type']
     separator = model.specs['separator']
     submission_file = model.specs['submission_file']
     submit_probas = model.specs['submit_probas']
 
-    # Get date stamp to record file creation
-    dt_stamp = datetime_stamp()
-
     # Specify input and output directories
 
-    input_dir = SSEP.join([directory, 'input'])
-    output_dir = SSEP.join([directory, 'output'])
+    input_dir = SSEP.join([run_dir, 'input'])
+    output_dir = SSEP.join([run_dir, 'output'])
 
     # Join train and test files
 
@@ -1411,7 +1402,7 @@ def save_predictions(model, partition):
     else:
         pred_name = USEP.join(['pred', datasets[partition], sort_tag.lower()])
         df_master.sort_values(pred_name, ascending=False, inplace=True)
-    output_file = USEP.join(['ranked', datasets[partition], dt_stamp])
+    output_file = USEP.join(['ranked', datasets[partition]])
     write_frame(df_master, output_dir, output_file, extension, separator)
 
     # Generate submission file
@@ -1424,8 +1415,7 @@ def save_predictions(model, partition):
             df_sub[df_sub.columns[1]] = model.probas[(model.best_algo, Partition.test)]
         else:
             df_sub[df_sub.columns[1]] = model.preds[(model.best_algo, Partition.test)]
-        submission_base = USEP.join(['submission', dt_stamp])
-        submission_spec = PSEP.join([submission_base, extension])
+        submission_spec = PSEP.join(['submission', extension])
         submission_output = SSEP.join([output_dir, submission_spec])
         logger.info("Saving Submission to %s", submission_output)
         df_sub.to_csv(submission_output, index=False)

@@ -197,8 +197,8 @@ def get_plot_directory(model):
         The output directory to write the plot.
 
     """
-    directory = model.specs['directory']
-    plot_directory = SSEP.join([directory, 'plots'])
+    run_dir = model.specs['run_dir']
+    plot_directory = SSEP.join([run_dir, 'plots'])
     return plot_directory
 
 

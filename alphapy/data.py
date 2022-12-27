@@ -103,7 +103,7 @@ def get_data(model, partition):
 
     # Extract the model data
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     features = model.specs['features']
     model_type = model.specs['model_type']
@@ -119,7 +119,7 @@ def get_data(model, partition):
     # Read in the file
 
     filename = datasets[partition]
-    input_dir = SSEP.join([directory, 'input'])
+    input_dir = SSEP.join([run_dir, 'input'])
     df = read_frame(input_dir, filename, extension, separator)
 
     # Get features and target

@@ -64,6 +64,7 @@ from alphapy.space import Space
 from alphapy.system import run_system
 from alphapy.system import System
 from alphapy.transforms import netreturn
+from alphapy.utilities import datetime_stamp
 from alphapy.utilities import subtract_days, valid_date
 from alphapy.variables import vapply
 
@@ -286,7 +287,7 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
 
     # Unpack model specifications
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     predict_date = model.specs['predict_date']
     predict_mode = model.specs['predict_mode']
@@ -431,7 +432,7 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
 
     # Write out the frames for input into the AlphaPy pipeline
 
-    directory = SSEP.join([directory, 'input'])
+    directory = SSEP.join([run_dir, 'input'])
     if predict_mode:
         # write out the predict frame
         test_frame.sort_index(inplace=True)
@@ -745,14 +746,33 @@ def main(args=None):
     # Read market configuration file
     _, market_specs = get_market_config()
 
-    # Create directories if necessary
 
-    output_dirs = ['config', 'data', 'input', 'model', 'output', 'plots', 'systems']
-    for od in output_dirs:
-        output_dir = SSEP.join([model_specs['directory'], od])
-        if not os.path.exists(output_dir):
-            logger.info("Creating directory %s", output_dir)
-            os.makedirs(output_dir)
+    # If not in prediction mode, then create the training infrastructure.
+
+    if not model_specs['predict_mode']:
+        # create the directory infrastructure if necessary
+        output_dirs = ['config', 'data', 'runs']
+        for od in output_dirs:
+            output_dir = SSEP.join([model_specs['directory'], od])
+            if not os.path.exists(output_dir):
+                logger.info("Creating directory %s", output_dir)
+                os.makedirs(output_dir)
+        # create the run directory
+        dt_stamp = datetime_stamp()
+        run_dir_name = USEP.join(['run', dt_stamp])
+        run_dir = SSEP.join([model_specs['directory'], 'runs', run_dir_name])
+        os.makedirs(run_dir)
+        model_specs['run_dir'] = run_dir
+        # create the subdirectories of the runs directory
+        sub_dirs = ['config', 'input', 'model', 'output', 'plots']
+        for sd in sub_dirs:
+            output_dir = SSEP.join([run_dir, sd])
+            if not os.path.exists(output_dir):
+                logger.info("Creating directory %s", output_dir)
+                os.makedirs(output_dir)
+    else:
+        # model_specs['run_dir'] = run_dir
+        pass
 
     # Create a model object from the specifications
     model = Model(model_specs)
