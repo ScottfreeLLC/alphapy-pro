@@ -65,6 +65,7 @@ from alphapy.system import run_system
 from alphapy.system import System
 from alphapy.transforms import netreturn
 from alphapy.utilities import datetime_stamp
+from alphapy.utilities import most_recent_file
 from alphapy.utilities import subtract_days, valid_date
 from alphapy.variables import vapply
 
@@ -677,6 +678,9 @@ def main(args=None):
     parser.add_argument('--predict', dest='predict_mode', action='store_true')
     parser.add_argument('--train', dest='predict_mode', action='store_false')
     parser.set_defaults(predict_mode=False)
+    parser.add_argument('--rundir', dest='run_dir',
+                        help="run directory is in the format: run_YYYYMMDD_hhmmss",
+                        required=False)
     args = parser.parse_args()
 
     # Logging
@@ -745,7 +749,6 @@ def main(args=None):
     # Read market configuration file
     _, market_specs = get_market_config()
 
-
     # If not in prediction mode, then create the training infrastructure.
 
     if not model_specs['predict_mode']:
@@ -761,7 +764,6 @@ def main(args=None):
         run_dir_name = USEP.join(['run', dt_stamp])
         run_dir = SSEP.join([model_specs['directory'], 'runs', run_dir_name])
         os.makedirs(run_dir)
-        model_specs['run_dir'] = run_dir
         # create the subdirectories of the runs directory
         sub_dirs = ['config', 'input', 'model', 'output', 'plots', 'systems']
         for sd in sub_dirs:
@@ -770,8 +772,12 @@ def main(args=None):
                 logger.info("Creating directory %s", output_dir)
                 os.makedirs(output_dir)
     else:
-        # model_specs['run_dir'] = run_dir
-        pass
+        run_dir = args.run_dir if args.run_dir else None
+        if not run_dir:
+            # get latest directory
+            search_dir = SSEP.join([model_specs['directory'], 'runs'])
+            run_dir = most_recent_file(search_dir, 'run_*')
+    model_specs['run_dir'] = run_dir
 
     # Create a model object from the specifications
     model = Model(model_specs)

@@ -1091,9 +1091,7 @@ def gen_portfolio(model, trading_specs, group, tframe):
     # Initialize return, position, and transaction data.
 
     rs = []
-    pcols = list(gmembers)
-    pcols.extend(['cash'])
-    pf = pd.DataFrame(index=drange, columns=pcols).fillna(0.0)
+    pf = pd.DataFrame(index=drange, columns=['cash']).fillna(0.0)
     ts = []
 
     # Iterate through the date range, updating the portfolio.

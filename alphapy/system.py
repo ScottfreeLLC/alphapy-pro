@@ -209,9 +209,7 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
 
     close_col = USEP.join(['close', trade_fractal])
     ds_close = df_trade[close_col]
-    daily_vol = get_daily_vol(ds_close)
-    profit_target = profit_factor * daily_vol
-    stop_loss = stoploss_factor * daily_vol
+    ds_vol = get_daily_vol(ds_close)
 
     # extract the rankings frame for the given symbol
 
@@ -261,39 +259,48 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
     # Loop through prices and generate trades
 
     ccol = USEP.join(['close', trade_fractal])
+    hcol = USEP.join(['high', trade_fractal])
+    lcol = USEP.join(['low', trade_fractal])
     icol = USEP.join(['endofday', trade_fractal])
 
     for dt, row in df_trade.iterrows():
         # get prices for this row
         c = row[ccol]
-        end_of_day = row[icol] if intraday else False
+        h = row[hcol]
+        l = row[lcol]
         # evaluate entry and exit conditions
         lerow = row['entry'] and row['side'] == 1
         serow = row['entry'] and row['side'] == -1
+        end_of_day = row[icol] if intraday else False
+        # calculate profit targets and stop losses
+        ds_index = ds_vol.index.get_loc(dt, method='nearest')
+        daily_vol = ds_vol.iloc[ds_index]
+        profit_target = profit_factor * daily_vol * c
+        stop_loss = stoploss_factor * daily_vol * c
         # process the long and short events
         if lerow:
             if inshort:
                 # short active, so exit short
                 tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
                 inshort = False
-                hold = 0
-                psize = 0
+                hold = psize =0
             if psize == 0 and not end_of_day:
                 # go long
                 tradelist.append((dt, [symbol, Orders.le, q, c]))
                 inlong = True
+                le_price = c
                 psize = psize + q
         if serow:
             if inlong:
                 # long active, so exit long
                 tradelist.append((dt, [symbol, Orders.lx, -psize, c]))
                 inlong = False
-                hold = 0
-                psize = 0
+                hold = psize = 0
             if psize == 0 and not end_of_day:
                 # go short
                 tradelist.append((dt, [symbol, Orders.se, -q, c]))
                 inshort = True
+                se_price = c
                 psize = psize - q
         # Exit when holding period is reached
         if hold >= forecast_period:
@@ -303,11 +310,35 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
             if inshort:
                 tradelist.append((dt, [symbol, Orders.sh, -psize, c]))
                 inshort = False
-            hold = 0
-            psize = 0
-        # increment the hold counter
+            hold = psize = 0
+        # check current positions for exit
         if inlong or inshort:
+            # increment the hold counter
             hold += 1
+            # check for profit targets or stop losses
+            if inlong:
+                if h >= le_price + profit_target:
+                    # profit target
+                    tradelist.append((dt, [symbol, Orders.lx, -psize, le_price + profit_target]))
+                    inlong = False
+                if l <= le_price - stop_loss:
+                    # stop loss
+                    tradelist.append((dt, [symbol, Orders.lx, -psize, le_price - stop_loss]))
+                    inlong = False
+                if not inlong:
+                    hold = psize = 0
+            if inshort:
+                if l <= se_price - profit_target:
+                    # profit target
+                    tradelist.append((dt, [symbol, Orders.sx, -psize, se_price - profit_target]))
+                    inshort = False
+                if h >= se_price + stop_loss:
+                    # stop loss
+                    tradelist.append((dt, [symbol, Orders.sx, -psize, se_price + stop_loss]))
+                    inshort = False
+                if not inshort:
+                    hold = psize = 0
+            # close any intraday trades at the end of the day
             if intraday and end_of_day:
                 if inlong:
                     # long active, so exit long
@@ -317,8 +348,7 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
                     # short active, so exit short
                     tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
                     inshort = False
-                hold = 0
-                psize = 0
+                hold = psize =0
     return tradelist
 
 
