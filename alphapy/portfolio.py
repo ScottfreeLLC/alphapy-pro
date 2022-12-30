@@ -38,6 +38,7 @@ import logging
 import math
 import numpy as np
 import pandas as pd
+import quantstats as qs
 
 
 #
@@ -1159,6 +1160,22 @@ def gen_portfolio(model, trading_specs, group, tframe):
     write_frame(tf, system_dir, tfname, extension, separator,
                 index=True, index_label='date')
     del tspace
+    
+    # Record the trading statistics.
+
+    logger.info("Recording Trading Metrics")
+    rf.index = pd.to_datetime(rf.index)
+    df_metrics = qs.reports.metrics(rf, mode='full', display=False)
+    write_frame(df_metrics, system_dir, 'trade_metrics', extension, separator,
+                index=True, index_label='date')
+    
+    # Record the tear sheet (currently not working)
+
+    tear_sheet = False
+    if tear_sheet:
+        tear_sheet_spec = SSEP.join([system_dir, 'tear_sheet.html'])
+        logger.info("Saving Tear Sheet to: %s", tear_sheet_spec)
+        qs.reports.html(rf, output=True, download_filename=tear_sheet_spec)
 
     # Return the portfolio.
     return p
