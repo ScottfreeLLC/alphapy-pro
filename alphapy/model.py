@@ -1422,3 +1422,50 @@ def save_predictions(model, partition):
 
     # Return model
     return model
+
+
+#
+# Function save_metrics
+#
+
+def save_metrics(model):
+    r"""Save the model metrics to a file.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model object to save.
+
+    Returns
+    -------
+    model : alphapy.Model
+        The model object with the blended estimator.
+
+    """
+
+    # Extract model parameters.
+
+    run_dir = model.specs['run_dir']
+    extension = model.specs['extension']
+    model_type = model.specs['model_type']
+    separator = model.specs['separator']
+
+    # Specify output directory and file
+
+    output_dir = SSEP.join([run_dir, 'model'])
+    output_file = 'model_metrics'
+
+    # Create metrics dataframe
+
+    keys = [list(k) for (k, _) in model.metrics.items()]
+    values = [v for (_, v) in model.metrics.items()]
+    df = pd.DataFrame(keys, columns=['algo', 'partition', 'metric'])
+    df['value'] = values
+
+    # Save model metrics
+
+    logger.info("Saving Model Metrics")
+    write_frame(df, output_dir, output_file, extension, separator)
+
+    # Return model
+    return model

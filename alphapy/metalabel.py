@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # Function get_daily_vol
 #
 
-def get_daily_vol(ds_close, p = 100):
+def get_daily_vol(ds_close, p=60):
     r"""Calculate daily volatility for dynamic thresholds.
 
     Parameters
@@ -65,14 +65,14 @@ def get_daily_vol(ds_close, p = 100):
     ds_vol = (pd.Series(ds_close.index[ds_vol - 1], index=ds_close.index[ds_close.shape[0] - ds_vol.shape[0]:]))
     # calculate daily returns
     ds_vol = ds_close.loc[ds_vol.index] / ds_close.loc[ds_vol.values].values - 1
-    ds_vol = ds_vol.ewm(span=p).std()
+    ds_vol = ds_vol.ewm(span=p, min_periods=p).std().dropna()
     return ds_vol
 
 #
 # Function get_daily_dollar_vol
 #
 
-def get_daily_dollar_vol(df, p = 100):
+def get_daily_dollar_vol(df, p=60):
     r"""Calculate daily dollar volume.
 
     Parameters
@@ -96,7 +96,7 @@ def get_daily_dollar_vol(df, p = 100):
     ds_volume_sum = df['volume'].groupby(pd.Grouper(freq=fractal_daily)).sum()
     ds_volume_sum = ds_volume_sum[ds_volume_sum > 0]
     ds_dv = ds_price_avg * ds_volume_sum
-    ds_dv = ds_dv.ewm(span=p).mean()
+    ds_dv = ds_dv.ewm(span=p, min_periods=p).mean()
     return ds_dv[-1]
 
 
@@ -104,7 +104,7 @@ def get_daily_dollar_vol(df, p = 100):
 # Function get_t_events
 #
 
-def get_t_events(ds_close, threshold = 0.01):
+def get_t_events(ds_close, threshold=0.01):
     r"""Calculate daily volatility for dynamic thresholds.
 
     Parameters
@@ -153,7 +153,7 @@ def get_t_events(ds_close, threshold = 0.01):
 # Function add_vertical_barrier
 #
 
-def add_vertical_barrier(t_events, ds_close, num_days = 1.0):
+def add_vertical_barrier(t_events, ds_close, num_days=1.0):
     r"""Calculate daily volatility for dynamic thresholds.
 
     Parameters

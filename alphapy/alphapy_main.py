@@ -41,6 +41,7 @@ import argparse
 import logging
 import numpy as np
 import os
+import shutil
 from sklearn.model_selection import train_test_split
 import sys
 import yaml
@@ -75,6 +76,7 @@ from alphapy.model import Model
 from alphapy.model import select_best_model
 from alphapy.model import predict_blend
 from alphapy.model import save_feature_map
+from alphapy.model import save_metrics
 from alphapy.model import save_predictions
 from alphapy.model import save_predictor
 from alphapy.model import time_series_model
@@ -82,6 +84,7 @@ from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
 from alphapy.utilities import datetime_stamp
+from alphapy.utilities import most_recent_file
 from alphapy.variables import Variable
 
 
@@ -190,7 +193,7 @@ def get_alphapy_config(alphapy_root):
             if dir_exists:
                 specs['data_dir'] = dir
             else:
-                raise ValueError("Directory %s does not exist" % dir)
+                raise ValueError(f"Directory {dir} does not exist")
 
     #
     # Section: systems
@@ -400,7 +403,7 @@ def training_pipeline(alphapy_specs, model):
     # Get the available scorers
 
     if scorer not in scorers:
-        raise KeyError("Scorer function %s not found" % scorer)
+        raise KeyError(f"Scorer function {scorer} not found")
 
     # Model Loop
 
@@ -471,10 +474,11 @@ def training_pipeline(alphapy_specs, model):
         else:
             model = save_predictions(model, partition)
 
-    # Save the model
+    # Save the model and metrics
 
     save_predictor(model, 'BEST')
     save_feature_map(model)
+    save_metrics(model)
 
     # Return the model
     return model
@@ -660,6 +664,9 @@ def main(args=None):
     parser.add_argument('--predict', dest='predict_mode', action='store_true')
     parser.add_argument('--train', dest='predict_mode', action='store_false')
     parser.set_defaults(predict_mode=False)
+    parser.add_argument('--rundir', dest='run_dir',
+                        help="run directory is in the format: run_YYYYMMDD_hhmmss",
+                        required=False)
     args = parser.parse_args()
 
     # Logging
@@ -724,9 +731,18 @@ def main(args=None):
             if not os.path.exists(output_dir):
                 logger.info("Creating directory %s", output_dir)
                 os.makedirs(output_dir)
+        # copy the model file to the config directory
+        filename = 'model.yml'
+        src_file = SSEP.join([model_specs['directory'], 'config', filename])
+        dst_file = SSEP.join([run_dir, 'config', filename])
+        shutil.copyfile(src_file, dst_file)
     else:
-        # model_specs['run_dir'] = run_dir
-        pass
+        run_dir = args.run_dir if args.run_dir else None
+        if not run_dir:
+            # get latest directory
+            search_dir = SSEP.join([model_specs['directory'], 'runs'])
+            run_dir = most_recent_file(search_dir, 'run_*')
+    model_specs['run_dir'] = run_dir
 
     # Create a model from the arguments
 

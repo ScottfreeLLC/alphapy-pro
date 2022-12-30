@@ -40,6 +40,7 @@ import logging
 import numpy as np
 import os
 import pandas as pd
+import shutil
 import sys
 import yaml
 
@@ -355,7 +356,7 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
             close_col = USEP.join(['close', trade_fractal])
             ds_close = df[close_col]
             # get daily volatility
-            daily_vol = get_daily_vol(ds_close)
+            daily_vol = get_daily_vol(ds_close, p=predict_history)
             # get CUSUM events
             cusum_events = get_t_events(ds_close, threshold=daily_vol.mean())
             # establish vertical barriers
@@ -771,6 +772,12 @@ def main(args=None):
             if not os.path.exists(output_dir):
                 logger.info("Creating directory %s", output_dir)
                 os.makedirs(output_dir)
+        # copy the market file to the config directory
+        file_names = ['model.yml', 'market.yml']
+        for file_name in file_names:
+            src_file = SSEP.join([model_specs['directory'], 'config', file_name])
+            dst_file = SSEP.join([run_dir, 'config', file_name])
+            shutil.copyfile(src_file, dst_file)
     else:
         run_dir = args.run_dir if args.run_dir else None
         if not run_dir:
