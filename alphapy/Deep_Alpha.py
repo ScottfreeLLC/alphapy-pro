@@ -62,7 +62,7 @@ logger = logging.getLogger(__name__)
 #
 
 def get_finviz_portfolios():
-    finviz_specs = alphapy_specs['finviz']
+    finviz_specs = alphapy_specs['sources']['finviz']
     email = finviz_specs['email']
     api_key = finviz_specs['api_key']
     portfolios = finviz_specs['portfolios']
@@ -90,7 +90,7 @@ def get_market_index_groups():
     url = f"https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
     df = pd.read_csv(url)
     df.loc[df['symbol'] == '^NDX', 'name'] = 'Nasdaq 100'
-    finnhub_client = finnhub.Client(api_key=alphapy_specs['finnhub']['api_key'])
+    finnhub_client = finnhub.Client(api_key=alphapy_specs['sources']['finnhub']['api_key'])
 
     groups = {}
     for _, row in df.iterrows():
@@ -165,7 +165,7 @@ def run_project(project):
 
     group_list = list(groups.keys())
     if screener == text_ap:
-        group_default = market_specs['market']['target_group']
+        group_default = market_specs['data']['target_group']
         group_list.remove(group_default)
         group_list.insert(0, group_default)
     group_text = ' '.join(['Select', screener, 'Group'])
@@ -174,9 +174,9 @@ def run_project(project):
     # Select the date range (market:data_start_date and market:data_end_date)
     # If the configuration variable market:data_history is set, then calculate the dates.
 
-    start_date_default = market_specs['market']['data_start_date']
-    end_date_default = market_specs['market']['data_end_date']
-    data_history_default = market_specs['market']['data_history']
+    start_date_default = market_specs['data']['data_start_date']
+    end_date_default = market_specs['data']['data_end_date']
+    data_history_default = market_specs['data']['data_history']
     today = datetime.now()
     if data_history_default and start_date_default and end_date_default:
         from_date = start_date_default
