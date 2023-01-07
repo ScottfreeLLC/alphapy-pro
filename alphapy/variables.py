@@ -612,9 +612,9 @@ def vapply(group, market_specs, vfuncs=None):
         # apply variables to each of the fractals
         dfs = []
         for fractal in fractals:
-            logger.info("Fractal: %s", fractal)           
+            logger.info("Fractal: %s", fractal)       
             fspace = Space(gsubject, gsource, fractal)
-            fname = frame_name(symbol.lower(), fspace)
+            fname = frame_name(symbol, fspace)
             if fname in Frame.frames:
                 df = Frame.frames[fname].df
                 if not df.empty:
@@ -633,9 +633,9 @@ def vapply(group, market_specs, vfuncs=None):
                     # add the fractal frame to the list
                     dfs.append(df)
                 else:
-                    logger.info("Empty Dataframe for %s [%s]", symbol, fractal)
+                    logger.info("Empty Dataframe for %s [%s]", symbol.upper(), fractal)
             else:
-                logger.info("Dataframe Not Found for %s [%s]", symbol, fractal)
+                logger.info("Dataframe Not Found for %s [%s]", symbol.upper(), fractal)
         # join all fractal frames
         logger.info("Joining Frames: %s", fractals)
         for indexf, df in enumerate(dfs):

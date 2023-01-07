@@ -358,7 +358,7 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
             # get daily volatility
             daily_vol = get_daily_vol(ds_close, p=predict_history)
             # get CUSUM events
-            cusum_events = get_t_events(ds_close, threshold=daily_vol.mean())
+            cusum_events = get_t_events(ds_close, threshold=minimum_return)
             # establish vertical barriers
             vertical_barriers = add_vertical_barrier(cusum_events, ds_close, num_days=forecast_period)
             # set the Triple Barrier events
@@ -578,10 +578,13 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     # Set the cohort group and space
 
-    group_cohort = Group.groups[cohort_group]
-    group_cohort.space = Space(subject, data_source, trade_fractal)
-    logger.info("Cohort Group Space: %s", group_cohort.space)
-    logger.info("Cohort Symbols: %s", group_cohort.members)
+    try:
+        group_cohort = Group.groups[cohort_group]
+        group_cohort.space = Space(subject, data_source, trade_fractal)
+        logger.info("Cohort Group Space: %s", group_cohort.space)
+        logger.info("Cohort Symbols: %s", group_cohort.members)
+    except:
+        group_cohort = None
 
     # Determine whether or not this is an intraday analysis.
 
@@ -591,8 +594,10 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # predict_history resets to the actual history obtained.
 
     lookback = predict_history if predict_mode else data_history
-    get_market_data(model, market_specs, group, lookback, intraday, local_dir=data_dir)
-    get_market_data(model, market_specs, group_cohort, lookback, intraday, local_dir=data_dir)
+    local_dir = SSEP.join([data_dir, subject, trade_fractal])
+    get_market_data(model, market_specs, group, lookback, intraday, local_dir=local_dir)
+    if group_cohort:
+        get_market_data(model, market_specs, group_cohort, lookback, intraday, local_dir=local_dir)
 
     # Apply the features to all frames, including the signals just for the
     # target fractal.
@@ -601,7 +606,9 @@ def market_pipeline(alphapy_specs, model, market_specs):
     dfs = vapply(group, market_specs, functions)
 
     # Apply the cohort returns to all frames.
-    get_cohort_returns(dfs, group_cohort, trade_fractal)
+    
+    if group_cohort:
+        get_cohort_returns(dfs, group_cohort, trade_fractal)
 
     # Set the model target variable and create the train/test dataframes.
     prepare_model(model, dfs, signal_long, signal_short, trading_specs,

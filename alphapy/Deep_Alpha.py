@@ -61,6 +61,7 @@ logger = logging.getLogger(__name__)
 # Function get_finviz_portfolios
 #
 
+@st.cache
 def get_finviz_portfolios():
     finviz_specs = alphapy_specs['sources']['finviz']
     email = finviz_specs['email']

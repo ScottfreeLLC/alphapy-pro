@@ -761,12 +761,12 @@ def get_market_data(model, market_specs, group, lookback_period,
 
     if intraday_data:
         # intraday data (date and time)
-        logger.info("Source: %s Intraday Data [%s] for %d days",
-                    gsource.upper(), data_fractal, lookback_period)
+        logger.info("Source [%s] Intraday Data [%s] for %d days",
+                    gsource, data_fractal, lookback_period)
     else:
         # daily data or higher (date only)
-        logger.info("Source: %s Daily Data [%s] for %d days",
-                    gsource.upper(), data_fractal, lookback_period)
+        logger.info("Source [%s] Daily Data [%s] for %d days",
+                    gsource, data_fractal, lookback_period)
 
     # Get the data from the specified data feed
 
@@ -780,7 +780,7 @@ def get_market_data(model, market_specs, group, lookback_period,
         if gsource == 'data':
             # locally stored intraday or daily data
             dspace = Space(gsubject, gsource, data_fractal)
-            fname = frame_name(symbol.lower(), dspace)
+            fname = frame_name(symbol, dspace)
             df = read_frame(local_dir, fname, extension, separator)
         elif gsource in data_dispatch_table.keys():
             df = data_dispatch_table[gsource](gsource,
@@ -790,17 +790,17 @@ def get_market_data(model, market_specs, group, lookback_period,
                                               from_date,
                                               to_date,
                                               lookback_period)
-            df = df.copy()
         else:
             logger.error("Unsupported Data Source: %s", gsource)
         # Now that we have content, standardize the data
         if not df.empty:
+            df = df.copy()
             logger.info("Rows: %d [%s]", len(df), data_fractal)
             # reset the index to find the correct datetime column
             df.reset_index(inplace=True)
             df.columns = df.columns.str.lower()
             # find date or datetime column
-            dt_cols = ['datetime', 'date', 'index']
+            dt_cols = ['datetime', 'date']
             dt_index = None
             if df.index.name:
                 df.index.name = df.index.name.lower()
@@ -816,6 +816,7 @@ def get_market_data(model, market_specs, group, lookback_period,
                     raise ValueError("Dataframe must have a datetime or date column")
             # drop any remaining date or index columns
             df.drop(columns=dt_cols, inplace=True, errors='ignore')
+            df.drop(columns=['index'], inplace=True, errors='ignore')
             # scope dataframe in date range
             df = df.loc[pd.to_datetime(from_date) : pd.to_datetime(to_date)]
             # register the dataframe in the global namespace
