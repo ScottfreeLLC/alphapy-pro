@@ -316,7 +316,7 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
             # increment the hold counter
             hold += 1
             # check for profit targets or stop losses
-            if inlong:
+            if inlong and hold > 1:
                 if h >= le_price + profit_target:
                     # profit target
                     tradelist.append((dt, [symbol, Orders.lx, -psize, le_price + profit_target]))
@@ -327,7 +327,7 @@ def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
                     inlong = False
                 if not inlong:
                     hold = psize = 0
-            if inshort:
+            if inshort and hold > 1:
                 if l <= se_price - profit_target:
                     # profit target
                     tradelist.append((dt, [symbol, Orders.sx, -psize, se_price - profit_target]))
