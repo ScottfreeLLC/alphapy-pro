@@ -40,7 +40,6 @@ warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 from alphapy.estimators import scorers
 from alphapy.estimators import xgb_score_map
 from alphapy.features import feature_scorers
-from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Encoders
 from alphapy.globals import ModelType
@@ -49,7 +48,6 @@ from alphapy.globals import Partition, datasets
 from alphapy.globals import PSEP, SSEP, USEP
 from alphapy.globals import SamplingMethod
 from alphapy.globals import Scalers
-from alphapy.utilities import get_datestamp
 from alphapy.utilities import most_recent_file
 
 from copy import copy
@@ -64,10 +62,7 @@ except:
 
 import logging
 import numpy as np
-from pandas.tseries.frequencies import to_offset
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.linear_model import LogisticRegression
-from sklearn.linear_model import RidgeCV
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import auc
 from sklearn.metrics import average_precision_score
@@ -78,6 +73,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import explained_variance_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import log_loss
+from sklearn.metrics import matthews_corrcoef
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
@@ -128,10 +124,6 @@ class Model:
         Original test features.
     df_y_test  : pandas.Series
         Original test target.
-    df_X_ts  : pandas.DataFrame
-        Original time series frame.
-    df_y_ts  : pandas.Series
-        Original time series target.
     X_train : pandas.DataFrame
         Selected train features in matrix format.
     y_train : pandas.Series
@@ -140,6 +132,10 @@ class Model:
         Selected test features in matrix format.
     y_test  : pandas.Series
         Test labels in vector format.
+    X_train_ts  : pandas.DataFrame
+        Time series training frame.
+    y_train_ts  : pandas.Series
+        Time series target.
     algolist : list
         Algorithms to use in training.
     estimators : dict
@@ -176,12 +172,14 @@ class Model:
         self.df_y_train = None
         self.df_X_test = None
         self.df_y_test = None
-        self.df_X_ts = None
-        self.df_y_ts = None
+        # transformed train/test
         self.X_train = None
         self.y_train = None
         self.X_test = None
         self.y_test = None
+        # time series train/test
+        self.X_train_ts = None
+        self.y_train_ts = None
         # test labels
         self.test_labels = False
         # datasets
@@ -203,6 +201,7 @@ class Model:
         self.coefs = {}
         self.support = {}
         self.fnames_algo = {}
+        self.lofo_df = {}
         # Keys: (algorithm, partition)
         self.preds = {}
         self.probas = {}
@@ -224,15 +223,18 @@ class Model:
 # Function get_model_config
 #
 
-def get_model_config():
+def get_model_config(directory='.'):
     r"""Read in the configuration file for AlphaPy.
 
     Parameters
     ----------
-    None : None
+    directory : str
+        The directory specifying the location of the configuration file.
 
     Returns
     -------
+    cfg : dict
+        The original configuration specifications.
     specs : dict
         The parameters for controlling AlphaPy.
 
@@ -247,7 +249,7 @@ def get_model_config():
 
     # Read the configuration file
 
-    full_path = SSEP.join([PSEP, 'config', 'model.yml'])
+    full_path = SSEP.join([directory, 'config', 'model.yml'])
     with open(full_path, 'r') as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
@@ -259,6 +261,7 @@ def get_model_config():
 
     specs['directory'] = cfg['project']['directory']
     specs['extension'] = cfg['project']['file_extension']
+    specs['live_results'] = cfg['project']['live_results']
     specs['submission_file'] = cfg['project']['submission_file']
     specs['submit_probas'] = cfg['project']['submit_probas']
 
@@ -266,13 +269,11 @@ def get_model_config():
 
     specs['drop'] = cfg['data']['drop']
     specs['features'] = cfg['data']['features']
-    specs['leaders'] = cfg['data']['leaders']
     specs['sentinel'] = cfg['data']['sentinel']
     specs['separator'] = cfg['data']['separator']
     specs['shuffle'] = cfg['data']['shuffle']
     specs['split'] = cfg['data']['split']
-    specs['target'] = cfg['data']['target']
-    specs['target_value'] = cfg['data']['target_value']
+    specs['allow_na_targets'] = cfg['data']['allow_na_targets']
     # sampling
     specs['sampling'] = cfg['data']['sampling']['option']
     # determine whether or not sampling method is valid
@@ -314,8 +315,11 @@ def get_model_config():
     specs['isomap'] = cfg['features']['isomap']['option']
     specs['iso_components'] = cfg['features']['isomap']['components']
     specs['iso_neighbors'] = cfg['features']['isomap']['neighbors']
+    # LOFO
+    specs['fs_lofo'] = cfg['features']['lofo']['option']
     # log transformation
-    specs['logtransform'] = cfg['features']['logtransform']['option']
+    specs['log_transform'] = cfg['features']['log_transform']['option']
+    specs['pvalue_level'] = cfg['features']['log_transform']['pvalue_level']
     # low-variance features
     specs['lv_remove'] = cfg['features']['variance']['option']
     specs['lv_threshold'] = cfg['features']['variance']['threshold']
@@ -346,6 +350,16 @@ def get_model_config():
     specs['tsne_components'] = cfg['features']['tsne']['components']
     specs['tsne_learn_rate'] = cfg['features']['tsne']['learning_rate']
     specs['tsne_perplexity'] = cfg['features']['tsne']['perplexity']
+    # univariate
+    specs['fs_univariate'] = cfg['features']['univariate']['option']
+    specs['fs_uni_pct'] = cfg['features']['univariate']['percentage']
+    specs['fs_uni_grid'] = cfg['features']['univariate']['uni_grid']
+    score_func = cfg['features']['univariate']['score_func']
+    if score_func in feature_scorers:
+        specs['fs_uni_score_func'] = feature_scorers[score_func]
+    else:
+        raise ValueError("model.yml features:univariate:score_func %s unrecognized" %
+                         score_func)
 
     # Section: model
 
@@ -360,21 +374,10 @@ def get_model_config():
         raise ValueError("model.yml model:type %s unrecognized" % model_type)
     # end of model type
     specs['n_estimators'] = cfg['model']['estimators']
-    specs['pvalue_level'] = cfg['model']['pvalue_level']
     specs['scorer'] = cfg['model']['scoring_function']
     # calibration
     specs['calibration'] = cfg['model']['calibration']['option']
     specs['cal_type'] = cfg['model']['calibration']['type']
-    # feature selection
-    specs['feature_selection'] = cfg['model']['feature_selection']['option']
-    specs['fs_percentage'] = cfg['model']['feature_selection']['percentage']
-    specs['fs_uni_grid'] = cfg['model']['feature_selection']['uni_grid']
-    score_func = cfg['model']['feature_selection']['score_func']
-    if score_func in feature_scorers:
-        specs['fs_score_func'] = feature_scorers[score_func]
-    else:
-        raise ValueError("model.yml model:feature_selection:score_func %s unrecognized" %
-                         score_func)
     # grid search
     specs['grid_search'] = cfg['model']['grid_search']['option']
     specs['gs_iters'] = cfg['model']['grid_search']['iterations']
@@ -384,6 +387,8 @@ def get_model_config():
     # rfe
     specs['rfe'] = cfg['model']['rfe']['option']
     specs['rfe_step'] = cfg['model']['rfe']['step']
+    # target
+    specs['target'] = cfg['model']['target']
     # time series
     specs['ts_option'] = cfg['model']['time_series']['option']
     specs['ts_backtests'] = cfg['model']['time_series']['backtests']
@@ -392,6 +397,10 @@ def get_model_config():
     specs['ts_forecast'] = cfg['model']['time_series']['forecast']
     # derivation (rolling) window
     specs['ts_window'] = cfg['model']['time_series']['window']
+
+    if specs['ts_option'] and specs['shuffle']:
+        logger.info("Time Series is enabled, turning off Shuffling")
+        specs['shuffle'] = False
 
     # Section: pipeline
 
@@ -423,6 +432,7 @@ def get_model_config():
 
     logger.info('MODEL PARAMETERS:')
     logger.info('algorithms        = %s', specs['algorithms'])
+    logger.info('allow_na_targets  = %r', specs['allow_na_targets'])
     logger.info('calibration       = %r', specs['calibration'])
     logger.info('cal_type          = %s', specs['cal_type'])
     logger.info('calibration_plot  = %r', specs['calibration'])
@@ -440,10 +450,11 @@ def get_model_config():
     logger.info('esr               = %d', specs['esr'])
     logger.info('factors           = %s', specs['factors'])
     logger.info('features [X]      = %s', specs['features'])
-    logger.info('feature_selection = %r', specs['feature_selection'])
-    logger.info('fs_percentage     = %d', specs['fs_percentage'])
-    logger.info('fs_score_func     = %s', specs['fs_score_func'])
+    logger.info('fs_lofo           = %r', specs['fs_lofo'])
+    logger.info('fs_univariate     = %r', specs['fs_univariate'])
     logger.info('fs_uni_grid       = %s', specs['fs_uni_grid'])
+    logger.info('fs_uni_pct        = %d', specs['fs_uni_pct'])
+    logger.info('fs_uni_score_func = %s', specs['fs_uni_score_func'])
     logger.info('grid_search       = %r', specs['grid_search'])
     logger.info('gs_iters          = %d', specs['gs_iters'])
     logger.info('gs_random         = %r', specs['gs_random'])
@@ -455,9 +466,9 @@ def get_model_config():
     logger.info('iso_components    = %d', specs['iso_components'])
     logger.info('iso_neighbors     = %d', specs['iso_neighbors'])
     logger.info('isample_pct       = %d', specs['isample_pct'])
-    logger.info('leaders           = %s', specs['leaders'])
     logger.info('learning_curve    = %r', specs['learning_curve'])
-    logger.info('logtransform      = %r', specs['logtransform'])
+    logger.info('live_results      = %r', specs['live_results'])
+    logger.info('log_transform     = %r', specs['log_transform'])
     logger.info('lv_remove         = %r', specs['lv_remove'])
     logger.info('lv_threshold      = %f', specs['lv_threshold'])
     logger.info('model_type        = %r', specs['model_type'])
@@ -491,7 +502,6 @@ def get_model_config():
     logger.info('submission_file   = %s', specs['submission_file'])
     logger.info('submit_probas     = %r', specs['submit_probas'])
     logger.info('target [y]        = %s', specs['target'])
-    logger.info('target_value      = %d', specs['target_value'])
     logger.info('transforms        = %s', specs['transforms'])
     logger.info('ts_option         = %r', specs['ts_option'])
     logger.info('ts_backtests      = %d', specs['ts_backtests'])
@@ -506,7 +516,7 @@ def get_model_config():
     logger.info('verbosity         = %d', specs['verbosity'])
 
     # Specifications to create the model
-    return specs
+    return cfg, specs
 
 
 #
@@ -555,8 +565,8 @@ def load_predictor(directory):
 # Function save_predictor
 #
 
-def save_predictor(model, tag, timestamp):
-    r"""Save the time-stamped model predictor to disk.
+def save_predictor(model, tag):
+    r"""Save the model predictor to the run directory.
 
     Parameters
     ----------
@@ -564,8 +574,6 @@ def save_predictor(model, tag, timestamp):
         The model object that contains the best estimator.
     tag : str
         A unique identifier for a model algorithm.
-    timestamp : str
-        Date in yyyy-mm-dd format.
 
     Returns
     -------
@@ -576,7 +584,7 @@ def save_predictor(model, tag, timestamp):
     logger.info("Saving Model Predictor")
 
     # Extract model parameters.
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
 
     # Get the best predictor
     predictor = model.estimators[tag]
@@ -584,13 +592,13 @@ def save_predictor(model, tag, timestamp):
     # Save model object
 
     if 'KERAS' in model.best_algo:
-        filename = 'model_' + timestamp + '.h5'
-        full_path = SSEP.join([directory, 'model', filename])
+        filename = PSEP.join(['model', 'h5'])
+        full_path = SSEP.join([run_dir, 'model', filename])
         logger.info("Writing model predictor to %s", full_path)
         predictor.model.save(full_path)
     else:
-        filename = 'model_' + timestamp + '.pkl'
-        full_path = SSEP.join([directory, 'model', filename])
+        filename = PSEP.join(['model', 'pkl'])
+        full_path = SSEP.join([run_dir, 'model', filename])
         logger.info("Writing model predictor to %s", full_path)
         joblib.dump(predictor, full_path)
 
@@ -637,15 +645,13 @@ def load_feature_map(model, directory):
 # Function save_feature_map
 #
 
-def save_feature_map(model, timestamp):
+def save_feature_map(model):
     r"""Save the feature map to disk.
 
     Parameters
     ----------
     model : alphapy.Model
         The model object containing the feature map.
-    timestamp : str
-        Date in yyyy-mm-dd format.
 
     Returns
     -------
@@ -656,12 +662,12 @@ def save_feature_map(model, timestamp):
     logger.info("Saving Feature Map")
 
     # Extract model parameters.
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
 
     # Create full path name.
 
-    filename = 'feature_map_' + timestamp + '.pkl'
-    full_path = SSEP.join([directory, 'model', filename])
+    filename = PSEP.join(['feature_map', 'pkl'])
+    full_path = SSEP.join([run_dir, 'model', filename])
 
     # Save model object
 
@@ -709,6 +715,7 @@ def first_fit(model, algo, est):
     n_jobs = model.specs['n_jobs']
     scorer = model.specs['scorer']
     seed = model.specs['seed']
+    shuffle = model.specs['shuffle']
     split = model.specs['split']
     ts_option = model.specs['ts_option']
     verbosity = model.specs['verbosity']
@@ -723,7 +730,10 @@ def first_fit(model, algo, est):
     algo_xgb = 'XGB' in algo
 
     if algo_xgb and scorer in xgb_score_map:
-        shuffle_flag = False if ts_option else True
+        if ts_option:
+            shuffle_flag = False
+        else:
+            shuffle_flag = shuffle
         X1, X2, y1, y2 = train_test_split(X_train, y_train, test_size=split,
                                           random_state=seed, shuffle=shuffle_flag)
         eval_set = [(X1, y1), (X2, y2)]
@@ -802,7 +812,10 @@ def time_series_model(model, algo):
 
     # Extract model data.
 
-    df = pd.concat([model.df_X_train[ts_date_index], pd.DataFrame(model.X_train), model.y_train], axis=1)
+    if model.test_labels:
+        df = pd.concat([model.df_X_test[ts_date_index], pd.DataFrame(model.X_test), model.y_test], axis=1)
+    else:
+        df = pd.concat([model.df_X_train[ts_date_index], pd.DataFrame(model.X_train), model.y_train], axis=1)
     est = model.estimators[algo]
 
     # Sort train and test by ascending date
@@ -815,11 +828,13 @@ def time_series_model(model, algo):
 
     dates_ts = df_X[ts_date_index]
     _, date_index = np.unique(dates_ts, return_index=True)
+    
+    if len(date_index) < ts_window:
+        raise ValueError("Window Length Exceeded. Maximum Window is: %d", len(date_index))
 
     first_date = dates_ts.iloc[date_index[0]]
     last_date = dates_ts.iloc[date_index[-1]]
-    test2_date = last_date
-    test1_date = dates_ts.iloc[date_index[-ts_forecast]]
+    test_date = last_date
     train2_date = dates_ts.iloc[date_index[-ts_forecast - 1]]
     train1_date = dates_ts.iloc[date_index[-ts_forecast - ts_window]]
 
@@ -831,28 +846,28 @@ def time_series_model(model, algo):
     walk_backward = True
 
     while walk_backward and niters <= ts_backtests:
-        logger.info("%d: Train: [%s, %s], Test: [%s, %s]",
-                    niters, train1_date, train2_date, test1_date, test2_date)
+        logger.info("%d: Train: [%s, %s], Test: [%s]",
+                    niters, train1_date, train2_date, test_date)
         # define train and prediction datasets
         df_X_sub = df_X[(df_X[ts_date_index] >= train1_date) & (df_X[ts_date_index] <= train2_date)]
         df_y_sub = df_y[(df_y[ts_date_index] >= train1_date) & (df_y[ts_date_index] <= train2_date)]
         # fit the model
         est.fit(df_X_sub.drop(columns=[ts_date_index]), df_y_sub[target])
         # make walk-forward predictions
-        df_pred_X = df_X[(df_X[ts_date_index] >= test1_date) & (df_X[ts_date_index] <= test2_date)]
-        df_pred_y = df_y[(df_y[ts_date_index] >= test1_date) & (df_y[ts_date_index] <= test2_date)]
+        df_pred_X = df_X[df_X[ts_date_index] == test_date]
+        df_pred_y = df_y[df_y[ts_date_index] == test_date]
         preds = est.predict(df_pred_X.drop(columns=[ts_date_index]))
         if model_type == ModelType.classification:
             probas = est.predict_proba(df_pred_X.drop(columns=[ts_date_index]))[:, 1]
         # save actuals and predicted
         all_indices.extend(df_pred_y.index)
         all_preds.extend(preds)
-        all_probas.extend(probas)
+        if model_type == ModelType.classification:
+            all_probas.extend(probas)
         if train1_date > first_date:
             # next iteration
             next_index = -niters - ts_forecast
-            test2_date = dates_ts.iloc[date_index[-niters - 1]]
-            test1_date = dates_ts.iloc[date_index[next_index]]
+            test_date = dates_ts.iloc[date_index[-niters - 1]]
             train2_date = dates_ts.iloc[date_index[next_index - 1]]
             train1_date = dates_ts.iloc[date_index[next_index - ts_window]]
             niters += 1
@@ -861,8 +876,8 @@ def time_series_model(model, algo):
 
     # Store the time series dataframes and training predictions
 
-    model.df_X_ts = model.df_X_train.loc[all_indices]
-    model.df_y_ts = model.df_y_train.loc[all_indices]
+    model.X_train_ts = model.df_X_train.loc[all_indices]
+    model.y_train_ts = model.df_y_train.loc[all_indices]
 
     model.preds[(algo, Partition.train_ts)] = all_preds
     if model_type == ModelType.classification:
@@ -874,11 +889,14 @@ def time_series_model(model, algo):
     train_date = dates_ts.iloc[date_index[-ts_window]]
     df_X_sub = df_X[df_X[ts_date_index] >= train_date].drop(columns=[ts_date_index]).values
     df_y_sub = df_y[df_y[ts_date_index] >= train_date][target].values
+
+    est = model.estimators[algo]
     est.fit(df_X_sub, df_y_sub)
 
-    model.preds[(algo, Partition.test_ts)] = est.predict(model.X_test)
+    partition = Partition.test_ts
+    model.preds[(algo, partition)] = est.predict(model.X_test)
     if model_type == ModelType.classification:
-        model.probas[(algo, Partition.test_ts)] = est.predict_proba(model.X_test)[:, 1]
+        model.probas[(algo, partition)] = est.predict_proba(model.X_test)[:, 1]
 
     # Return the model
     return model
@@ -1172,7 +1190,9 @@ def generate_metrics(model, partition):
     elif partition == Partition.test:
         expected = model.y_test
     elif partition == Partition.train_ts:
-        expected = model.df_y_ts
+        expected = model.y_train_ts
+    elif partition == Partition.test_ts:
+        expected = model.y_test
     else:
         raise ValueError("Invalid Partition: %s", partition)
 
@@ -1180,7 +1200,8 @@ def generate_metrics(model, partition):
 
     if not expected.empty:
         algolist = copy(model.algolist)
-        algolist.append('BLEND')
+        if len(algolist) > 1:
+            algolist.append('BLEND')
         # get the metrics for each algorithm
         for algo in algolist:
             # get predictions for the given algorithm
@@ -1201,9 +1222,13 @@ def generate_metrics(model, partition):
                 except:
                     logger.info("Balanced Accuracy Score not calculated")
                 try:
-                    model.metrics[(algo, partition, 'brier_score_loss')] = brier_score_loss(expected, probas)
+                    model.metrics[(algo, partition, 'neg_brier_score')] = brier_score_loss(expected, probas)
                 except:
                     logger.info("Brier Score not calculated")
+                try:
+                    model.metrics[(algo, partition, 'matthews_corrcoef')] = matthews_corrcoef(expected, predicted)
+                except:
+                    logger.info("Matthews Correlation Coefficient not calculated")
                 try:
                     model.metrics[(algo, partition, 'cohen_kappa')] = cohen_kappa_score(expected, predicted)
                 except:
@@ -1313,34 +1338,30 @@ def save_predictions(model, partition):
 
     # Extract model parameters.
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     model_type = model.specs['model_type']
     separator = model.specs['separator']
     submission_file = model.specs['submission_file']
     submit_probas = model.specs['submit_probas']
-    ts_option = model.specs['ts_option']
-
-    # Get date stamp to record file creation
-    timestamp = get_datestamp()
 
     # Specify input and output directories
 
-    input_dir = SSEP.join([directory, 'input'])
-    output_dir = SSEP.join([directory, 'output'])
+    input_dir = SSEP.join([run_dir, 'input'])
+    output_dir = SSEP.join([run_dir, 'output'])
 
     # Join train and test files
 
     df_master = pd.DataFrame()
     if partition == Partition.train:
         df_master = pd.concat([model.df_X_train, model.df_y_train], axis=1)
-    elif partition == Partition.test:
+    elif partition == Partition.test or partition == Partition.test_ts:
         if model.test_labels:
             df_master = pd.concat([model.df_X_test, model.df_y_test], axis=1)
         else:
             df_master = model.df_X_test
     elif partition == Partition.train_ts:
-        df_master = pd.concat([model.df_X_ts, model.df_y_ts], axis=1)
+        df_master = pd.concat([model.X_train_ts, model.y_train_ts], axis=1)
     else:
         raise ValueError("Invalid Partition: %s", partition)
 
@@ -1348,40 +1369,40 @@ def save_predictions(model, partition):
 
     logger.info("Adding Prediction Columns")
 
-    partition_list = [partition]
-    if ts_option and partition == Partition.test:
-        partition_list.insert(0, Partition.test_ts)
+    tag_list = []
 
     best_tag = 'BEST'
-    blend_tag = 'BLEND'
-
-    tag_list = []
-    if partition == Partition.train or partition == Partition.train_ts:
-        sort_tag = best_tag.lower()
-        tag_list.append(best_tag)
+    condition1 = (partition == Partition.train or partition == Partition.train_ts)
+    condition2 = (partition == Partition.test or partition == Partition.test_ts) and model.test_labels
+    if condition1 or condition2:
+        sort_tag = best_tag
     else:
-        sort_tag = blend_tag.lower()
-    tag_list.append(blend_tag)
+        sort_tag = model.best_algo
+    tag_list.append(sort_tag)
+
+    blend_tag = 'BLEND'
+    if len(model.algolist) > 1:
+        tag_list.append(blend_tag)
+
     tag_list.extend(model.algolist)
 
-    for partition_id in partition_list:
-        for tag_id in tag_list:
-            pred_name = USEP.join(['pred', datasets[partition_id], tag_id.lower()])
-            df_master[pred_name] = model.preds[(tag_id, partition_id)]
-            if model_type == ModelType.classification:
-                prob_name = USEP.join(['prob', datasets[partition_id], tag_id.lower()])
-                df_master[prob_name] = model.probas[(tag_id, partition_id)]
+    for tag_id in tag_list:
+        pred_name = USEP.join(['pred', datasets[partition], tag_id.lower()])
+        df_master[pred_name] = model.preds[(tag_id, partition)]
+        if model_type == ModelType.classification:
+            prob_name = USEP.join(['prob', datasets[partition], tag_id.lower()])
+            df_master[prob_name] = model.probas[(tag_id, partition)]
 
     # Save ranked predictions
 
     logger.info("Saving Ranked Predictions")
     if model_type == ModelType.classification:
-        prob_name = USEP.join(['prob', datasets[partition], sort_tag])
+        prob_name = USEP.join(['prob', datasets[partition], sort_tag.lower()])
         df_master.sort_values(prob_name, ascending=False, inplace=True)
     else:
-        pred_name = USEP.join(['pred', datasets[partition], sort_tag])
+        pred_name = USEP.join(['pred', datasets[partition], sort_tag.lower()])
         df_master.sort_values(pred_name, ascending=False, inplace=True)
-    output_file = USEP.join(['ranked', datasets[partition], timestamp])
+    output_file = USEP.join(['ranked', datasets[partition]])
     write_frame(df_master, output_dir, output_file, extension, separator)
 
     # Generate submission file
@@ -1391,14 +1412,60 @@ def save_predictions(model, partition):
         sample_input = SSEP.join([input_dir, sample_spec])
         df_sub = pd.read_csv(sample_input)
         if submit_probas and model_type == ModelType.classification:
-            df_sub[df_sub.columns[1]] = model.probas[(sort_tag, Partition.test)]
+            df_sub[df_sub.columns[1]] = model.probas[(model.best_algo, Partition.test)]
         else:
-            df_sub[df_sub.columns[1]] = model.preds[(sort_tag, Partition.test)]
-        submission_base = USEP.join(['submission', timestamp])
-        submission_spec = PSEP.join([submission_base, extension])
+            df_sub[df_sub.columns[1]] = model.preds[(model.best_algo, Partition.test)]
+        submission_spec = PSEP.join(['submission', extension])
         submission_output = SSEP.join([output_dir, submission_spec])
         logger.info("Saving Submission to %s", submission_output)
         df_sub.to_csv(submission_output, index=False)
+
+    # Return model
+    return model
+
+
+#
+# Function save_metrics
+#
+
+def save_metrics(model):
+    r"""Save the model metrics to a file.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model object to save.
+
+    Returns
+    -------
+    model : alphapy.Model
+        The model object with the blended estimator.
+
+    """
+
+    # Extract model parameters.
+
+    run_dir = model.specs['run_dir']
+    extension = model.specs['extension']
+    model_type = model.specs['model_type']
+    separator = model.specs['separator']
+
+    # Specify output directory and file
+
+    output_dir = SSEP.join([run_dir, 'model'])
+    output_file = 'model_metrics'
+
+    # Create metrics dataframe
+
+    keys = [list(k) for (k, _) in model.metrics.items()]
+    values = [v for (_, v) in model.metrics.items()]
+    df = pd.DataFrame(keys, columns=['algo', 'partition', 'metric'])
+    df['value'] = values
+
+    # Save model metrics
+
+    logger.info("Saving Model Metrics")
+    write_frame(df, output_dir, output_file, extension, separator)
 
     # Return model
     return model

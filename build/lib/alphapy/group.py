@@ -129,7 +129,7 @@ class Group(object):
                 else:
                     madd = newset - self.members
                     self.members = self.members | newset
-                    logger.info("Added: %s", madd)
+                    logger.debug("Added: %s", madd)
             else:
                 logger.info("Cannot add members to a non-dynamic group")
         else:

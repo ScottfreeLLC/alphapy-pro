@@ -66,7 +66,7 @@ def frame_name(name, space):
     # 'tech_stock_prices_1d'
 
     """
-    return USEP.join([name, space.subject, space.schema, space.fractal])
+    return USEP.join([name, space.subject, space.source, space.fractal])
 
 
 #

@@ -45,8 +45,8 @@
 # Suppress Warnings
 #
 
-import pandas as pd
 import warnings
+import pandas as pd
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
@@ -59,13 +59,18 @@ import builtins
 from collections import OrderedDict
 from importlib import import_module
 import logging
+import math
 import re
 import sys
+
+# AlphaPy Imports
 
 from alphapy.alias import get_alias
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
-from alphapy.globals import CARET, LOFF, ROFF, USEP
+from alphapy.globals import BarType
+from alphapy.globals import LOFF, ROFF, USEP
+from alphapy.metalabel import get_daily_dollar_vol
 from alphapy.space import Space
 from alphapy.utilities import valid_name
 
@@ -81,7 +86,7 @@ logger = logging.getLogger(__name__)
 # Class Variable
 #
 
-class Variable(object):
+class Variable():
     """Create a new variable as a key-value pair. All variables are stored
     in ``Variable.variables``. Duplicate keys or values are not allowed,
     unless the ``replace`` parameter is ``True``.
@@ -162,9 +167,6 @@ def vparse(vname):
 
     Returns
     -------
-    fractal : int
-        The fractal level of the variable, with 0 being the base,
-        and +1 for each higher level. 
     vxlag : str
         Original variable name without the ``lag`` component.
     root : str
@@ -194,15 +196,8 @@ def vparse(vname):
 
     """
 
-    # split along fractal first
-    if vname[0] == CARET:
-        fractal = 1
-        foffset = 1
-    else:
-        fractal = 0
-        foffset = 0
     # split along lag
-    lsplit = vname[foffset:].split(LOFF)
+    lsplit = vname.split(LOFF)
     vxlag = lsplit[0]
     # if necessary, substitute any alias
     vxlag1 = vxlag.split(USEP)[0]
@@ -229,14 +224,13 @@ def vparse(vname):
                 lag = int(slag)
     # log results in debug mode
     logger.debug("vname   : %s", vname)
-    logger.debug("fractal : %d", fractal)
     logger.debug("vxlag   : %s", vxlag)
     logger.debug("root    : %s", root)
     logger.debug("valias  : %s", valias)
     logger.debug("plist   : %s", plist)
     logger.debug("lag     : %s", lag)
     # return all components
-    return fractal, vxlag, root, valias, plist, lag
+    return vxlag, root, valias, plist, lag
 
 
 #
@@ -308,7 +302,7 @@ def vtree(vname):
     """
     allv = []
     def vwalk(allv, vname):
-        _, vxlag, root, _, plist, lag = vparse(vname)
+        vxlag, root, _, plist, lag = vparse(vname)
         if root in Variable.variables:
             root_expr = Variable.variables[root].expr
             expr = vsub(vxlag, root_expr)
@@ -416,7 +410,7 @@ def vexpr(f, v):
 
     """
 
-    _, vxlag, root, _, _, _ = vparse(v)
+    vxlag, root, _, _, _ = vparse(v)
     if root in Variable.variables:
         logger.debug("Found variable root %s: ", root)
         expr = Variable.variables[root].expr
@@ -461,7 +455,7 @@ def vfunc(f, v, vfuncs):
 
     """
 
-    _, _, root, _, plist, _ = vparse(v)
+    _, root, _, plist, _ = vparse(v)
     func_name = root
     # Convert the parameter list and prepend the data frame
     newlist = []
@@ -543,18 +537,15 @@ def vexec(f, v, vfuncs=None):
 
     """
 
-    fractal, vxlag, root, _, _, lag = vparse(v)
+    vxlag, root, _, _, lag = vparse(v)
     if vxlag not in f.columns:
         # find the variable to evaluate
         veval = vexpr(f, v)
         if veval:
-            if CARET not in veval:
-                try:
-                    f[vxlag] = f.eval(veval)
-                except:
-                    logger.info("Variable %s: %s could not be evaluated", vxlag, veval)
-            else:
-                logger.info("Variable %s: %s is multi-fractal deferred", vxlag, veval)
+            try:
+                f[vxlag] = f.eval(veval)
+            except:
+                logger.info("Variable %s: %s could not be evaluated", vxlag, veval)
         else:
             # Must be a function call
             func, newlist = vfunc(f, v, vfuncs)
@@ -565,73 +556,8 @@ def vexec(f, v, vfuncs=None):
                 logger.info(vinfo)
     # if necessary, add the lagged variable
     if lag > 0 and vxlag in f.columns:
-        vlag = v if fractal==0 else v[1:]
-        f[vlag] = f[vxlag].shift(lag)
+        f[v] = f[vxlag].shift(lag)
     # output frame and execution status
-    return f
-
-    
-#
-# Function vexec_multi_fractal
-#
-
-def vexec_multi_fractal(f, expr_dict, fractals):
-    r"""Add multi-fractal variables to a dataframe.
-
-    Create a variable having an expression with mixed fractals. 
-
-    Parameters
-    ----------
-    f : pandas.DataFrame
-        Dataframe with all fractals to contain the new variable.
-    expr_dict : dict of str
-        Multi-Fractal exressions to apply to the dataframe.
-    fractals : list of str
-        Pandas offset aliases.
-
-    Returns
-    -------
-    f : pandas.DataFrame
-        Dataframe with the new variables.
-
-    Example
-    -------
-
-    If the two fractals are *1D* and *1W*, then the following variable ``vlow``
-    checks for a V pattern where the current day's low is less than last week's
-    low minus 1.5 x the daily Average True Range (ATR).
-
-        vlow : low < ^low[1] - 1.5 * atr
-
-    """
-
-    vpat = re.compile(r'[\^]?[A-Za-z]{1}\w+')
-    for index, fractal in enumerate(fractals):
-        for key, value in expr_dict.items():
-            var = key
-            expr = value
-            if index < len(fractals)-1:
-                all_vars = allvars(expr, match_fractal=True, match_lag=False)
-                for vindex, v in enumerate(all_vars):
-                    if v.startswith(CARET):
-                        vnew = USEP.join([v[1:], fractals[index+1]])
-                        expr = expr.replace(v, vnew)
-                    else:
-                        miter = re.finditer(vpat, expr)
-                        mspan = [m for m in miter][vindex].span()
-                        mspan_start = mspan[0]
-                        mspan_end = mspan[1]
-                        vnew = USEP.join([v, fractal])
-                        expr = expr[:mspan_start] + vnew + expr[mspan_end:]
-                expr_split = re.split('(\W)', expr)
-                expr_new = ''.join([''.join(['`', e, '`']) if e in f.columns else e for e in expr_split])
-                # define the multi-fractal variable
-                var_name = USEP.join([var, fractal])
-                f[var_name] = f.eval(expr_new)
-                logger.debug("Variable: %s, Expression: %s", var, expr_new)
-            else:
-                logger.debug("Cannot define multi-fractal variable %s at highest level", var)
-    # output frame
     return f
 
 
@@ -667,47 +593,17 @@ def vapply(group, market_specs, vfuncs=None):
 
     gspace = group.space
     gsubject = gspace.subject
-    gschema = gspace.schema
+    gsource = gspace.source
     symbols = [item.lower() for item in group.members]
 
     # Extract market specification fields
 
     fractals = market_specs['fractals']
     features = market_specs['features']
-    ohlc_map = market_specs['ohlc_map']
+    bar_type = market_specs['bar_type']
 
-    # Get all dependent variables for each feature
-
-    fdict = {}
-    for feature in features:
-        fdict[feature] = vtree(feature)
-
-    # Get all multi-fractal expressions
-
-    mfe_dict = {}
-    for vname, allv in fdict.items():
-        for v in allv:
-            _, vxlag, root, _, _, _ = vparse(v)
-            if root in Variable.variables:
-                expr = Variable.variables[root].expr
-                if CARET in expr:
-                    # store fractabl variable in dictionary
-                    if v not in mfe_dict:
-                        mfe_dict[vxlag] = expr
-                    # all parent evaluations are deferred as well
-                    vlist = allv[allv.index(v)+1:]
-                    for vparent in vlist:
-                        _, vxlag, root, _, _, _ = vparse(vparent)
-                        if root in Variable.variables:
-                            expr = Variable.variables[root].expr
-                            if vparent not in mfe_dict:
-                                mfe_dict[vxlag] = expr
-
-    # Initialize list of dataframes, function dictionary, and possibly OHLC mapping values
-
+    # Initialize list of dataframes, function dictionary, and possibly bar type
     dffs = []
-    if ohlc_map:
-        new_names = [x+'0' for x in ohlc_map.keys()]
 
     # Apply the variables to each frame
 
@@ -716,31 +612,30 @@ def vapply(group, market_specs, vfuncs=None):
         # apply variables to each of the fractals
         dfs = []
         for fractal in fractals:
-            logger.info("Fractal: %s", fractal)           
-            fspace = Space(gsubject, gschema, fractal)
-            fname = frame_name(symbol.lower(), fspace)
+            logger.info("Fractal: %s", fractal)       
+            fspace = Space(gsubject, gsource, fractal)
+            fname = frame_name(symbol, fspace)
             if fname in Frame.frames:
                 df = Frame.frames[fname].df
                 if not df.empty:
-                    # Remap OHLC values if specified
-                    if ohlc_map:
-                        for v in ohlc_map.keys():
-                            df = vexec(df, ohlc_map[v])
-                        df.rename(columns=dict(zip(ohlc_map.keys(), new_names)), inplace=True)
-                        df.rename(columns=dict(zip(ohlc_map.values(), ohlc_map.keys())), inplace=True)
+                    # Remap to a different bar type if specified
+                    df = map_bar_type(df, bar_type, fractal)
                     # create the features in the dataframe
-                    for vname, allv in fdict.items():
-                        logger.debug("%s Variable: %s.%s", symbol.upper(), fractal, vname)
+                    all_features = features[fractal]
+                    for feature in all_features:
+                        allv = vtree(feature)
+                        logger.debug("%s Feature: %s_%s", symbol.upper(), fractal, feature)
                         for v in allv:
+                            logger.debug("%s Variable: %s_%s", symbol.upper(), fractal, v)
                             df = vexec(df, v, vfuncs)
+                    # rename the columns
+                    df = df.add_suffix(USEP + fractal)
+                    # add the fractal frame to the list
+                    dfs.append(df)
                 else:
-                    raise RuntimeError("Empty Dataframe for %s [%s]" % (symbol, fractal))
+                    logger.info("Empty Dataframe for %s [%s]", symbol.upper(), fractal)
             else:
-                raise RuntimeError("Dataframe Not Found for %s [%s]" % (symbol, fractal))
-            # rename the columns
-            df = df.add_suffix(USEP + fractal)
-            # add the fractal frame to the list
-            dfs.append(df)
+                logger.info("Dataframe Not Found for %s [%s]", symbol.upper(), fractal)
         # join all fractal frames
         logger.info("Joining Frames: %s", fractals)
         for indexf, df in enumerate(dfs):
@@ -754,18 +649,140 @@ def vapply(group, market_specs, vfuncs=None):
                 dfj = dfj.merge(dfr, left_index=True, right_index=True)
             else:
                 dfj = df
-        # evaluate multi-fractal expressions and their parent features
-        if len(mfe_dict) > 0:
-            dfj = vexec_multi_fractal(dfj, mfe_dict, fractals)
         # add the symbol
         colsym = 'symbol'
         dfj[colsym] = symbol
         first_col = dfj.pop(colsym)
         dfj.insert(0, colsym, first_col)
         # assign global frame for trading
-        tspace = Space(gsubject, gschema, 'ALL')
+        tspace = Space(gsubject, gsource, 'ALL')
         _ = Frame(symbol.lower(), tspace, dfj)
         # append frame to list of dataframes
         dffs.append(dfj)
     # return all of the dataframes
     return dffs
+
+
+#
+# Function map_dollar_bars
+#
+
+def map_dollar_bars(df, cols, fractal, p=100, pv_factor=1.0):
+    r"""Map time bars to dollar bars.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe to convert to a different bar type.
+    cols: list
+        List of column names in the price dataframe.
+    fractal : str
+        Pandas offset alias.
+    p : int
+        The period over which to calculate dollar volume.
+    pv_factor : float
+        The multiple of daily dollar volume for the dollar bar threshold.
+
+    Returns
+    -------
+    dollar_bars : list
+        The list of dollar bar records.
+
+    """
+
+    # Get the daily dollar volume.
+
+    ddv = get_daily_dollar_vol(df, p)
+    time_factor = pd.Timedelta(fractal) / pd.Timedelta('1D')
+    dollar_threshold = pv_factor * time_factor * ddv
+    print(dollar_threshold)
+
+    # Create a dictionary from the original dataframe.
+    df_dict = df.to_dict('records')
+
+    # Initialize an empty list of dollar bars.
+    dollar_bars = []
+
+    # Initialize the running dollar volume at zero.
+    running_volume = 0
+
+    # Initialize the running high and low with placeholder values.
+    running_high, running_low = 0, math.inf
+
+    # Iterate over each time bar.
+
+    for i in range(len(df_dict)):
+        next_timestamp, next_open, next_high, next_low, next_close, next_volume = \
+            [df_dict[i][k] for k in cols]
+        # calculate the midpoint price
+        midpoint_price = ((next_open) + (next_close))/2
+        # get the approximate dollar volume of the bar with the volume and midpoint price
+        dollar_volume = next_volume * midpoint_price
+        # update the running high and low
+        running_high, running_low = max(running_high, next_high), min(running_low, next_low)
+        # check if the dollar volume exceeds the threshold
+        if dollar_volume + running_volume >= dollar_threshold:
+            # set the timestamp for the dollar bar as the next incremental fractal
+            bar_timestamp = next_timestamp + pd.Timedelta(fractal)
+            # add a new dollar bar to the list of dollar bars
+            dollar_bars += [{'timestamp': bar_timestamp,
+                             'open': next_open,
+                             'high': running_high,
+                             'low': running_low,
+                             'close': next_close}]
+            # reset the running volume to zero
+            running_volume = 0
+            # reset the running high and low to placeholder values
+            running_high, running_low = 0, math.inf
+        # otherwise, increment the running volume
+        else:
+            running_volume += dollar_volume
+
+    # return the list of dollar bars
+    return dollar_bars
+
+
+#
+# Function map_bar_type
+#
+
+def map_bar_type(df, bar_type, fractal, p=100, pv_factor=1.0):
+    r"""Map time bars to a different bar type.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe to convert to a different bar type.
+    bar_type : Enum.BarType
+        The bar type for conversion (Dollar Bar, Heikin-Ashi, et al).
+    fractal : str
+        Pandas offset alias.
+    p : int
+        The period over which to calculate dollar volume.
+    pv_factor : float
+        The multiple of daily dollar volume for the dollar bar threshold.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        The converted dataframe for the target bar type.
+    """
+
+    if bar_type == BarType.time:
+        pass
+    elif bar_type == BarType.dollar:
+        cols = ['datetime', 'open', 'high', 'low', 'close', 'volume']
+        df = map_dollar_bars(df, cols, fractal, p, pv_factor)
+    elif bar_type == BarType.heikinashi:
+        ha_map = {'open'  : 'openha',
+                  'high'  : 'highha',
+                  'low'   : 'lowha',
+                  'close' : 'closeha'}
+        new_names = [x+'0' for x in ha_map.keys()]
+        for v in ha_map.items():
+            df = vexec(df, ha_map[v])
+        df.rename(columns=dict(zip(ha_map.keys(), new_names)), inplace=True)
+        df.rename(columns=dict(zip(ha_map.values(), ha_map.keys())), inplace=True)
+    else:
+        raise ValueError("Unknown Bar Type: %s" % bar_type)
+    return df

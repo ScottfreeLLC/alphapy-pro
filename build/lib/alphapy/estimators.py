@@ -4,7 +4,7 @@
 # Module    : estimators
 # Created   : July 11, 2013
 #
-# Copyright 2019 ScottFree Analytics LLC
+# Copyright 2022 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,13 +26,7 @@
 # Imports
 #
 
-from alphapy.globals import ModelType
-from alphapy.globals import Objective
-from alphapy.globals import SSEP
-
 import logging
-import numpy as np
-from scipy.stats import randint as sp_randint
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import ExtraTreesRegressor
@@ -47,8 +41,14 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
-import sys
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.models import Sequential
 import yaml
+
+
+from alphapy.globals import ModelType
+from alphapy.globals import Objective
+from alphapy.globals import SSEP
 
 
 #
@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 scorers = {'accuracy'                           : (ModelType.classification, Objective.maximize),
            'average_precision'                  : (ModelType.classification, Objective.maximize),
            'balanced_accuracy'                  : (ModelType.classification, Objective.maximize),
-           'brier_score_loss'                   : (ModelType.classification, Objective.minimize),
+           'neg_brier_score'                    : (ModelType.classification, Objective.minimize),
            'f1'                                 : (ModelType.classification, Objective.maximize),
            'f1_macro'                           : (ModelType.classification, Objective.maximize),
            'f1_micro'                           : (ModelType.classification, Objective.maximize),
@@ -75,7 +75,6 @@ scorers = {'accuracy'                           : (ModelType.classification, Obj
            'precision'                          : (ModelType.classification, Objective.maximize),
            'recall'                             : (ModelType.classification, Objective.maximize),
            'roc_auc'                            : (ModelType.classification, Objective.maximize),
-           'adjusted_rand_score'                : (ModelType.clustering,     Objective.maximize),
            'explained_variance'                 : (ModelType.regression,     Objective.maximize),
            'neg_mean_absolute_error'            : (ModelType.regression,     Objective.minimize),
            'neg_mean_absolute_percentage_error' : (ModelType.regression,     Objective.minimize),
@@ -171,6 +170,19 @@ estimator_map = {'AB'     : AdaBoostClassifier,
 #
 
 def find_optional_packages():
+    r"""Find optional machine learning packages.
+
+    Parameters
+    ----------
+    
+    None
+
+    Returns
+    -------
+    
+    None
+
+    """
 
     module_name = 'xgboost'
     try:
@@ -178,7 +190,7 @@ def find_optional_packages():
         estimator_map['XGB'] = xgb.XGBClassifier
         estimator_map['XGBM'] = xgb.XGBClassifier
         estimator_map['XGBR'] = xgb.XGBRegressor
-    except:
+    except Exception:
         logger.info("Cannot load %s" % module_name)
 
     module_name = 'lightgbm'
@@ -186,7 +198,7 @@ def find_optional_packages():
         import lightgbm as lgb
         estimator_map['LGB'] = lgb.LGBMClassifier
         estimator_map['LGBR'] = lgb.LGBMRegressor
-    except:
+    except Exception:
         logger.info("Cannot load %s" % module_name)
 
     module_name = 'catboost'
@@ -194,17 +206,16 @@ def find_optional_packages():
         import catboost as catb
         estimator_map['CATB'] = catb.CatBoostClassifier
         estimator_map['CATBR'] = catb.CatBoostRegressor
-    except:
+    except Exception:
         logger.info("Cannot load %s" % module_name)
 
-    module_name = 'keras'
+    module_name = 'scikeras'
     try:
-        from keras.models import Sequential
-        from keras.wrappers.scikit_learn import KerasClassifier
-        from keras.wrappers.scikit_learn import KerasRegressor
+        from scikeras.wrappers import KerasClassifier
+        from scikeras.wrappers import KerasRegressor
         estimator_map['KERASC'] = KerasClassifier
         estimator_map['KERASR'] = KerasRegressor
-    except:
+    except Exception:
         logger.info("Cannot load %s" % module_name)
 
     return
@@ -283,10 +294,7 @@ def create_keras_model(nlayers,
                        layer7=None,
                        layer8=None,
                        layer9=None,
-                       layer10=None,
-                       optimizer=None,
-                       loss=None,
-                       metrics=None):
+                       layer10=None):
     r"""Create a Keras Sequential model.
 
     Parameters
@@ -295,12 +303,6 @@ def create_keras_model(nlayers,
         Number of layers of the Sequential model.
     layer1...layer10 : str
         Ordered layers of the Sequential model.
-    optimizer : str
-        Compiler optimizer for the Sequential model.
-    loss : str
-        Compiler loss function for the Sequential model.
-    metrics : str
-        Compiler evaluation metric for the Sequential model.
 
     Returns
     -------
@@ -314,7 +316,6 @@ def create_keras_model(nlayers,
         lvar = 'layer' + str(i+1)
         layer = eval(lvar)
         model.add(eval(layer))
-    model.compile(optimizer=optimizer, loss=loss, metrics=[metrics])
     return model
 
 
@@ -322,12 +323,14 @@ def create_keras_model(nlayers,
 # Function get_estimators
 #
 
-def get_estimators(model):
+def get_estimators(alphapy_specs, model):
     r"""Define all the AlphaPy estimators based on the contents
     of the ``algos.yml`` file.
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     model : alphapy.Model
         The model object containing global AlphaPy parameters.
 
@@ -340,7 +343,6 @@ def get_estimators(model):
 
     # Extract model data
 
-    directory = model.specs['directory']
     n_estimators = model.specs['n_estimators']
     n_jobs = model.specs['n_jobs']
     seed = model.specs['seed']
@@ -367,7 +369,7 @@ def get_estimators(model):
 
     # Get algorithm specifications
 
-    config_dir = SSEP.join([directory, 'config'])
+    config_dir = SSEP.join([alphapy_specs['alphapy_root'], 'config'])
     algo_specs = get_algos_config(config_dir)
 
     # Create estimators for all of the algorithms
@@ -381,12 +383,12 @@ def get_estimators(model):
         try:
             algo_found = True
             func = estimator_map[algo]
-        except:
+        except Exception:
             algo_found = False
             logger.info("Algorithm %s not found (check package installation)" % algo)
         if algo_found:
             if 'KERAS' in algo:
-                params['build_fn'] = create_keras_model
+                params['model'] = create_keras_model
                 layers = algo_specs[algo]['layers']
                 params['nlayers'] = len(layers)
                 input_dim_string = ', input_dim={})'.format(X_train.shape[1])
@@ -398,12 +400,11 @@ def get_estimators(model):
                 params['loss'] = compiler['loss']
                 try:
                     params['metrics'] = compiler['metrics']
-                except:
+                except Exception:
                     pass
             est = func(**params)
             grid = algo_specs[algo]['grid']
             estimators[algo] = Estimator(algo, model_type, est, grid)
-            
 
     # return the entire classifier list
     return estimators

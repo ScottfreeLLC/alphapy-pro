@@ -31,7 +31,8 @@ from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Orders
-from alphapy.globals import SSEP, USEP
+from alphapy.globals import BSEP, SSEP, USEP
+from alphapy.metalabel import get_daily_vol
 from alphapy.space import Space
 from alphapy.portfolio import Trade
 from alphapy.utilities import most_recent_file
@@ -58,20 +59,26 @@ class System(object):
 
     Parameters
     ----------
-    name : str
-        The system name.
-    buysignal : str
-        Name of the conditional feature for a long entry.
-    sellsignal : str, optional
-        Name of the conditional feature for a short entry.
-    buyexit : str, optional
-        Name of the conditional feature for a long exit.
-    sellexit : str, optional
-        Name of the conditional feature for a short exit.
-    holdperiod : int, optional
+    system_name : str
+        The name of the pattern.
+    signal_long : str
+        The entry condition for a long position.
+    signal_short : str
+        The entry condition for a short position.
+    forecast_period : int
         Holding period of a position.
-    scale : bool, optional
-        Add to a position for a signal in the same direction.
+    profit_factor : float
+        The multiple of volatility for taking a profit.
+    stoploss_factor : float
+        The multiple of volatility for taking a loss.
+    minimum_return : float
+        The minimum return required to take a profit.
+    algo : str
+        Pandas offset alias.
+    prob_min : float
+        A probability between 0.0 and 1.0.
+    prob_max : float
+        A probability between 0.0 and 1.0.
     fractal : str
         Pandas offset alias.
 
@@ -82,7 +89,7 @@ class System(object):
 
     Examples
     --------
-    
+
     >>> System('closer', hc, lc)
 
     """
@@ -92,70 +99,75 @@ class System(object):
     systems = {}
 
     # __new__
-    
+
     def __new__(cls,
-                name,
-                buysignal,
-                buystop = None,
-                buyexit = None,
-                sellsignal = None,
-                sellstop = None,
-                sellexit = None,
-                holdperiod = 0,
-                scale = False,
+                system_name,
+                signal_long,
+                signal_short,
+                forecast_period = 1,
+                profit_factor = 1.0,
+                stoploss_factor = 1.0,
+                minimum_return = 0.05,
+                algo = 'xgb',
+                prob_min = 0.0,
+                prob_max = 1.0,
                 fractal = '1D'):
         # create system name
-        if name not in System.systems:
+        if system_name not in System.systems:
             return super(System, cls).__new__(cls)
         else:
-            logger.info("System %s already exists", name)
-    
+            logger.info("System %s already exists", system_name)
+
     # __init__
-    
+
     def __init__(self,
-                 name,
-                 buysignal,
-                 buystop = None,
-                 buyexit = None,
-                 sellsignal = None,
-                 sellstop = None,
-                 sellexit = None,
-                 holdperiod = 0,
-                 scale = False,
+                 system_name,
+                 signal_long,
+                 signal_short,
+                 forecast_period = 1,
+                 profit_factor = 1.0,
+                 stoploss_factor = 1.0,
+                 minimum_return = 0.05,
+                 algo = 'xgb',
+                 prob_min = 0.0,
+                 prob_max = 1.0,
                  fractal = '1D'):
         # initialization
-        self.name = name
-        self.buysignal = buysignal
-        self.buystop = buystop
-        self.buyexit = buyexit
-        self.sellsignal = sellsignal
-        self.sellstop = sellstop
-        self.sellexit = sellexit
-        self.holdperiod = holdperiod
-        self.scale = scale
+        self.system_name = system_name
+        self.signal_long = signal_long
+        self.signal_short = signal_short
+        self.forecast_period = forecast_period
+        self.profit_factor = profit_factor
+        self.stoploss_factor = stoploss_factor
+        self.minimum_return = minimum_return
+        self.algo = algo
+        self.prob_min = prob_min
+        self.prob_max = prob_max
         self.fractal = fractal
         # add system to systems list
-        System.systems[name] = self
-        
+        System.systems[system_name] = self
+
     # __str__
 
     def __str__(self):
-        return self.name
+        return self.system_name
 
 
 #
 # Function trade_system
 #
 
-def trade_system(model, system, space, intraday, symbol, quantity):
+def trade_system(system, df_rank, ts_flag, space, intraday, symbol, quantity):
     r"""Trade the given system.
 
     Parameters
     ----------
-    model : alphapy.Model
-        The model object with specifications.
     system : alphapy.System
         The long/short system to run.
+    df_rank : pd.DataFrame
+        The dataframe containing the ranked predictions.
+    ts_flag : bool
+        True if using time series probabilities.
     space : alphapy.Space
         Namespace of all variables over all fractals.
     intraday : bool
@@ -177,158 +189,156 @@ def trade_system(model, system, space, intraday, symbol, quantity):
 
     """
 
-    # Unpack the model data.
-
-    directory = model.specs['directory']
-    extension = model.specs['extension']
-    separator = model.specs['separator']
-
     # Unpack the system parameters.
 
-    buysignal = system.buysignal
-    buystop = system.buystop
-    buyexit = system.buyexit
-    sellsignal = system.sellsignal
-    sellstop = system.sellstop
-    sellexit = system.sellexit
-    holdperiod = system.holdperiod
-    scale = system.scale
-    fractal = system.fractal
-
-    # Determine whether or not this is a model-driven system.
-
-    entries_and_exits = [buysignal, buystop, buyexit, sellsignal, sellstop, sellexit]
-    active_signals = [x for x in entries_and_exits if x is not None]
-    use_model = False
-    for signal in active_signals:
-        if any(x in signal for x in ['phigh', 'plow']):
-            use_model = True
+    forecast_period = system.forecast_period
+    profit_factor = system.profit_factor
+    stoploss_factor = system.stoploss_factor
+    trade_fractal = system.fractal
+    algo = system.algo
+    prob_min = system.prob_min
+    prob_max = system.prob_max
 
     # Read in the price frame for all fractals and variables.
 
-    tspace = Space(space.subject, space.schema, 'ALL')
-    tframe = Frame.frames[frame_name(symbol, tspace)].df
+    symbol = symbol.lower()
+    tspace = Space(space.subject, space.source, 'ALL')
+    df_trade = Frame.frames[frame_name(symbol, tspace)].df.copy()
 
-    # Use model output probabilities as input to the system
+    # Get daily volatility and calculate the profit target and stop loss.
 
-    if use_model:
-        # get latest rankings file
-        rank_dir = SSEP.join([directory, 'output'])
-        file_path = most_recent_file(rank_dir, 'rankings*')
-        file_name = file_path.split(SSEP)[-1].split('.')[0]
-        # read the rankings frame for the given symbol
-        rank_frame = read_frame(rank_dir, file_name, extension, separator, index_col='date')
-        logger.info("Getting probabilities for %s" % symbol.upper())
-        df_rank = rank_frame.query('symbol==@symbol')['probability']
-        # join price with rankings to get probabilities for this symbol
-        tframe = tframe.merge(df_rank, how='left', left_index=True, right_index=True)
-        tframe['probability'].fillna(0.5, inplace=True)
+    close_col = USEP.join(['close', trade_fractal])
+    ds_close = df_trade[close_col]
+    ds_vol = get_daily_vol(ds_close)
+
+    # extract the rankings frame for the given symbol
+
+    df_sym = df_rank.query('symbol==@symbol').copy()
+    df_sym.index = pd.to_datetime(df_sym.index)
+
+    # entry probability function
+
+    def assign_entry(df, prob_col, prob_min, prob_max):
+        if prob_min and prob_max:
+            lhs = BSEP.join(['(', prob_col, '>=', str(prob_min), ')'])
+            rhs = BSEP.join(['(', prob_col, '<=', str(prob_max), ')'])
+            expr = BSEP.join(['entry', '=', lhs, '&', rhs])
+        elif prob_min:
+            expr = BSEP.join(['entry', '=', prob_col, '>=', str(prob_min)])
+        elif prob_max:
+            expr = BSEP.join(['entry', '=', prob_col, '<=', str(prob_max)])
+        else:
+            lhs = BSEP.join(['(', prob_col, '>= 0.0)'])
+            rhs = BSEP.join(['(', prob_col, '<= 1.0)'])
+            expr = BSEP.join(['entry', '=', lhs, '&', rhs])
+        df = df.eval(expr)
+        return df
+
+    # evaluate entries by joining price with ranked probabilities
+
+    symbol = symbol.upper()
+    logger.info("Getting probabilities for %s", symbol)
+    partition_tag = 'test'
+    if ts_flag:
+        pcol = USEP.join(['prob', partition_tag, 'ts', algo.lower()])
+    else:
+        pcol = USEP.join(['prob', partition_tag, algo.lower()])
+    df_trade = df_trade.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
+    df_sym[pcol].fillna(0.5, inplace=True)
+    df_trade = assign_entry(df_trade, pcol, prob_min, prob_max)
 
     # Initialize trading state variables
 
     inlong = False
-    leactive = False
-    hprev = 0
     inshort = False
-    seactive = False
-    lprev = 0
-    hold = 0
     psize = 0
     q = quantity
+    hold = 0
     tradelist = []
 
     # Loop through prices and generate trades
 
-    ccol = USEP.join(['close', fractal])
-    hcol = USEP.join(['high', fractal])
-    lcol = USEP.join(['low', fractal])
-    icol = USEP.join(['endofday', fractal])
+    ccol = USEP.join(['close', trade_fractal])
+    hcol = USEP.join(['high', trade_fractal])
+    lcol = USEP.join(['low', trade_fractal])
+    icol = USEP.join(['endofday', trade_fractal])
 
-    for dt, row in tframe.iterrows():
+    for dt, row in df_trade.iterrows():
         # get prices for this row
         c = row[ccol]
         h = row[hcol]
         l = row[lcol]
-        if intraday:
-            end_of_day = row[icol]   
         # evaluate entry and exit conditions
-        lerow = row[buysignal] if buysignal else None
-        lsrow = row[buystop] if buystop else None
-        lxrow = row[buyexit] if buyexit else None
-        serow = row[sellsignal] if sellsignal else None
-        ssrow = row[sellstop] if sellstop else None
-        sxrow = row[sellexit] if sellexit else None
+        lerow = row['entry'] and row['side'] == 1
+        serow = row['entry'] and row['side'] == -1
+        end_of_day = row[icol] if intraday else False
+        # calculate profit targets and stop losses
+        ds_index = ds_vol.index.get_loc(dt, method='nearest')
+        daily_vol = ds_vol.iloc[ds_index]
+        profit_target = profit_factor * daily_vol * c
+        stop_loss = stoploss_factor * daily_vol * c
         # process the long and short events
-        if lerow or leactive:
-            orderclose = lerow and not buystop
-            orderstop = leactive and (True if h > hprev else False)
-            if psize < 0 and (orderclose or orderstop):
+        if lerow:
+            if inshort:
                 # short active, so exit short
                 tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
                 inshort = False
-                hold = 0
-                psize = 0
-            if psize == 0 or scale:
-                if orderclose or orderstop:
-                    # go long (again)
-                    if orderclose:
-                        tradelist.append((dt, [symbol, Orders.le, q, c]))
-                    elif orderstop:
-                        tradelist.append((dt, [symbol, Orders.le, q, hprev]))
-                    inlong = True
-                    psize = psize + q
-                    leactive = False
-                elif lerow and buystop:
-                    leactive = True
-                    hprev = lsrow
-        if serow or seactive:
-            orderclose = serow and not sellstop
-            orderstop = seactive and (True if l < lprev else False)
-            if psize > 0 and (orderclose or orderstop):
+                hold = psize =0
+            if psize == 0 and not end_of_day:
+                # go long
+                tradelist.append((dt, [symbol, Orders.le, q, c]))
+                inlong = True
+                le_price = c
+                psize = psize + q
+        if serow:
+            if inlong:
                 # long active, so exit long
                 tradelist.append((dt, [symbol, Orders.lx, -psize, c]))
                 inlong = False
-                hold = 0
-                psize = 0
-            if psize == 0 or scale:
-                if orderclose or orderstop:
-                    # go short (again)
-                    if orderclose:
-                        tradelist.append((dt, [symbol, Orders.se, -q, c]))
-                    elif orderstop:
-                        tradelist.append((dt, [symbol, Orders.se, -q, lprev]))
-                    inshort = True
-                    seactive = False
-                    psize = psize - q
-                elif serow and sellstop:
-                    seactive = True
-                    lprev = ssrow
-        # check exit conditions
-        if inlong and hold > 0 and lxrow:
-            # long active, so exit long
-            tradelist.append((dt, [symbol, Orders.lx, -psize, c]))
-            inlong = False
-            hold = 0
-            psize = 0
-        if inshort and hold > 0 and sxrow:
-            # short active, so exit short
-            tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
-            inshort = False
-            hold = 0
-            psize = 0
-        # if a holding period was given, then check for exit
-        if holdperiod and hold >= holdperiod:
+                hold = psize = 0
+            if psize == 0 and not end_of_day:
+                # go short
+                tradelist.append((dt, [symbol, Orders.se, -q, c]))
+                inshort = True
+                se_price = c
+                psize = psize - q
+        # Exit when holding period is reached
+        if hold >= forecast_period:
             if inlong:
                 tradelist.append((dt, [symbol, Orders.lh, -psize, c]))
                 inlong = False
             if inshort:
                 tradelist.append((dt, [symbol, Orders.sh, -psize, c]))
                 inshort = False
-            hold = 0
-            psize = 0
-        # increment the hold counter
+            hold = psize = 0
+        # check current positions for exit
         if inlong or inshort:
+            # increment the hold counter
             hold += 1
+            # check for profit targets or stop losses
+            if inlong and hold > 1:
+                if h >= le_price + profit_target:
+                    # profit target
+                    tradelist.append((dt, [symbol, Orders.lx, -psize, le_price + profit_target]))
+                    inlong = False
+                if l <= le_price - stop_loss:
+                    # stop loss
+                    tradelist.append((dt, [symbol, Orders.lx, -psize, le_price - stop_loss]))
+                    inlong = False
+                if not inlong:
+                    hold = psize = 0
+            if inshort and hold > 1:
+                if l <= se_price - profit_target:
+                    # profit target
+                    tradelist.append((dt, [symbol, Orders.sx, -psize, se_price - profit_target]))
+                    inshort = False
+                if h >= se_price + stop_loss:
+                    # stop loss
+                    tradelist.append((dt, [symbol, Orders.sx, -psize, se_price + stop_loss]))
+                    inshort = False
+                if not inshort:
+                    hold = psize = 0
+            # close any intraday trades at the end of the day
             if intraday and end_of_day:
                 if inlong:
                     # long active, so exit long
@@ -338,8 +348,7 @@ def trade_system(model, system, space, intraday, symbol, quantity):
                     # short active, so exit short
                     tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
                     inshort = False
-                hold = 0
-                psize = 0
+                hold = psize =0
     return tradelist
 
 
@@ -374,12 +383,12 @@ def run_system(model,
 
     """
 
-    system_name = system.name
+    system_name = system.system_name
     logger.info("Generating Trades for System %s", system_name)
 
     # Unpack the model data.
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     separator = model.specs['separator']
 
@@ -389,12 +398,20 @@ def run_system(model,
     gmembers = group.members
     gspace = group.space
 
+    # Get the latest rankings frame.
+
+    rank_dir = SSEP.join([run_dir, 'output'])
+    file_path = most_recent_file(rank_dir, 'ranked_test*')
+    file_name = file_path.split(SSEP)[-1].split('.')[0]
+    df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
+    ts_flag = '_ts_' in file_name
+
     # Run the system for each member of the group
 
     gtlist = []
     for symbol in gmembers:
         # generate the trades for this member
-        tlist = trade_system(model, system, gspace, intraday, symbol, quantity)
+        tlist = trade_system(system, df_rank, ts_flag, gspace, intraday, symbol, quantity)
         if tlist:
             # add trades to global trade list
             for item in tlist:
@@ -418,7 +435,7 @@ def run_system(model,
         tf = pd.concat([tf1[index_column], tf2], axis=1)
         tf.set_index(index_column, inplace=True)
         tfname = frame_name(gname, tspace)
-        system_dir = SSEP.join([directory, 'systems'])
+        system_dir = SSEP.join([run_dir, 'systems'])
         write_frame(tf, system_dir, tfname, extension, separator,
                     index=True, index_label=index_column)
         del tspace

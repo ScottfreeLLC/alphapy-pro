@@ -2,4 +2,3 @@
 alphapy = alphapy.alphapy_main:main
 mflow = alphapy.mflow_main:main
 sflow = alphapy.sflow_main:main
-

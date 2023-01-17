@@ -38,12 +38,15 @@ warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 #
 
 import argparse
-from datetime import datetime
 import logging
 import numpy as np
 import os
+import shutil
 from sklearn.model_selection import train_test_split
+import sys
+import yaml
 
+from alphapy.alias import Alias
 from alphapy.data import get_data
 from alphapy.data import sample_data
 from alphapy.data import shuffle_data
@@ -56,11 +59,13 @@ from alphapy.features import create_interactions
 from alphapy.features import drop_features
 from alphapy.features import remove_lv_features
 from alphapy.features import save_features
-from alphapy.features import select_features
+from alphapy.features import select_features_lofo
+from alphapy.features import select_features_univariate
 from alphapy.frame import write_frame
 from alphapy.globals import SSEP, USEP
 from alphapy.globals import ModelType
 from alphapy.globals import Partition
+from alphapy.group import Group
 from alphapy.model import first_fit
 from alphapy.model import generate_metrics
 from alphapy.model import get_model_config
@@ -71,13 +76,16 @@ from alphapy.model import Model
 from alphapy.model import select_best_model
 from alphapy.model import predict_blend
 from alphapy.model import save_feature_map
+from alphapy.model import save_metrics
 from alphapy.model import save_predictions
 from alphapy.model import save_predictor
 from alphapy.model import time_series_model
 from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
-from alphapy.utilities import get_datestamp
+from alphapy.utilities import datetime_stamp
+from alphapy.utilities import most_recent_file
+from alphapy.variables import Variable
 
 
 #
@@ -88,14 +96,142 @@ logger = logging.getLogger(__name__)
 
 
 #
+# Function get_alphapy_config
+#
+
+def get_alphapy_config(alphapy_root):
+    r"""Read the configuration file for AlphaPy.
+
+    Parameters
+    ----------
+    alphapy_root : str
+        The root directory for AlphaPy.
+
+    Returns
+    -------
+    specs : dict
+        The parameters for controlling AlphaPy.
+
+    """
+
+    logger.info('*'*80)
+    logger.info("AlphaPy Configuration")
+
+    # Read AlphaPy configuration file
+
+    full_path = SSEP.join([alphapy_root, 'config', 'alphapy.yml'])
+    with open(full_path, 'r') as ymlfile:
+        specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+    specs['alphapy_root'] = alphapy_root
+
+    #
+    # Section: groups
+    #
+
+    full_path = SSEP.join([alphapy_root, 'config', 'groups.yml'])
+    with open(full_path, 'r') as ymlfile:
+        group_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Creating Groups")
+    try:
+        for g in group_specs.keys():
+            Group(g)
+            Group.groups[g].add(group_specs[g])
+            logger.info("Added Group: %s", g)
+    except:
+        raise ValueError("No Groups Found")
+
+    #
+    # Section: aliases
+    #
+
+    full_path = SSEP.join([alphapy_root, 'config', 'variables.yml'])
+    with open(full_path, 'r') as ymlfile:
+        var_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Creating Aliases")
+    try:
+        for k, v in list(var_specs['aliases'].items()):
+            Alias(k, v)
+    except:
+        raise ValueError("No Aliases Found")
+
+    #
+    # Section: variables
+    #
+
+    logger.info("Creating Variables")
+    try:
+        for k, v in list(var_specs['variables'].items()):
+            Variable(k, v)
+    except:
+        raise ValueError("No Variables Found")
+
+    #
+    # Section: sources
+    #
+
+    full_path = SSEP.join([alphapy_root, 'config', 'sources.yml'])
+    with open(full_path, 'r') as ymlfile:
+        data_sources = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Getting Data Sources")
+    try:
+        specs['sources'] = data_sources
+    except:
+        raise ValueError("No Data Sources Found")
+
+    # Set API Key environment variables
+
+    for key in data_sources:
+        key_dict = data_sources[key]
+        if 'api_key' in key_dict and 'api_key_name' in key_dict and key_dict['api_key_name']:
+            os.environ[key_dict['api_key_name']] = key_dict['api_key']
+        if 'directory' in key_dict:
+            dir = key_dict['directory']
+            dir_exists = os.path.isdir(dir)
+            if dir_exists:
+                specs['data_dir'] = dir
+            else:
+                raise ValueError(f"Directory {dir} does not exist")
+
+    #
+    # Section: systems
+    #
+
+    full_path = SSEP.join([alphapy_root, 'config', 'systems.yml'])
+    with open(full_path, 'r') as ymlfile:
+        trading_systems = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    logger.info("Getting Trading Systems")
+    try:
+        specs['systems'] = trading_systems
+    except:
+        raise ValueError("No Trading Systems Found")
+
+    #
+    # Log the AlphaPy parameters
+    #
+
+    logger.info('ALPHAPY PARAMETERS:')
+    for spec in specs.keys():
+        logger.info('%s: %s', spec, specs[spec])
+
+    # AlphaPy Specifications
+    return specs
+
+
+#
 # Function training_pipeline
 #
 
-def training_pipeline(model):
+def training_pipeline(alphapy_specs, model):
     r"""AlphaPy Training Pipeline
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     model : alphapy.Model
         The model object for controlling the pipeline.
 
@@ -116,10 +252,11 @@ def training_pipeline(model):
 
     # Unpack the model specifications
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     drop = model.specs['drop']
     extension = model.specs['extension']
-    feature_selection = model.specs['feature_selection']
+    fs_lofo = model.specs['fs_lofo']
+    fs_univariate = model.specs['fs_univariate']
     grid_search = model.specs['grid_search']
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']
@@ -130,6 +267,7 @@ def training_pipeline(model):
     shuffle = model.specs['shuffle']
     split = model.specs['split']
     target = model.specs['target']
+    ts_date = model.specs['ts_date_index']
     ts_option = model.specs['ts_option']
 
     # Get train and test data
@@ -141,10 +279,22 @@ def training_pipeline(model):
 
     if X_test.empty:
         logger.info("No Test Data Found")
-        logger.info("Splitting Training Data")
-        shuffle_flag = False if ts_option else True
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_train, y_train, test_size=split, random_state=seed, shuffle=shuffle_flag)
+        if ts_option:
+            logger.info("Splitting Training Data for Time Series")
+            df_train = pd.concat([X_train, y_train], axis=1)
+            df_sorted = df_train.sort_values(by=[ts_date])
+            split_index = int((1.0 - split) * df_sorted.shape[0])
+            split_date = df_sorted.iloc[split_index][ts_date]
+            df_train = df_sorted[df_sorted[ts_date] <= split_date].reset_index()
+            y_train = pd.DataFrame(df_train[target], columns=[target])
+            X_train = df_train.drop(columns=[target])
+            df_test = df_sorted[df_sorted[ts_date] > split_date].reset_index()
+            y_test = pd.DataFrame(df_test[target], columns=[target])
+            X_test = df_test.drop(columns=[target])
+        else:
+            logger.info("Splitting Training Data")
+            X_train, X_test, y_train, y_test = train_test_split(
+                X_train, y_train, test_size=split, random_state=seed, shuffle=shuffle)
 
     # Save original train/test data
 
@@ -195,19 +345,16 @@ def training_pipeline(model):
 
     # Save the train and test files with extracted and dropped features
 
-    datestamp = get_datestamp()
-    data_dir = SSEP.join([directory, 'input'])
+    data_dir = SSEP.join([run_dir, 'input'])
     # train data
     df_train = X_all.iloc[:split_point, :]
     df_train.loc[:, target] = y_train.loc[:, target]
-    output_file = USEP.join([model.train_file, datestamp])
-    write_frame(df_train, data_dir, output_file, extension, separator, index=False)
+    write_frame(df_train, data_dir, model.train_file, extension, separator, index=False)
     # test data
     df_test = X_all.iloc[split_point:, :]
     if model.test_labels:
         df_test.loc[:, target] = y_test.loc[:, target]
-    output_file = USEP.join([model.test_file, datestamp])
-    write_frame(df_test, data_dir, output_file, extension, separator, index=False)
+    write_frame(df_test, data_dir, model.test_file, extension, separator, index=False)
 
     # Create crosstabs for any categorical features
 
@@ -245,18 +392,18 @@ def training_pipeline(model):
 
     # Perform feature selection, independent of algorithm
 
-    if feature_selection:
-        model = select_features(model)
+    if fs_univariate:
+        model = select_features_univariate(model)
 
     # Get the available classifiers and regressors 
 
     logger.info("Getting All Estimators")
-    estimators = get_estimators(model)
+    estimators = get_estimators(alphapy_specs, model)
 
     # Get the available scorers
 
     if scorer not in scorers:
-        raise KeyError("Scorer function %s not found" % scorer)
+        raise KeyError(f"Scorer function {scorer} not found")
 
     # Model Loop
 
@@ -272,6 +419,9 @@ def training_pipeline(model):
             est = None
             logger.info("Algorithm %s not found", algo)
         if est is not None:
+            # select LOFO features
+            if fs_lofo:
+                select_features_lofo(model, algo, est)
             # run classic train/test model pipeline
             model = first_fit(model, algo, est)
             # recursive feature elimination
@@ -300,33 +450,35 @@ def training_pipeline(model):
     # Generate metrics, get the best estimator, generate plots, and save the model.
     #
 
+    def generate_results(model, partition):
+        model = generate_metrics(model, partition)
+        model = select_best_model(model, partition)
+        generate_plots(alphapy_specs, model, partition)
+        model = save_predictions(model, partition)
+
     partition = Partition.train
-    model = generate_metrics(model, partition)
-    model = select_best_model(model, partition)
-    generate_plots(model, partition)
-    model = save_predictions(model, partition)
+    generate_results(model, partition)
 
     partition = Partition.test
     if model.test_labels:
-        model = generate_metrics(model, partition)
-        model = select_best_model(model, partition)
-        generate_plots(model, partition)
-        model = save_predictions(model, partition)
+        generate_results(model, partition)
     else:
         model = save_predictions(model, partition)
 
-    if ts_option and not shuffle:
+    if ts_option:
         partition = Partition.train_ts
-        model = generate_metrics(model, partition)
-        model = select_best_model(model, partition)
-        generate_plots(model, partition)
-        model = save_predictions(model, partition)
+        generate_results(model, partition)
+        partition = Partition.test_ts
+        if model.test_labels:
+            generate_results(model, partition)
+        else:
+            model = save_predictions(model, partition)
 
-    # Save the model
+    # Save the model and metrics
 
-    date_stamp = get_datestamp()
-    save_predictor(model, 'BEST', date_stamp)
-    save_feature_map(model, date_stamp)
+    save_predictor(model, 'BEST')
+    save_feature_map(model)
+    save_metrics(model)
 
     # Return the model
     return model
@@ -336,11 +488,13 @@ def training_pipeline(model):
 # Function prediction_pipeline
 #
 
-def prediction_pipeline(model):
+def prediction_pipeline(alphapy_specs, model):
     r"""AlphaPy Prediction Pipeline
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     model : alphapy.Model
         The model object for controlling the pipeline.
 
@@ -359,9 +513,10 @@ def prediction_pipeline(model):
 
     # Unpack the model specifications
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     drop = model.specs['drop']
-    feature_selection = model.specs['feature_selection']
+    fs_lofo = model.specs['fs_lofo']
+    fs_univariate = model.specs['fs_univariate']
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']
 
@@ -373,7 +528,7 @@ def prediction_pipeline(model):
     X_predict, _ = get_data(model, partition)
 
     # Load feature_map
-    model = load_feature_map(model, directory)
+    model = load_feature_map(model, run_dir)
 
     # Log feature statistics
 
@@ -396,12 +551,23 @@ def prediction_pipeline(model):
     # Remove low-variance features
     X_all = remove_lv_features(model, X_all)
 
+    # Load the LOFO support vector, if any
+
+    if fs_lofo:
+        logger.info("Getting LOFO Support")
+        try:
+            support = model.feature_map['support_lofo', model.best_algo]
+            X_all = X_all[:, support]
+            logger.info("New Feature Count : %d", X_all.shape[1])
+        except:
+            logger.info("No LOFO Support")
+
     # Load the univariate support vector, if any
 
-    if feature_selection:
+    if fs_univariate:
         logger.info("Getting Univariate Support")
         try:
-            support = model.feature_map['uni_support']
+            support = model.feature_map['support_uni']
             X_all = X_all[:, support]
             logger.info("New Feature Count : %d", X_all.shape[1])
         except:
@@ -419,7 +585,7 @@ def prediction_pipeline(model):
             logger.info("No RFE Support")
 
     # Load predictor
-    predictor = load_predictor(directory)
+    predictor = load_predictor(run_dir)
 
     # Make predictions
 
@@ -440,7 +606,7 @@ def prediction_pipeline(model):
 # Function main_pipeline
 #
 
-def main_pipeline(model):
+def main_pipeline(alphapy_specs, model):
     r"""AlphaPy Main Pipeline
 
     Parameters
@@ -455,15 +621,19 @@ def main_pipeline(model):
 
     """
 
+    logger.info('*'*80)
+    logger.info("AlphaPy Model Pipeline")
+    logger.info('*'*80)
+
     # Extract any model specifications
     predict_mode = model.specs['predict_mode']
 
     # Prediction Only or Calibration
 
     if predict_mode:
-        model = prediction_pipeline(model)
+        model = prediction_pipeline(alphapy_specs, model)
     else:
-        model = training_pipeline(model)
+        model = training_pipeline(alphapy_specs, model)
 
     # Return the completed model
     return model
@@ -494,6 +664,9 @@ def main(args=None):
     parser.add_argument('--predict', dest='predict_mode', action='store_true')
     parser.add_argument('--train', dest='predict_mode', action='store_false')
     parser.set_defaults(predict_mode=False)
+    parser.add_argument('--rundir', dest='run_dir',
+                        help="run directory is in the format: run_YYYYMMDD_hhmmss",
+                        required=False)
     args = parser.parse_args()
 
     # Logging
@@ -519,29 +692,67 @@ def main(args=None):
     logger.info("AlphaPy Start")
     logger.info('*'*80)
 
-    # Read configuration file
+    # Read AlphaPy root directory
 
-    specs = get_model_config()
-    specs['predict_mode'] = args.predict_mode
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
 
-    # Create directories if necessary
+    # Read the AlphaPy configuration file
+    alphapy_specs = get_alphapy_config(alphapy_root)
 
-    output_dirs = ['config', 'data', 'input', 'model', 'output', 'plots']
-    for od in output_dirs:
-        output_dir = SSEP.join([specs['directory'], od])
-        if not os.path.exists(output_dir):
-            logger.info("Creating directory %s", output_dir)
-            os.makedirs(output_dir)
+    # Read the model configuration file
+
+    _, model_specs = get_model_config()
+    model_specs['predict_mode'] = args.predict_mode
+
+    # If not in prediction mode, then create the training infrastructure.
+
+    if not model_specs['predict_mode']:
+        # create the directory infrastructure if necessary
+        output_dirs = ['config', 'data', 'runs']
+        for od in output_dirs:
+            output_dir = SSEP.join([model_specs['directory'], od])
+            if not os.path.exists(output_dir):
+                logger.info("Creating directory %s", output_dir)
+                os.makedirs(output_dir)
+        # create the run directory
+        dt_stamp = datetime_stamp()
+        run_dir_name = USEP.join(['run', dt_stamp])
+        run_dir = SSEP.join([model_specs['directory'], 'runs', run_dir_name])
+        os.makedirs(run_dir)
+        model_specs['run_dir'] = run_dir
+        # create the subdirectories of the runs directory
+        sub_dirs = ['config', 'input', 'model', 'output', 'plots']
+        for sd in sub_dirs:
+            output_dir = SSEP.join([run_dir, sd])
+            if not os.path.exists(output_dir):
+                logger.info("Creating directory %s", output_dir)
+                os.makedirs(output_dir)
+        # copy the model file to the config directory
+        filename = 'model.yml'
+        src_file = SSEP.join([model_specs['directory'], 'config', filename])
+        dst_file = SSEP.join([run_dir, 'config', filename])
+        shutil.copyfile(src_file, dst_file)
+    else:
+        run_dir = args.run_dir if args.run_dir else None
+        if not run_dir:
+            # get latest directory
+            search_dir = SSEP.join([model_specs['directory'], 'runs'])
+            run_dir = most_recent_file(search_dir, 'run_*')
+    model_specs['run_dir'] = run_dir
 
     # Create a model from the arguments
 
     logger.info("Creating Model")
-    model = Model(specs)
+    model = Model(model_specs)
 
     # Start the pipeline
 
     logger.info("Calling Pipeline")
-    model = main_pipeline(model)
+    model = main_pipeline(alphapy_specs, model)
 
     # Complete the pipeline
 

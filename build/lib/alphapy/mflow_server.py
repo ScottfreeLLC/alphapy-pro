@@ -4,9 +4,7 @@
 # Module    : mflow_server
 # Created   : February 21, 2021
 #
-# uvicorn mflow_server:app --reload
-#
-# Copyright 2021 ScottFree Analytics LLC
+# Copyright 2022 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,18 +23,30 @@
 
 
 #
-# Imports
+# HOW TO RUN:
+#
+# export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
+# uvicorn mflow_server:app --reload
 #
 
-from alphapy.group import Group
-from alphapy.mflow_main import get_market_config
+
+#
+# Imports
+#
 
 from fastapi import File
 from fastapi import FastAPI
 from fastapi import UploadFile
-import numpy as np
+import logging
+import os
+from pathlib import Path
+import sys
 import uuid
 import uvicorn
+
+from alphapy.group import Group
+from alphapy.mflow_main import get_market_config
+from alphapy.model import get_model_config
 
 
 #
@@ -47,14 +57,39 @@ app = FastAPI()
 
 
 #
+# Initialize logger
+#
+
+logger = logging.getLogger(__name__)
+
+
+#
 # FastAPI Startup
 #
 
-
 @app.on_event("startup")
 async def startup_event():
-    global market_specs
-    #market_specs = get_market_config()
+    # Initialize Logging
+    logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
+                        filename="mflow_server.log", filemode='a', level=logging.INFO,
+                        datefmt='%m/%d/%y %H:%M:%S')
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
+                                  datefmt='%m/%d/%y %H:%M:%S')
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    console.setLevel(logging.INFO)
+    logging.getLogger().addHandler(console)
+    # Start the pipeline
+    logger.info('*'*80)
+    logger.info("Market Flow Server Start")
+    logger.info('*'*80)
+    # Get the AlphaPy environment variable
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
+    # Finish Startup
     return
 
 
@@ -63,27 +98,72 @@ async def startup_event():
 #
 
 @app.get("/groups")
-def read_groups():
+def request_groups():
     return Group.groups
 
 
+#
+# Get market specifications
+#
+
+@app.get("/market_config")
+def request_market_config(project_root):
+    cfg, specs = get_market_config(project_root)
+    return cfg, specs
+
+
+#
+# Get model specifications
+#
+
+@app.get("/model_config")
+def request_model_config(project_root):
+    cfg, specs = get_model_config(project_root)
+    return cfg, specs
+
+
+#
+# Get paths
+#
+
+@app.get("/paths")
+def request_paths(alphapy_specs):
+    root_directory = alphapy_specs['mflow']['project_root']
+    paths = []
+    for path in Path(root_directory).rglob('market.yml'):
+        paths.append(path)
+    return paths
+
+
+#
+# Get projects
+#
+
+@app.get("/projects")
+def request_projects(alphapy_specs):
+    root_directory = alphapy_specs['mflow']['project_root']
+    projects = []
+    for path in Path(root_directory).rglob('market.yml'):
+        path_str = str(path).split('/')
+        projects.append(path_str[-3])
+    return projects
+
+
+#
+# Shut down the application
+#
+
 @app.on_event("shutdown")
 def shutdown_event():
-    with open("log.txt", mode="a") as log:
-        log.write("Application shutdown")
+    # Stop the pipeline
+    logger.info('*'*80)
+    logger.info("Market Flow Server End")
+    logger.info('*'*80)
 
 
-"""
-@app.post("/{style}")
-def get_image(style: str, file: UploadFile = File(...)):
-    image = np.array(Image.open(file.file))
-    model = config.STYLES[style]
-    output, resized = inference.inference(model, image)
-    name = f"/storage/{str(uuid.uuid4())}.jpg"
-    cv2.imwrite(name, output)
-    return {"name": name}
-"""
-
+#
+# Main Program
+#
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080)

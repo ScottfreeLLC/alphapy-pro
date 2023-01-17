@@ -67,14 +67,14 @@ WILDCARD = '*'
 # Dictionaries
 #
 
-MULTIPLIERS = {'crypto' : 1.0,
-               'stock' : 1.0}
+SUBJECTS = ['crypto', 'etf', 'forex', 'future', 'index', 'option', 'stock']
 
 #
 # Pandas Time Offset Aliases
 #
 
 PD_INTRADAY_OFFSETS = ['H', 'T', 'min', 'S', 'L', 'ms', 'U', 'us', 'N']
+PD_DAILY_OFFSETS = ['D', 'W', 'M', 'Q', 'A']
 
 #
 # Encoder Types
@@ -116,15 +116,14 @@ class Encoders(Enum):
 class ModelType(Enum):
     """AlphaPy Model Types.
 
-    .. note:: One-Class Classification ``oneclass`` is not yet
+    .. note:: Multiclass Classification ``multiclass`` is not yet
        implemented.
 
     """
     classification = 1
-    clustering = 2
-    multiclass = 3
-    oneclass = 4
-    regression = 5
+    multiclass = 2
+    ranker = 3
+    regression = 4
 
 
 #
@@ -143,6 +142,23 @@ class Objective(Enum):
     """
     maximize = 1
     minimize = 2
+
+
+#
+# Bar Types
+#
+
+@unique
+class BarType(Enum):
+    """Bar Types.
+
+    Bar Types for running models, usually translated from a normal OHLC bar to a
+    weighted bar based on volume, dollar amount, etc.
+
+    """
+    time = 1
+    dollar = 2
+    heikinashi = 3
 
 
 #

@@ -35,22 +35,10 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # Imports
 #
 
-from alphapy.alphapy_main import main_pipeline
-from alphapy.frame import read_frame
-from alphapy.frame import write_frame
-from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
-from alphapy.globals import PSEP, SSEP, USEP
-from alphapy.globals import WILDCARD
-from alphapy.model import get_model_config
-from alphapy.model import Model
-from alphapy.space import Space
-from alphapy.transforms import dateparts
-from alphapy.utilities import valid_date
-
 import argparse
 import datetime
-from itertools import groupby
+import glob
+import itertools
 import logging
 import math
 import numpy as np
@@ -58,6 +46,19 @@ import os
 import pandas as pd
 import sys
 import yaml
+
+from alphapy.alphapy_main import get_alphapy_config
+from alphapy.alphapy_main import main_pipeline
+from alphapy.frame import read_frame
+from alphapy.frame import write_frame
+from alphapy.globals import Partition, datasets
+from alphapy.globals import SSEP, USEP
+from alphapy.model import get_model_config
+from alphapy.model import Model
+from alphapy.space import Space
+from alphapy.transforms import dateparts
+from alphapy.utilities import most_recent_file
+from alphapy.utilities import valid_date
 
 
 #
@@ -141,6 +142,15 @@ game_dict = {'point_margin_game' : int,
 
 
 #
+# Convert Boolean features to int before writing the data frame
+#
+
+features_bool = ['won_on_points', 'lost_on_points',
+                 'won_on_spread', 'lost_on_spread',
+                 'over', 'under']
+
+
+#
 # Function get_sport_config
 #
 
@@ -170,6 +180,13 @@ def get_sport_config():
 
     # Section: sport
 
+    data_directory = cfg['sport']['data_directory']
+    dir_exists = os.path.isdir(data_directory)
+    if dir_exists:
+        specs['data_directory'] = data_directory
+    else:
+        raise ValueError("Directory %s does not exist" % data_directory)
+
     specs['league'] = cfg['sport']['league']
     specs['points_max'] = cfg['sport']['points_max']
     specs['points_min'] = cfg['sport']['points_min']
@@ -181,6 +198,7 @@ def get_sport_config():
 
     logger.info('SPORT PARAMETERS:')
     logger.info('league           = %s', specs['league'])
+    logger.info('data_directory   = %s', specs['data_directory'])
     logger.info('points_max       = %d', specs['points_max'])
     logger.info('points_min       = %d', specs['points_min'])
     logger.info('random_scoring   = %r', specs['random_scoring'])
@@ -399,7 +417,7 @@ def add_features(frame, fdict, flen, prefix=''):
     for key, value in list(fdict.items()):
         newkey = key
         if prefix:
-            newkey = PSEP.join([prefix, newkey])
+            newkey = USEP.join([prefix, newkey])
         if value == int:
             frame[newkey] = pd.Series(seqint)
         elif value == float:
@@ -445,11 +463,11 @@ def generate_team_frame(team, tf, home_team, away_team, window):
     # Team Loop
     for index, row in tf.iterrows():
         if team == row[home_team]:
-            tf['point_margin_game'].at[index] = get_point_margin(row, 'home.score', 'away.score')
-            line = row['line']
+            tf['point_margin_game'].at[index] = get_point_margin(row, 'home_score', 'away_score')
+            spread = row['home_point_spread']
         elif team == row[away_team]:
-            tf['point_margin_game'].at[index] = get_point_margin(row, 'away.score', 'home.score')
-            line = -row['line']
+            tf['point_margin_game'].at[index] = get_point_margin(row, 'away_score', 'home_score')
+            spread = -row['home_point_spread']
         else:
             raise KeyError("Team not found in Team Frame")
         if index == 0:
@@ -462,12 +480,12 @@ def generate_team_frame(team, tf, home_team, away_team, window):
             tf['ties'].at[index] = tf['ties'].at[index-1] + get_ties(tf['point_margin_game'].at[index])
         tf['won_on_points'].at[index] = True if tf['point_margin_game'].at[index] > 0 else False
         tf['lost_on_points'].at[index] = True if tf['point_margin_game'].at[index] < 0 else False
-        tf['cover_margin_game'].at[index] = tf['point_margin_game'].at[index] + line
+        tf['cover_margin_game'].at[index] = tf['point_margin_game'].at[index] + spread
         tf['won_on_spread'].at[index] = True if tf['cover_margin_game'].at[index] > 0 else False
         tf['lost_on_spread'].at[index] = True if tf['cover_margin_game'].at[index] <= 0 else False
-        nans = math.isnan(row['home.score']) or math.isnan(row['away.score'])
+        nans = math.isnan(row['home_score']) or math.isnan(row['away_score'])
         if not nans:
-            tf['total_points'].at[index] = row['home.score'] + row['away.score']
+            tf['total_points'].at[index] = row['home_score'] + row['away_score']
         nans = math.isnan(row['over_under'])
         if not nans:
             tf['overunder_margin'].at[index] = tf['total_points'].at[index] - row['over_under']
@@ -573,14 +591,14 @@ def insert_model_data(mf, mpos, mdict, tf, tpos, prefix):
     Returns
     -------
     mf : pandas.DataFrame
-        The .
+        The model dataframe.
 
     """
     team_row = tf.iloc[tpos]
-    for key, value in list(mdict.items()):
+    for key, _ in list(mdict.items()):
         newkey = key
         if prefix:
-            newkey = PSEP.join([prefix, newkey])
+            newkey = USEP.join([prefix, newkey])
         mf.at[mpos, newkey] = team_row[key]
     return mf
 
@@ -609,12 +627,135 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
         The completed dataframe with the delta data.
 
     """
-    for key, value in list(fdict.items()):
-        newkey = PSEP.join(['delta', key])
-        key1 = PSEP.join([prefix1, key])
-        key2 = PSEP.join([prefix2, key])
+    for key, _ in list(fdict.items()):
+        newkey = USEP.join(['delta', key])
+        key1 = USEP.join([prefix1, key])
+        key2 = USEP.join([prefix2, key])
         frame[newkey] = frame[key1] - frame[key2]
     return frame
+
+
+#
+# Function record_live_results
+#
+
+def record_live_results(model_specs, directory):
+    r"""Record the live results.
+
+    Parameters
+    ----------
+    model_specs : dict
+        The input model parameters.
+    directory : str
+        The directory containing the test predictions.
+
+    Returns
+    -------
+    df_live : pandas.DataFrame
+        The dataframe of live results.
+
+    """
+
+    # Extract model fields
+    
+    target = model_specs['target']
+    
+    # Read the Live Results File.
+
+    logger.info("Reading Live Results")
+    output_dir = SSEP.join([directory, 'output'])
+    try:
+        df_live = read_frame(output_dir, 'live_results', model_specs['extension'], model_specs['separator'])
+        df_live.set_index('match_id', inplace=True)
+        logger.info("Current Live Records: %d", df_live.shape[0])
+    except:
+        df_live = pd.DataFrame()
+        logger.info("No Live Results to Analyze")
+
+    logger.info("Updating Live Results")
+    df_live = update_live_results(df_live, target, output_dir)
+    logger.info("Total Live Records: %d", df_live.shape[0])
+
+    # Save updated Live Results file.
+
+    file_spec = '/'.join([output_dir, 'live_results.csv'])
+    df_live.to_csv(file_spec, index_label='match_id')
+    return df_live
+
+
+#
+# Function update_live_results
+#
+
+def update_live_results(df_live, target, results_dir):
+    r"""Update the live results.
+
+    Parameters
+    ----------
+    df_live : pandas.DataFrame
+        The dataframe of live results.
+    target : str
+        The target variable to predict.
+    results_dir : str
+        The directory containing the test predictions.
+
+    Returns
+    -------
+    None
+
+    """
+    
+    # Read in the game data
+    
+    mrf = most_recent_file(results_dir, 'ranked_train_ts*.csv')
+    df_game = pd.read_csv(mrf)
+    game_cols = ['match_id', 'season', 'date', 'away_team', 'away_score', 'away_point_spread',
+           'away_point_spread_line', 'away_money_line', 'home_team', 'home_score',
+           'home_point_spread', 'home_point_spread_line', 'home_money_line',
+           'over_under', 'over_line', 'under_line']
+    game_cols = list(itertools.chain(game_cols, [target]))
+    df_game = df_game[game_cols]
+    df_game.sort_values(by='date', inplace=True)
+    df_game.set_index('match_id', inplace=True)
+
+    # Read in the predictions
+    
+    search_spec = '/'.join([results_dir, 'ranked_test_ts*.csv'])
+    prediction_files = glob.glob(search_spec)
+    dfps = []
+    for pf_name in prediction_files:
+        dfp = pd.read_csv(pf_name)
+        dfps.append(dfp)
+    df_pred = pd.concat(dfps)
+    
+    # Retain the prediction columns
+    
+    df_pred.drop_duplicates(subset=['match_id'], keep='last', inplace=True)
+    pred_cols = df_pred.columns[df_pred.columns.str.startswith('pred_')]
+    prob_cols = df_pred.columns[df_pred.columns.str.startswith('prob_')]
+    df_pred_cols = list(itertools.chain(['match_id'], pred_cols, prob_cols))
+    df_pred = df_pred[df_pred_cols]
+    df_pred.set_index('match_id', inplace=True)
+    
+    # Get new results
+
+    match_ids = []
+    if not df_live.empty:
+        match_ids = df_live.index.unique()
+    new_results = []
+    for index, row in df_pred.iterrows():
+        if index in match_ids:
+            df_live.update(row)
+        else:
+            new_results.append(row)
+    df_new = pd.DataFrame(new_results)
+    
+    # Update the live results with the new results
+    
+    df_new = df_new.join(df_game, how='inner')
+    df_live = pd.concat([df_live, df_new])
+    df_live = df_live[~df_live.index.duplicated(keep='last')]
+    return df_live
 
 
 #
@@ -675,13 +816,38 @@ def main(args=None):
     console.setLevel(logging.INFO)
     logging.getLogger().addHandler(console)
 
-    logger = logging.getLogger(__name__)
-
     # Start the pipeline
 
     logger.info('*'*80)
     logger.info("SportFlow Start")
     logger.info('*'*80)
+
+    # Read AlphaPy root directory
+
+    alphapy_root = os.environ.get('ALPHAPY_ROOT')
+    if not alphapy_root:
+        root_error_string = "ALPHAPY_ROOT environment variable must be set"
+        logger.info(root_error_string)
+        sys.exit(root_error_string)
+
+    # Read AlphaPy configuration file
+    alphapy_specs = get_alphapy_config(alphapy_root)
+
+    # Read model configuration file
+
+    directory = '.'
+    _, model_specs = get_model_config(directory)
+    model_specs['alphapy_root'] = alphapy_root
+    
+    # Extract model fields
+    
+    live_results = model_specs['live_results']
+
+    # Add command line arguments to model specifications
+
+    model_specs['predict_mode'] = args.predict_mode
+    model_specs['predict_date'] = args.predict_date
+    model_specs['train_date'] = args.train_date
 
     # Set train and predict dates
 
@@ -709,6 +875,7 @@ def main(args=None):
 
     # Section: game
 
+    data_directory = sport_specs['data_directory']
     league = sport_specs['league']
     points_max = sport_specs['points_max']
     points_min = sport_specs['points_min']
@@ -716,24 +883,9 @@ def main(args=None):
     seasons = sport_specs['seasons']
     window = sport_specs['rolling_window']   
 
-    # Read model configuration file
-
-    specs = get_model_config()
-
-    # Add command line arguments to model specifications
-
-    specs['predict_mode'] = args.predict_mode
-    specs['predict_date'] = args.predict_date
-    specs['train_date'] = args.train_date
-
-    # Unpack model arguments
-
-    directory = specs['directory']
-    target = specs['target']
-
     # Create directories if necessary
 
-    output_dirs = ['config', 'data', 'input', 'model', 'output', 'plots']
+    output_dirs = ['config', 'input', 'model', 'output', 'plots']
     for od in output_dirs:
         output_dir = SSEP.join([directory, od])
         if not os.path.exists(output_dir):
@@ -747,11 +899,11 @@ def main(args=None):
     # Derived Variables
     #
 
-    series = space.schema
+    series = space.source
     team1_prefix = 'home'
     team2_prefix = 'away'
-    home_team = PSEP.join([team1_prefix, 'team'])
-    away_team = PSEP.join([team2_prefix, 'team'])
+    home_team = USEP.join([team1_prefix, 'team'])
+    away_team = USEP.join([team2_prefix, 'team'])
 
     #
     # Read in the game frame. This is the feature generation phase.
@@ -759,9 +911,8 @@ def main(args=None):
 
     logger.info("Reading Game Data")
 
-    data_dir = SSEP.join([directory, 'data'])
-    file_base = USEP.join([league, space.subject, space.schema, space.fractal])
-    df = read_frame(data_dir, file_base, specs['extension'], specs['separator'])
+    file_base = USEP.join([league, space.subject, space.source, space.fractal])
+    df = read_frame(data_directory, file_base, model_specs['extension'], model_specs['separator'])
     logger.info("Total Game Records: %d", df.shape[0])
 
     #
@@ -774,8 +925,8 @@ def main(args=None):
     # Make all team names lower case
     #
 
-    df['home.team'] = df['home.team'].str.lower()
-    df['away.team'] = df['away.team'].str.lower()
+    df['home_team'] = df['home_team'].str.lower()
+    df['away_team'] = df['away_team'].str.lower()
 
     #
     # Run the game pipeline on a seasonal loop
@@ -784,6 +935,7 @@ def main(args=None):
     if not seasons:
         # run model on all seasons
         seasons = df['season'].unique().tolist()
+    df['season'] = df['season'].astype(str)
 
     #
     # Initialize the final frame
@@ -799,27 +951,27 @@ def main(args=None):
 
         # Generate a frame for each season
 
-        gf = df[df['season'] == season]
+        gf = df[df['season'] == season].copy()
         gf = gf.reset_index()
 
         # Generate derived variables for the game frame
 
         total_games = gf.shape[0]
         if random_scoring:
-            gf['home.score'] = np.random.randint(points_min, points_max, total_games)
-            gf['away.score'] = np.random.randint(points_min, points_max, total_games)
-        gf['total_points'] = gf['home.score'] + gf['away.score']
+            gf['home_score'] = np.random.randint(points_min, points_max, total_games)
+            gf['away_score'] = np.random.randint(points_min, points_max, total_games)
+        gf['total_points'] = gf['home_score'] + gf['away_score']
 
         # gf['line_delta'] = gf['line'] - gf['line_open']
         # gf['over_under_delta'] = gf['over_under'] - gf['over_under_open']
 
         gf = add_features(gf, game_dict, gf.shape[0])
         for index, row in gf.iterrows():
-            if not np.isnan(row['home.score']):
-                gf['point_margin_game'].at[index] = get_point_margin(row, 'home.score', 'away.score')
+            if not np.isnan(row['home_score']):
+                gf['point_margin_game'].at[index] = get_point_margin(row, 'home_score', 'away_score')
                 gf['won_on_points'].at[index] = True if gf['point_margin_game'].at[index] > 0 else False
                 gf['lost_on_points'].at[index] = True if gf['point_margin_game'].at[index] < 0 else False
-                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['line']
+                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['home_point_spread']
                 gf['won_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] > 0 else False
                 gf['lost_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] <= 0 else False
                 gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under']
@@ -896,6 +1048,19 @@ def main(args=None):
         # Append this to final frame
         frames = [ff, mf]
         ff = pd.concat(frames)
+        
+    # Grouped Betting Results
+
+    for col_key in ['won_on_points', 'won_on_spread', 'over']:
+        ff_means = ff.groupby('date')[col_key].mean().shift(-1)
+        ds_name = USEP.join([col_key, 'daily_mean_lag1'])
+        ff_means.rename(ds_name, inplace=True)
+        ff = ff.merge(ff_means, how='left', on='date')
+        
+    # Convert Boolean Features
+    
+    for bf in features_bool:
+        ff[bf] = ff[bf].astype(float)
 
     # Write out dataframes
 
@@ -907,7 +1072,7 @@ def main(args=None):
         # rewrite with all the features to the train and test files
         logger.info("Saving prediction frame")
         write_frame(new_predict_frame, input_dir, datasets[Partition.test],
-                    specs['extension'], specs['separator'])
+                    model_specs['extension'], model_specs['separator'])
     else:
         # split data into training and test data
         new_train_frame = ff.loc[(ff.date >= train_date) & (ff.date < predict_date)]
@@ -919,21 +1084,21 @@ def main(args=None):
         # rewrite with all the features to the train and test files
         logger.info("Saving training frame")
         write_frame(new_train_frame, input_dir, datasets[Partition.train],
-                    specs['extension'], specs['separator'])
+                    model_specs['extension'], model_specs['separator'])
         logger.info("Saving testing frame")
         write_frame(new_test_frame, input_dir, datasets[Partition.test],
-                    specs['extension'], specs['separator'])
+                    model_specs['extension'], model_specs['separator'])
 
     # Create the model from specs
-
-    model = Model(specs)
+    model = Model(model_specs)
 
     # Run the pipeline
-
-    logger.info('*'*80)
-    logger.info("Running AlphaPy")
-    logger.info('*'*80)
-    model = main_pipeline(model)
+    model = main_pipeline(alphapy_specs, model)
+    
+    # Update the live results
+    
+    if live_results:
+        df_live = record_live_results(model_specs, directory)
 
     # Complete the pipeline
 

@@ -1,9 +1,9 @@
 """
 Package   : AlphaPy
-Module    : transforms
-Created   : March 14, 2020
+Module    : nlp
+Created   : January 14, 2023
 
-Copyright 2022 ScottFree Analytics LLC
+Copyright 2023 ScottFree Analytics LLC
 Mark Conway & Robert D. Scott II
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,35 +45,26 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Function adx
+# Function encode_data
 #
 
-def adx(f, p = 14):
-    r"""Calculate the Average Directional Index (ADX).
+def encode_data(df_price, p=20):
+    r"""Encode the price data into NLP sequences.
 
     Parameters
     ----------
-    f : pandas.DataFrame
-        Dataframe with all columns required for calculation. If you
-        are applying ADX through ``vapply``, then these columns are
-        calculated automatically.
+    df_price : pandas.DataFrame
+        Dataframe with all columns required for calculation.
     p : int
-        The period over which to calculate the ADX.
+        Maximum period for recording extremes
 
     Returns
     -------
-    new_column : pandas.Series (float)
-        The array containing the new feature.
-
-    References
-    ----------
-    The Average Directional Movement Index (ADX) was invented by J. Welles
-    Wilder in 1978 [WIKI_ADX]_.  Its value reflects the strength of trend in any
-    given instrument.
-
-    .. [WIKI_ADX] https://en.wikipedia.org/wiki/Average_directional_movement_index
+    df_encoded : pandas.DataFrame
+        The dataframe containing all of the sequences with corresponding returns.
 
     """
+
     c1 = 'diplus'
     f = vexec(f, c1)
     c2 = 'diminus'

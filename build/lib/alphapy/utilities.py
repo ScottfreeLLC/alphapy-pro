@@ -49,22 +49,22 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Function get_datestamp
+# Function datetime_stamp
 #
 
-def get_datestamp():
-    r"""Returns today's datestamp.
+def datetime_stamp():
+    r"""Returns today's datetime stamp.
 
     Returns
     -------
-    datestamp : str
-        The valid date string in YYYY-mm-dd format.
+    dtstamp : str
+        The valid datetime string in YYYYmmdd_hhmmss format.
 
     """
     d = datetime.now()
-    f = "%Y%m%d"
-    datestamp = d.strftime(f)
-    return datestamp
+    f = "%Y%m%d_%H%M%S"
+    dtstamp = d.strftime(f)
+    return dtstamp
 
 
 #

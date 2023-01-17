@@ -55,34 +55,30 @@ print(__doc__)
 # Imports
 #
 
-from alphapy.estimators import get_estimators
-from alphapy.globals import BSEP, PSEP, SSEP, USEP
-from alphapy.globals import ModelType
-from alphapy.globals import Partition, datasets
-from alphapy.globals import Q1, Q3
-from alphapy.utilities import remove_list_items
-
 from bokeh.plotting import figure, show, output_file
-import itertools
 import logging
 import math
 import matplotlib
 matplotlib.use('PS')
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.calibration import calibration_curve
-from sklearn.inspection import partial_dependence
 from sklearn.inspection import plot_partial_dependence
 from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve
 from sklearn.model_selection import learning_curve
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
+
+from alphapy.estimators import get_estimators
+from alphapy.globals import BSEP, SSEP, USEP
+from alphapy.globals import ModelType
+from alphapy.globals import Partition, datasets
+from alphapy.globals import Q1, Q3
 
 
 #
@@ -123,14 +119,14 @@ def get_partition_data(model, partition):
     if partition == Partition.train:
         X = model.X_train
         y = model.y_train
-    elif partition == Partition.test:
+    elif partition == Partition.test or partition == Partition.test_ts:
         X = model.X_test
         y = model.y_test
     elif partition == Partition.train_ts:
-        X = model.df_X_ts
-        y = model.df_y_ts
+        X = model.X_train_ts
+        y = model.y_train_ts
     else:
-        raise TypeError('Partition must be train or test')
+        raise ValueError("Invalid Partition: %s", partition)
 
     return X, y
 
@@ -139,11 +135,13 @@ def get_partition_data(model, partition):
 # Function generate_plots
 #
 
-def generate_plots(model, partition):
+def generate_plots(alphapy_specs, model, partition):
     r"""Generate plots while running the pipeline.
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for running the AlphaPy pipeline.
     model : alphapy.Model
         The model object with plotting specifications.
     partition : alphapy.Partition
@@ -160,25 +158,25 @@ def generate_plots(model, partition):
 
     # Extract model parameters
 
-    calibration_plot = model.specs['calibration_plot']
-    confusion_matrix = model.specs['confusion_matrix']
-    importances = model.specs['importances']
-    learning_curve = model.specs['learning_curve']
-    roc_curve = model.specs['roc_curve']
+    calibration_plot_flag = model.specs['calibration_plot']
+    confusion_matrix_flag = model.specs['confusion_matrix']
+    importances_flag = model.specs['importances']
+    learning_curve_flag = model.specs['learning_curve']
+    roc_curve_flag = model.specs['roc_curve']
 
     # Generate plots
 
-    if calibration_plot:
+    if calibration_plot_flag:
         plot_calibration(model, partition)
-    if confusion_matrix:
+    if confusion_matrix_flag:
         plot_confusion_matrix(model, partition)
-    if roc_curve:
+    if roc_curve_flag:
         plot_roc_curve(model, partition)
     if partition == Partition.train:
-        if learning_curve:
-            plot_learning_curve(model, partition)
-        if importances:
-            plot_importance(model, partition)
+        if learning_curve_flag:
+            plot_learning_curve(alphapy_specs, model, partition)
+        if importances_flag:
+            plot_importances(model, partition)
 
 
 #
@@ -199,8 +197,8 @@ def get_plot_directory(model):
         The output directory to write the plot.
 
     """
-    directory = model.specs['directory']
-    plot_directory = SSEP.join([directory, 'plots'])
+    run_dir = model.specs['run_dir']
+    plot_directory = SSEP.join([run_dir, 'plots'])
     return plot_directory
 
 
@@ -364,7 +362,7 @@ def plot_calibration(model, partition):
 # Function plot_importances
 #
 
-def plot_importance(model, partition):
+def plot_importances(model, partition):
     r"""Display scikit-learn feature importances.
 
     Parameters
@@ -389,53 +387,62 @@ def plot_importance(model, partition):
     plot_dir = get_plot_directory(model)
     pstring = datasets[partition]
 
+    # Extract model parameters.
+
+    fs_lofo = model.specs['fs_lofo']
+
     # For each algorithm that has importances, generate the plot.
 
-    n_top = 20
-
     for algo in model.algolist:
-        logger.info("Feature Importances for Algorithm: %s", algo)
-        try:
-            # get feature importances
-            importances = model.importances[algo]
-            imp_flag = True
-        except:
-            imp_flag = False
-        if imp_flag:
-            # get feature name indices
-            indices = np.argsort(importances)[::-1]
-            importances = importances[indices]
-            feature_names = np.array(model.fnames_algo[algo])[indices]
-            n_features = len(feature_names)
-            # log the feature ranking
-            logger.info("Feature Ranking:")
-            n_min = min(n_top, n_features)
-            for i in range(n_min):
-                logger.info("%d. %s (%f)", i + 1, feature_names[i], importances[i])
-            # plot the feature importances
-            title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
-            plt.figure()
-            plt.title(title)
-            plt.barh(range(n_min), importances[:n_min][::-1])
-            plt.yticks(range(n_min), feature_names[:n_min][::-1])
-            plt.ylim([-1, n_min])
-            plt.xlabel('Relative Importance')
-            # save the plot
-            tag = USEP.join([pstring, algo])
-            write_plot('matplotlib', plt, 'feature_importance', tag, plot_dir)
+        tag = USEP.join([pstring, algo])
+        # LOFO Feature Importances
+        if fs_lofo:
+            logger.info("LOFO Importances for Algorithm: %s", algo)
+            importance_df = model.lofo_df[algo].copy()
+            importance_df['color'] = (importance_df['importance_mean'] > 0).map({True: 'g', False: 'r'})
+            importance_df.sort_values('importance_mean', inplace=True)
+            ax = importance_df.plot(x='feature', y='importance_mean', xerr='importance_std',
+                                    kind='barh', color=importance_df['color'], figsize=(12, 16))
+            write_plot('matplotlib', ax.get_figure(), 'lofo_importance', tag, plot_dir)
         else:
-            logger.info("No Feature Importances for %s" % algo)
+            logger.info("Feature Importances for Algorithm: %s", algo)
+            try:
+                # get feature importances
+                importances = model.importances[algo]
+                imp_flag = True
+            except:
+                imp_flag = False
+            if imp_flag:
+                # get feature name indices
+                indices = np.argsort(importances)[::-1]
+                importances = importances[indices]
+                feature_names = np.array(model.fnames_algo[algo])[indices]
+                n_features = 20
+                # plot the feature importances
+                title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
+                plt.figure()
+                plt.title(title)
+                plt.barh(range(n_features), importances[:n_features][::-1])
+                plt.yticks(range(n_features), feature_names[:n_features][::-1])
+                plt.ylim([-1, n_features])
+                plt.xlabel('Relative Importance')
+                # save the plot
+                write_plot('matplotlib', plt, 'feature_importance', tag, plot_dir)
+            else:
+                logger.info("No scikit-learn Feature Importances for %s" % algo)
 
 
 #
 # Function plot_learning_curve
 #
 
-def plot_learning_curve(model, partition):
+def plot_learning_curve(alphapy_specs, model, partition):
     r"""Generate learning curves for a given partition.
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for running the AlphaPy pipeline.
     model : alphapy.Model
         The model object with plotting specifications.
     partition : alphapy.Partition
@@ -456,24 +463,27 @@ def plot_learning_curve(model, partition):
     plot_dir = get_plot_directory(model)
     pstring = datasets[partition]
 
+    # For classification only
+
+    if model.specs['model_type'] != ModelType.classification:
+        logger.info('Learning Curve plot is for classification only')
+        return None
+
     # Extract model parameters.
 
     cv_folds = model.specs['cv_folds']
     n_jobs = model.specs['n_jobs']
-    seed = model.specs['seed']
     shuffle = model.specs['shuffle']
     verbosity = model.specs['verbosity']
 
     # Get original estimators
 
-    estimators = get_estimators(model)
+    estimators = get_estimators(alphapy_specs, model)
 
     # Get X, Y for correct partition.
-
     X, y = get_partition_data(model, partition)
 
     # Set cross-validation parameters to get mean train and test curves.
-
     cv = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
 
     # Plot a learning curve for each algorithm.

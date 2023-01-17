@@ -4,7 +4,7 @@
 # Module    : portfolio
 # Created   : July 11, 2013
 #
-# Copyright 2020 ScottFree Analytics LLC
+# Copyright 2022 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.frame import write_frame
-from alphapy.globals import MULTIPLIERS, SSEP
+from alphapy.globals import SSEP
 from alphapy.globals import Orders
 from alphapy.space import Space
 
@@ -38,6 +38,7 @@ import logging
 import math
 import numpy as np
 import pandas as pd
+import quantstats as qs
 
 
 #
@@ -115,6 +116,8 @@ class Portfolio():
         The fixed fraction for any given position.
     maxloss : float, optional
         Stop loss for any given position.
+    cost_bps : float, optional
+        Cost in basis points for any position (1/100th of 1%)
 
     Attributes
     ----------
@@ -153,7 +156,8 @@ class Portfolio():
                 margin = 0.5,
                 mincash = 0.2,
                 fixedfrac = 0.1,
-                maxloss = 0.1):
+                maxloss = 0.1,
+                cost_bps = 0.0):
         # create portfolio name
         pn = portfolio_name(group_name, tag)
         if not pn in Portfolio.portfolios:
@@ -177,7 +181,8 @@ class Portfolio():
                  margin = 0.5,
                  mincash = 0.2,
                  fixedfrac = 0.1,
-                 maxloss = 0.1):
+                 maxloss = 0.1,
+                 cost_bps = 0.0):
         # initialization
         self.group_name = group_name
         self.tag = tag
@@ -199,6 +204,7 @@ class Portfolio():
         self.mincash = mincash
         self.fixedfrac = fixedfrac
         self.maxloss = maxloss
+        self.cost_bps = cost_bps
         self.value = startcap
         self.netprofit = 0.0
         self.netreturn = 0.0
@@ -262,8 +268,6 @@ class Position:
         Total number of trades.
     pdata : pandas DataFrame
         Price data for the given ``name``.
-    multiplier : float
-        Multiple for instrument type (e.g., 1.0 for stocks).
 
     """
     
@@ -288,8 +292,7 @@ class Position:
         self.costbasis = 0.0
         self.trades = []
         self.ntrades = 0
-        self.pdata = Frame.frames[frame_name(name, space)].df
-        self.multiplier = MULTIPLIERS[space.subject]
+        self.pdata = Frame.frames[frame_name(name.lower(), space)].df
 
     # __str__
     
@@ -435,9 +438,8 @@ def valuate_position(position, tdate):
     # get current price
     pdata = position.pdata
     if tdate in pdata.index:
-        cp = float(pdata.loc[tdate]['close'])
+        cp = pdata.loc[tdate]['close'].astype(float)
         # start valuation
-        multiplier = position.multiplier
         netpos = 0
         tts = 0     # total traded shares
         ttv = 0     # total traded value
@@ -446,16 +448,14 @@ def valuate_position(position, tdate):
             tq = trade.quantity
             netpos = netpos + tq
             tts = tts + abs(tq)
-            tp = trade.price
-            pfactor = tq * multiplier
-            cv = pfactor * cp
+            cv = tq * cp
             cvabs = abs(cv)
             ttv = ttv + cvabs
-            ev = pfactor * tp
+            ev = tq * trade.price
             totalprofit = totalprofit + cv - ev
         position.quantity = netpos
         position.price = cp
-        position.value = abs(netpos) * multiplier * cp
+        position.value = abs(netpos) * cp
         position.profit = totalprofit
         position.costbasis = ttv / tts
         position.netreturn = totalprofit / cvabs - 1.0
@@ -619,8 +619,7 @@ def update_portfolio(p, pos, trade):
     npq = cpq - ppq
     # update portfolio
     p.date = trade.tdate
-    multiplier = pos.multiplier
-    cv = trade.price * multiplier * npq
+    cv = trade.price * npq
     p.cash -= cv
     return p
 
@@ -724,11 +723,10 @@ def balance(p, tdate, cashlevel):
         bweights = bdata / sum(bdata)
     # rebalance
     for i, pos in enumerate(positions):
-        multiplier = pos.multiplier
         bdelta = bweights[i] * pvalue - pos.value
         cp = pos.pdata.loc[tdate]['close']
         tradesize = math.trunc(bdelta / cp)
-        ntv = abs(tradesize) * cp * multiplier
+        ntv = abs(tradesize) * cp
         if tradesize > 0:
             order = Orders.le
         if tradesize < 0:
@@ -917,12 +915,11 @@ def allocate_trade(p, pos, trade):
     if restricted:
         kick_out(p, trade.tdate)
         stop_loss(p, trade.tdate)
-    multiplier = pos.multiplier
     qpold = pos.quantity
     qtrade = trade.quantity
     qpnew = qpold + qtrade
     allocation = abs(qpnew) - abs(qpold)
-    addedvalue = trade.price * multiplier * abs(allocation)
+    addedvalue = trade.price * abs(allocation)
     if restricted:
         cashreserve = mincash * cash
         freemargin = (cash - cashreserve) / margin
@@ -982,7 +979,7 @@ def exec_trade(p, name, order, quantity, price, tdate):
         tsize = quantity
     else:
         if order == Orders.le or order == Orders.se:
-            pf = Frame.frames[frame_name(name, p.space)].df
+            pf = Frame.frames[frame_name(name.lower(), p.space)].df
             cv = float(pf.loc[tdate][p.posby])
             tsize = math.trunc((p.value * p.fixedfrac) / cv)
             if quantity < 0:
@@ -993,6 +990,8 @@ def exec_trade(p, name, order, quantity, price, tdate):
     newtrade = Trade(name, order, tsize, price, tdate)
     allocation = allocate_trade(p, pos, newtrade)
     if allocation != 0:
+        # subtract trading costs
+        p.cash = p.cash - (p.cost_bps / 10000.0) * abs(tsize * price)
         # create a new position if necessary
         if newpos:
             p = add_position(p, name, pos)
@@ -1012,24 +1011,19 @@ def exec_trade(p, name, order, quantity, price, tdate):
 # Function gen_portfolio
 #
 
-def gen_portfolio(model, system, group, tframe,
-                  startcap=100000, posby='close'):
+def gen_portfolio(model, trading_specs, group, tframe):
     r"""Create a portfolio from a trades frame.
 
     Parameters
     ----------
     model : alphapy.Model
-        The model with specifications.
-    system : str
-        Name of the system.
+        The model specifications.
+    trading_specs : dict
+        The portfolio specifications.
     group : alphapy.Group
         The group of instruments in the portfolio.
     tframe : pandas.DataFrame
         The input trade list from running the system.
-    startcap : float
-        Starting capital.
-    posby : str
-        The position sizing column in the price dataframe.
 
     Returns
     -------
@@ -1053,28 +1047,38 @@ def gen_portfolio(model, system, group, tframe,
 
     """
 
-    logger.info("Creating Portfolio for System %s", system)
-
     # Unpack the model data.
 
-    directory = model.specs['directory']
+    run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     separator = model.specs['separator']
+
+    # Unpack the portfolio data.
+
+    system_name = trading_specs['system']
+    startcap = trading_specs['capital']
+    margin = trading_specs['margin']
+    cost_bps = trading_specs['cost_bps']
+    kelly_frac = trading_specs['kelly_frac']
 
     # Create the portfolio.
 
     gname = group.name
     gspace = group.space
     gmembers = group.members
-    ff = 1.0 / len(gmembers)
+
+    # Create the portfolio.
+
+    logger.info("Creating Portfolio for System %s", system_name)
 
     p = Portfolio(gname,
-                  system,
+                  system_name,
                   gspace,
                   startcap = startcap,
-                  posby = posby,
+                  margin = margin,
                   restricted = False,
-                  fixedfrac = ff)
+                  fixedfrac = kelly_frac,
+                  cost_bps = cost_bps)
     if not p:
         raise MemoryError("Could not allocate Portfolio")
 
@@ -1088,9 +1092,7 @@ def gen_portfolio(model, system, group, tframe,
     # Initialize return, position, and transaction data.
 
     rs = []
-    pcols = list(gmembers)
-    pcols.extend(['cash'])
-    pf = pd.DataFrame(index=drange, columns=pcols).fillna(0.0)
+    pf = pd.DataFrame(index=drange, columns=['cash']).fillna(0.0)
     ts = []
 
     # Iterate through the date range, updating the portfolio.
@@ -1105,7 +1107,7 @@ def gen_portfolio(model, system, group, tframe,
                 row = t[1]
                 tsize = exec_trade(p, row['name'], row['order'], row['quantity'], row['price'], tdate)
                 if tsize != 0:
-                    ts.append((d, [tsize, row['price'], row['name']]))
+                    ts.append((t[0], [row['name'], tsize, row['price']]))
         # iterate through current positions to create valuation snapshots
         positions = p.positions
         for key in positions:
@@ -1122,12 +1124,12 @@ def gen_portfolio(model, system, group, tframe,
 
     # Create systems directory path
 
-    system_dir = SSEP.join([directory, 'systems'])
+    system_dir = SSEP.join([run_dir, 'systems'])
 
     # Create and record the returns frame for this system.
 
     logger.info("Recording Returns Frame")
-    rspace = Space(system, 'returns', gspace.fractal)
+    rspace = Space(system_name, 'returns', gspace.fractal)
     rf1 = pd.DataFrame.from_records(rs, columns=['date', 'return'])
     rf2 = pd.DataFrame(rf1['return'].to_list(), columns=['return'])
     rf = pd.concat([rf1['date'], rf2], axis=1)
@@ -1140,7 +1142,7 @@ def gen_portfolio(model, system, group, tframe,
     # Record the positions frame for this system.
 
     logger.info("Recording Positions Frame")
-    pspace = Space(system, 'positions', gspace.fractal)
+    pspace = Space(system_name, 'positions', gspace.fractal)
     pfname = frame_name(gname, pspace)
     write_frame(pf, system_dir, pfname, extension, separator,
                 index=True, index_label='date')
@@ -1149,15 +1151,31 @@ def gen_portfolio(model, system, group, tframe,
     # Create and record the transactions frame for this system.
 
     logger.info("Recording Transactions Frame")
-    tspace = Space(system, 'transactions', gspace.fractal)
+    tspace = Space(system_name, 'transactions', gspace.fractal)
     tf1 = pd.DataFrame.from_records(ts, columns=['date', 'transactions'])
-    tf2 = pd.DataFrame(tf1['transactions'].to_list(), columns=['amount', 'price', 'symbol'])
+    tf2 = pd.DataFrame(tf1['transactions'].to_list(), columns=['symbol', 'amount', 'price'])
     tf = pd.concat([tf1['date'], tf2], axis=1)
     tf.set_index('date', inplace=True)
     tfname = frame_name(gname, tspace)
     write_frame(tf, system_dir, tfname, extension, separator,
                 index=True, index_label='date')
     del tspace
+    
+    # Record the trading statistics.
+
+    logger.info("Recording Trading Metrics")
+    rf.index = pd.to_datetime(rf.index)
+    df_metrics = qs.reports.metrics(rf, mode='full', display=False)
+    write_frame(df_metrics, system_dir, 'trade_metrics', extension, separator,
+                index=True, index_label='date')
+    
+    # Record the tear sheet (currently not working)
+
+    tear_sheet = False
+    if tear_sheet:
+        tear_sheet_spec = SSEP.join([system_dir, 'tear_sheet.html'])
+        logger.info("Saving Tear Sheet to: %s", tear_sheet_spec)
+        qs.reports.html(rf, output=True, download_filename=tear_sheet_spec)
 
     # Return the portfolio.
     return p
