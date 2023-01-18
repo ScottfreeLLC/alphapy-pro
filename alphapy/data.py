@@ -121,9 +121,8 @@ def get_data(model, partition):
 
     filename = datasets[partition]
     data_dir = SSEP.join([directory, 'data'])
-    try:
-        df = read_frame(data_dir, filename, extension, separator)
-    except:
+    df = read_frame(data_dir, filename, extension, separator)
+    if df.empty:
         input_dir = SSEP.join([run_dir, 'input'])
         df = read_frame(input_dir, filename, extension, separator)
 
