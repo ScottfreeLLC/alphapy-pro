@@ -63,6 +63,11 @@ def encode_data(df_price, p=20):
     df_encoded : pandas.DataFrame
         The dataframe containing all of the sequences with corresponding returns.
 
+    Notes
+    -----
+    The saved model is loaded from disk, and predictions are made
+    on the new testing data.
+
     """
 
     c1 = 'diplus'
