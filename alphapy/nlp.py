@@ -65,8 +65,10 @@ def encode_data(df_price, p=20):
 
     Notes
     -----
-    The saved model is loaded from disk, and predictions are made
-    on the new testing data.
+    HL
+    PM
+    R
+    V
 
     """
 
