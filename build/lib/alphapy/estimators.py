@@ -41,8 +41,6 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.models import Sequential
 import yaml
 
 
@@ -209,15 +207,6 @@ def find_optional_packages():
     except Exception:
         logger.info("Cannot load %s" % module_name)
 
-    module_name = 'scikeras'
-    try:
-        from scikeras.wrappers import KerasClassifier
-        from scikeras.wrappers import KerasRegressor
-        estimator_map['KERASC'] = KerasClassifier
-        estimator_map['KERASR'] = KerasRegressor
-    except Exception:
-        logger.info("Cannot load %s" % module_name)
-
     return
 
 
@@ -278,45 +267,6 @@ def get_algos_config(cfg_dir):
 
     # Algorithm Specifications
     return specs
-
-
-#
-# Function create_keras_model
-#
-
-def create_keras_model(nlayers,
-                       layer1=None,
-                       layer2=None,
-                       layer3=None,
-                       layer4=None,
-                       layer5=None,
-                       layer6=None,
-                       layer7=None,
-                       layer8=None,
-                       layer9=None,
-                       layer10=None):
-    r"""Create a Keras Sequential model.
-
-    Parameters
-    ----------
-    nlayers : int
-        Number of layers of the Sequential model.
-    layer1...layer10 : str
-        Ordered layers of the Sequential model.
-
-    Returns
-    -------
-    model : keras.models.Sequential
-        Compiled Keras Sequential Model.
-
-    """
-
-    model = Sequential()
-    for i in range(nlayers):
-        lvar = 'layer' + str(i+1)
-        layer = eval(lvar)
-        model.add(eval(layer))
-    return model
 
 
 #
@@ -387,21 +337,6 @@ def get_estimators(alphapy_specs, model):
             algo_found = False
             logger.info("Algorithm %s not found (check package installation)" % algo)
         if algo_found:
-            if 'KERAS' in algo:
-                params['model'] = create_keras_model
-                layers = algo_specs[algo]['layers']
-                params['nlayers'] = len(layers)
-                input_dim_string = ', input_dim={})'.format(X_train.shape[1])
-                layers[0] = layers[0].replace(')', input_dim_string)
-                for i, layer in enumerate(layers):
-                    params['layer'+str(i+1)] = layer
-                compiler = algo_specs[algo]['compiler']
-                params['optimizer'] = compiler['optimizer']
-                params['loss'] = compiler['loss']
-                try:
-                    params['metrics'] = compiler['metrics']
-                except Exception:
-                    pass
             est = func(**params)
             grid = algo_specs[algo]['grid']
             estimators[algo] = Estimator(algo, model_type, est, grid)
