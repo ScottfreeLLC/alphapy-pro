@@ -1338,6 +1338,7 @@ def save_predictions(model, partition):
 
     # Extract model parameters.
 
+    directory = model.specs['directory']
     run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     model_type = model.specs['model_type']
@@ -1347,6 +1348,7 @@ def save_predictions(model, partition):
 
     # Specify input and output directories
 
+    data_dir = SSEP.join([directory, 'data'])
     input_dir = SSEP.join([run_dir, 'input'])
     output_dir = SSEP.join([run_dir, 'output'])
 
@@ -1409,7 +1411,7 @@ def save_predictions(model, partition):
 
     if submission_file and partition == Partition.train:
         sample_spec = PSEP.join([submission_file, extension])
-        sample_input = SSEP.join([input_dir, sample_spec])
+        sample_input = SSEP.join([data_dir, sample_spec])
         df_sub = pd.read_csv(sample_input)
         if submit_probas and model_type == ModelType.classification:
             df_sub[df_sub.columns[1]] = model.probas[(model.best_algo, Partition.test)]

@@ -4,7 +4,6 @@ category_encoders>=2.1
 iexfinance>=0.4.3
 imbalanced-learn>=0.5
 ipython>=7.2
-keras>=2.3
 matplotlib>=3.0
 numpy>=1.17
 pandas>=1.0
