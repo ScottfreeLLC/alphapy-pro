@@ -25,8 +25,9 @@ limitations under the License.
 #
 
 import logging
+import math
 
-from alphapy.globals import SSEP
+from alphapy.globals import BSEP
 from alphapy.transforms import higher
 from alphapy.transforms import lower
 from alphapy.transforms import ma
@@ -43,10 +44,114 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Function get_pivot
+# Function encode_pivot
 #
 
-def get_pivot(row, c1, c2):
+def encode_pivot(row, c1, c2, c3, c4):
+    r"""Encode the strongest pivot value, H or L.
+
+    Parameters
+    ----------
+    row : pandas.DataFrame
+        Row of the dataframe containing the two columns ``c1`` and ``c2``.
+    c1 : str
+        Name of the first column in the dataframe ``f``.
+    c2 : str
+        Name of the second column in the dataframe ``f``.
+    c3 : str
+        Name of the first column in the dataframe ``f``.
+    c4 : str
+        Name of the second column in the dataframe ``f``.
+
+    Returns
+    -------
+    pivot_str : str
+        The encoded pivot string.
+
+    """
+    pivot_str = 'T0'
+    if row[c1]:
+        pivot_str = 'H' + str(row[c2])
+    if row[c3]:
+        pivot_str = 'L' + str(row[c4])
+    if row[c1] and row[c3]:
+        if row[c2] > row[c4]:
+            pivot_str = 'H' + str(row[c2])
+        elif row[c2] < row[c4]:
+            pivot_str = 'L' + str(row[c4])
+    return pivot_str
+
+
+#
+# Function encode_net
+#
+
+def encode_net(row, c1, c2):
+    r"""Encode the net change value, P or N.
+
+    Parameters
+    ----------
+    row : pandas.DataFrame
+        Row of the dataframe containing the two columns ``c1`` and ``c2``.
+    c1 : str
+        Name of the first column in the dataframe ``f``.
+    c2 : str
+        Name of the second column in the dataframe ``f``.
+
+    Returns
+    -------
+    net_str : str
+        The encoded net change string.
+
+    """
+    if row[c1] > 0:
+        value = min(row[c1] // row[c2], 2)
+        value = 0 if math.isnan(value) else value
+        cat = 'P'
+    elif row[c1] < 0:
+        value = min(abs((row[1] // row[c2]) + 1), 2)
+        value = 0 if math.isnan(value) else value
+        cat = 'N'
+    else:
+        value = 0
+        cat = 'Z'
+    net_str = cat + str(int(value))
+    return net_str
+
+
+#
+# Function encode_range
+#
+
+def encode_range(row, c1, c2):
+    r"""Encode the range value.
+
+    Parameters
+    ----------
+    row : pandas.DataFrame
+        Row of the dataframe containing the two columns ``c1`` and ``c2``.
+    c1 : str
+        Name of the first column in the dataframe ``f``.
+    c2 : str
+        Name of the second column in the dataframe ``f``.
+
+    Returns
+    -------
+    range_str : str
+        The encoded range string.
+
+    """
+    value = min(row[c1] // row[c2], 2)
+    value = 0 if math.isnan(value) else value
+    range_str = 'R' + str(int(value))
+    return range_str
+
+
+#
+# Function encode_volume
+#
+
+def encode_volume(row, c1, c2):
     r"""Encode the strongest pivot value, H or L.
 
     Parameters
@@ -60,24 +165,21 @@ def get_pivot(row, c1, c2):
 
     Returns
     -------
-    pivot_str : str
-        The encoded pivot string.
+    volume_str : str
+        The encoded volume string.
 
     """
-    if row[c1] > row[c2]:
-        pivot_str = 'H' + str(row[c1])
-    elif row[c1] < row[c2]:
-        pivot_str = 'L' + str(row[c2])
-    else:
-        pivot_str = 'T0'
-    return pivot_str
+    value = min(row[c1] // row[c2], 2)
+    value = 0 if math.isnan(value) else value
+    volume_str = 'V' + str(int(value))
+    return volume_str
 
 
 #
-# Function encode_pivot
+# Function encode_price
 #
 
-def encode_pivot(df_price, c='close', p=20):
+def encode_price(df_price, c='close', p=20):
     r"""Encode the price data into NLP sequences.
 
     Parameters
@@ -112,30 +214,30 @@ def encode_pivot(df_price, c='close', p=20):
     col_name = 'lower'
     df_price[col_name] = lower(df_price, 'low')
     df_price['pivot_low'] = streak(df_price, col_name, p)
+    print(df_price[['higher', 'pivot_high', 'lower', 'pivot_low']].tail(50))
 
     # Encode the pivot value.
-    df_price['pivot_str'] = df_price.apply(encode_pivot, args=['pivot_high', 'pivot_low'], axis=1)
+    df_price['pivot_str'] = df_price.apply(encode_pivot, args=['higher', 'pivot_high', 'lower', 'pivot_low'], axis=1)
 
     # Encode the net price.
 
+    df_price['true_range'] = truerange(df_price)
+    df_price['atr'] = ma(df_price, c, p)
     df_price['net'] = net(df_price)
-    df_price['net_str'] = df_price.apply(encode_net, args=['net'], axis=1)
+    df_price['net_str'] = df_price.apply(encode_net, args=['net', 'atr'], axis=1)
 
     # Encode the range.
 
-    df_price['atr'] = ma(truerange(df_price), c, p)
     df_price['range'] = df_price['high'] - df_price['low']
-    df_price['range_str'] = df_price.apply(encode_range, args=['atr', 'range'], axis=1)
+    df_price['range_str'] = df_price.apply(encode_range, args=['range', 'atr'], axis=1)
 
     # Encode the volume.
 
-    df_price['atr_volume'] = ma(truerange(df_price), 'volume', p)
-    df_price['volume_str'] = df_price.apply(encode_volume, args=['atr_volume'], axis=1)
+    df_price['volume_ma'] = ma(df_price, 'volume', p)
+    df_price['volume_str'] = df_price.apply(encode_volume, args=['volume', 'volume_ma'], axis=1)
 
-    # Create the encoded string.
+    # Create and return the encoded string.
 
     df_price['encoded_str'] = df_price['pivot_str'] + df_price['net_str'] + df_price['range_str'] + df_price['volume_str']
-    encoded_values = df_price['encoded_str'].values.tolist()
-    encoded_str = SSEP.join(encoded_values)
-
+    encoded_str = df_price['encoded_str'].str.cat(sep=BSEP)
     return encoded_str
