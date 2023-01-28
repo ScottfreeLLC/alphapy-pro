@@ -122,7 +122,7 @@ class ModelType(Enum):
     """
     classification = 1
     multiclass = 2
-    ranker = 3
+    letor = 3
     regression = 4
 
 
