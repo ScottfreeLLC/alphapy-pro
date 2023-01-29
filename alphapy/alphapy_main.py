@@ -348,12 +348,12 @@ def training_pipeline(alphapy_specs, model):
     data_dir = SSEP.join([run_dir, 'input'])
     # train data
     df_train = X_all.iloc[:split_point, :]
-    df_train.loc[:, target] = y_train.loc[:, target]
+    df_train[target] = y_train
     write_frame(df_train, data_dir, model.train_file, extension, separator, index=False)
     # test data
     df_test = X_all.iloc[split_point:, :]
     if model.test_labels:
-        df_test.loc[:, target] = y_test.loc[:, target]
+        df_test[target] = y_test
     write_frame(df_test, data_dir, model.test_file, extension, separator, index=False)
 
     # Create crosstabs for any categorical features

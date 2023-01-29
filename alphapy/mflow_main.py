@@ -50,7 +50,9 @@ from alphapy.data import get_market_data
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.frame import write_frame
-from alphapy.globals import LOFF, ROFF, SSEP, USEP, BarType
+from alphapy.globals import BarType
+from alphapy.globals import ModelType
+from alphapy.globals import LOFF, ROFF, SSEP, USEP
 from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.group import Group
 from alphapy.metalabel import add_vertical_barrier
@@ -60,6 +62,7 @@ from alphapy.metalabel import get_events
 from alphapy.metalabel import get_t_events
 from alphapy.model import get_model_config
 from alphapy.model import Model
+
 from alphapy.portfolio import gen_portfolio
 from alphapy.space import Space
 from alphapy.system import run_system
@@ -249,16 +252,156 @@ def get_market_config(directory='.'):
 
 
 #
-# Function prepare_model
+# Function set_targets_class
 #
 
-def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
-                  trade_fractal, predict_history):
-    r"""Prepare the model for training and validation.
+def set_targets_class(model, df, signal_long, signal_short, trading_specs,
+                      trade_fractal, predict_history):
+    r"""Set classification targets
 
     1. Extract the signal for long and short entries.
     2. Run the Triple Barrier Method analysis.
-    3. Split the dataframe into train and test files.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model specifications.
+    df : pandas.DataFrame
+        The dataframe to assign metalabels.
+    signal_long : str
+        The entry condition for a long position.
+    signal_short : str
+        The entry condition for a short position.
+    trading_specs : dict
+        Trade management specifications.
+    trade_fractal : str
+        Pandas offset alias.
+    predict_history : int
+        The number of periods required for lookback calculations.
+
+    Returns
+    -------
+    df_meta : pandas.DataFrame
+        The dataframe containing TBM returns, target, and labels
+
+    """
+
+    logger.info("Setting Classification Targets")
+
+    # Unpack model specifications
+    target = model.specs['target']
+
+    # Unpack trading specifications
+
+    forecast_period = trading_specs['forecast_period']
+    profit_factor = trading_specs['profit_factor']
+    stoploss_factor = trading_specs['stoploss_factor']
+    minimum_return = trading_specs['minimum_return']
+
+    # Find the patterns (signals) in the dataframe.
+    
+    nrows = df.shape[0]
+
+    if signal_long:
+        long_col = USEP.join([signal_long, trade_fractal])
+        long_label = 1
+        df.loc[df[long_col], 'side'] = long_label
+        npats = df[df['side'] == long_label].shape[0]
+        logger.info("%d Long Patterns Found in %d Rows", npats, nrows)
+
+    if signal_short:
+        short_col = USEP.join([signal_short, trade_fractal])
+        short_label = -1
+        df.loc[df[short_col], 'side'] = short_label
+        npats = df[df['side'] == short_label].shape[0]
+        logger.info("%d Short Patterns Found in %d Rows", npats, nrows)
+
+
+    # Lag the signal.
+    df['side'] = df['side'].shift(1)
+
+    # Get closing values for the trading fractal.
+
+    close_col = USEP.join(['close', trade_fractal])
+    ds_close = df[close_col]
+
+    # Get daily volatility.
+    daily_vol = get_daily_vol(ds_close, p=predict_history)
+
+    # Get the CUSUM events.
+    cusum_events = get_t_events(ds_close, threshold=minimum_return)
+
+    # Establish the vertical barriers.
+    vertical_barriers = add_vertical_barrier(cusum_events, ds_close, num_days=forecast_period)
+
+    # Set the Triple Barrier Method (TBM) events.
+
+    df_tbm = get_events(ds_close,
+                        cusum_events,
+                        [profit_factor, stoploss_factor],
+                        daily_vol,
+                        minimum_return,
+                        vertical_barriers,
+                        df['side'])
+
+    # Assign labels based on returns.
+    df_labels = get_bins(df_tbm, ds_close)
+
+    # Evaluate the primary model.
+    pass
+
+    # Filter the dataframe with the events for the secondary model.
+
+    df_meta = df.loc[df_labels.index, :].copy()
+    df_meta[target] = df_labels[target]
+
+    return df_meta
+
+
+#
+# Function set_targets_letor
+#
+
+def set_targets_letor(model, df, trading_specs):
+    r"""Set the Learn-to-Rank (LTR) targets.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model specifications.
+    df : pandas.DataFrame
+        The dataframe to assign metalabels.
+    trading_specs : dict
+        Trade management specifications.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        The dataframe with the shifted target column.
+
+    """
+
+    logger.info("Setting Learn-To-Rank (LTR) Targets")
+
+    # Unpack model specifications
+    target = model.specs['target']
+
+    # Unpack trading specifications
+    forecast_period = trading_specs['forecast_period']
+
+    # Shift the target column
+    df[target] = df[target].shift(-forecast_period)
+
+    return df
+
+
+#
+# Function prepare_data
+#
+
+def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
+                 trade_fractal, predict_history):
+    r"""Prepare the model for training and validation.
 
     Parameters
     ----------
@@ -290,6 +433,7 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
 
     run_dir = model.specs['run_dir']
     extension = model.specs['extension']
+    model_type = model.specs['model_type']
     predict_date = model.specs['predict_date']
     predict_mode = model.specs['predict_mode']
     separator = model.specs['separator']
@@ -297,11 +441,7 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
     train_date = model.specs['train_date']
 
     # Unpack trading specifications
-
     forecast_period = trading_specs['forecast_period']
-    profit_factor = trading_specs['profit_factor']
-    stoploss_factor = trading_specs['stoploss_factor']
-    minimum_return = trading_specs['minimum_return']
 
     # Calculate split date
 
@@ -321,71 +461,40 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
         test_frame = pd.DataFrame()
 
     #
-    # For the metamodel, we are creating a target variable based on
-    # whether the trade was successful. If the trade is profitable,
-    # then the target is 1 else 0.
+    # For the Classification Metamodel, we are creating a target variable
+    # based on whether the trade was successful. If the trade is profitable,
+    # then the target is 1 else 0. Note that we are using the side feature
+    # (trade direction) as input into the model.
     #
-    # Note that we are using the side feature (trade direction) as
-    # input into the model.
+    # For the Learn-To-Rank Model, the target variable is typically
+    # represented by returns over a certain period of time.
     #
 
-    for df in dfs:
+    for df_in in dfs:
         # subset each individual frame and add to the master frame
-        symbol = df['symbol'].iloc[0].upper()
-        first_date = df.index[0]
-        last_date = df.index[-1]
+        symbol = df_in['symbol'].iloc[0].upper()
+        first_date = df_in.index[0]
+        last_date = df_in.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol, first_date, last_date)
-        if not df.empty:
-            nrows = df.shape[0]
-            # find patterns in dataframe
-            if signal_long:
-                long_col = USEP.join([signal_long, trade_fractal])
-                long_label = 1
-                df.loc[df[long_col], 'side'] = long_label
-                npats = df[df['side'] == long_label].shape[0]
-                logger.info("%d Long Patterns Found in %d Rows", npats, nrows)
-            if signal_short:
-                short_col = USEP.join([signal_short, trade_fractal])
-                short_label = -1
-                df.loc[df[short_col], 'side'] = short_label
-                npats = df[df['side'] == short_label].shape[0]
-                logger.info("%d Short Patterns Found in %d Rows", npats, nrows)
-            # lag the signal
-            df['side'] = df['side'].shift(1)
-            # closing values for the trading fractal
-            close_col = USEP.join(['close', trade_fractal])
-            ds_close = df[close_col]
-            # get daily volatility
-            daily_vol = get_daily_vol(ds_close, p=predict_history)
-            # get CUSUM events
-            cusum_events = get_t_events(ds_close, threshold=minimum_return)
-            # establish vertical barriers
-            vertical_barriers = add_vertical_barrier(cusum_events, ds_close, num_days=forecast_period)
-            # set the Triple Barrier events
-            df_tbm = get_events(ds_close,
-                                cusum_events,
-                                [profit_factor, stoploss_factor],
-                                daily_vol,
-                                minimum_return,
-                                vertical_barriers,
-                                df['side'])
-            # assign the labels based on returns
-            df_labels = get_bins(df_tbm, ds_close)
-            # evaluate primary model
-            pass
-            # Filter dataframe with the events for the secondary model
-            df2 = df.loc[df_labels.index, :].copy()
-            df2[target] = df_labels[target]
+        if not df_in.empty:
+            # set model targets based on model type
+            if model_type == ModelType.letor:
+                df_out = set_targets_letor(model, df_in, trading_specs)
+            elif model_type == ModelType.classification:
+                df_out = set_targets_class(model, df_in, signal_long, signal_short, trading_specs,
+                                           trade_fractal, predict_history)
+            else:
+                raise ValueError("Unsupported Model Type")
             # split the dataframe
             if predict_mode:
-                new_predict = df2.loc[(df2.index >= split_date) & (df2.index <= last_date)].copy()
+                new_predict = df_out.loc[(df_out.index >= split_date) & (df_out.index <= last_date)].copy()
                 if len(new_predict) > 0:
                     predict_frame = predict_frame.append(new_predict)
                 else:
                     logger.info("%s Prediction Frame has zero rows. Check prediction date.", symbol)
             else:
                 # split data into train and test
-                new_train = df2.loc[(df2.index >= train_date) & (df2.index < predict_date)].copy()
+                new_train = df_out.loc[(df_out.index >= train_date) & (df_out.index < predict_date)].copy()
                 if not new_train.empty:
                     # check if target column has NaN values
                     nan_count = new_train[target].isnull().sum()
@@ -395,7 +504,7 @@ def prepare_model(model, dfs, signal_long, signal_short, trading_specs,
                     new_train = new_train.dropna(subset=[target])
                     train_frame = train_frame.append(new_train)
                     # get test frame
-                    new_test = df2.loc[(df2.index >= predict_date) & (df2.index <= last_date)]
+                    new_test = df_out.loc[(df_out.index >= predict_date) & (df_out.index <= last_date)]
                     if not new_test.empty:
                         # check if target column has NaN values
                         nan_count = new_test[target].isnull().sum()
@@ -610,9 +719,9 @@ def market_pipeline(alphapy_specs, model, market_specs):
     if group_cohort:
         get_cohort_returns(dfs, group_cohort, trade_fractal)
 
-    # Set the model target variable and create the train/test dataframes.
-    prepare_model(model, dfs, signal_long, signal_short, trading_specs,
-                  trade_fractal, predict_history)
+    # Prepare the data based on the model type.
+    prepare_data(model, dfs, signal_long, signal_short, trading_specs,
+                 trade_fractal, predict_history)
 
     # Run the AlphaPy model pipeline.
     model = main_pipeline(alphapy_specs, model)

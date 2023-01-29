@@ -51,14 +51,8 @@ from alphapy.globals import Scalers
 from alphapy.utilities import most_recent_file
 
 from copy import copy
-from datetime import date, datetime
-import itertools
+from datetime import datetime
 import joblib
-
-try:
-    from keras.models import load_model
-except:
-    pass
 
 import logging
 import numpy as np
@@ -712,6 +706,7 @@ def first_fit(model, algo, est):
 
     cv_folds = model.specs['cv_folds']
     esr = model.specs['esr']
+    model_type = model.specs['model_type']
     n_jobs = model.specs['n_jobs']
     scorer = model.specs['scorer']
     seed = model.specs['seed']
@@ -729,7 +724,9 @@ def first_fit(model, algo, est):
 
     algo_xgb = 'XGB' in algo
 
-    if algo_xgb and scorer in xgb_score_map:
+    if algo_xgb and model_type == ModelType.letor:
+        pass
+    elif algo_xgb and scorer in xgb_score_map:
         if ts_option:
             shuffle_flag = False
         else:
