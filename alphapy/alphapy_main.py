@@ -257,6 +257,7 @@ def training_pipeline(alphapy_specs, model):
     extension = model.specs['extension']
     fs_lofo = model.specs['fs_lofo']
     fs_univariate = model.specs['fs_univariate']
+    group_id = model.specs['group_id']
     grid_search = model.specs['grid_search']
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']
@@ -303,6 +304,16 @@ def training_pipeline(alphapy_specs, model):
     model.df_X_test = X_test
     model.df_y_test = y_test
     model = save_features(model, X_train, X_test, y_train, y_test)
+
+    # Save train/test groups
+
+    if group_id:
+        train_counts = X_train.groupby(group_id).agg(['count'])
+        model.groups_train = train_counts[train_counts.columns[0]].values
+        del train_counts
+        test_counts = X_test.groupby(group_id).agg(['count'])
+        model.groups_test = test_counts[test_counts.columns[0]].values
+        del test_counts
 
     # Determine if there are any test labels
 
