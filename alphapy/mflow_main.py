@@ -715,7 +715,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
     dfs = vapply(group, market_specs, functions)
 
     # Apply the cohort returns to all frames.
-    
+
     if group_cohort:
         get_cohort_returns(dfs, group_cohort, trade_fractal)
 

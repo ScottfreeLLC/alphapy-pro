@@ -56,6 +56,7 @@ import joblib
 
 import logging
 import numpy as np
+from scipy import stats
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import auc
@@ -969,6 +970,8 @@ def make_predictions(model, algo):
         X_test = model.X_test
 
     y_train = model.y_train
+    groups_train = model.groups_train
+    groups_test = model.groups_test
 
     # Calibration
 
@@ -985,11 +988,8 @@ def make_predictions(model, algo):
     # Make predictions on original training and test data.
 
     logger.info("Making Predictions")
-    if model_type == ModelType.letor:
-        pass
-    except:
-        model.preds[(algo, Partition.train)] = est.predict(X_train)
-        model.preds[(algo, Partition.test)] = est.predict(X_test)
+    model.preds[(algo, Partition.train)] = est.predict(X_train)
+    model.preds[(algo, Partition.test)] = est.predict(X_test)
     if model_type == ModelType.classification:
         model.probas[(algo, Partition.train)] = est.predict_proba(X_train)[:, 1]
         model.probas[(algo, Partition.test)] = est.predict_proba(X_test)[:, 1]
@@ -1206,14 +1206,31 @@ def generate_metrics(model, partition):
 
     if partition == Partition.train:
         expected = model.y_train
+        groups = model.groups_train
     elif partition == Partition.test:
         expected = model.y_test
+        groups = model.groups_test
     elif partition == Partition.train_ts:
         expected = model.y_train_ts
     elif partition == Partition.test_ts:
         expected = model.y_test
     else:
         raise ValueError("Invalid Partition: %s", partition)
+
+    # Kendall Tau Function
+    
+    def kendall_tau(expected, predicted):
+        group_indices = list(np.cumsum(groups))
+        group_indices.insert(0, 0)
+        scores = []
+        for i, _ in enumerate(groups):
+            group_exp = expected[group_indices[i]:group_indices[i+1]]
+            group_pred = predicted[group_indices[i]:group_indices[i+1]]
+            kt_values = stats.kendalltau(group_exp, group_pred)
+            kt_score = kt_values.correlation
+            if not np.isnan(kt_score):
+                scores.append(kt_score)
+        return np.mean(scores)
 
     # Generate Metrics
 
@@ -1310,21 +1327,13 @@ def generate_metrics(model, partition):
             # Letor Metrics
             elif model_type == ModelType.letor:
                 try:
-                    model.metrics[(algo, partition, 'coverage_error')] = coverage_error(expected, predicted)
-                except:
-                    logger.info("Coverage Error not calculated")
-                try:
                     model.metrics[(algo, partition, 'dcg_score')] = dcg_score([expected], [predicted])
                 except:
                     logger.info("DCG Score not calculated")
                 try:
-                    model.metrics[(algo, partition, 'LRAP')] = label_ranking_average_precision_score(expected, predicted)
+                    model.metrics[(algo, partition, 'kendall_tau')] = kendall_tau(expected, predicted)
                 except:
-                    logger.info("LRAP Score not calculated")
-                try:
-                    model.metrics[(algo, partition, 'label_ranking_loss')] = label_ranking_loss(expected, predicted)
-                except:
-                    logger.info("Label Ranking Loss not calculated")
+                    logger.info("Kendall Tau not calculated")
                 try:
                     model.metrics[(algo, partition, 'ndcg_score')] = ndcg_score([expected], [predicted])
                 except:
