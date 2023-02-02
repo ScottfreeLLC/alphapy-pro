@@ -37,7 +37,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import argparse
 import datetime
 import logging
-import numpy as np
 import os
 import pandas as pd
 import shutil
@@ -65,6 +64,7 @@ from alphapy.model import Model
 
 from alphapy.portfolio import gen_portfolio
 from alphapy.space import Space
+from alphapy.system import ranking_system
 from alphapy.system import run_system
 from alphapy.system import System
 from alphapy.transforms import netreturn
@@ -116,36 +116,57 @@ def get_market_config(directory='.'):
     specs = {}
 
     #
-    # Section: trading
+    # Section: portfolio
     #
 
-    logger.info("Getting Trading Parameters")
+    logger.info("Getting Portfolio Parameters")
     try:
-        specs['trading'] = cfg['trading']
+        specs['portfolio'] = cfg['portfolio']
     except:
-        raise ValueError("No Trading Parameters Found")
+        raise ValueError("No Portfolio Parameters Found")
+
+    #
+    # Section: system
+    #
+
+    logger.info("Getting System Parameters")
+    try:
+        specs['system'] = cfg['system']
+    except:
+        raise ValueError("No System Parameters Found")
+
+    #
+    # Section: ranking
+    #
+
+    logger.info("Getting Ranking Parameters")
+    try:
+        specs['ranking'] = cfg['ranking']
+    except:
+        raise ValueError("No Ranking Parameters Found")
 
     #
     # Section: data
     #
 
-    specs['data_source'] = cfg['data']['data_source']
+    data_section = cfg['data']
+    specs['data_source'] = data_section['data_source']
 
     # Fractals must conform to the pandas offset format
 
-    fractal = cfg['data']['data_fractal']
+    fractal = data_section['data_fractal']
     try:
         data_fractal_td = pd.to_timedelta(fractal)
     except:
         raise ValueError("Fractal [%s] is an invalid pandas offset" % fractal)
     specs['data_fractal'] = fractal
 
-    data_history = cfg['data']['data_history']
+    data_history = data_section['data_history']
     if not data_history:
         data_history = 0
 
-    start_date = cfg['data']['data_start_date']
-    end_date = cfg['data']['data_end_date']
+    start_date = data_section['data_start_date']
+    end_date = data_section['data_end_date']
 
     if not start_date or not end_date:
         data_history_dt = pd.to_timedelta(data_history, unit='d')
@@ -172,10 +193,11 @@ def get_market_config(directory='.'):
     specs['data_history'] = data_history
     specs['data_start_date'] = start_date
     specs['data_end_date'] = end_date
-    specs['predict_history'] = cfg['data']['predict_history']
-    specs['subject'] = cfg['data']['subject']
-    specs['target_group'] = cfg['data']['target_group']
-    specs['cohort_group'] = cfg['data']['cohort_group']
+    specs['forecast_period'] = data_section['forecast_period']
+    specs['predict_history'] = data_section['predict_history']
+    specs['subject'] = data_section['subject']
+    specs['target_group'] = data_section['target_group']
+    specs['cohort_group'] = data_section['cohort_group']
 
     #
     # Section: Bar Type, Features and Fractals
@@ -234,18 +256,21 @@ def get_market_config(directory='.'):
 
     logger.info('MARKET PARAMETERS:')
     logger.info('bar_type         = %s', specs['bar_type'])
-    logger.info('data_source      = %s', specs['data_source'])
+    logger.info('cohort_group     = %s', specs['cohort_group'])
     logger.info('data_end_date    = %s', specs['data_end_date'])
     logger.info('data_fractal     = %s', specs['data_fractal'])
-    logger.info('data_start_date  = %s', specs['data_start_date'])
     logger.info('data_history     = %d', specs['data_history'])
+    logger.info('data_source      = %s', specs['data_source'])
+    logger.info('data_start_date  = %s', specs['data_start_date'])
     logger.info('features         = %s', specs['features'])
+    logger.info('forecast_period  = %d', specs['forecast_period'])
     logger.info('fractals         = %s', specs['fractals'])
+    logger.info('portfolio        = %s', specs['portfolio'])
     logger.info('predict_history  = %d', specs['predict_history'])
+    logger.info('ranking          = %s', specs['ranking'])
     logger.info('subject          = %s', specs['subject'])
+    logger.info('system           = %s', specs['system'])
     logger.info('target_group     = %s', specs['target_group'])
-    logger.info('cohort_group     = %s', specs['cohort_group'])
-    logger.info('trading          = %s', specs['trading'])
 
     # Market Specifications
     return cfg, specs
@@ -362,7 +387,7 @@ def set_targets_class(model, df, signal_long, signal_short, trading_specs,
 # Function set_targets_letor
 #
 
-def set_targets_letor(model, df, trading_specs):
+def set_targets_letor(model, df, trading_specs, forecast_period):
     r"""Set the Learn-to-Rank (LTR) targets.
 
     Parameters
@@ -373,6 +398,8 @@ def set_targets_letor(model, df, trading_specs):
         The dataframe to assign metalabels.
     trading_specs : dict
         Trade management specifications.
+    forecast_period : int
+        The number of periods to forecast.
 
     Returns
     -------
@@ -386,9 +413,6 @@ def set_targets_letor(model, df, trading_specs):
     # Unpack model specifications
     target = model.specs['target']
 
-    # Unpack trading specifications
-    forecast_period = trading_specs['forecast_period']
-
     # Shift the target column
     df[target] = df[target].shift(-forecast_period)
 
@@ -400,7 +424,7 @@ def set_targets_letor(model, df, trading_specs):
 #
 
 def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
-                 trade_fractal, predict_history):
+                 trade_fractal, forecast_period, predict_history):
     r"""Prepare the model for training and validation.
 
     Parameters
@@ -417,6 +441,8 @@ def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
         Trade management specifications.
     trade_fractal : str
         Pandas offset alias.
+    forecast_period : int
+        The number of periods to forecast.
     predict_history : int
         The number of periods required for lookback calculations.
 
@@ -439,9 +465,6 @@ def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
     separator = model.specs['separator']
     target = model.specs['target']
     train_date = model.specs['train_date']
-
-    # Unpack trading specifications
-    forecast_period = trading_specs['forecast_period']
 
     # Calculate split date
 
@@ -479,7 +502,7 @@ def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
         if not df_in.empty:
             # set model targets based on model type
             if model_type == ModelType.letor:
-                df_out = set_targets_letor(model, df_in, trading_specs)
+                df_out = set_targets_letor(model, df_in, trading_specs, forecast_period)
             elif model_type == ModelType.classification:
                 df_out = set_targets_class(model, df_in, signal_long, signal_short, trading_specs,
                                            trade_fractal, predict_history)
@@ -643,33 +666,42 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     # Get model specifications
 
+    model_type = model.specs['model_type']
     predict_mode = model.specs['predict_mode']
     target = model.specs['target']
 
+    # Get system specifications
+
+    system_specs = market_specs['system']
+    system_name = system_specs['name']
+    profit_factor = system_specs['profit_factor']
+    stoploss_factor = system_specs['stoploss_factor']
+    minimum_return = system_specs['minimum_return']
+    algo = system_specs['algo']
+    prob_min = system_specs['prob_min']
+    prob_max = system_specs['prob_max']
+
+    # Get ranking specifications
+
+    ranking_specs = market_specs['ranking']
+    rank_long_pos = ranking_specs['long_positions']
+    rank_long_score = ranking_specs['long_score']
+    rank_short_pos = ranking_specs['short_positions']
+    rank_short_score = ranking_specs['short_score']
+
     # Get data specifications
 
+    cohort_group = market_specs['cohort_group']
     data_fractal = market_specs['data_fractal']
     data_history = market_specs['data_history']
     data_source = market_specs['data_source']
+    forecast_period = market_specs['forecast_period']
     fractals = market_specs['fractals']
-    trade_fractal = fractals[0]
     functions = market_specs['functions']
     predict_history = market_specs['predict_history']
     subject = market_specs['subject']
     target_group = market_specs['target_group']
-    cohort_group = market_specs['cohort_group']
-
-    # Get trading specifications
-
-    trading_specs = market_specs['trading']
-    system_name = trading_specs['system']
-    forecast_period = trading_specs['forecast_period']
-    profit_factor = trading_specs['profit_factor']
-    stoploss_factor = trading_specs['stoploss_factor']
-    minimum_return = trading_specs['minimum_return']
-    algo = trading_specs['algo']
-    prob_min = trading_specs['prob_min']
-    prob_max = trading_specs['prob_max']
+    trade_fractal = fractals[0]
 
     # Get AlphaPy specifications
 
@@ -720,39 +752,49 @@ def market_pipeline(alphapy_specs, model, market_specs):
         get_cohort_returns(dfs, group_cohort, trade_fractal)
 
     # Prepare the data based on the model type.
-    prepare_data(model, dfs, signal_long, signal_short, trading_specs,
-                 trade_fractal, predict_history)
+    prepare_data(model, dfs, signal_long, signal_short, system_specs,
+                 trade_fractal, forecast_period, predict_history)
 
     # Run the AlphaPy model pipeline.
     model = main_pipeline(alphapy_specs, model)
 
-    # Run the system.
+    # Run the system based on model type.
 
-    logger.info("System Name      : %s", system_name)
-    logger.info("Signal Long      : %s", signal_long)
-    logger.info("Signal Short     : %s", signal_short)
-    logger.info("Target           : %s", target)
-    logger.info("Forecast Period  : %s", forecast_period)
-    logger.info("Profit Factor    : %s", profit_factor)
-    logger.info("Stop Loss Factor : %s", stoploss_factor)
-    logger.info("Minimum Return   : %s", minimum_return)
-    logger.info("Algorithm        : %s", algo)
-    logger.info("Probability Min  : %s", prob_min)
-    logger.info("Probability Max  : %s", prob_max)
-    logger.info("Trade Fractal    : %s", trade_fractal)
-
-    system = System(system_name, signal_long, signal_short, forecast_period,
-                    profit_factor, stoploss_factor, minimum_return,
-                    algo, prob_min, prob_max, trade_fractal)
-    df_trades = run_system(model, system, group, intraday)
+    df_trades = pd.DataFrame()
+    if model_type == ModelType.letor:
+        logger.info("Ranking Long Positions  : %s", rank_long_pos)
+        logger.info("Ranking Long Score      : %s", rank_long_score)
+        logger.info("Ranking Short Positions : %s", rank_short_pos)
+        logger.info("Ranking Short Score     : %s", rank_short_score)
+        # run ranking system
+        df_trades = ranking_system(model, group, rank_long_pos, rank_long_score,
+                                   rank_short_pos, rank_short_score, intraday)
+    else:
+        logger.info("System Name      : %s", system_name)
+        logger.info("Signal Long      : %s", signal_long)
+        logger.info("Signal Short     : %s", signal_short)
+        logger.info("Target           : %s", target)
+        logger.info("Forecast Period  : %s", forecast_period)
+        logger.info("Profit Factor    : %s", profit_factor)
+        logger.info("Stop Loss Factor : %s", stoploss_factor)
+        logger.info("Minimum Return   : %s", minimum_return)
+        logger.info("Algorithm        : %s", algo)
+        logger.info("Probability Min  : %s", prob_min)
+        logger.info("Probability Max  : %s", prob_max)
+        logger.info("Trade Fractal    : %s", trade_fractal)
+        # create and run system
+        system = System(system_name, signal_long, signal_short, forecast_period,
+                        profit_factor, stoploss_factor, minimum_return,
+                        algo, prob_min, prob_max, trade_fractal)
+        df_trades = run_system(model, system, group, intraday)
 
     # Generate the portfolio.
 
     if df_trades.empty:
         logger.info("No trades to generate a portfolio")
     else:
-        trading_specs = market_specs['trading']
-        gen_portfolio(model, trading_specs, group, df_trades)
+        portfolio_specs = market_specs['portfolio']
+        gen_portfolio(model, portfolio_specs, group, df_trades)
 
     # Return the completed model.
     return model

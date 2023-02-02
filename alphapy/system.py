@@ -444,3 +444,106 @@ def run_system(model,
 
     # Return trades frame
     return tf
+
+
+#
+# Function ranking_system
+#
+
+def ranking_system(model,
+                   group,
+                   rank_long_pos,
+                   rank_long_score,
+                   rank_short_pos,
+                   rank_short_score,
+                   intraday = False,
+                   quantity = 1):
+    r"""Run the ranking system and generate a trades frame.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model object with specifications.
+    group : alphapy.Group
+        The group of symbols to trade.
+    rank_long_pos : int
+        The number of highest-ranked, long positions to take within a group.
+    rank_long_score : float
+        The minimum score required for long trades.
+    rank_short_pos : int
+        The number of lowest-ranked, short positions to take within a group.
+    rank_short_score : float
+        The maximum score required for short trades.
+    intraday : bool, optional
+        If true, this is an intraday system.
+    quantity : float, optional
+        The amount to trade for each symbol, e.g., number of shares
+
+    Returns
+    -------
+    tf : pandas.DataFrame
+        All of the ranking trades.
+
+    """
+
+    logger.info("Generating Trades for Ranking System")
+
+    # Unpack the model data.
+
+    run_dir = model.specs['run_dir']
+    extension = model.specs['extension']
+    separator = model.specs['separator']
+
+    # Extract the group information.
+
+    gname = group.name
+    gmembers = group.members
+    gspace = group.space
+
+    # Get the latest rankings frame.
+
+    rank_dir = SSEP.join([run_dir, 'output'])
+    file_path = most_recent_file(rank_dir, 'ranked_test*')
+    file_name = file_path.split(SSEP)[-1].split('.')[0]
+    df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
+
+    # Run the system for each member of the group
+
+    pass
+
+    gtlist = []
+    for symbol in gmembers:
+        # generate the trades for this member
+        tlist = trade_system(system, df_rank, ts_flag, gspace, intraday, symbol, quantity)
+        if tlist:
+            # add trades to global trade list
+            for item in tlist:
+                gtlist.append(item)
+        else:
+            logger.info("No trades for symbol %s", symbol.upper())
+
+    # Create group trades frame
+
+    if intraday:
+        index_column = 'datetime'
+    else:
+        index_column = 'date'
+
+    tf = pd.DataFrame()
+    if gtlist:
+        tspace = Space("ranking", "trades", gspace.fractal)
+        gtlist = sorted(gtlist, key=lambda x: x[0])
+        tf1 = DataFrame.from_records(gtlist, columns=[index_column, 'trades'])
+        tf2 = pd.DataFrame(tf1['trades'].to_list(), columns=Trade.states)
+        tf = pd.concat([tf1[index_column], tf2], axis=1)
+        tf.set_index(index_column, inplace=True)
+        tfname = frame_name(gname, tspace)
+        system_dir = SSEP.join([run_dir, 'systems'])
+        write_frame(tf, system_dir, tfname, extension, separator,
+                    index=True, index_label=index_column)
+        del tspace
+    else:
+        logger.info("No trades were found")
+
+    # Return trades frame
+    return tf
