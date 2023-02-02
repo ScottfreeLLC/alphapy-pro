@@ -257,7 +257,7 @@ def training_pipeline(alphapy_specs, model):
     extension = model.specs['extension']
     fs_lofo = model.specs['fs_lofo']
     fs_univariate = model.specs['fs_univariate']
-    group_id = model.specs['group_id']
+    group_id = model.specs['rank_group_id']
     grid_search = model.specs['grid_search']
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']

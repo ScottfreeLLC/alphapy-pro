@@ -64,9 +64,9 @@ from alphapy.model import Model
 
 from alphapy.portfolio import gen_portfolio
 from alphapy.space import Space
-from alphapy.system import ranking_system
 from alphapy.system import run_system
 from alphapy.system import System
+from alphapy.system import SystemRank
 from alphapy.transforms import netreturn
 from alphapy.utilities import datetime_stamp
 from alphapy.utilities import most_recent_file
@@ -281,7 +281,7 @@ def get_market_config(directory='.'):
 #
 
 def set_targets_class(model, df, signal_long, signal_short, trading_specs,
-                      trade_fractal, predict_history):
+                      trade_fractal, forecast_period, predict_history):
     r"""Set classification targets
 
     1. Extract the signal for long and short entries.
@@ -301,6 +301,8 @@ def set_targets_class(model, df, signal_long, signal_short, trading_specs,
         Trade management specifications.
     trade_fractal : str
         Pandas offset alias.
+    forecast_period : int
+        The number of periods to forecast.
     predict_history : int
         The number of periods required for lookback calculations.
 
@@ -318,7 +320,6 @@ def set_targets_class(model, df, signal_long, signal_short, trading_specs,
 
     # Unpack trading specifications
 
-    forecast_period = trading_specs['forecast_period']
     profit_factor = trading_specs['profit_factor']
     stoploss_factor = trading_specs['stoploss_factor']
     minimum_return = trading_specs['minimum_return']
@@ -340,7 +341,6 @@ def set_targets_class(model, df, signal_long, signal_short, trading_specs,
         df.loc[df[short_col], 'side'] = short_label
         npats = df[df['side'] == short_label].shape[0]
         logger.info("%d Short Patterns Found in %d Rows", npats, nrows)
-
 
     # Lag the signal.
     df['side'] = df['side'].shift(1)
@@ -505,7 +505,7 @@ def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
                 df_out = set_targets_letor(model, df_in, trading_specs, forecast_period)
             elif model_type == ModelType.classification:
                 df_out = set_targets_class(model, df_in, signal_long, signal_short, trading_specs,
-                                           trade_fractal, predict_history)
+                                           trade_fractal, forecast_period, predict_history)
             else:
                 raise ValueError("Unsupported Model Type")
             # split the dataframe
@@ -670,24 +670,11 @@ def market_pipeline(alphapy_specs, model, market_specs):
     predict_mode = model.specs['predict_mode']
     target = model.specs['target']
 
-    # Get system specifications
+    # Get section specifications
 
     system_specs = market_specs['system']
-    system_name = system_specs['name']
-    profit_factor = system_specs['profit_factor']
-    stoploss_factor = system_specs['stoploss_factor']
-    minimum_return = system_specs['minimum_return']
-    algo = system_specs['algo']
-    prob_min = system_specs['prob_min']
-    prob_max = system_specs['prob_max']
-
-    # Get ranking specifications
-
     ranking_specs = market_specs['ranking']
-    rank_long_pos = ranking_specs['long_positions']
-    rank_long_score = ranking_specs['long_score']
-    rank_short_pos = ranking_specs['short_positions']
-    rank_short_score = ranking_specs['short_score']
+    portfolio_specs = market_specs['portfolio']
 
     # Get data specifications
 
@@ -707,6 +694,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     data_dir = alphapy_specs['data_dir']
     systems = alphapy_specs['systems']
+    system_name = system_specs['system_name']
     signal_long = systems[system_name]['long']
     signal_short = systems[system_name]['short']
 
@@ -758,43 +746,49 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Run the AlphaPy model pipeline.
     model = main_pipeline(alphapy_specs, model)
 
-    # Run the system based on model type.
+    # Run the system designated for that model type.
 
     df_trades = pd.DataFrame()
     if model_type == ModelType.letor:
-        logger.info("Ranking Long Positions  : %s", rank_long_pos)
-        logger.info("Ranking Long Score      : %s", rank_long_score)
-        logger.info("Ranking Short Positions : %s", rank_short_pos)
-        logger.info("Ranking Short Score     : %s", rank_short_score)
-        # run ranking system
-        df_trades = ranking_system(model, group, rank_long_pos, rank_long_score,
-                                   rank_short_pos, rank_short_score, intraday)
+        ranking_specs['system_name'] = 'ranking'
+        ranking_specs['forecast_period'] = forecast_period
+        ranking_specs['fractal'] = trade_fractal
+        logger.info("System Name     : %s", ranking_specs['system_name'])
+        logger.info("Forecast Period : %s", forecast_period)
+        logger.info("Algorithm       : %s", ranking_specs['algo'])
+        logger.info("Long Rank       : %s", ranking_specs['long_rank'])
+        logger.info("Long Score      : %s", ranking_specs['long_score'])
+        logger.info("Short Rank      : %s", ranking_specs['short_rank'])
+        logger.info("Short Score     : %s", ranking_specs['short_score'])
+        logger.info("Trade Fractal    : %s", trade_fractal)
+        system = SystemRank(**ranking_specs)
     else:
-        logger.info("System Name      : %s", system_name)
+        system_specs['forecast_period'] = forecast_period
+        system_specs['signal_long'] = signal_long
+        system_specs['signal_short'] = signal_short
+        system_specs['fractal'] = trade_fractal
+        logger.info("System Name      : %s", system_specs['system_name'])
+        logger.info("Forecast Period  : %s", forecast_period)
         logger.info("Signal Long      : %s", signal_long)
         logger.info("Signal Short     : %s", signal_short)
         logger.info("Target           : %s", target)
-        logger.info("Forecast Period  : %s", forecast_period)
-        logger.info("Profit Factor    : %s", profit_factor)
-        logger.info("Stop Loss Factor : %s", stoploss_factor)
-        logger.info("Minimum Return   : %s", minimum_return)
-        logger.info("Algorithm        : %s", algo)
-        logger.info("Probability Min  : %s", prob_min)
-        logger.info("Probability Max  : %s", prob_max)
+        logger.info("Profit Factor    : %s", system_specs['profit_factor'])
+        logger.info("Stop Loss Factor : %s", system_specs['stoploss_factor'])
+        logger.info("Minimum Return   : %s", system_specs['minimum_return'])
+        logger.info("Algorithm        : %s", system_specs['algo'])
+        logger.info("Probability Min  : %s", system_specs['prob_min'])
+        logger.info("Probability Max  : %s", system_specs['prob_max'])
         logger.info("Trade Fractal    : %s", trade_fractal)
-        # create and run system
-        system = System(system_name, signal_long, signal_short, forecast_period,
-                        profit_factor, stoploss_factor, minimum_return,
-                        algo, prob_min, prob_max, trade_fractal)
-        df_trades = run_system(model, system, group, intraday)
+        system = System(**system_specs)
+
+    df_trades = run_system(model, system, group, intraday)
 
     # Generate the portfolio.
 
     if df_trades.empty:
         logger.info("No trades to generate a portfolio")
     else:
-        portfolio_specs = market_specs['portfolio']
-        gen_portfolio(model, portfolio_specs, group, df_trades)
+        gen_portfolio(model, system_name, portfolio_specs, group, df_trades)
 
     # Return the completed model.
     return model

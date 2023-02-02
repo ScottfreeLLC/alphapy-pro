@@ -394,8 +394,9 @@ def get_model_config(directory='.'):
     specs['gs_random'] = model_section['grid_search']['random']
     specs['gs_sample'] = model_section['grid_search']['subsample']
     specs['gs_sample_pct'] = model_section['grid_search']['sampling_pct']
-    # group id
-    specs['group_id'] = model_section['group_id']
+    # ranking
+    specs['rank_group_id'] = model_section['ranking']['group_id']
+    specs['rank_group_size'] = model_section['ranking']['group_size']
     # rfe
     specs['rfe'] = model_section['rfe']['option']
     specs['rfe_step'] = model_section['rfe']['step']
@@ -470,7 +471,6 @@ def get_model_config(directory='.'):
     logger.info('fs_uni_pct        = %d', specs['fs_uni_pct'])
     logger.info('fs_uni_score_func = %s', specs['fs_uni_score_func'])
     logger.info('grid_search       = %r', specs['grid_search'])
-    logger.info('group_id          = %s', specs['group_id'])
     logger.info('gs_iters          = %d', specs['gs_iters'])
     logger.info('gs_random         = %r', specs['gs_random'])
     logger.info('gs_sample         = %r', specs['gs_sample'])
@@ -498,6 +498,8 @@ def get_model_config(directory='.'):
     logger.info('pca_whiten        = %r', specs['pca_whiten'])
     logger.info('poly_degree       = %d', specs['poly_degree'])
     logger.info('pvalue_level      = %f', specs['pvalue_level'])
+    logger.info('rank_group_id     = %s', specs['rank_group_id'])
+    logger.info('rank_group_size   = %s', specs['rank_group_size'])
     logger.info('rfe               = %r', specs['rfe'])
     logger.info('rfe_step          = %d', specs['rfe_step'])
     logger.info('roc_curve         = %r', specs['roc_curve'])
