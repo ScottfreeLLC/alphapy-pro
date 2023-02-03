@@ -280,8 +280,7 @@ def get_market_config(directory='.'):
 # Function set_targets_class
 #
 
-def set_targets_class(model, df, signal_long, signal_short, trading_specs,
-                      trade_fractal, forecast_period, predict_history):
+def set_targets_class(model, df, system_specs):
     r"""Set classification targets
 
     1. Extract the signal for long and short entries.
@@ -293,18 +292,8 @@ def set_targets_class(model, df, signal_long, signal_short, trading_specs,
         The model specifications.
     df : pandas.DataFrame
         The dataframe to assign metalabels.
-    signal_long : str
-        The entry condition for a long position.
-    signal_short : str
-        The entry condition for a short position.
-    trading_specs : dict
+    system_specs : dict
         Trade management specifications.
-    trade_fractal : str
-        Pandas offset alias.
-    forecast_period : int
-        The number of periods to forecast.
-    predict_history : int
-        The number of periods required for lookback calculations.
 
     Returns
     -------
@@ -320,9 +309,14 @@ def set_targets_class(model, df, signal_long, signal_short, trading_specs,
 
     # Unpack trading specifications
 
-    profit_factor = trading_specs['profit_factor']
-    stoploss_factor = trading_specs['stoploss_factor']
-    minimum_return = trading_specs['minimum_return']
+    signal_long = system_specs['signal_long']
+    signal_short = system_specs['signal_short']
+    predict_history = system_specs['predict_history']
+    forecast_period = system_specs['forecast_period']
+    profit_factor = system_specs['profit_factor']
+    stoploss_factor = system_specs['stoploss_factor']
+    minimum_return = system_specs['minimum_return']
+    trade_fractal = system_specs['fractal']
 
     # Find the patterns (signals) in the dataframe.
     
@@ -384,10 +378,10 @@ def set_targets_class(model, df, signal_long, signal_short, trading_specs,
 
 
 #
-# Function set_targets_letor
+# Function set_targets_ranking
 #
 
-def set_targets_letor(model, df, trading_specs, forecast_period):
+def set_targets_ranking(model, df, ranking_specs):
     r"""Set the Learn-to-Rank (LTR) targets.
 
     Parameters
@@ -395,11 +389,9 @@ def set_targets_letor(model, df, trading_specs, forecast_period):
     model : alphapy.Model
         The model specifications.
     df : pandas.DataFrame
-        The dataframe to assign metalabels.
-    trading_specs : dict
-        Trade management specifications.
-    forecast_period : int
-        The number of periods to forecast.
+        The dataframe for ranking.
+    ranking_specs : dict
+        Ranking model specifications.
 
     Returns
     -------
@@ -413,6 +405,9 @@ def set_targets_letor(model, df, trading_specs, forecast_period):
     # Unpack model specifications
     target = model.specs['target']
 
+    # Unpack ranking specifications
+    forecast_period = ranking_specs['forecast_period']
+
     # Shift the target column
     df[target] = df[target].shift(-forecast_period)
 
@@ -423,8 +418,7 @@ def set_targets_letor(model, df, trading_specs, forecast_period):
 # Function prepare_data
 #
 
-def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
-                 trade_fractal, forecast_period, predict_history):
+def prepare_data(model, dfs, market_specs):
     r"""Prepare the model for training and validation.
 
     Parameters
@@ -433,18 +427,8 @@ def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
         The model specifications.
     dfs : list
         The list of pandas dataframes to analyze.
-    signal_long : str
-        The entry condition for a long position.
-    signal_short : str
-        The entry condition for a short position.
-    trading_specs : dict
-        Trade management specifications.
-    trade_fractal : str
-        Pandas offset alias.
-    forecast_period : int
-        The number of periods to forecast.
-    predict_history : int
-        The number of periods required for lookback calculations.
+    market_specs : dict
+        Portfolio and system specifications.
 
     """
 
@@ -462,9 +446,19 @@ def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
     model_type = model.specs['model_type']
     predict_date = model.specs['predict_date']
     predict_mode = model.specs['predict_mode']
+    rank_group_id = model.specs['rank_group_id']
+    rank_group_size = model.specs['rank_group_size']
+    seed = model.specs['seed']
     separator = model.specs['separator']
     target = model.specs['target']
     train_date = model.specs['train_date']
+
+    # Unpack market specifications
+
+    system_specs = market_specs['system']
+    ranking_specs = market_specs['ranking']
+    predict_history = market_specs['predict_history']
+    forecast_period = market_specs['forecast_period']
 
     # Calculate split date
 
@@ -501,11 +495,10 @@ def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
         logger.info("Analyzing %s from %s to %s", symbol, first_date, last_date)
         if not df_in.empty:
             # set model targets based on model type
-            if model_type == ModelType.letor:
-                df_out = set_targets_letor(model, df_in, trading_specs, forecast_period)
+            if model_type == ModelType.ranking:
+                df_out = set_targets_ranking(model, df_in, ranking_specs)
             elif model_type == ModelType.classification:
-                df_out = set_targets_class(model, df_in, signal_long, signal_short, trading_specs,
-                                           trade_fractal, forecast_period, predict_history)
+                df_out = set_targets_class(model, df_in, system_specs)
             else:
                 raise ValueError("Unsupported Model Type")
             # split the dataframe
@@ -562,6 +555,15 @@ def prepare_data(model, dfs, signal_long, signal_short, trading_specs,
     train_frame.columns = new_columns
     if not test_frame.empty:
         test_frame.columns = new_columns
+
+    # Take random samples of each dataframe.
+
+    if model_type == ModelType.ranking:
+        logger.info("Random Sampling %d Rows for Ranking", rank_group_size)
+        if not test_frame.empty:
+            test_frame = test_frame.groupby(rank_group_id).sample(n=rank_group_size, random_state=seed)
+        if not predict_mode and not train_frame.empty:
+            train_frame = train_frame.groupby(rank_group_id).sample(n=rank_group_size, random_state=seed)
 
     # Write out the frames for input into the AlphaPy pipeline
 
@@ -670,12 +672,6 @@ def market_pipeline(alphapy_specs, model, market_specs):
     predict_mode = model.specs['predict_mode']
     target = model.specs['target']
 
-    # Get section specifications
-
-    system_specs = market_specs['system']
-    ranking_specs = market_specs['ranking']
-    portfolio_specs = market_specs['portfolio']
-
     # Get data specifications
 
     cohort_group = market_specs['cohort_group']
@@ -694,9 +690,28 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     data_dir = alphapy_specs['data_dir']
     systems = alphapy_specs['systems']
+
+    # Get section specifications
+
+    system_specs = market_specs['system']
     system_name = system_specs['system_name']
     signal_long = systems[system_name]['long']
     signal_short = systems[system_name]['short']
+
+    # Augment the system specifications.
+
+    system_specs['predict_history'] = predict_history
+    system_specs['forecast_period'] = forecast_period
+    system_specs['signal_long'] = signal_long
+    system_specs['signal_short'] = signal_short
+    system_specs['fractal'] = trade_fractal
+
+    ranking_specs = market_specs['ranking']
+    ranking_specs['system_name'] = 'ranking'
+    ranking_specs['forecast_period'] = forecast_period
+    ranking_specs['fractal'] = trade_fractal
+
+    portfolio_specs = market_specs['portfolio']
 
     # Set the target group and space
 
@@ -740,8 +755,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
         get_cohort_returns(dfs, group_cohort, trade_fractal)
 
     # Prepare the data based on the model type.
-    prepare_data(model, dfs, signal_long, signal_short, system_specs,
-                 trade_fractal, forecast_period, predict_history)
+    prepare_data(model, dfs, market_specs)
 
     # Run the AlphaPy model pipeline.
     model = main_pipeline(alphapy_specs, model)
@@ -749,10 +763,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Run the system designated for that model type.
 
     df_trades = pd.DataFrame()
-    if model_type == ModelType.letor:
-        ranking_specs['system_name'] = 'ranking'
-        ranking_specs['forecast_period'] = forecast_period
-        ranking_specs['fractal'] = trade_fractal
+    if model_type == ModelType.ranking:
         logger.info("System Name     : %s", ranking_specs['system_name'])
         logger.info("Forecast Period : %s", forecast_period)
         logger.info("Algorithm       : %s", ranking_specs['algo'])
@@ -760,18 +771,15 @@ def market_pipeline(alphapy_specs, model, market_specs):
         logger.info("Long Score      : %s", ranking_specs['long_score'])
         logger.info("Short Rank      : %s", ranking_specs['short_rank'])
         logger.info("Short Score     : %s", ranking_specs['short_score'])
-        logger.info("Trade Fractal    : %s", trade_fractal)
+        logger.info("Trade Fractal   : %s", trade_fractal)
         system = SystemRank(**ranking_specs)
     else:
-        system_specs['forecast_period'] = forecast_period
-        system_specs['signal_long'] = signal_long
-        system_specs['signal_short'] = signal_short
-        system_specs['fractal'] = trade_fractal
         logger.info("System Name      : %s", system_specs['system_name'])
-        logger.info("Forecast Period  : %s", forecast_period)
         logger.info("Signal Long      : %s", signal_long)
         logger.info("Signal Short     : %s", signal_short)
         logger.info("Target           : %s", target)
+        logger.info("Forecast Period  : %s", forecast_period)
+        logger.info("Predict History  : %s", predict_history)
         logger.info("Profit Factor    : %s", system_specs['profit_factor'])
         logger.info("Stop Loss Factor : %s", system_specs['stoploss_factor'])
         logger.info("Minimum Return   : %s", system_specs['minimum_return'])
@@ -781,10 +789,9 @@ def market_pipeline(alphapy_specs, model, market_specs):
         logger.info("Trade Fractal    : %s", trade_fractal)
         system = System(**system_specs)
 
+    # Run the system and generate the portfolio.
+
     df_trades = run_system(model, system, group, intraday)
-
-    # Generate the portfolio.
-
     if df_trades.empty:
         logger.info("No trades to generate a portfolio")
     else:

@@ -748,7 +748,7 @@ def first_fit(model, algo, est):
 
     algo_xgb = 'XGB' in algo
 
-    if model_type == ModelType.letor:
+    if model_type == ModelType.ranking:
         est.fit(X_train, y_train, group=groups_train)
     elif algo_xgb and scorer in xgb_score_map:
         if ts_option:
@@ -766,7 +766,7 @@ def first_fit(model, algo, est):
 
     # Get the initial scores
 
-    if model_type != ModelType.letor:
+    if model_type != ModelType.ranking:
         logger.info("Cross-Validation")
         scores = cross_val_score(est, X_train, y_train.values.ravel(), scoring=scorer,
                                  cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
@@ -1326,8 +1326,8 @@ def generate_metrics(model, partition):
                     model.metrics[(algo, partition, 'r2')] = r2_score(expected, predicted)
                 except:
                     logger.info("R-Squared Score not calculated")
-            # Letor Metrics
-            elif model_type == ModelType.letor:
+            # ranking Metrics
+            elif model_type == ModelType.ranking:
                 try:
                     model.metrics[(algo, partition, 'dcg_score')] = dcg_score([expected], [predicted])
                 except:
