@@ -170,7 +170,7 @@ def encode_volume(row, c1, c2):
 # Function encode_price
 #
 
-def encode_price(df_price, c='close', p=20):
+def encode_price(df_price, c='close', p=20, intraday=False):
     r"""Encode the price data into NLP sequences.
 
     Parameters
@@ -222,4 +222,7 @@ def encode_price(df_price, c='close', p=20):
 
     df_price['encoded_str'] = df_price['pivot_str'] + df_price['net_str'] + df_price['range_str'] + df_price['volume_str']
     encoded_str = df_price['encoded_str'].str.cat(sep=BSEP)
+    
+    if intraday:
+        encoded_str = ' <bod> ' + encoded_str + ' <eod> '
     return encoded_str
