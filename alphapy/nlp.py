@@ -28,12 +28,10 @@ import logging
 import math
 
 from alphapy.globals import BSEP
-from alphapy.transforms import higher
-from alphapy.transforms import lower
 from alphapy.transforms import ma
 from alphapy.transforms import net
-from alphapy.transforms import streak
-from alphapy.transforms import truerange
+from alphapy.transforms import pivot_high
+from alphapy.transforms import pivot_low
 
 
 #
@@ -47,7 +45,7 @@ logger = logging.getLogger(__name__)
 # Function encode_pivot
 #
 
-def encode_pivot(row, c1, c2, c3, c4):
+def encode_pivot(row, c1, c2):
     r"""Encode the strongest pivot value, H or L.
 
     Parameters
@@ -58,10 +56,6 @@ def encode_pivot(row, c1, c2, c3, c4):
         Name of the first column in the dataframe ``f``.
     c2 : str
         Name of the second column in the dataframe ``f``.
-    c3 : str
-        Name of the first column in the dataframe ``f``.
-    c4 : str
-        Name of the second column in the dataframe ``f``.
 
     Returns
     -------
@@ -69,16 +63,13 @@ def encode_pivot(row, c1, c2, c3, c4):
         The encoded pivot string.
 
     """
-    pivot_str = 'T0'
-    if row[c1]:
-        pivot_str = 'H' + str(row[c2])
-    if row[c3]:
-        pivot_str = 'L' + str(row[c4])
-    if row[c1] and row[c3]:
-        if row[c2] > row[c4]:
-            pivot_str = 'H' + str(row[c2])
-        elif row[c2] < row[c4]:
-            pivot_str = 'L' + str(row[c4])
+
+    if row[c1] > row[c2]:
+        pivot_str = 'H' + str(int(row[c1]))
+    elif row[c2] > row[c1]:
+        pivot_str = 'L' + str(int(row[c2]))
+    else:
+        pivot_str = 'T0'
     return pivot_str
 
 
@@ -109,7 +100,7 @@ def encode_net(row, c1, c2):
         value = 0 if math.isnan(value) else value
         cat = 'P'
     elif row[c1] < 0:
-        value = min(abs((row[1] // row[c2]) + 1), 2)
+        value = min(abs((row[c1] // row[c2]) + 1), 2)
         value = 0 if math.isnan(value) else value
         cat = 'N'
     else:
@@ -203,33 +194,24 @@ def encode_price(df_price, c='close', p=20):
 
     """
 
-    # Calculate the high pivots.
-
-    col_name = 'higher'
-    df_price[col_name] = higher(df_price, 'high')
-    df_price['pivot_high'] = streak(df_price, col_name, p)
-
-    # Calculate the low pivots.
-
-    col_name = 'lower'
-    df_price[col_name] = lower(df_price, 'low')
-    df_price['pivot_low'] = streak(df_price, col_name, p)
-    print(df_price[['higher', 'pivot_high', 'lower', 'pivot_low']].tail(50))
-
     # Encode the pivot value.
-    df_price['pivot_str'] = df_price.apply(encode_pivot, args=['higher', 'pivot_high', 'lower', 'pivot_low'], axis=1)
+
+    df_price['pivot_high'] = pivot_high(df_price, 'high')
+    df_price['pivot_low'] = pivot_low(df_price, 'low')
+    df_price['pivot_str'] = df_price.apply(encode_pivot, args=['pivot_high', 'pivot_low'], axis=1)
 
     # Encode the net price.
 
-    df_price['true_range'] = truerange(df_price)
-    df_price['atr'] = ma(df_price, c, p)
     df_price['net'] = net(df_price)
-    df_price['net_str'] = df_price.apply(encode_net, args=['net', 'atr'], axis=1)
+    df_price['net_abs'] = df_price['net'].abs()
+    df_price['net_ma'] = ma(df_price, 'net_abs', p)
+    df_price['net_str'] = df_price.apply(encode_net, args=['net', 'net_ma'], axis=1)
 
     # Encode the range.
 
     df_price['range'] = df_price['high'] - df_price['low']
-    df_price['range_str'] = df_price.apply(encode_range, args=['range', 'atr'], axis=1)
+    df_price['range_ma'] = ma(df_price, 'range', p)
+    df_price['range_str'] = df_price.apply(encode_range, args=['range', 'range_ma'], axis=1)
 
     # Encode the volume.
 

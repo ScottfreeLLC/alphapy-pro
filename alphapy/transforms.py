@@ -1365,6 +1365,88 @@ def pchange2(f, c1, c2):
 
 
 #
+# Function pivot_high
+#
+
+def pivot_high(f, c, p=18):
+    r"""Find the pivot high values in the series.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+
+    Returns
+    -------
+    ds_pivot_highs : pd.Series (int)
+        The array of pivot high values.
+
+    """
+
+    def get_pivot_high(ds, max_len):
+        ds_len = min(len(ds), max_len)
+        pivot = 1
+        if ds_len == 1:
+            return pivot
+        else:
+            ds_pivot = ds[-ds_len:]
+            value_high = ds[-1]
+            for i in reversed(range(ds_len-1)):
+                if value_high > ds_pivot[i]:
+                    pivot += 1
+                else:
+                    break
+            return pivot
+
+    ds = f[c]
+    ds_pivot_highs = ds.expanding().apply(get_pivot_high, args=(p,))
+    return ds_pivot_highs
+
+
+#
+# Function pivot_low
+#
+
+def pivot_low(f, c, p=18):
+    r"""Find the pivot low values in the series.
+
+    Parameters
+    ----------
+    f : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``f``.
+
+    Returns
+    -------
+    ds_pivot_lows : pd.Series (int)
+        The array of pivot low values.
+
+    """
+
+    def get_pivot_low(ds, max_len):
+        ds_len = min(len(ds), max_len)
+        pivot = 1
+        if ds_len == 1:
+            return pivot
+        else:
+            ds_pivot = ds[-ds_len:]
+            value_low = ds[-1]
+            for i in reversed(range(ds_len-1)):
+                if value_low < ds_pivot[i]:
+                    pivot += 1
+                else:
+                    break
+            return pivot
+
+    ds = f[c]
+    ds_pivot_lows = ds.expanding().apply(get_pivot_low, args=(p,))
+    return ds_pivot_lows
+
+
+#
 # Function posvals
 #
 

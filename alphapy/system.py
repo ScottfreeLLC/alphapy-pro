@@ -326,8 +326,6 @@ def trade_ranking(symbol, quantity, system, df_rank, space, intraday):
     for dt, row in df_trade.iterrows():
         # get prices for this row
         c = row[ccol]
-        h = row[hcol]
-        l = row[lcol]
         # evaluate entry and exit conditions
         score = row[pcol]
         lrank = row['long_rank']
