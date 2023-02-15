@@ -96,12 +96,18 @@ def encode_net(row, c1, c2):
 
     """
     if row[c1] > 0:
-        value = min(row[c1] // row[c2], 2)
-        value = 0 if math.isnan(value) else value
+        try:
+            value = min(row[c1] // row[c2], 2)
+            value = 0 if math.isnan(value) else value
+        except:
+            value = 0
         cat = 'P'
     elif row[c1] < 0:
-        value = min(abs((row[c1] // row[c2]) + 1), 2)
-        value = 0 if math.isnan(value) else value
+        try:
+            value = min(abs((row[c1] // row[c2]) + 1), 2)
+            value = 0 if math.isnan(value) else value
+        except:
+            value = 0
         cat = 'N'
     else:
         value = 0
@@ -132,8 +138,11 @@ def encode_range(row, c1, c2):
         The encoded range string.
 
     """
-    value = min(row[c1] // row[c2], 2)
-    value = 0 if math.isnan(value) else value
+    try:
+        value = min(row[c1] // row[c2], 2)
+        value = 0 if math.isnan(value) else value
+    except:
+        value = 0
     range_str = 'R' + str(int(value))
     return range_str
 
@@ -160,8 +169,11 @@ def encode_volume(row, c1, c2):
         The encoded volume string.
 
     """
-    value = min(row[c1] // row[c2], 2)
-    value = 0 if math.isnan(value) else value
+    try:
+        value = min(row[c1] // row[c2], 2)
+        value = 0 if math.isnan(value) else value
+    except:
+        value = 0
     volume_str = 'V' + str(int(value))
     return volume_str
 
@@ -170,7 +182,7 @@ def encode_volume(row, c1, c2):
 # Function encode_price
 #
 
-def encode_price(df_price, c='close', p=20, intraday=False):
+def encode_price(df_price, p=20, intraday=False):
     r"""Encode the price data into NLP sequences.
 
     Parameters
@@ -179,6 +191,8 @@ def encode_price(df_price, c='close', p=20, intraday=False):
         Dataframe with all columns required for calculation.
     p : int
         Maximum period for recording extremes
+    intraday : bool
+        Intraday flag
 
     Returns
     -------

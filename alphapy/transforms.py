@@ -1377,6 +1377,8 @@ def pivot_high(f, c, p=18):
         Dataframe containing the column ``c``.
     c : str
         Name of the column in the dataframe ``f``.
+    p : int
+        Period of the series.
 
     Returns
     -------
@@ -1391,8 +1393,8 @@ def pivot_high(f, c, p=18):
         if ds_len == 1:
             return pivot
         else:
-            ds_pivot = ds[-ds_len:]
-            value_high = ds[-1]
+            ds_pivot = ds.iloc[-ds_len:].reset_index(drop=True)
+            value_high = ds_pivot.iloc[-1]
             for i in reversed(range(ds_len-1)):
                 if value_high > ds_pivot[i]:
                     pivot += 1
@@ -1418,6 +1420,8 @@ def pivot_low(f, c, p=18):
         Dataframe containing the column ``c``.
     c : str
         Name of the column in the dataframe ``f``.
+    p : int
+        Period of the series.
 
     Returns
     -------
@@ -1432,8 +1436,8 @@ def pivot_low(f, c, p=18):
         if ds_len == 1:
             return pivot
         else:
-            ds_pivot = ds[-ds_len:]
-            value_low = ds[-1]
+            ds_pivot = ds.iloc[-ds_len:].reset_index(drop=True)
+            value_low = ds.iloc[-1]
             for i in reversed(range(ds_len-1)):
                 if value_low < ds_pivot[i]:
                     pivot += 1
