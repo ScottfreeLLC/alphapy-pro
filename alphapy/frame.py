@@ -28,7 +28,6 @@
 
 from alphapy.globals import PSEP, SSEP, USEP
 
-import dask.dataframe as dd
 import logging
 import pandas as pd
 
