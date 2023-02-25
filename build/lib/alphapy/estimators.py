@@ -4,7 +4,7 @@
 # Module    : estimators
 # Created   : July 11, 2013
 #
-# Copyright 2022 ScottFree Analytics LLC
+# Copyright 2023 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,33 +60,39 @@ logger = logging.getLogger(__name__)
 # Define scorers
 #
 
-scorers = {'accuracy'                           : (ModelType.classification, Objective.maximize),
-           'average_precision'                  : (ModelType.classification, Objective.maximize),
-           'balanced_accuracy'                  : (ModelType.classification, Objective.maximize),
-           'neg_brier_score'                    : (ModelType.classification, Objective.minimize),
-           'f1'                                 : (ModelType.classification, Objective.maximize),
-           'f1_macro'                           : (ModelType.classification, Objective.maximize),
-           'f1_micro'                           : (ModelType.classification, Objective.maximize),
-           'f1_samples'                         : (ModelType.classification, Objective.maximize),
-           'f1_weighted'                        : (ModelType.classification, Objective.maximize),
-           'neg_log_loss'                       : (ModelType.classification, Objective.minimize),
-           'precision'                          : (ModelType.classification, Objective.maximize),
-           'recall'                             : (ModelType.classification, Objective.maximize),
-           'roc_auc'                            : (ModelType.classification, Objective.maximize),
-           'explained_variance'                 : (ModelType.regression,     Objective.maximize),
-           'neg_mean_absolute_error'            : (ModelType.regression,     Objective.minimize),
-           'neg_mean_absolute_percentage_error' : (ModelType.regression,     Objective.minimize),
-           'neg_mean_squared_error'             : (ModelType.regression,     Objective.minimize),
-           'neg_mean_squared_log_error'         : (ModelType.regression,     Objective.minimize),
-           'neg_median_absolute_error'          : (ModelType.regression,     Objective.minimize),
-           'r2'                                 : (ModelType.regression,     Objective.maximize)}
+scorers = {'accuracy'                              : (ModelType.classification, Objective.maximize),
+           'average_precision'                     : (ModelType.classification, Objective.maximize),
+           'balanced_accuracy'                     : (ModelType.classification, Objective.maximize),
+           'neg_brier_score'                       : (ModelType.classification, Objective.minimize),
+           'f1'                                    : (ModelType.classification, Objective.maximize),
+           'f1_macro'                              : (ModelType.classification, Objective.maximize),
+           'f1_micro'                              : (ModelType.classification, Objective.maximize),
+           'f1_samples'                            : (ModelType.classification, Objective.maximize),
+           'f1_weighted'                           : (ModelType.classification, Objective.maximize),
+           'neg_log_loss'                          : (ModelType.classification, Objective.minimize),
+           'precision'                             : (ModelType.classification, Objective.maximize),
+           'recall'                                : (ModelType.classification, Objective.maximize),
+           'roc_auc'                               : (ModelType.classification, Objective.maximize),
+           'coverage_error'                        : (ModelType.ranking,        Objective.minimize),
+           'dcg_score'                             : (ModelType.ranking,        Objective.maximize),
+           'label_ranking_average_precision_score' : (ModelType.ranking,        Objective.maximize),
+           'label_ranking_loss'                    : (ModelType.ranking,        Objective.minimize),
+           'ndcg_score'                            : (ModelType.ranking,        Objective.maximize),
+           'explained_variance'                    : (ModelType.regression,     Objective.maximize),
+           'neg_mean_absolute_error'               : (ModelType.regression,     Objective.minimize),
+           'neg_mean_absolute_percentage_error'    : (ModelType.regression,     Objective.minimize),
+           'neg_mean_squared_error'                : (ModelType.regression,     Objective.minimize),
+           'neg_mean_squared_log_error'            : (ModelType.regression,     Objective.minimize),
+           'neg_median_absolute_error'             : (ModelType.regression,     Objective.minimize),
+           'r2'                                    : (ModelType.regression,     Objective.maximize)}
 
 
 #
 # Define XGB scoring map
 #
 
-xgb_score_map = {'neg_log_loss'            : 'logloss',
+xgb_score_map = {'ndcg_score'              : 'ndcg',
+                 'neg_log_loss'            : 'logloss',
                  'neg_mean_absolute_error' : 'mae',
                  'neg_mean_squared_error'  : 'rmse',
                  'precision'               : 'map',
@@ -188,24 +194,25 @@ def find_optional_packages():
         estimator_map['XGB'] = xgb.XGBClassifier
         estimator_map['XGBM'] = xgb.XGBClassifier
         estimator_map['XGBR'] = xgb.XGBRegressor
-    except Exception:
-        logger.info("Cannot load %s" % module_name)
+        estimator_map['XGRK'] = xgb.XGBRanker
+    except ModuleNotFoundError:
+        logger.info("Cannot load %s", module_name)
 
     module_name = 'lightgbm'
     try:
         import lightgbm as lgb
         estimator_map['LGB'] = lgb.LGBMClassifier
         estimator_map['LGBR'] = lgb.LGBMRegressor
-    except Exception:
-        logger.info("Cannot load %s" % module_name)
+    except ModuleNotFoundError:
+        logger.info("Cannot load %s", module_name)
 
     module_name = 'catboost'
     try:
         import catboost as catb
         estimator_map['CATB'] = catb.CatBoostClassifier
         estimator_map['CATBR'] = catb.CatBoostRegressor
-    except Exception:
-        logger.info("Cannot load %s" % module_name)
+    except ModuleNotFoundError:
+        logger.info("Cannot load %s", module_name)
 
     return
 
@@ -245,12 +252,8 @@ def get_algos_config(cfg_dir):
     # Ensure each algorithm has required keys
 
     minimum_keys = ['model_type', 'params', 'grid']
-    required_keys_keras = minimum_keys + ['layers', 'compiler']
     for algo in specs:
-        if 'KERAS' in algo:
-            required_keys = required_keys_keras
-        else:
-            required_keys = minimum_keys
+        required_keys = minimum_keys
         algo_keys = list(specs[algo].keys())
         if set(algo_keys) != set(required_keys):
             logger.warning("Algorithm %s has the wrong keys %s",
@@ -298,9 +301,6 @@ def get_estimators(alphapy_specs, model):
     seed = model.specs['seed']
     verbosity = model.specs['verbosity']
 
-    # Reference training data for Keras input_dim
-    X_train = model.X_train
-
     # Initialize estimator dictionary
     estimators = {}
 
@@ -335,7 +335,7 @@ def get_estimators(alphapy_specs, model):
             func = estimator_map[algo]
         except Exception:
             algo_found = False
-            logger.info("Algorithm %s not found (check package installation)" % algo)
+            logger.info("Algorithm %s not found (check package installation)", algo)
         if algo_found:
             est = func(**params)
             grid = algo_specs[algo]['grid']

@@ -257,6 +257,7 @@ def training_pipeline(alphapy_specs, model):
     extension = model.specs['extension']
     fs_lofo = model.specs['fs_lofo']
     fs_univariate = model.specs['fs_univariate']
+    group_id = model.specs['rank_group_id']
     grid_search = model.specs['grid_search']
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']
@@ -304,6 +305,16 @@ def training_pipeline(alphapy_specs, model):
     model.df_y_test = y_test
     model = save_features(model, X_train, X_test, y_train, y_test)
 
+    # Save train/test groups
+
+    if group_id:
+        train_counts = X_train.groupby(group_id).agg(['count'])
+        model.groups_train = train_counts[train_counts.columns[0]].values
+        del train_counts
+        test_counts = X_test.groupby(group_id).agg(['count'])
+        model.groups_test = test_counts[test_counts.columns[0]].values
+        del test_counts
+
     # Determine if there are any test labels
 
     if not y_test.empty:
@@ -348,12 +359,12 @@ def training_pipeline(alphapy_specs, model):
     data_dir = SSEP.join([run_dir, 'input'])
     # train data
     df_train = X_all.iloc[:split_point, :]
-    df_train.loc[:, target] = y_train.loc[:, target]
+    df_train[target] = y_train
     write_frame(df_train, data_dir, model.train_file, extension, separator, index=False)
     # test data
     df_test = X_all.iloc[split_point:, :]
     if model.test_labels:
-        df_test.loc[:, target] = y_test.loc[:, target]
+        df_test[target] = y_test
     write_frame(df_test, data_dir, model.test_file, extension, separator, index=False)
 
     # Create crosstabs for any categorical features

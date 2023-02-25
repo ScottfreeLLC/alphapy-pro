@@ -24,6 +24,7 @@ alphapy/nlp.py
 alphapy/optimize.py
 alphapy/plots.py
 alphapy/portfolio.py
+alphapy/rank_metrics.py
 alphapy/sflow_live.py
 alphapy/sflow_main.py
 alphapy/space.py

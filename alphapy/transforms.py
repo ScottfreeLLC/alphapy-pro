@@ -1368,7 +1368,7 @@ def pchange2(f, c1, c2):
 # Function pivot_high
 #
 
-def pivot_high(f, c, p=18):
+def pivot_high(f, c, p=20):
     r"""Find the pivot high values in the series.
 
     Parameters
@@ -1411,7 +1411,7 @@ def pivot_high(f, c, p=18):
 # Function pivot_low
 #
 
-def pivot_low(f, c, p=18):
+def pivot_low(f, c, p=20):
     r"""Find the pivot low values in the series.
 
     Parameters

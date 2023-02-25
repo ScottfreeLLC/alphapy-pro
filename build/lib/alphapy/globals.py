@@ -121,8 +121,8 @@ class ModelType(Enum):
 
     """
     classification = 1
-    multiclass = 2
-    ranker = 3
+    ranking = 2
+    multiclass = 3
     regression = 4
 
 

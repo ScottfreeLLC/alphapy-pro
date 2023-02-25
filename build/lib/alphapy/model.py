@@ -51,17 +51,12 @@ from alphapy.globals import Scalers
 from alphapy.utilities import most_recent_file
 
 from copy import copy
-from datetime import date, datetime
-import itertools
+from datetime import datetime
 import joblib
-
-try:
-    from keras.models import load_model
-except:
-    pass
 
 import logging
 import numpy as np
+from scipy import stats
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import auc
@@ -70,8 +65,12 @@ from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics import brier_score_loss
 from sklearn.metrics import cohen_kappa_score
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import coverage_error
+from sklearn.metrics import dcg_score
 from sklearn.metrics import explained_variance_score
 from sklearn.metrics import f1_score
+from sklearn.metrics import label_ranking_average_precision_score
+from sklearn.metrics import label_ranking_loss
 from sklearn.metrics import log_loss
 from sklearn.metrics import matthews_corrcoef
 from sklearn.metrics import mean_absolute_error
@@ -79,6 +78,7 @@ from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_squared_log_error
 from sklearn.metrics import median_absolute_error
+from sklearn.metrics import ndcg_score
 from sklearn.metrics import precision_score
 from sklearn.metrics import r2_score
 from sklearn.metrics import recall_score
@@ -128,10 +128,14 @@ class Model:
         Selected train features in matrix format.
     y_train : pandas.Series
         Training labels in vector format.
+    groups_train : numpy.array
+        Group sizes for the training data.
     X_test  : pandas.DataFrame
         Selected test features in matrix format.
     y_test  : pandas.Series
         Test labels in vector format.
+    groups_test : numpy.array
+        Groups sizes for the test data.
     X_train_ts  : pandas.DataFrame
         Time series training frame.
     y_train_ts  : pandas.Series
@@ -175,8 +179,10 @@ class Model:
         # transformed train/test
         self.X_train = None
         self.y_train = None
+        self.groups_train = None
         self.X_test = None
         self.y_test = None
+        self.groups_test = None
         # time series train/test
         self.X_train_ts = None
         self.y_train_ts = None
@@ -259,102 +265,105 @@ def get_model_config(directory='.'):
 
     # Section: project [this section must be first]
 
-    specs['directory'] = cfg['project']['directory']
-    specs['extension'] = cfg['project']['file_extension']
-    specs['live_results'] = cfg['project']['live_results']
-    specs['submission_file'] = cfg['project']['submission_file']
-    specs['submit_probas'] = cfg['project']['submit_probas']
+    project_section = cfg['project']
+    specs['directory'] = project_section['directory']
+    specs['extension'] = project_section['file_extension']
+    specs['live_results'] = project_section['live_results']
+    specs['submission_file'] = project_section['submission_file']
+    specs['submit_probas'] = project_section['submit_probas']
 
     # Section: data
 
-    specs['drop'] = cfg['data']['drop']
-    specs['features'] = cfg['data']['features']
-    specs['sentinel'] = cfg['data']['sentinel']
-    specs['separator'] = cfg['data']['separator']
-    specs['shuffle'] = cfg['data']['shuffle']
-    specs['split'] = cfg['data']['split']
-    specs['allow_na_targets'] = cfg['data']['allow_na_targets']
+    data_section = cfg['data']
+    specs['drop'] = data_section['drop']
+    specs['features'] = data_section['features']
+    specs['sentinel'] = data_section['sentinel']
+    specs['separator'] = data_section['separator']
+    specs['shuffle'] = data_section['shuffle']
+    specs['split'] = data_section['split']
+    specs['allow_na_targets'] = data_section['allow_na_targets']
     # sampling
-    specs['sampling'] = cfg['data']['sampling']['option']
+    specs['sampling'] = data_section['sampling']['option']
     # determine whether or not sampling method is valid
     samplers = {x.name: x.value for x in SamplingMethod}
-    sampling_method = cfg['data']['sampling']['method']
+    sampling_method = data_section['sampling']['method']
     if sampling_method in samplers:
         specs['sampling_method'] = SamplingMethod(samplers[sampling_method])
     else:
         raise ValueError("model.yml data:sampling:method %s unrecognized" %
                          sampling_method)
-    # end of sampling method
-    specs['sampling_ratio'] = cfg['data']['sampling']['ratio']
+    # sampling ratio
+    specs['sampling_ratio'] = data_section['sampling']['ratio']
 
     # Section: features
 
     # clustering
-    specs['clustering'] = cfg['features']['clustering']['option']
-    specs['cluster_min'] = cfg['features']['clustering']['minimum']
-    specs['cluster_max'] = cfg['features']['clustering']['maximum']
-    specs['cluster_inc'] = cfg['features']['clustering']['increment']
+    features_section = cfg['features']
+    specs['clustering'] = features_section['clustering']['option']
+    specs['cluster_min'] = features_section['clustering']['minimum']
+    specs['cluster_max'] = features_section['clustering']['maximum']
+    specs['cluster_inc'] = features_section['clustering']['increment']
     # counts
-    specs['counts'] = cfg['features']['counts']['option']
+    specs['counts'] = features_section['counts']['option']
     # encoding
-    specs['rounding'] = cfg['features']['encoding']['rounding']
+    specs['rounding'] = features_section['encoding']['rounding']
     # determine whether or not encoder is valid
     encoders = {x.name: x.value for x in Encoders}
-    encoder = cfg['features']['encoding']['type']
+    encoder = features_section['encoding']['type']
     if encoder in encoders:
         specs['encoder'] = Encoders(encoders[encoder])
     else:
         raise ValueError("model.yml features:encoding:type %s unrecognized" % encoder)
     # factors
-    specs['factors'] = cfg['features']['factors']
+    specs['factors'] = features_section['factors']
     # interactions
-    specs['interactions'] = cfg['features']['interactions']['option']
-    specs['isample_pct'] = cfg['features']['interactions']['sampling_pct']
-    specs['poly_degree'] = cfg['features']['interactions']['poly_degree']
+    specs['interactions'] = features_section['interactions']['option']
+    specs['isample_pct'] = features_section['interactions']['sampling_pct']
+    specs['poly_degree'] = features_section['interactions']['poly_degree']
     # isomap
-    specs['isomap'] = cfg['features']['isomap']['option']
-    specs['iso_components'] = cfg['features']['isomap']['components']
-    specs['iso_neighbors'] = cfg['features']['isomap']['neighbors']
+    specs['isomap'] = features_section['isomap']['option']
+    specs['iso_components'] = features_section['isomap']['components']
+    specs['iso_neighbors'] = features_section['isomap']['neighbors']
     # LOFO
-    specs['fs_lofo'] = cfg['features']['lofo']['option']
+    specs['fs_lofo'] = features_section['lofo']['option']
     # log transformation
-    specs['log_transform'] = cfg['features']['log_transform']['option']
-    specs['pvalue_level'] = cfg['features']['log_transform']['pvalue_level']
+    specs['log_transform'] = features_section['log_transform']['option']
+    specs['pvalue_level'] = features_section['log_transform']['pvalue_level']
     # low-variance features
-    specs['lv_remove'] = cfg['features']['variance']['option']
-    specs['lv_threshold'] = cfg['features']['variance']['threshold']
+    specs['lv_remove'] = features_section['variance']['option']
+    specs['lv_threshold'] = features_section['variance']['threshold']
     # NumPy
-    specs['numpy'] = cfg['features']['numpy']['option']
+    specs['numpy'] = features_section['numpy']['option']
     # pca
-    specs['pca'] = cfg['features']['pca']['option']
-    specs['pca_min'] = cfg['features']['pca']['minimum']
-    specs['pca_max'] = cfg['features']['pca']['maximum']
-    specs['pca_inc'] = cfg['features']['pca']['increment']
-    specs['pca_whiten'] = cfg['features']['pca']['whiten']
+    specs['pca'] = features_section['pca']['option']
+    specs['pca_min'] = features_section['pca']['minimum']
+    specs['pca_max'] = features_section['pca']['maximum']
+    specs['pca_inc'] = features_section['pca']['increment']
+    specs['pca_whiten'] = features_section['pca']['whiten']
     # Scaling
-    specs['scaler_option'] = cfg['features']['scaling']['option']
+    specs['scaler_option'] = features_section['scaling']['option']
     # determine whether or not scaling type is valid
     scaler_types = {x.name: x.value for x in Scalers}
-    scaler_type = cfg['features']['scaling']['type']
+    scaler_type = features_section['scaling']['type']
     if scaler_type in scaler_types:
         specs['scaler_type'] = Scalers(scaler_types[scaler_type])
     else:
         raise ValueError("model.yml features:scaling:type %s unrecognized" % scaler_type)
     # SciPy
-    specs['scipy'] = cfg['features']['scipy']['option']
+    specs['scipy'] = features_section['scipy']['option']
     # text
-    specs['ngrams_max'] = cfg['features']['text']['ngrams']
-    specs['vectorize'] = cfg['features']['text']['vectorize']
+    specs['ngrams_max'] = features_section['text']['ngrams']
+    specs['vectorize'] = features_section['text']['vectorize']
     # t-sne
-    specs['tsne'] = cfg['features']['tsne']['option']
-    specs['tsne_components'] = cfg['features']['tsne']['components']
-    specs['tsne_learn_rate'] = cfg['features']['tsne']['learning_rate']
-    specs['tsne_perplexity'] = cfg['features']['tsne']['perplexity']
+    specs['tsne'] = features_section['tsne']['option']
+    specs['tsne_components'] = features_section['tsne']['components']
+    specs['tsne_learn_rate'] = features_section['tsne']['learning_rate']
+    specs['tsne_perplexity'] = features_section['tsne']['perplexity']
     # univariate
-    specs['fs_univariate'] = cfg['features']['univariate']['option']
-    specs['fs_uni_pct'] = cfg['features']['univariate']['percentage']
-    specs['fs_uni_grid'] = cfg['features']['univariate']['uni_grid']
-    score_func = cfg['features']['univariate']['score_func']
+    specs['fs_univariate'] = features_section['univariate']['option']
+    specs['fs_uni_pct'] = features_section['univariate']['percentage']
+    specs['fs_uni_grid'] = features_section['univariate']['uni_grid']
+    score_func = features_section['univariate']['score_func']
     if score_func in feature_scorers:
         specs['fs_uni_score_func'] = feature_scorers[score_func]
     else:
@@ -363,40 +372,44 @@ def get_model_config(directory='.'):
 
     # Section: model
 
-    specs['algorithms'] = cfg['model']['algorithms']
-    specs['cv_folds'] = cfg['model']['cv_folds']
+    model_section = cfg['model']
+    specs['algorithms'] = model_section['algorithms']
+    specs['cv_folds'] = model_section['cv_folds']
     # determine whether or not model type is valid
     model_types = {x.name: x.value for x in ModelType}
-    model_type = cfg['model']['type']
+    model_type = model_section['type']
     if model_type in model_types:
         specs['model_type'] = ModelType(model_types[model_type])
     else:
         raise ValueError("model.yml model:type %s unrecognized" % model_type)
     # end of model type
-    specs['n_estimators'] = cfg['model']['estimators']
-    specs['scorer'] = cfg['model']['scoring_function']
+    specs['n_estimators'] = model_section['estimators']
+    specs['scorer'] = model_section['scoring_function']
     # calibration
-    specs['calibration'] = cfg['model']['calibration']['option']
-    specs['cal_type'] = cfg['model']['calibration']['type']
+    specs['calibration'] = model_section['calibration']['option']
+    specs['cal_type'] = model_section['calibration']['type']
     # grid search
-    specs['grid_search'] = cfg['model']['grid_search']['option']
-    specs['gs_iters'] = cfg['model']['grid_search']['iterations']
-    specs['gs_random'] = cfg['model']['grid_search']['random']
-    specs['gs_sample'] = cfg['model']['grid_search']['subsample']
-    specs['gs_sample_pct'] = cfg['model']['grid_search']['sampling_pct']
+    specs['grid_search'] = model_section['grid_search']['option']
+    specs['gs_iters'] = model_section['grid_search']['iterations']
+    specs['gs_random'] = model_section['grid_search']['random']
+    specs['gs_sample'] = model_section['grid_search']['subsample']
+    specs['gs_sample_pct'] = model_section['grid_search']['sampling_pct']
+    # ranking
+    specs['rank_group_id'] = model_section['ranking']['group_id']
+    specs['rank_group_size'] = model_section['ranking']['group_size']
     # rfe
-    specs['rfe'] = cfg['model']['rfe']['option']
-    specs['rfe_step'] = cfg['model']['rfe']['step']
+    specs['rfe'] = model_section['rfe']['option']
+    specs['rfe_step'] = model_section['rfe']['step']
     # target
-    specs['target'] = cfg['model']['target']
+    specs['target'] = model_section['target']
     # time series
-    specs['ts_option'] = cfg['model']['time_series']['option']
-    specs['ts_backtests'] = cfg['model']['time_series']['backtests']
-    specs['ts_date_index'] = cfg['model']['time_series']['date_index']
+    specs['ts_option'] = model_section['time_series']['option']
+    specs['ts_backtests'] = model_section['time_series']['backtests']
+    specs['ts_date_index'] = model_section['time_series']['date_index']
     # forecast window
-    specs['ts_forecast'] = cfg['model']['time_series']['forecast']
+    specs['ts_forecast'] = model_section['time_series']['forecast']
     # derivation (rolling) window
-    specs['ts_window'] = cfg['model']['time_series']['window']
+    specs['ts_window'] = model_section['time_series']['window']
 
     if specs['ts_option'] and specs['shuffle']:
         logger.info("Time Series is enabled, turning off Shuffling")
@@ -404,17 +417,19 @@ def get_model_config(directory='.'):
 
     # Section: pipeline
 
-    specs['n_jobs'] = cfg['pipeline']['number_jobs']
-    specs['seed'] = cfg['pipeline']['seed']
-    specs['verbosity'] = cfg['pipeline']['verbosity']
+    pipeline_section = cfg['pipeline']
+    specs['n_jobs'] = pipeline_section['number_jobs']
+    specs['seed'] = pipeline_section['seed']
+    specs['verbosity'] = pipeline_section['verbosity']
 
     # Section: plots
 
-    specs['calibration_plot'] = cfg['plots']['calibration']
-    specs['confusion_matrix'] = cfg['plots']['confusion_matrix']
-    specs['importances'] = cfg['plots']['importances']
-    specs['learning_curve'] = cfg['plots']['learning_curve']
-    specs['roc_curve'] = cfg['plots']['roc_curve']
+    plots_section = cfg['plots']
+    specs['calibration_plot'] = plots_section['calibration']
+    specs['confusion_matrix'] = plots_section['confusion_matrix']
+    specs['importances'] = plots_section['importances']
+    specs['learning_curve'] = plots_section['learning_curve']
+    specs['roc_curve'] = plots_section['roc_curve']
 
     # Section: transforms
 
@@ -483,6 +498,8 @@ def get_model_config(directory='.'):
     logger.info('pca_whiten        = %r', specs['pca_whiten'])
     logger.info('poly_degree       = %d', specs['poly_degree'])
     logger.info('pvalue_level      = %f', specs['pvalue_level'])
+    logger.info('rank_group_id     = %s', specs['rank_group_id'])
+    logger.info('rank_group_size   = %s', specs['rank_group_size'])
     logger.info('rfe               = %r', specs['rfe'])
     logger.info('rfe_step          = %d', specs['rfe_step'])
     logger.info('roc_curve         = %r', specs['roc_curve'])
@@ -712,6 +729,7 @@ def first_fit(model, algo, est):
 
     cv_folds = model.specs['cv_folds']
     esr = model.specs['esr']
+    model_type = model.specs['model_type']
     n_jobs = model.specs['n_jobs']
     scorer = model.specs['scorer']
     seed = model.specs['seed']
@@ -724,12 +742,15 @@ def first_fit(model, algo, est):
 
     X_train = model.X_train
     y_train = model.y_train
+    groups_train = model.groups_train
 
     # Fit the initial model.
 
     algo_xgb = 'XGB' in algo
 
-    if algo_xgb and scorer in xgb_score_map:
+    if model_type == ModelType.ranking:
+        est.fit(X_train, y_train, group=groups_train)
+    elif algo_xgb and scorer in xgb_score_map:
         if ts_option:
             shuffle_flag = False
         else:
@@ -745,13 +766,11 @@ def first_fit(model, algo, est):
 
     # Get the initial scores
 
-    logger.info("Cross-Validation")
-    try:
+    if model_type != ModelType.ranking:
+        logger.info("Cross-Validation")
         scores = cross_val_score(est, X_train, y_train.values.ravel(), scoring=scorer,
                                  cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
         logger.info("Cross-Validation Scores: %s", scores)
-    except:
-        logger.info("Cross-Validation Failed: Try setting number_jobs = 1 in model.yml")
 
     # Store the estimator
     model.estimators[algo] = est
@@ -953,6 +972,8 @@ def make_predictions(model, algo):
         X_test = model.X_test
 
     y_train = model.y_train
+    groups_train = model.groups_train
+    groups_test = model.groups_test
 
     # Calibration
 
@@ -1187,14 +1208,31 @@ def generate_metrics(model, partition):
 
     if partition == Partition.train:
         expected = model.y_train
+        groups = model.groups_train
     elif partition == Partition.test:
         expected = model.y_test
+        groups = model.groups_test
     elif partition == Partition.train_ts:
         expected = model.y_train_ts
     elif partition == Partition.test_ts:
         expected = model.y_test
     else:
         raise ValueError("Invalid Partition: %s", partition)
+
+    # Kendall Tau Function
+    
+    def kendall_tau(expected, predicted):
+        group_indices = list(np.cumsum(groups))
+        group_indices.insert(0, 0)
+        scores = []
+        for i, _ in enumerate(groups):
+            group_exp = expected[group_indices[i]:group_indices[i+1]]
+            group_pred = predicted[group_indices[i]:group_indices[i+1]]
+            kt_values = stats.kendalltau(group_exp, group_pred)
+            kt_score = kt_values.correlation
+            if not np.isnan(kt_score):
+                scores.append(kt_score)
+        return np.mean(scores)
 
     # Generate Metrics
 
@@ -1206,7 +1244,7 @@ def generate_metrics(model, partition):
         for algo in algolist:
             # get predictions for the given algorithm
             predicted = model.preds[(algo, partition)]
-            # classification metrics
+            # Classification Metrics
             if model_type == ModelType.classification:
                 probas = model.probas[(algo, partition)]
                 try:
@@ -1258,7 +1296,7 @@ def generate_metrics(model, partition):
                     model.metrics[(algo, partition, 'roc_auc')] = auc(fpr, tpr)
                 except:
                     logger.info("ROC AUC Score not calculated")
-            # regression metrics
+            # Regression Metrics
             elif model_type == ModelType.regression:
                 try:
                     model.metrics[(algo, partition, 'explained_variance')] = explained_variance_score(expected, predicted)
@@ -1288,6 +1326,20 @@ def generate_metrics(model, partition):
                     model.metrics[(algo, partition, 'r2')] = r2_score(expected, predicted)
                 except:
                     logger.info("R-Squared Score not calculated")
+            # ranking Metrics
+            elif model_type == ModelType.ranking:
+                try:
+                    model.metrics[(algo, partition, 'dcg_score')] = dcg_score([expected], [predicted])
+                except:
+                    logger.info("DCG Score not calculated")
+                try:
+                    model.metrics[(algo, partition, 'kendall_tau')] = kendall_tau(expected, predicted)
+                except:
+                    logger.info("Kendall Tau not calculated")
+                try:
+                    model.metrics[(algo, partition, 'ndcg_score')] = ndcg_score([expected], [predicted])
+                except:
+                    logger.info("NDCG Score not calculated")
         # log the metrics for each algorithm
         for algo in algolist:
             logger.info('-'*80)

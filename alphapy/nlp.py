@@ -182,7 +182,7 @@ def encode_volume(row, c1, c2):
 # Function encode_price
 #
 
-def encode_price(df_price, p=20, intraday=False):
+def encode_price(df_price, p=20, intraday=None):
     r"""Encode the price data into NLP sequences.
 
     Parameters
@@ -191,7 +191,7 @@ def encode_price(df_price, p=20, intraday=False):
         Dataframe with all columns required for calculation.
     p : int
         Maximum period for recording extremes
-    intraday : bool
+    intraday : tuple
         Intraday flag
 
     Returns
@@ -210,8 +210,8 @@ def encode_price(df_price, p=20, intraday=False):
 
     # Encode the pivot value.
 
-    df_price['pivot_high'] = pivot_high(df_price, 'high')
-    df_price['pivot_low'] = pivot_low(df_price, 'low')
+    df_price['pivot_high'] = pivot_high(df_price, 'high', p)
+    df_price['pivot_low'] = pivot_low(df_price, 'low', p)
     df_price['pivot_str'] = df_price.apply(encode_pivot, args=['pivot_high', 'pivot_low'], axis=1)
 
     # Encode the net price.
@@ -236,7 +236,7 @@ def encode_price(df_price, p=20, intraday=False):
 
     df_price['encoded_str'] = df_price['pivot_str'] + df_price['net_str'] + df_price['range_str'] + df_price['volume_str']
     encoded_str = df_price['encoded_str'].str.cat(sep=BSEP)
-    
+
     if intraday:
-        encoded_str = ' <bod> ' + encoded_str + ' <eod> '
+        encoded_str = ' ' + intraday[0] + ' ' + encoded_str + ' ' + intraday[1] + ' '
     return encoded_str

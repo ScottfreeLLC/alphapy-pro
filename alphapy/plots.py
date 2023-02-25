@@ -65,12 +65,12 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.calibration import calibration_curve
-from sklearn.inspection import plot_partial_dependence
+from sklearn.inspection import PartialDependenceDisplay
 from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve
 from sklearn.model_selection import learning_curve
-from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
 
@@ -925,9 +925,9 @@ def plot_partial_dependence(est, X, features, fnames, tag,
 
     # Plot partial dependence
 
-    fig, axs = plot_partial_dependence(est, X, features, feature_names=fnames,
-                                       grid_resolution=50, n_jobs=n_jobs,
-                                       verbose=verbosity)
+    fig, axs = PartialDependenceDisplay(est, X, features, feature_names=fnames,
+                                        grid_resolution=50, n_jobs=n_jobs,
+                                        verbose=verbosity)
     title = "Partial Dependence Plot"
     fig.suptitle(title)
     plt.subplots_adjust(top=0.9)  # tight_layout causes overlap with suptitle
