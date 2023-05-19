@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 # Function portfolio_name
 #
 
-def portfolio_name(group_name, tag):
+def portfolio_name(group_name, system_name, tag):
     """
     Return the name of the portfolio.
 
@@ -60,6 +60,8 @@ def portfolio_name(group_name, tag):
     ----------
     group_name : str
         The group represented in the portfolio.
+    system_name : str
+        The system represented in the portfolio.
     tag : str
         A unique identifier.
 
@@ -69,7 +71,7 @@ def portfolio_name(group_name, tag):
         Portfolio name.
 
     """
-    port_name = '.'.join([group_name, tag, "portfolio"])
+    port_name = '.'.join([group_name, system_name, tag, "portfolio"])
     return port_name
 
 
@@ -85,6 +87,8 @@ class Portfolio():
     ----------
     group_name : str
         The group represented in the portfolio.
+    system_name : str
+        The system associated with the portfolio.
     tag : str
         A unique identifier.
     space : alphapy.Space, optional
@@ -144,6 +148,7 @@ class Portfolio():
     
     def __new__(cls,
                 group_name,
+                system_name,
                 tag,
                 space = Space(),
                 maxpos = 10,
@@ -159,7 +164,7 @@ class Portfolio():
                 maxloss = 0.1,
                 cost_bps = 0.0):
         # create portfolio name
-        pn = portfolio_name(group_name, tag)
+        pn = portfolio_name(group_name, system_name, tag)
         if not pn in Portfolio.portfolios:
             return super(Portfolio, cls).__new__(cls)
         else:
@@ -169,6 +174,7 @@ class Portfolio():
     
     def __init__(self,
                  group_name,
+                 system_name,
                  tag,
                  space = Space(),
                  maxpos = 10,
@@ -185,6 +191,7 @@ class Portfolio():
                  cost_bps = 0.0):
         # initialization
         self.group_name = group_name
+        self.system_name = system_name
         self.tag = tag
         self.space = space
         self.positions = {}
@@ -211,13 +218,13 @@ class Portfolio():
         self.totalprofit = 0.0
         self.totalreturn = 0.0
         # add portfolio to portfolios list
-        pn = portfolio_name(group_name, tag)
+        pn = portfolio_name(group_name, system_name, tag)
         Portfolio.portfolios[pn] = self
 
     # __str__
 
     def __str__(self):
-        return portfolio_name(self.group_name, self.tag)
+        return portfolio_name(self.group_name, self.system_name, self.tag)
 
 
 #
@@ -1008,11 +1015,11 @@ def exec_trade(p, name, order, quantity, price, tdate):
 
 
 #
-# Function gen_portfolio
+# Function create_portfolio
 #
 
-def gen_portfolio(model, system_name, portfolio_specs, group, tframe):
-    r"""Create a portfolio from a trades frame.
+def create_portfolio(model, system_name, portfolio_specs, group, tframe, tag):
+    r"""Run a portfolio with the given list of trades.
 
     Parameters
     ----------
@@ -1026,6 +1033,8 @@ def gen_portfolio(model, system_name, portfolio_specs, group, tframe):
         The group of instruments in the portfolio.
     tframe : pandas.DataFrame
         The input trade list from running the system.
+    tag : str
+        A unique identifier for the output file.
 
     Returns
     -------
@@ -1048,6 +1057,8 @@ def gen_portfolio(model, system_name, portfolio_specs, group, tframe):
     * Transactions File
 
     """
+    
+    logger.info("Creating Portfolio for System %s", system_name)
 
     # Unpack the model data.
 
@@ -1069,10 +1080,9 @@ def gen_portfolio(model, system_name, portfolio_specs, group, tframe):
 
     # Create the portfolio.
 
-    logger.info("Creating Portfolio for System %s", system_name)
-
     p = Portfolio(gname,
                   system_name,
+                  tag,
                   gspace,
                   startcap = startcap,
                   margin = margin,
@@ -1135,7 +1145,7 @@ def gen_portfolio(model, system_name, portfolio_specs, group, tframe):
     rf = pd.concat([rf1['date'], rf2], axis=1)
     rf.set_index('date', inplace=True)
     rfname = frame_name(gname, rspace)
-    write_frame(rf, system_dir, rfname, extension, separator,
+    write_frame(rf, system_dir, rfname, extension, separator, tag,
                 index=True, index_label='date')
     del rspace
 
@@ -1144,7 +1154,7 @@ def gen_portfolio(model, system_name, portfolio_specs, group, tframe):
     logger.info("Recording Positions Frame")
     pspace = Space(system_name, 'positions', gspace.fractal)
     pfname = frame_name(gname, pspace)
-    write_frame(pf, system_dir, pfname, extension, separator,
+    write_frame(pf, system_dir, pfname, extension, separator, tag,
                 index=True, index_label='date')
     del pspace
 
@@ -1157,7 +1167,7 @@ def gen_portfolio(model, system_name, portfolio_specs, group, tframe):
     tf = pd.concat([tf1['date'], tf2], axis=1)
     tf.set_index('date', inplace=True)
     tfname = frame_name(gname, tspace)
-    write_frame(tf, system_dir, tfname, extension, separator,
+    write_frame(tf, system_dir, tfname, extension, separator, tag,
                 index=True, index_label='date')
     del tspace
     
@@ -1166,7 +1176,7 @@ def gen_portfolio(model, system_name, portfolio_specs, group, tframe):
     logger.info("Recording Trading Metrics")
     rf.index = pd.to_datetime(rf.index)
     df_metrics = qs.reports.metrics(rf, mode='full', display=False)
-    write_frame(df_metrics, system_dir, 'trade_metrics', extension, separator,
+    write_frame(df_metrics, system_dir, 'trade_metrics', extension, separator, tag,
                 index=True, index_label='date')
     
     # Record the tear sheet (currently not working)
@@ -1177,5 +1187,43 @@ def gen_portfolio(model, system_name, portfolio_specs, group, tframe):
         logger.info("Saving Tear Sheet to: %s", tear_sheet_spec)
         qs.reports.html(rf, output=True, download_filename=tear_sheet_spec)
 
-    # Return the portfolio.
-    return p
+    return
+
+
+#
+# Function gen_portfolio
+#
+
+def gen_portfolios(model, system_name, portfolio_specs, group, tframe, bframe):
+    r"""Generate portfolios from trade lists.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model specifications.
+    system_name : str
+        The name of the system
+    portfolio_specs : dict
+        The portfolio specifications.
+    group : alphapy.Group
+        The group of instruments in the portfolio.
+    tframe : pandas.DataFrame
+        The input trade list from running the system.
+    bframe : pandas.DataFrame
+        The baseline trade list from running the system (not applicable for ranking models).
+    """
+    
+    logger.info("Generating Portfolios")
+
+    # Create the list of trade dataframes.
+
+    if bframe.empty:        
+        trade_dfs = [tframe]
+    else:
+        trade_dfs = [tframe, bframe]
+    tags = ['prob', 'base']
+    
+    # Create the portfolios.
+
+    for index, df in enumerate(trade_dfs):
+        create_portfolio(model, system_name, portfolio_specs, group, df, tags[index])
