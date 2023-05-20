@@ -394,7 +394,8 @@ def trade_ranking(symbol, quantity, system, df_rank, space, intraday):
 # Function trade_system
 #
 
-def trade_system(symbol, quantity, system, df_rank, space, intraday, ts_flag):
+def trade_system(symbol, quantity, system, df_rank, space, intraday,
+                 ts_flag=False, use_probs=True):
     r"""Trade the given system.
 
     Parameters
@@ -411,8 +412,10 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday, ts_flag):
         Namespace of all variables over all fractals.
     intraday : bool
         If True, then run an intraday system.
-    ts_flag : bool
+    ts_flag : bool (optional)
         True if using time series probabilities.
+    use_probs : bool (optional)
+        Flag indicating whether to use probabilities.
 
     Returns
     -------
@@ -482,7 +485,10 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday, ts_flag):
         pcol = USEP.join(['prob', partition_tag, algo.lower()])
     df_trade = df_trade.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
     df_sym[pcol].fillna(0.5, inplace=True)
-    df_trade = assign_entry(df_trade, pcol, prob_min, prob_max)
+    if use_probs:
+        df_trade = assign_entry(df_trade, pcol, prob_min, prob_max)
+    else:
+        df_trade = assign_entry(df_trade, pcol, 0.0, 1.0)
 
     # Initialize trading state variables
 
@@ -656,19 +662,30 @@ def run_system(model,
 
     # Run the system for each member of the group
 
-    gtlist = []
+    gtlist1 = []
+    gtlist2 = []
     for symbol in gmembers:
+        tlist1 = []
+        tlist2 = []
         # generate the trades for this member
         if model_type == ModelType.ranking:
-            tlist = trade_ranking(symbol, quantity, system, df_rank, gspace, intraday)
+            tlist1 = trade_ranking(symbol, quantity, system, df_rank, gspace, intraday)
         else:
-            tlist = trade_system(symbol, quantity, system, df_rank, gspace, intraday, ts_flag)
-        if tlist:
-            # add trades to global trade list
-            for item in tlist:
-                gtlist.append(item)
+            tlist1 = trade_system(symbol, quantity, system, df_rank, gspace, intraday, ts_flag)
+            tlist2 = trade_system(symbol, quantity, system, df_rank, gspace, intraday, ts_flag,
+                                  use_probs=False)
+        if tlist1:
+            # add trades to global trade list 1
+            for item in tlist1:
+                gtlist1.append(item)
         else:
-            logger.info("No trades for symbol %s", symbol.upper())
+            logger.info("No trades for symbol %s with probability", symbol.upper())
+        if tlist2:
+            # add trades to global trade list 2
+            for item in tlist2:
+                gtlist2.append(item)
+        else:
+            logger.info("No trades for symbol %s without probability", symbol.upper())
 
     # Determine index column
 
@@ -679,21 +696,28 @@ def run_system(model,
 
     # Create group trades frame
 
-    tf = pd.DataFrame()
-    if gtlist:
-        tspace = Space(system_name, "trades", gspace.fractal)
-        gtlist = sorted(gtlist, key=lambda x: x[0])
-        tf1 = DataFrame.from_records(gtlist, columns=[index_column, 'trades'])
-        tf2 = pd.DataFrame(tf1['trades'].to_list(), columns=Trade.states)
-        tf = pd.concat([tf1[index_column], tf2], axis=1)
-        tf.set_index(index_column, inplace=True)
-        tfname = frame_name(gname, tspace)
-        system_dir = SSEP.join([run_dir, 'systems'])
-        write_frame(tf, system_dir, tfname, extension, separator,
-                    index=True, index_label=index_column)
-        del tspace
-    else:
-        logger.info("No trades were found")
+    def record_trades(gtlist, tag=''):
+        tf = pd.DataFrame()
+        if gtlist:
+            tspace = Space(system_name, "trades", gspace.fractal)
+            gtlist = sorted(gtlist, key=lambda x: x[0])
+            tf1 = DataFrame.from_records(gtlist, columns=[index_column, 'trades'])
+            tf2 = pd.DataFrame(tf1['trades'].to_list(), columns=Trade.states)
+            tf = pd.concat([tf1[index_column], tf2], axis=1)
+            tf.set_index(index_column, inplace=True)
+            tfname = frame_name(gname, tspace)
+            system_dir = SSEP.join([run_dir, 'systems'])
+            write_frame(tf, system_dir, tfname, extension, separator, tag,
+                        index=True, index_label=index_column)
+            del tspace
+        else:
+            logger.info("No trades were found")
+        return tf
+            
+    # Get the trading frames for all system runs.
+    
+    df_t1 = record_trades(gtlist1, 'prob')
+    df_t2 = record_trades(gtlist2, 'base')
 
     # Return trades frame
-    return tf
+    return df_t1, df_t2

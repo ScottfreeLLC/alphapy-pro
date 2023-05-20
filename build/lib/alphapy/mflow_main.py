@@ -62,7 +62,7 @@ from alphapy.metalabel import get_t_events
 from alphapy.model import get_model_config
 from alphapy.model import Model
 
-from alphapy.portfolio import gen_portfolio
+from alphapy.portfolio import gen_portfolios
 from alphapy.space import Space
 from alphapy.system import run_system
 from alphapy.system import System
@@ -791,11 +791,12 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     # Run the system and generate the portfolio.
 
-    df_trades = run_system(model, system, group, intraday)
+    df_trades, df_baseline = run_system(model, system, group, intraday)
     if df_trades.empty:
         logger.info("No trades to generate a portfolio")
     else:
-        gen_portfolio(model, system_name, portfolio_specs, group, df_trades)
+        gen_portfolios(model, system_name, portfolio_specs, group,
+                       df_trades, df_baseline)
 
     # Return the completed model.
     return model

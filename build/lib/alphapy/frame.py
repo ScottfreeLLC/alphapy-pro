@@ -169,7 +169,7 @@ def read_frame(directory, filename, extension, separator, index_col=False):
 # Function write_frame
 #
 
-def write_frame(df, directory, filename, extension, separator,
+def write_frame(df, directory, filename, extension, separator, tag='',
                 index=False, index_label=None, columns=None):
     r"""Write a dataframe into a delimiter-separated file.
 
@@ -185,6 +185,8 @@ def write_frame(df, directory, filename, extension, separator,
         File name extension, e.g., ``csv``.
     separator : str
         The delimiter between fields in the file.
+    tag : str, optional
+        An additional tag to add to the file name.
     index : bool, optional
         If ``True``, write the row names (index).
     index_label : str, optional
@@ -197,8 +199,12 @@ def write_frame(df, directory, filename, extension, separator,
     None : None
 
     """
+
+    if tag != '':
+        filename = USEP.join([filename, tag])
     file_only = PSEP.join([filename, extension])
     file_all = SSEP.join([directory, file_only])
+
     logger.info("Writing data frame to %s", file_all)
     try:
         df.to_csv(file_all, sep=separator, index=index,
