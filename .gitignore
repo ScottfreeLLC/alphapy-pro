@@ -1,9 +1,9 @@
 # Files
 *.csv
-.DS_Store
 *.log
 *.pkl
 *.png
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -18,7 +18,7 @@ __pycache__/
 .Python
 build/*
 develop-eggs/
-dist/
+dist/*
 downloads/
 eggs/
 .eggs/
