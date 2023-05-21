@@ -525,6 +525,7 @@ def get_iex_data(source, symbol, intraday_data, data_fractal,
                 if df1_len > 0:
                     logger.info("%s: %d rows", symbol, df1_len)
                     df = df.append(df1)
+                    df = pd.concat([df, df1])
                 else:
                     logger.info("%s: No Trading Data for %s", symbol, dstr)
             except:

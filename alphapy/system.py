@@ -516,8 +516,13 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday,
         serow = row['entry'] and row['side'] == -1
         end_of_day = row[icol] if intraday else False
         # calculate profit targets and stop losses
-        ds_index = ds_vol.index.get_loc(dt, method='nearest')
-        daily_vol = ds_vol.iloc[ds_index]
+        try:
+            daily_vol = ds_vol.loc[dt]
+        except KeyError:
+            try:
+                daily_vol = ds_vol.iloc[0]
+            except IndexError:
+                daily_vol = 0.03
         profit_target = profit_factor * daily_vol * c
         stop_loss = stoploss_factor * daily_vol * c
         # process the long and short events

@@ -30,7 +30,7 @@ from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.frame import write_frame
-from alphapy.globals import SSEP
+from alphapy.globals import SSEP, USEP
 from alphapy.globals import Orders
 from alphapy.space import Space
 
@@ -71,7 +71,7 @@ def portfolio_name(group_name, system_name, tag):
         Portfolio name.
 
     """
-    port_name = '.'.join([group_name, system_name, tag, "portfolio"])
+    port_name = USEP.join([group_name, system_name, tag, "portfolio"])
     return port_name
 
 
@@ -524,6 +524,7 @@ def close_position(p, position, tdate):
 
     """
     pq = position.quantity
+    print(position.name, position.profit)
     # if necessary, put on an offsetting trade
     if pq != 0:
         tradesize = -pq
@@ -1130,6 +1131,7 @@ def create_portfolio(model, system_name, portfolio_specs, group, tframe, tag):
         pf.loc[d, 'cash'] = p.cash
         # update the portfolio returns
         p = valuate_portfolio(p, d)
+        print(d, p.value)
         rs.append((d, [p.netreturn]))
 
     # Create systems directory path

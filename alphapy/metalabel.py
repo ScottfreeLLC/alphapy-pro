@@ -218,7 +218,7 @@ def apply_pt_sl_on_t1(ds_close, df_events, pt_sl):
     else:
         sl = pd.Series(index=df_events.index)
 
-    for loc, t1 in df_events['t1'].fillna(ds_close.index[-1]).iteritems():
+    for loc, t1 in df_events['t1'].fillna(ds_close.index[-1]).items():
         # path prices
         df0 = ds_close[loc:t1]
         # path returns

@@ -505,7 +505,7 @@ def prepare_data(model, dfs, market_specs):
             if predict_mode:
                 new_predict = df_out.loc[(df_out.index >= split_date) & (df_out.index <= last_date)].copy()
                 if len(new_predict) > 0:
-                    predict_frame = predict_frame.append(new_predict)
+                    predict_frame = pd.concat([predict_frame, new_predict])
                 else:
                     logger.info("%s Prediction Frame has zero rows. Check prediction date.", symbol)
             else:
@@ -518,7 +518,7 @@ def prepare_data(model, dfs, market_specs):
                         logger.info("%s has %d train records with a NaN target.", symbol, nan_count)
                     # drop records with NaN values in target column
                     new_train = new_train.dropna(subset=[target])
-                    train_frame = train_frame.append(new_train)
+                    train_frame = pd.concat([train_frame, new_train])
                     # get test frame
                     new_test = df_out.loc[(df_out.index >= predict_date) & (df_out.index <= last_date)]
                     if not new_test.empty:
@@ -530,7 +530,7 @@ def prepare_data(model, dfs, market_specs):
                         # drop records with NaN values in target column
                         new_test = new_test.dropna(subset=[target])
                         # append selected records to the test frame
-                        test_frame = test_frame.append(new_test)
+                        test_frame = pd.concat([test_frame, new_test])
                     else:
                         logger.info("%s Testing Frame has zero rows. Check prediction date.", symbol)
                 else:
@@ -872,7 +872,7 @@ def main(args=None):
     if args.train_date:
         train_date = args.train_date
     else:
-        train_date = pd.datetime(1900, 1, 1).strftime("%Y-%m-%d")
+        train_date = datetime.datetime(1900, 1, 1).strftime("%Y-%m-%d")
 
     if args.predict_date:
         predict_date = args.predict_date
