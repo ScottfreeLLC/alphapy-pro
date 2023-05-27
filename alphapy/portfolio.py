@@ -587,8 +587,6 @@ def update_portfolio(p, pos, trade, tdate, newpos=False):
         p = close_position(p, pos, tdate)
         p.npos -= 1
         p.cash -= trade.price * trade.quantity
-    # valuate the portfolio
-    p = valuate_portfolio(p, tdate)
     return p
 
 
@@ -1078,8 +1076,13 @@ def create_portfolio(model, system_name, portfolio_specs, group, tframe, tag):
         logger.debug(f"Total Return: {p.totalreturn}")
         logger.debug(f"Net Profit: {p.netprofit}")
         logger.debug(f"Net Return: {p.netreturn}")
-        # record cash and return values
+        # record positions on each date
+        positions = p.positions
+        for key in positions:
+            pos = positions[key]
+            pf.loc[d, pos.name] = pos.value
         pf.loc[d, 'cash'] = p.cash
+        # record returns on each date
         rs.append((d, [p.netreturn]))
 
     # Create systems directory path
