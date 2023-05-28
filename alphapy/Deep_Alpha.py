@@ -46,8 +46,8 @@ import sys
 
 from alphapy.alphapy_main import get_alphapy_config
 import alphapy.globals as apg
-from alphapy.alphapy_requests import alphapy_request
-from alphapy.alphapy_requests import run_command
+from alphapy.requests_ap import alphapy_request
+from alphapy.requests_ap import run_command
 
 
 #
