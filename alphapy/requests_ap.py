@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Package   : AlphaPy
-# Module    : alphapy_requests
+# Module    : requests_ap
 # Created   : April 22, 2022
 #
 # Copyright 2022 ScottFree Analytics LLC
@@ -30,11 +30,11 @@ import subprocess
 import requests
 import streamlit as st
 
-from mflow_server import request_groups
-from mflow_server import request_market_config
-from mflow_server import request_model_config
-from mflow_server import request_paths
-from mflow_server import request_projects
+from alphapy.mflow_server import request_groups
+from alphapy.mflow_server import request_market_config
+from alphapy.mflow_server import request_model_config
+from alphapy.mflow_server import request_paths
+from alphapy.mflow_server import request_projects
 
 
 #
@@ -48,6 +48,47 @@ alphapy_dispatcher = {
      'paths'         : request_paths,
      'projects'      : request_projects
 }
+
+
+def get_web_content(url):
+    try:
+        response = requests.get(url)
+
+        # Successful request
+        if response.status_code == 200:
+            print("Success!")
+            return response.text
+
+        # Page not found
+        elif response.status_code == 404:
+            print("Error: Page not found.")
+            return None
+
+        # Server error
+        elif response.status_code >= 500:
+            print("Server error.")
+            return None
+
+        # Other errors
+        else:
+            print(f"Unexpected status code: {response.status_code}")
+            return None
+
+    except requests.ConnectionError:
+        print("Error: Failed to establish a new connection.")
+        return None
+
+    except requests.Timeout:
+        print("Error: The request timed out.")
+        return None
+
+    except requests.TooManyRedirects:
+        print("Error: Too many redirects.")
+        return None
+
+    except requests.RequestException as e:
+        print(f"Error: An unexpected error occurred. {e}")
+        return None
 
 
 #

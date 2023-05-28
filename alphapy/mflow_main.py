@@ -41,7 +41,6 @@ import os
 import pandas as pd
 import shutil
 import sys
-import yaml
 
 from alphapy.alphapy_main import get_alphapy_config
 from alphapy.alphapy_main import main_pipeline
@@ -49,7 +48,6 @@ from alphapy.data import get_market_data
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.frame import write_frame
-from alphapy.globals import BarType
 from alphapy.globals import ModelType
 from alphapy.globals import LOFF, ROFF, SSEP, USEP
 from alphapy.globals import PD_INTRADAY_OFFSETS
@@ -59,9 +57,9 @@ from alphapy.metalabel import get_bins
 from alphapy.metalabel import get_daily_vol
 from alphapy.metalabel import get_events
 from alphapy.metalabel import get_t_events
+from alphapy.mflow_server import get_market_config
 from alphapy.model import get_model_config
 from alphapy.model import Model
-
 from alphapy.portfolio import gen_portfolios
 from alphapy.space import Space
 from alphapy.system import run_system
@@ -79,201 +77,6 @@ from alphapy.variables import vapply
 #
 
 logger = logging.getLogger(__name__)
-
-
-#
-# Function get_market_config
-#
-
-def get_market_config(directory='.'):
-    r"""Read the configuration file for MarketFlow.
-
-    Parameters
-    ----------
-    directory : str
-        The location of the configuration file.
-
-    Returns
-    -------
-    cfg : dict
-        The original configuration specification.
-    specs : dict
-        The parameters for controlling MarketFlow.
-
-    """
-
-    logger.info('*'*80)
-    logger.info("MarketFlow Configuration")
-
-    # Read the configuration file
-
-    full_path = SSEP.join([directory, 'config', 'market.yml'])
-    with open(full_path, 'r') as ymlfile:
-        cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
-
-    # Store configuration parameters in dictionary
-
-    specs = {}
-
-    #
-    # Section: portfolio
-    #
-
-    logger.info("Getting Portfolio Parameters")
-    try:
-        specs['portfolio'] = cfg['portfolio']
-    except:
-        raise ValueError("No Portfolio Parameters Found")
-
-    #
-    # Section: system
-    #
-
-    logger.info("Getting System Parameters")
-    try:
-        specs['system'] = cfg['system']
-    except:
-        raise ValueError("No System Parameters Found")
-
-    #
-    # Section: ranking
-    #
-
-    logger.info("Getting Ranking Parameters")
-    try:
-        specs['ranking'] = cfg['ranking']
-    except:
-        raise ValueError("No Ranking Parameters Found")
-
-    #
-    # Section: data
-    #
-
-    data_section = cfg['data']
-    specs['data_source'] = data_section['data_source']
-
-    # Fractals must conform to the pandas offset format
-
-    fractal = data_section['data_fractal']
-    try:
-        data_fractal_td = pd.to_timedelta(fractal)
-    except:
-        raise ValueError("Fractal [%s] is an invalid pandas offset" % fractal)
-    specs['data_fractal'] = fractal
-
-    data_history = data_section['data_history']
-    if not data_history:
-        data_history = 0
-
-    start_date = data_section['data_start_date']
-    end_date = data_section['data_end_date']
-
-    if not start_date or not end_date:
-        data_history_dt = pd.to_timedelta(data_history, unit='d')
-        today_date_dt = pd.to_datetime('today')
-        if start_date:
-            start_date_dt = pd.to_datetime(start_date)
-            if data_history > 0:
-                end_date_dt = start_date_dt + data_history_dt
-                end_date_dt = today_date_dt if end_date_dt > today_date_dt else end_date_dt
-            else:
-                end_date_dt = today_date_dt
-        elif data_history > 0:
-            if end_date:
-                end_date_dt = pd.to_datetime(end_date)
-                start_date_dt = end_date_dt - data_history_dt
-            else:
-                end_date_dt = today_date_dt
-                start_date_dt = end_date_dt - data_history_dt
-        else:
-            raise ValueError("Either parameter data_start_date or data_history is required")
-        start_date = start_date_dt.strftime('%Y-%m-%d')
-        end_date = end_date_dt.strftime('%Y-%m-%d')
-
-    specs['data_history'] = data_history
-    specs['data_start_date'] = start_date
-    specs['data_end_date'] = end_date
-    specs['forecast_period'] = data_section['forecast_period']
-    specs['predict_history'] = data_section['predict_history']
-    specs['subject'] = data_section['subject']
-    specs['target_group'] = data_section['target_group']
-    specs['cohort_group'] = data_section['cohort_group']
-
-    #
-    # Section: Bar Type, Features and Fractals
-    #
-
-    logger.info("Getting Bar Type")
-
-    try:
-        specs['bar_type'] = BarType[cfg['bar_type']]
-    except:
-        logger.info("No valid bar type was specified. Default: time")
-        specs['bar_type'] = BarType.time
-
-    logger.info("Getting Features")
-    specs['features'] = cfg['features']
-
-    logger.info("Getting Fractals")
-
-    fractals = list(specs['features'].keys())
-    if len(fractals) > 1 and specs['bar_type'] != BarType.time:
-        raise ValueError("Multiple Fractals valid only on time bars")
-    
-    fractal_dict = {}
-    for frac in fractals:
-        try:
-            td = pd.to_timedelta(frac)
-            fractal_dict[td] = frac
-        except:
-            raise ValueError("Fractal [%s] is an invalid pandas offset" % frac)
-    
-    # sort by ascending fractal
-    fractals_sorted = dict(sorted(fractal_dict.items()))
-    # store features sorted by fractal
-    feature_fractals = list(fractals_sorted.values())
-    # first (lowest) feature fractal must be >= data fractal
-    if list(fractals_sorted)[0] < data_fractal_td:
-        raise ValueError("Lowest feature fractal [%s] must >= data fractal [%s]" %
-                         (feature_fractals[0], specs['data_fractal']))
-    # assign to market specifications
-    specs['fractals'] = feature_fractals
-
-    #
-    # Section: functions
-    #
-
-    logger.info("Getting Variable Functions")
-    try:
-        specs['functions'] = cfg['functions']
-    except:
-        logger.info("No Variable Functions Found")
-        specs['functions'] = {}
-
-    #
-    # Log the market parameters
-    #
-
-    logger.info('MARKET PARAMETERS:')
-    logger.info('bar_type         = %s', specs['bar_type'])
-    logger.info('cohort_group     = %s', specs['cohort_group'])
-    logger.info('data_end_date    = %s', specs['data_end_date'])
-    logger.info('data_fractal     = %s', specs['data_fractal'])
-    logger.info('data_history     = %d', specs['data_history'])
-    logger.info('data_source      = %s', specs['data_source'])
-    logger.info('data_start_date  = %s', specs['data_start_date'])
-    logger.info('features         = %s', specs['features'])
-    logger.info('forecast_period  = %d', specs['forecast_period'])
-    logger.info('fractals         = %s', specs['fractals'])
-    logger.info('portfolio        = %s', specs['portfolio'])
-    logger.info('predict_history  = %d', specs['predict_history'])
-    logger.info('ranking          = %s', specs['ranking'])
-    logger.info('subject          = %s', specs['subject'])
-    logger.info('system           = %s', specs['system'])
-    logger.info('target_group     = %s', specs['target_group'])
-
-    # Market Specifications
-    return cfg, specs
 
 
 #
@@ -739,9 +542,11 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     lookback = predict_history if predict_mode else data_history
     local_dir = SSEP.join([data_dir, subject, trade_fractal])
-    get_market_data(model, market_specs, group, lookback, intraday, local_dir=local_dir)
+    get_market_data(alphapy_specs, model, market_specs, group,
+                    lookback, intraday, local_dir=local_dir)
     if group_cohort:
-        get_market_data(model, market_specs, group_cohort, lookback, intraday, local_dir=local_dir)
+        get_market_data(alphapy_specs, model, market_specs, group_cohort,
+                        lookback, intraday, local_dir=local_dir)
 
     # Apply the features to all frames, including the signals just for the
     # target fractal.

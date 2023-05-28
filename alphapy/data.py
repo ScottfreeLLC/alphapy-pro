@@ -35,6 +35,7 @@ from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import SSEP
 from alphapy.globals import SamplingMethod
 from alphapy.globals import WILDCARD
+from alphapy.requests_ap import get_web_content
 from alphapy.space import Space
 from alphapy.transforms import dateparts
 from alphapy.transforms import timeparts
@@ -57,6 +58,7 @@ from imblearn.under_sampling import OneSidedSelection
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.under_sampling import RepeatedEditedNearestNeighbours
 from imblearn.under_sampling import TomekLinks
+import json
 import logging
 import numpy as np
 import pandas as pd
@@ -439,7 +441,7 @@ def get_google_intraday_data(symbol, lookback_period, fractal):
 # Function get_google_data
 #
 
-def get_google_data(source, symbol, intraday_data, data_fractal,
+def get_google_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
                     from_date, to_date, lookback_period):
     r"""Get data from Google.
 
@@ -447,6 +449,8 @@ def get_google_data(source, symbol, intraday_data, data_fractal,
     ----------
     source : str
         The data feed.
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -482,7 +486,7 @@ def get_google_data(source, symbol, intraday_data, data_fractal,
 # Function get_iex_data
 #
 
-def get_iex_data(source, symbol, intraday_data, data_fractal,
+def get_iex_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
                  from_date, to_date, lookback_period):
     r"""Get data from IEX.
 
@@ -490,6 +494,8 @@ def get_iex_data(source, symbol, intraday_data, data_fractal,
     ----------
     source : str
         The data feed.
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -547,7 +553,7 @@ def get_iex_data(source, symbol, intraday_data, data_fractal,
 # Function get_pandas_data
 #
 
-def get_pandas_data(source, symbol, intraday_data, data_fractal,
+def get_pandas_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
                     from_date, to_date, lookback_period):
     r"""Get Pandas Web Reader data.
 
@@ -555,6 +561,8 @@ def get_pandas_data(source, symbol, intraday_data, data_fractal,
     ----------
     source : str
         The data feed.
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -587,10 +595,127 @@ def get_pandas_data(source, symbol, intraday_data, data_fractal,
 
 
 #
+# Function get_polygon_data
+#
+
+def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
+                     from_date, to_date, lookback_period):
+    r"""Get Polygon daily and intraday data.
+
+    Parameters
+    ----------
+    source : str
+        The data feed.
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
+    symbol : str
+        A valid stock symbol.
+    intraday_data : bool
+        If True, then get intraday data.
+    data_fractal : str
+        Pandas offset alias.
+    from_date : str
+        Starting date for symbol retrieval.
+    to_date : str
+        Ending date for symbol retrieval.
+    lookback_period : int
+        The number of periods of data to retrieve.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        The dataframe containing the intraday data.
+
+    """
+
+    # Function to convert the Pandas offset.
+    
+    def convert_offset(alias):
+        mappings = {
+            "min" : "minute",
+            "T"   : "minute",
+            "H"   : "hour",
+            "D"   : "day",
+            "W"   : "week",
+            "M"   : "month",
+            "Q"   : "quarter",
+            "A"   : "year",
+        }
+
+        # Separate number and term
+        match = re.match(r"(\d+)?(\w+)", alias)
+        if match:
+            number, term = match.groups()
+            number = int(number) if number else 1  # Default to 1 if not provided
+
+            # Convert term to timespan
+            if term in mappings:
+                timespan = mappings[term]
+                return (number, timespan)
+            else:
+                raise ValueError(f"Unknown offset alias: {alias}")
+        else:
+            raise ValueError(f"Invalid offset alias: {alias}")
+
+    # Google requires upper-case symbol, otherwise not found
+    symbol = symbol.upper()
+
+    # Initialize data frame
+    df = pd.DataFrame()
+
+    #
+    # Compose the request to Polygon
+    #
+    # Example:
+    #
+    # https://api.polygon.io/v2/aggs/ticker/AAPL/range/5/minute/2023-01-09/2023-05-09
+    # ?adjusted=true&sort=asc&limit=120&apiKey=_BynHqDfXhPoQcFf8Nb6hJzC_p67_5Sf1tn5ms
+    #
+
+    base_url = 'https://api.polygon.io/v2/aggs'
+    ticker = SSEP.join(['ticker', symbol])
+    period, timespan = convert_offset(data_fractal)
+    fractal = SSEP.join(['range', str(period), timespan])
+    date_range = SSEP.join([from_date, to_date])
+
+    # Set the request modifiers
+
+    limit = '='.join(['limit', str(lookback_period)])
+    api_key = '='.join(['apiKey', alphapy_specs['sources']['polygon']['api_key']])
+    modifiers = '&'.join(['?adjusted=true&sort=asc', limit, api_key])
+    
+    # Make the request
+
+    url = SSEP.join([base_url, ticker, fractal, date_range, modifiers])
+    response = get_web_content(url)
+    json_data = json.loads(response)
+    
+    # Set date/time column
+    dt_col = 'datetime' if intraday_data else 'date'
+
+    # Create the data frame and rename columns
+
+    df = pd.DataFrame(json_data['results'])
+    df.drop(columns=['vw', 'n'], inplace=True)
+    df['t'] = pd.to_datetime(df['t'], unit='ms')
+    df = df.rename(columns={
+        'v': 'volume',
+        'o' : 'open',
+        'c' : 'close',
+        'h' : 'high',
+        'l' : 'low',
+        't' : dt_col
+    })
+
+    # Return the dataframe
+    return df
+
+
+#
 # Function get_yahoo_data
 #
 
-def get_yahoo_data(source, symbol, intraday_data, data_fractal,
+def get_yahoo_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
                    from_date, to_date, lookback_period):
     r"""Get Yahoo daily and intraday data.
 
@@ -598,6 +723,8 @@ def get_yahoo_data(source, symbol, intraday_data, data_fractal,
     ----------
     source : str
         The data feed.
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     symbol : str
         A valid stock symbol.
     intraday_data : bool
@@ -647,10 +774,11 @@ def get_yahoo_data(source, symbol, intraday_data, data_fractal,
 # Data Dispatch Tables
 #
 
-data_dispatch_table = {'google' : get_google_data,
-                       'iex'    : get_iex_data,
-                       'pandas' : get_pandas_data,
-                       'yahoo'  : get_yahoo_data}
+data_dispatch_table = {'google'  : get_google_data,
+                       'iex'     : get_iex_data,
+                       'pandas'  : get_pandas_data,
+                       'polygon' : get_polygon_data,
+                       'yahoo'   : get_yahoo_data}
 
 
 #
@@ -724,12 +852,14 @@ def standardize_data(symbol, gspace, df, fractal, intraday_data):
 # Function get_market_data
 #
 
-def get_market_data(model, market_specs, group, lookback_period,
-                    intraday_data=False, local_dir=''):
+def get_market_data(alphapy_specs, model, market_specs, group,
+                    lookback_period, intraday_data=False, local_dir=''):
     r"""Get data from an external feed.
 
     Parameters
     ----------
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
     model : alphapy.Model
         The model object describing the data.
     market_specs : dict
@@ -789,6 +919,7 @@ def get_market_data(model, market_specs, group, lookback_period,
             df = read_frame(local_dir, fname, extension, separator)
         elif gsource in data_dispatch_table.keys():
             df = data_dispatch_table[gsource](gsource,
+                                              alphapy_specs,
                                               symbol,
                                               intraday_data,
                                               data_fractal,
@@ -796,7 +927,7 @@ def get_market_data(model, market_specs, group, lookback_period,
                                               to_date,
                                               lookback_period)
         else:
-            logger.error("Unsupported Data Source: %s", gsource)
+            raise ValueError("Unsupported Data Source: %s", gsource)
         # Now that we have content, standardize the data
         if not df.empty:
             df = df.copy()
