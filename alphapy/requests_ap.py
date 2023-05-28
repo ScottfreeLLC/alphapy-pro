@@ -26,9 +26,10 @@
 # Imports
 #
 
-import subprocess
+import logging
 import requests
 import streamlit as st
+import subprocess
 
 from alphapy.mflow_server import request_groups
 from alphapy.mflow_server import request_market_config
@@ -50,44 +51,70 @@ alphapy_dispatcher = {
 }
 
 
+#
+# Initialize logger
+#
+
+logger = logging.getLogger(__name__)
+
+
+#
+# Function get_web_content
+#
+
 def get_web_content(url):
+    r"""Use the requests package to get data over HTTP.
+
+    Parameters
+    ----------
+    url : str
+        The URL for making the request over HTTP.
+
+    Returns
+    -------
+    response : str
+        The results returned from the request.
+
+    """
+
+    logger.debug(f"Connecting to {url}")
     try:
         response = requests.get(url)
 
         # Successful request
         if response.status_code == 200:
-            print("Success!")
+            logger.debug("Success!")
             return response.text
 
         # Page not found
         elif response.status_code == 404:
-            print("Error: Page not found.")
+            logger.debug("Error: Page not found.")
             return None
 
         # Server error
         elif response.status_code >= 500:
-            print("Server error.")
+            logger.debug("Server error.")
             return None
 
         # Other errors
         else:
-            print(f"Unexpected status code: {response.status_code}")
+            logger.debug(f"Unexpected status code: {response.status_code}")
             return None
 
     except requests.ConnectionError:
-        print("Error: Failed to establish a new connection.")
+        logger.debug("Error: Failed to establish a new connection.")
         return None
 
     except requests.Timeout:
-        print("Error: The request timed out.")
+        logger.debug("Error: The request timed out.")
         return None
 
     except requests.TooManyRedirects:
-        print("Error: Too many redirects.")
+        logger.debug("Error: Too many redirects.")
         return None
 
     except requests.RequestException as e:
-        print(f"Error: An unexpected error occurred. {e}")
+        logger.debug(f"Error: An unexpected error occurred. {e}")
         return None
 
 
@@ -96,6 +123,23 @@ def get_web_content(url):
 #
 
 def alphapy_request(alphapy_specs, item, *args):
+    r"""Make a request to an AlphaPy server.
+
+    Parameters
+    ----------
+    alphapy_specs : str
+        The specifications for AlphaPy.
+    item : str
+        The name of the AlphaPy server.
+    args : str
+        The specific request.
+
+    Returns
+    -------
+    response : str
+        The results returned from the AlphaPy server.
+
+    """
     use_server = alphapy_specs['use_server']
     if use_server:
         url = alphapy_specs['mflow']['server_url']
@@ -111,6 +155,21 @@ def alphapy_request(alphapy_specs, item, *args):
 #
 
 def run_command(cmd_with_args, cwd):
+    r"""Run a subprocess based on the command with arguments.
+
+    Parameters
+    ----------
+    cmd_with_args : str
+        The command to run as a subprocess.
+    cwd: str
+        The current working directory.
+
+    Returns
+    -------
+    result : str
+        The result returned from running the subprocess.
+
+    """
     result = subprocess.run(cmd_with_args, capture_output=True, text=True, cwd=cwd)
     try:
         result.check_returncode()
