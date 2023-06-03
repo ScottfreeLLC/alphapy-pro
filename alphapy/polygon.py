@@ -153,7 +153,6 @@ def get_polygon_data(symbol, from_date, to_date, time_frame, period):
         n_days = abs(last_date - to_date_dt).days
         if n_days <= 3:
             done = True
-            df = df[df['datetime'] <= to_date]
         else:
             df = df[df['datetime'] < last_date]
             start_date = last_date.strftime('%Y-%m-%d')
