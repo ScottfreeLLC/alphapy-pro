@@ -170,13 +170,17 @@ def get_polygon_data(symbol, from_date, to_date, time_frame, period):
 #
 
 # AAPL 1-minute data
-df_appl = get_polygon_data('AAPL', '2020-01-01', '2020-12-31', 'minute', 1)
-print(df_appl)
+# df_appl = get_polygon_data('AAPL', '2020-01-01', '2020-12-31', 'minute', 1)
+# print(df_appl)
 
 # AAPL 5-minute data
-df_appl = get_polygon_data('AAPL', '2020-01-01', '2020-12-31', 'minute', 5)
+# df_appl = get_polygon_data('AAPL', '2020-01-01', '2020-12-31', 'minute', 5)
+# print(df_appl)
+
+# AAPL 1-hour data
+df_appl = get_polygon_data('HOFV', '2018-01-01', '2023-06-01', 'hour', 1)
 print(df_appl)
 
 # AAPL daily data
-df_appl = get_polygon_data('AAPL', '2020-01-01', '2020-12-31', 'day', 1)
-print(df_appl)
+# df_appl = get_polygon_data('AAPL', '2020-01-01', '2020-12-31', 'day', 1)
+# print(df_appl)

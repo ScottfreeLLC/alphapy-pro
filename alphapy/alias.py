@@ -27,7 +27,6 @@
 #
 
 import logging
-import parser
 import re
 
 
