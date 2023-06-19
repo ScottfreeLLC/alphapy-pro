@@ -519,7 +519,10 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday,
         try:
             daily_vol = ds_vol.loc[dt]
         except KeyError:
-            daily_vol = ds_vol.iloc[0]
+            try:
+                daily_vol = ds_vol.iloc[0]
+            except IndexError:
+                daily_vol = 0.03
         profit_target = profit_factor * daily_vol * c
         stop_loss = stoploss_factor * daily_vol * c
         # process the long and short events

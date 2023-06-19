@@ -6,7 +6,6 @@ alphapy/Deep_Alpha.py
 alphapy/__init__.py
 alphapy/alias.py
 alphapy/alphapy_main.py
-alphapy/alphapy_requests.py
 alphapy/calendrical.py
 alphapy/data.py
 alphapy/estimators.py
@@ -23,8 +22,10 @@ alphapy/model.py
 alphapy/nlp.py
 alphapy/optimize.py
 alphapy/plots.py
+alphapy/polygon.py
 alphapy/portfolio.py
 alphapy/rank_metrics.py
+alphapy/requests_ap.py
 alphapy/sflow_live.py
 alphapy/sflow_main.py
 alphapy/space.py

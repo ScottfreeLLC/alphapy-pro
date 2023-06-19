@@ -30,7 +30,7 @@ from alphapy.frame import Frame
 from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.frame import write_frame
-from alphapy.globals import SSEP
+from alphapy.globals import SSEP, USEP
 from alphapy.globals import Orders
 from alphapy.space import Space
 
@@ -71,7 +71,7 @@ def portfolio_name(group_name, system_name, tag):
         Portfolio name.
 
     """
-    port_name = '.'.join([group_name, system_name, tag, "portfolio"])
+    port_name = USEP.join([group_name, system_name, tag, "portfolio"])
     return port_name
 
 
@@ -352,69 +352,18 @@ class Trade:
 
 
 #
-# Function add_position
-#
-
-def add_position(p, name, pos):
-    r"""Add a position to a portfolio.
-
-    Parameters
-    ----------
-    p : alphapy.Portfolio
-        Portfolio that will hold the position.
-    name : int
-        Unique identifier for the position, e.g., a stock symbol.
-    pos : alphapy.Position
-        New position to add to the portfolio.
-
-    Returns
-    -------
-    p : alphapy.Portfolio
-        Portfolio with the new position.
-
-    """
-    if name not in p.positions:
-        p.positions[name] = pos
-    return p
-
-
-#
-# Function remove_position
-#
-
-def remove_position(p, name):
-    r"""Remove a position from a portfolio by name.
-
-    Parameters
-    ----------
-    p : alphapy.Portfolio
-        Portfolio with the current position.
-    name : int
-        Unique identifier for the position, e.g., a stock symbol.
-
-    Returns
-    -------
-    p : alphapy.Portfolio
-        Portfolio with the deleted position.
-
-    """
-    del p.positions[name]
-    return p
-
-
-#
 # Function valuate_position
 #
 
-def valuate_position(position, tdate):
+def valuate_position(position, val_date):
     r"""Valuate the position for the given date.
 
     Parameters
     ----------
     position : alphapy.Position
         The position to be valued.
-    tdate : timedate
-        Date to value the position.
+    val_date : datetime
+        The date for pricing the position.
 
     Returns
     -------
@@ -444,28 +393,29 @@ def valuate_position(position, tdate):
     """
     # get current price
     pdata = position.pdata
-    if tdate in pdata.index:
-        cp = pdata.loc[tdate]['close'].astype(float)
-        # start valuation
-        netpos = 0
-        tts = 0     # total traded shares
-        ttv = 0     # total traded value
-        totalprofit = 0.0
-        for trade in position.trades:
-            tq = trade.quantity
-            netpos = netpos + tq
-            tts = tts + abs(tq)
-            cv = tq * cp
-            cvabs = abs(cv)
-            ttv = ttv + cvabs
-            ev = tq * trade.price
-            totalprofit = totalprofit + cv - ev
-        position.quantity = netpos
-        position.price = cp
-        position.value = abs(netpos) * cp
-        position.profit = totalprofit
-        position.costbasis = ttv / tts
-        position.netreturn = totalprofit / cvabs - 1.0
+    nearest_previous_date = pdata.index[pdata.index.get_indexer([val_date], method='pad')[0]]
+    # get nearest price
+    cp = pdata.loc[nearest_previous_date]['close'].astype(float)
+    # start valuation
+    netpos = 0
+    tts = 0     # total traded shares
+    ttv = 0     # total traded value
+    totalprofit = 0.0
+    for trade in position.trades:
+        tq = trade.quantity
+        netpos = netpos + tq
+        tts = tts + abs(tq)
+        cv = tq * cp
+        cvabs = abs(cv)
+        ttv = ttv + cvabs
+        ev = tq * trade.price
+        totalprofit = totalprofit + cv - ev
+    position.quantity = netpos
+    position.price = cp
+    position.value = netpos * cp
+    position.profit = totalprofit
+    position.costbasis = ttv / tts
+    position.netreturn = totalprofit / cvabs - 1.0
     return position
 
 
@@ -491,7 +441,6 @@ def update_position(position, trade):
     """
     position.trades.append(trade)
     position.ntrades = position.ntrades + 1
-    position.date = trade.tdate
     position.held = trade.tdate - position.opened
     position = valuate_position(position, trade.tdate)
     if position.quantity > 0:
@@ -531,10 +480,10 @@ def close_position(p, position, tdate):
         pdata = position.pdata
         cp = pdata.loc[tdate]['close']
         newtrade = Trade(position.name, tradesize, cp, tdate)
-        p = update_portfolio(p, position, newtrade)
+        p = update_portfolio(p, position, newtrade, tdate)
         position.quantity = 0
     position.status = 'closed'
-    p = remove_position(p, position.name)
+    del p.positions[position.name]
     return p
 
     
@@ -601,7 +550,7 @@ def withdraw_portfolio(p, cash, tdate):
 # Function update_portfolio
 #
 
-def update_portfolio(p, pos, trade):
+def update_portfolio(p, pos, trade, tdate, newpos=False):
     r"""Update the portfolio positions.
 
     Parameters
@@ -612,6 +561,10 @@ def update_portfolio(p, pos, trade):
         Position to update.
     trade : alphapy.Trade
         Trade for updating the position and portfolio.
+    tdate : datetime
+        The date for pricing the closed position.
+    newpos : bool
+        Flag indicating whether this is a new position.
 
     Returns
     -------
@@ -619,15 +572,21 @@ def update_portfolio(p, pos, trade):
         Portfolio with the revised position.
 
     """
-    # update position
-    ppq = abs(pos.quantity)
-    pos = update_position(pos, trade)
-    cpq = abs(pos.quantity)
-    npq = cpq - ppq
     # update portfolio
     p.date = trade.tdate
-    cv = trade.price * npq
-    p.cash -= cv
+    # create a new position if necessary
+    if newpos:
+        p.positions[trade.name] = pos
+        p.npos += 1
+        p.cash -= trade.price * trade.quantity
+    # update position
+    pos = update_position(pos, trade)
+    # if net position is zero, then close the position
+    pflat = pos.quantity == 0
+    if pflat:
+        p = close_position(p, pos, tdate)
+        p.npos -= 1
+        p.cash -= trade.price * trade.quantity
     return p
 
 
@@ -703,7 +662,6 @@ def balance(p, tdate, cashlevel):
 
     """
     currentcash = p.cash
-    mincash = p.mincash
     weightby = p.weightby
     if not weightby:
         weightby = 'close'
@@ -886,10 +844,10 @@ def valuate_portfolio(p, tdate):
     for i, key in posenum:
         p.weights[i] = vpos[i] / p.value
     # update portfolio stats
-    p.netprofit = p.value - prev_value
-    p.netreturn = p.value / prev_value - 1.0
     p.totalprofit = p.value - p.startcap
     p.totalreturn = p.value / p.startcap - 1.0
+    p.netprofit = p.value - prev_value
+    p.netreturn = p.value / prev_value - 1.0
     return p
 
 
@@ -919,7 +877,7 @@ def allocate_trade(p, pos, trade):
     margin = p.margin
     mincash = p.mincash
     restricted = p.restricted
-    if restricted:
+    if restricted and False:
         kick_out(p, trade.tdate)
         stop_loss(p, trade.tdate)
     qpold = pos.quantity
@@ -999,17 +957,8 @@ def exec_trade(p, name, order, quantity, price, tdate):
     if allocation != 0:
         # subtract trading costs
         p.cash = p.cash - (p.cost_bps / 10000.0) * abs(tsize * price)
-        # create a new position if necessary
-        if newpos:
-            p = add_position(p, name, pos)
-            p.npos += 1        
         # update the portfolio
-        p = update_portfolio(p, pos, newtrade)
-        # if net position is zero, then close the position
-        pflat = pos.quantity == 0
-        if pflat:
-            p = close_position(p, pos, tdate)
-            p.npos -= 1
+        p = update_portfolio(p, pos, newtrade, tdate, newpos)
     # return trade size
     return tsize
 
@@ -1118,18 +1067,22 @@ def create_portfolio(model, system_name, portfolio_specs, group, tframe, tag):
                 tsize = exec_trade(p, row['name'], row['order'], row['quantity'], row['price'], tdate)
                 if tsize != 0:
                     ts.append((t[0], [row['name'], tsize, row['price']]))
-        # iterate through current positions to create valuation snapshots
+        # valuate the portfolio
+        p = valuate_portfolio(p, d)
+        logger.debug(f"Portfolio as of {d}")
+        logger.debug(f"Total Value: {p.value}")
+        logger.debug(f"Total Cash: {p.cash}")
+        logger.debug(f"Total Profit: {p.totalprofit}")
+        logger.debug(f"Total Return: {p.totalreturn}")
+        logger.debug(f"Net Profit: {p.netprofit}")
+        logger.debug(f"Net Return: {p.netreturn}")
+        # record positions on each date
         positions = p.positions
         for key in positions:
             pos = positions[key]
-            if pos.quantity > 0:
-                value = pos.value
-            else:
-                value = -pos.value
-            pf.loc[d, pos.name] = value
+            pf.loc[d, pos.name] = pos.value
         pf.loc[d, 'cash'] = p.cash
-        # update the portfolio returns
-        p = valuate_portfolio(p, d)
+        # record returns on each date
         rs.append((d, [p.netreturn]))
 
     # Create systems directory path

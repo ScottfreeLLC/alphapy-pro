@@ -331,7 +331,7 @@ def convert_data(df, intraday_data):
         date_group = df.groupby('date')
         # Number the intraday bars
         df['barnumber'] = date_group.cumcount().astype(int)
-        df['barpct'] = date_group['barnumber'].apply(lambda x: 100.0 * x / x.count())
+        df['barpct'] = date_group['barnumber'].transform(lambda x: 100.0 * x / x.count())
         # Add progressive intraday columns
         df['opend'] = date_group['open'].transform('first')
         df['highd'] = date_group['high'].cummax()
@@ -680,32 +680,49 @@ def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
 
     # Set the request modifiers
 
-    limit = '='.join(['limit', str(lookback_period)])
+    limit = '='.join(['limit', str(50000)])
     api_key = '='.join(['apiKey', alphapy_specs['sources']['polygon']['api_key']])
     modifiers = '&'.join(['?adjusted=true&sort=asc', limit, api_key])
-    
-    # Make the request
 
-    url = SSEP.join([base_url, ticker, fractal, date_range, modifiers])
-    response = get_web_content(url)
-    json_data = json.loads(response)
-    
-    # Set date/time column
-    dt_col = 'datetime' if intraday_data else 'date'
+    # Make as many requests as needed to get all the data.
 
-    # Create the data frame and rename columns
+    done = False
+    dfs = []
+    to_date_dt = datetime.strptime(to_date, '%Y-%m-%d')
 
-    df = pd.DataFrame(json_data['results'])
-    df.drop(columns=['vw', 'n'], inplace=True)
-    df['t'] = pd.to_datetime(df['t'], unit='ms')
-    df = df.rename(columns={
-        'v': 'volume',
-        'o' : 'open',
-        'c' : 'close',
-        'h' : 'high',
-        'l' : 'low',
-        't' : dt_col
-    })
+    start_date = from_date
+    while not done:
+        date_range = '/'.join([start_date, to_date])
+        # Make the request
+        url = '/'.join([base_url, ticker, fractal, date_range, modifiers])
+        response = get_web_content(url)
+        json_data = json.loads(response)
+        # Create the data frame and rename columns
+        df = pd.DataFrame(json_data['results'])
+        df.drop(columns=['vw', 'n'], inplace=True)
+        df['t'] = pd.to_datetime(df['t'], unit='ms')
+        df = df.rename(columns={
+            'v': 'volume',
+            'o' : 'open',
+            'c' : 'close',
+            'h' : 'high',
+            'l' : 'low',
+            't' : 'datetime'
+        })
+        cols = ['datetime', 'open', 'high', 'low', 'close', 'volume']
+        df = df[cols]
+        # check the last date to see if we are done
+        last_date = df['datetime'].iloc[-1]
+        n_days = abs(last_date - to_date_dt).days
+        if n_days <= 3:
+            done = True
+        else:
+            df = df[df['datetime'] < last_date]
+            start_date = last_date.strftime('%Y-%m-%d')
+        # add the dataframe to the list of dataframes
+        dfs.append(df)
+    # concatenate all of the dataframes
+    df = pd.concat(dfs)
 
     # Return the dataframe
     return df
@@ -880,6 +897,8 @@ def get_market_data(alphapy_specs, model, market_specs, group,
     feature_fractals = market_specs['fractals']
     from_date = market_specs['data_start_date']
     to_date = market_specs['data_end_date']
+    start_time = datetime.strptime(market_specs['data_start_time'], '%H:%M').time()
+    end_time = datetime.strptime(market_specs['data_end_time'], '%H:%M').time()
 
     # Unpack model specifications
 
@@ -953,8 +972,15 @@ def get_market_data(alphapy_specs, model, market_specs, group,
             # drop any remaining date or index columns
             df.drop(columns=dt_cols, inplace=True, errors='ignore')
             df.drop(columns=['index'], inplace=True, errors='ignore')
+            # deduplicate in case we have data overlap
+            df = df.loc[~df.index.duplicated(keep='first')]
+            # scope dataframe in time range
+            if intraday_data and start_time and end_time:
+                mask = (df.index.time >= start_time) & (df.index.time <= end_time)
+                df = df.loc[mask]
             # scope dataframe in date range
-            df = df.loc[pd.to_datetime(from_date) : pd.to_datetime(to_date)]
+            assert df.index.is_unique, "Index has duplicate values"
+            df = df[from_date:to_date]
             # register the dataframe in the global namespace
             df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)
             # resample data and drop any NA values

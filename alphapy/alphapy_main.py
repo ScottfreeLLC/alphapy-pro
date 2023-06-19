@@ -274,7 +274,9 @@ def training_pipeline(alphapy_specs, model):
     # Get train and test data
 
     X_train, y_train = get_data(model, Partition.train)
+    print(X_train.shape, y_train.shape)
     X_test, y_test = get_data(model, Partition.test)
+    print(X_test.shape, y_test.shape)
 
     # If there is no test partition, then we will split the train partition
 

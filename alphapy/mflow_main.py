@@ -165,9 +165,11 @@ def set_targets_class(model, df, system_specs):
                         minimum_return,
                         vertical_barriers,
                         df['side'])
+    print(df_tbm)
 
     # Assign labels based on returns.
     df_labels = get_bins(df_tbm, ds_close)
+    print(df_labels)
 
     # Evaluate the primary model.
     pass
@@ -176,6 +178,7 @@ def set_targets_class(model, df, system_specs):
 
     df_meta = df.loc[df_labels.index, :].copy()
     df_meta[target] = df_labels[target]
+    print(df_meta)
 
     return df_meta
 

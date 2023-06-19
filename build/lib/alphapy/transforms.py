@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 # Function adx
 #
 
-def adx(f, p = 14):
+def adx(f, p=14):
     r"""Calculate the Average Directional Index (ADX).
 
     Parameters
@@ -300,7 +300,7 @@ def dateparts(f, c):
 # Function diff
 #
 
-def diff(f, c, n = 1):
+def diff(f, c, n=1):
     r"""Calculate the n-th order difference for the given variable.
 
     Parameters
@@ -326,7 +326,7 @@ def diff(f, c, n = 1):
 # Function diminus
 #
 
-def diminus(f, p = 14):
+def diminus(f, p=14):
     r"""Calculate the Minus Directional Indicator (-DI).
 
     Parameters
@@ -364,7 +364,7 @@ def diminus(f, p = 14):
 # Function diplus
 #
 
-def diplus(f, p = 14):
+def diplus(f, p=14):
     r"""Calculate the Plus Directional Indicator (+DI).
 
     Parameters
@@ -480,7 +480,7 @@ def dmplus(f, h='high', l='low'):
 # Function ema
 #
 
-def ema(f, c, p = 20):
+def ema(f, c, p=20):
     r"""Calculate the Exponential Moving Average (EMA) on a rolling basis.
 
     Parameters
@@ -830,7 +830,7 @@ def haopen(f):
 # Function higher
 #
 
-def higher(f, c, o = 1):
+def higher(f, c, o=1):
     r"""Determine whether or not a series value is higher than
     the value ``o`` periods back.
 
@@ -857,7 +857,7 @@ def higher(f, c, o = 1):
 # Function highest
 #
 
-def highest(f, c, p = 20):
+def highest(f, c, p=20):
     r"""Calculate the highest value on a rolling basis.
 
     Parameters
@@ -883,7 +883,7 @@ def highest(f, c, p = 20):
 # Function hlrange
 #
 
-def hlrange(f, h='high', l='low', p = 1):
+def hlrange(f, h='high', l='low', p=1):
     r"""Calculate the Range, the difference between High and Low.
 
     Parameters
@@ -1031,7 +1031,7 @@ def keltnerub(f, c='close', p=20, atrs=1.5):
 # Function lower
 #
 
-def lower(f, c, o = 1):
+def lower(f, c, o=1):
     r"""Determine whether or not a series value is lower than
     the value ``o`` periods back.
 
@@ -1058,7 +1058,7 @@ def lower(f, c, o = 1):
 # Function lowest
 #
 
-def lowest(f, c, p = 20):
+def lowest(f, c, p=20):
     r"""Calculate the lowest value on a rolling basis.
 
     Parameters
@@ -1083,7 +1083,7 @@ def lowest(f, c, p = 20):
 # Function ma
 #
 
-def ma(f, c='close', p = 20):
+def ma(f, c='close', p=20):
     r"""Calculate the mean on a rolling basis.
 
     Parameters
@@ -1117,7 +1117,7 @@ def ma(f, c='close', p = 20):
 # Function maabove
 #
 
-def maabove(f, c, p = 50):
+def maabove(f, c, p=50):
     r"""Determine those values of the dataframe that are above the
     moving average.
 
@@ -1144,7 +1144,7 @@ def maabove(f, c, p = 50):
 # Function mabelow
 #
 
-def mabelow(f, c, p = 50):
+def mabelow(f, c, p=50):
     r"""Determine those values of the dataframe that are below the
     moving average.
 
@@ -1171,7 +1171,7 @@ def mabelow(f, c, p = 50):
 # Function maratio
 #
 
-def maratio(f, c, p1 = 1, p2 = 10):
+def maratio(f, c, p1=1, p2=10):
     r"""Calculate the ratio of two moving averages.
 
     Parameters
@@ -1247,7 +1247,7 @@ def negvals(f, c):
 # Function net
 #
 
-def net(f, c='close', o = 1):
+def net(f, c='close', o=1):
     r"""Calculate the net change of a given column.
 
     Parameters
@@ -1281,7 +1281,7 @@ def net(f, c='close', o = 1):
 # Function netreturn
 #
 
-def netreturn(f, c, o = 1):
+def netreturn(f, c, o=1):
     r"""Calculate the net return, or Return On Invesment (ROI)
 
     Parameters
@@ -1316,7 +1316,7 @@ def netreturn(f, c, o = 1):
 # Function pchange1
 #
 
-def pchange1(f, c, o = 1):
+def pchange1(f, c, o=1):
     r"""Calculate the percentage change within the same variable.
 
     Parameters
@@ -1502,7 +1502,7 @@ def posval0(f, c):
 # Function rindex
 #
 
-def rindex(f, ci, ch, cl, p = 1):
+def rindex(f, ci, ch, cl, p=1):
     r"""Calculate the *range index* spanning a given period ``p``.
 
     The **range index** is a number between 0 and 100 that
@@ -1545,15 +1545,13 @@ def rindex(f, ci, ch, cl, p = 1):
 # Function rsi
 #
 
-def rsi(f, c, p = 14):
+def rsi(f, p=14):
     r"""Calculate the Relative Strength Index (RSI).
 
     Parameters
     ----------
     f : pandas.DataFrame
         Dataframe containing the column ``net``.
-    c : str
-        Name of the column in the dataframe ``f``.
     p : int
         The period over which to calculate the RSI.
 
@@ -1953,7 +1951,7 @@ def truerange(f):
 # Function ttmsqueeze
 #
 
-def ttmsqueeze(f, c='close', p=20, sd=2.0, atrs=1.5):
+def ttmsqueeze(f, c='close', p=20):
     r"""Calculate the TTM Squeeze momentum oscillator.
 
     Parameters
@@ -1964,10 +1962,6 @@ def ttmsqueeze(f, c='close', p=20, sd=2.0, atrs=1.5):
         Name of the column in the dataframe ``f``.
     p : int
         The period over which to calculate the Exponential Moving Average.
-    sd : float
-        The number of standard deviations.
-    atrs : float
-        The multiple of Average True Range.
 
     Returns
     -------
@@ -2018,7 +2012,7 @@ def ttmsqueezelong(f, c='close', p=20, sd=2.0, atrs=1.5):
     """
 
     squeeze_off = ttmsqueezeoff(f, c, p, sd, atrs)
-    ttm_squeeze = ttmsqueeze(f, c, p, sd, atrs)
+    ttm_squeeze = ttmsqueeze(f, c, p)
     squeeze1 = squeeze_off.shift(1).fillna(False)
     squeeze2 = squeeze_off.shift(2).fillna(False)
     long_cond1 = np.logical_and(squeeze1, ~squeeze2)
@@ -2122,7 +2116,7 @@ def ttmsqueezeshort(f, c='close', p=20, sd=2.0, atrs=1.5):
     """
 
     squeeze_off = ttmsqueezeoff(f, c, p, sd, atrs)
-    ttm_squeeze = ttmsqueeze(f, c, p, sd, atrs)
+    ttm_squeeze = ttmsqueeze(f, c, p)
 
     squeeze1 = squeeze_off.shift(1).fillna(False)
     squeeze2 = squeeze_off.shift(2).fillna(False)
@@ -2136,7 +2130,7 @@ def ttmsqueezeshort(f, c='close', p=20, sd=2.0, atrs=1.5):
 # Function xmadown
 #
 
-def xmadown(f, c='close', pfast = 20, pslow = 50):
+def xmadown(f, c='close', pfast=20, pslow=50):
     r"""Determine those values of the dataframe that cross below the
     moving average.
 
@@ -2179,7 +2173,7 @@ def xmadown(f, c='close', pfast = 20, pslow = 50):
 # Function xmaup
 #
 
-def xmaup(f, c='close', pfast = 20, pslow = 50):
+def xmaup(f, c='close', pfast=20, pslow=50):
     r"""Determine those values of the dataframe that are below the
     moving average.
 
