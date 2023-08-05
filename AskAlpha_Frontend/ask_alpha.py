@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Package   : AlphaPy
-# Module    : Deep_Alpha
+# Module    : Ask_Alpha
 # Created   : February 21, 2021
 #
 # Copyright 2021 ScottFree Analytics LLC
@@ -25,7 +25,8 @@
 # HOW TO RUN:
 #
 # export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
-# streamlit run Deep_Alpha.py
+# cd /Users/markconway/Projects/alphapy-3.0.0/alphapy
+# streamlit run Ask_Alpha.py
 #
 
 
@@ -33,21 +34,21 @@
 # Imports
 #
 
+import base64
 from datetime import datetime, timedelta
-from finviz.portfolio import Portfolio
-from finviz.screener import Screener
-import finnhub
 import logging
+import openai
 import os
 import pandas as pd
 from PIL import Image
 import streamlit as st
+from streamlit_extras.app_logo import add_logo
 import sys
 
 from alphapy.alphapy_main import get_alphapy_config
 import alphapy.globals as apg
-from alphapy.requests_ap import alphapy_request
-from alphapy.requests_ap import run_command
+from AskAlpha_Frontend.requests_ap import alphapy_request
+from AskAlpha_Frontend.requests_ap import run_command
 
 
 #
@@ -55,83 +56,6 @@ from alphapy.requests_ap import run_command
 #
 
 logger = logging.getLogger(__name__)
-
-
-#
-# Function get_finviz_portfolios
-#
-
-@st.cache
-def get_finviz_portfolios():
-    finviz_specs = alphapy_specs['sources']['finviz']
-    email = finviz_specs['email']
-    api_key = finviz_specs['api_key']
-    portfolios = finviz_specs['portfolios']
-    print(portfolios)
-
-    groups = {}
-    for pf in portfolios:
-        portfolio = Portfolio(email, api_key, pf)
-        if portfolio:
-            df = pd.DataFrame(portfolio.data)
-            symbols = df['Ticker'].tolist()
-            groups[pf] = symbols
-        else:
-            error_message = f"Could not find FinViz Portfolio: {pf}"
-            st.text(error_message)
-    return groups
-
-
-#
-# Function get_market_index_groups
-#
-
-@st.cache
-def get_market_index_groups():
-    url = f"https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
-    df = pd.read_csv(url)
-    df.loc[df['symbol'] == '^NDX', 'name'] = 'Nasdaq 100'
-    finnhub_client = finnhub.Client(api_key=alphapy_specs['sources']['finnhub']['api_key'])
-
-    groups = {}
-    for _, row in df.iterrows():
-        group_symbol = row['symbol']
-        group_name = row['name']
-        group_dict = finnhub_client.indices_const(symbol=group_symbol)
-        groups[group_name] = group_dict['constituents']
-    return groups
-
-
-#
-# Function get_market_inputs
-#
-
-def get_market_inputs(input_dict, select_dict):
-
-    # Define the market inputs map with input type and default values
-
-    inputs_map = {
-        'data_source' : [st.selectbox, select_dict['data_source']],
-        'data_directory' : [st.text_input],
-        'data_fractal' : [st.text_input, '5min'],
-        'data_history' : [st.number_input, 1, 10000],
-        'forecast_period' : [st.number_input, 1, 100],
-        'predict_history' : [st.number_input, 1, 200],
-        'subject' : [st.selectbox, select_dict['subject']],
-        'capital' : [st.number_input, 10000, 1000000],
-        'margin' : [st.number_input, 0.01, 1.0],
-        'cost_bps' : [st.number_input, 0.0, 100.0],
-        'algo' : [st.selectbox, select_dict['algo']],
-        'prob_min' : [st.number_input, 0.0, 1.0],
-        'prob_max' : [st.number_input, 0.0, 1.0],
-        'holdperiod' : [st.number_input],
-        'bar_type' : [st.selectbox, select_dict['bar_type']],
-        'fractals' : [st.selectbox, select_dict['fractals']],
-        'features' : [st.multiselect, select_dict['features']]
-        }
-    
-    # Return the mapping information
-    return {k:v for k, v in inputs_map.items() if k in input_dict.keys()}
 
 
 #
@@ -298,36 +222,37 @@ logger.info('*'*80)
 logger.info("Streamlit Start")
 logger.info('*'*80)
 
-# Set Page Configuration (alternate names: setup_page, page, layout)
+#
+# Application Configuration
+#
+
+im = Image.open('logo.jpg')
 
 st.set_page_config(
-    # Can be "centered" or "wide". In the future also "dashboard", etc.
-	layout="wide",
-    # Can be "auto", "expanded", "collapsed"
-	initial_sidebar_state="auto",
-    # String or None. Strings get appended with "• Streamlit".
-	page_title=None,
-    # String, anything supported by st.image, or None.
-	page_icon=None,
+    page_title="Scottfree Analytics",
+    page_icon=im,
+    layout="wide",
 )
 
-# Set window padding
+st.markdown("""
+        <style>
+               .block-container {
+                    padding-top: 1rem;
+                    padding-bottom: 0rem;
+                    padding-left: 2rem;
+                    padding-right: 2rem;
+                }
+        </style>
+        """, unsafe_allow_html=True)
 
-vertical_padding = 2
-horizontal_padding = 2
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-st.markdown(f""" <style>
-    .appview-container .main .block-container{{
-        padding-top: {vertical_padding}rem;
-        padding-right: {horizontal_padding}rem;
-        padding-left: {horizontal_padding}rem;
-        padding-bottom: {vertical_padding}rem;
-    }} </style> """, unsafe_allow_html=True)
-
-# Display the Scottfree logo
-
-logo = Image.open('logo.jpg')
-st.sidebar.image(logo)
 
 # Get the AlphaPy environment variable
 
@@ -340,10 +265,55 @@ else:
     # Read the AlphaPy configuration file
     alphapy_specs = get_alphapy_config(alphapy_root)
 
-projects = alphapy_request(alphapy_specs, 'projects', alphapy_specs)
-projects = sorted(projects, key=str.casefold)
-projects.insert(0, None)
-project = st.sidebar.selectbox("Select Project", projects)
+# Arrange the columns
 
-if project:
-    run_project(project)
+col1, col2, col3, col4, col5 = st.columns((2, 3, 3, 3, 2))
+
+# Display the header
+col1.header(":red[α]sk :red[α]lph:red[α]")
+
+# Markets
+temp_list = ["Prompt 1", "Prompt 2", "Prompt 3"]
+col2.selectbox('Markets&nbsp;📈&nbsp;💵&nbsp;🐂&nbsp;🐻&nbsp;🏙&nbsp;💱', temp_list)
+
+# Sports
+col3.selectbox('Sports&nbsp;🏀&nbsp;⚾&nbsp;🏈&nbsp;⚽&nbsp;🏒&nbsp;🎾', temp_list)
+
+# Machine Learning
+col4.selectbox('Machine Learning&nbsp;🧠&nbsp;🤖&nbsp;💻&nbsp;🧮&nbsp;📊&nbsp;💡', temp_list)
+
+# Display the Scottfree logo
+col5.image('logo.jpg', width=140, output_format='PNG')
+
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+if "openai_model" not in st.session_state:
+    st.session_state["openai_model"] = "gpt-3.5-turbo"
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+if prompt := st.chat_input("What is up?"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = ""
+        for response in openai.ChatCompletion.create(
+            model=st.session_state["openai_model"],
+            messages=[
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages
+            ],
+            stream=True,
+        ):
+            full_response += response.choices[0].delta.get("content", "")
+            message_placeholder.markdown(full_response + "▌")
+        message_placeholder.markdown(full_response)
+    st.session_state.messages.append({"role": "assistant", "content": full_response})

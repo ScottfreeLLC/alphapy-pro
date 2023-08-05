@@ -9,7 +9,7 @@ Run a live AlphaPy model.
 
 from alphapy.alphapy_main import prediction_pipeline
 from alphapy.globals import PSEP
-from alphapy.mflow_main import get_market_config
+from MFlow_Backend.mflow_main import get_market_config
 from alphapy.model import get_model_config
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio

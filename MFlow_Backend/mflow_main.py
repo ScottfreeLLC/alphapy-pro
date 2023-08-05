@@ -57,7 +57,7 @@ from alphapy.metalabel import get_bins
 from alphapy.metalabel import get_daily_vol
 from alphapy.metalabel import get_events
 from alphapy.metalabel import get_t_events
-from alphapy.mflow_server import get_market_config
+from MFlow_Backend.mflow_server import get_market_config
 from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.portfolio import gen_portfolios
@@ -165,11 +165,9 @@ def set_targets_class(model, df, system_specs):
                         minimum_return,
                         vertical_barriers,
                         df['side'])
-    print(df_tbm)
 
     # Assign labels based on returns.
     df_labels = get_bins(df_tbm, ds_close)
-    print(df_labels)
 
     # Evaluate the primary model.
     pass
@@ -178,7 +176,6 @@ def set_targets_class(model, df, system_specs):
 
     df_meta = df.loc[df_labels.index, :].copy()
     df_meta[target] = df_labels[target]
-    print(df_meta)
 
     return df_meta
 

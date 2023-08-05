@@ -26,9 +26,15 @@
 # HOW TO RUN:
 #
 # export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
+# cd /Users/markconway/Projects/alphapy-3.0.0/alphapy
 # uvicorn mflow_server:app --reload
 #
 
+
+#projects = alphapy_request(alphapy_specs, 'projects', alphapy_specs)
+#projects = sorted(projects, key=str.casefold)
+#projects.insert(0, None)
+#project = st.sidebar.selectbox("Select Project", projects)
 
 #
 # Imports
@@ -37,6 +43,9 @@
 from fastapi import File
 from fastapi import FastAPI
 from fastapi import UploadFile
+from finviz.portfolio import Portfolio
+from finviz.screener import Screener
+import finnhub
 import logging
 import os
 import pandas as pd
@@ -262,6 +271,81 @@ def get_market_config(directory='.'):
 
     # Market Specifications
     return cfg, specs
+
+
+#
+# Function get_finviz_portfolios
+#
+
+def get_finviz_portfolios():
+    finviz_specs = alphapy_specs['sources']['finviz']
+    email = finviz_specs['email']
+    api_key = finviz_specs['api_key']
+    portfolios = finviz_specs['portfolios']
+    print(portfolios)
+
+    groups = {}
+    for pf in portfolios:
+        portfolio = Portfolio(email, api_key, pf)
+        if portfolio:
+            df = pd.DataFrame(portfolio.data)
+            symbols = df['Ticker'].tolist()
+            groups[pf] = symbols
+        else:
+            error_message = f"Could not find FinViz Portfolio: {pf}"
+            st.text(error_message)
+    return groups
+
+
+#
+# Function get_market_index_groups
+#
+
+def get_market_index_groups():
+    url = f"https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
+    df = pd.read_csv(url)
+    df.loc[df['symbol'] == '^NDX', 'name'] = 'Nasdaq 100'
+    finnhub_client = finnhub.Client(api_key=alphapy_specs['sources']['finnhub']['api_key'])
+
+    groups = {}
+    for _, row in df.iterrows():
+        group_symbol = row['symbol']
+        group_name = row['name']
+        group_dict = finnhub_client.indices_const(symbol=group_symbol)
+        groups[group_name] = group_dict['constituents']
+    return groups
+
+
+#
+# Function get_market_inputs
+#
+
+def get_market_inputs(input_dict, select_dict):
+
+    # Define the market inputs map with input type and default values
+
+    inputs_map = {
+        'data_source' : [st.selectbox, select_dict['data_source']],
+        'data_directory' : [st.text_input],
+        'data_fractal' : [st.text_input, '5min'],
+        'data_history' : [st.number_input, 1, 10000],
+        'forecast_period' : [st.number_input, 1, 100],
+        'predict_history' : [st.number_input, 1, 200],
+        'subject' : [st.selectbox, select_dict['subject']],
+        'capital' : [st.number_input, 10000, 1000000],
+        'margin' : [st.number_input, 0.01, 1.0],
+        'cost_bps' : [st.number_input, 0.0, 100.0],
+        'algo' : [st.selectbox, select_dict['algo']],
+        'prob_min' : [st.number_input, 0.0, 1.0],
+        'prob_max' : [st.number_input, 0.0, 1.0],
+        'holdperiod' : [st.number_input],
+        'bar_type' : [st.selectbox, select_dict['bar_type']],
+        'fractals' : [st.selectbox, select_dict['fractals']],
+        'features' : [st.multiselect, select_dict['features']]
+        }
+    
+    # Return the mapping information
+    return {k:v for k, v in inputs_map.items() if k in input_dict.keys()}
 
 
 #

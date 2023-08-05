@@ -35,7 +35,7 @@ from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import SSEP
 from alphapy.globals import SamplingMethod
 from alphapy.globals import WILDCARD
-from alphapy.requests_ap import get_web_content
+from AskAlpha_Frontend.requests_ap import get_web_content
 from alphapy.space import Space
 from alphapy.transforms import dateparts
 from alphapy.transforms import timeparts

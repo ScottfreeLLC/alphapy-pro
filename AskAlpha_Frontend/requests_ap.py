@@ -31,11 +31,11 @@ import requests
 import streamlit as st
 import subprocess
 
-from alphapy.mflow_server import request_groups
-from alphapy.mflow_server import request_market_config
-from alphapy.mflow_server import request_model_config
-from alphapy.mflow_server import request_paths
-from alphapy.mflow_server import request_projects
+from MFlow_Backend.mflow_server import request_groups
+from MFlow_Backend.mflow_server import request_market_config
+from MFlow_Backend.mflow_server import request_model_config
+from MFlow_Backend.mflow_server import request_paths
+from MFlow_Backend.mflow_server import request_projects
 
 
 #

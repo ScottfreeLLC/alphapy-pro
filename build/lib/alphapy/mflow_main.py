@@ -57,7 +57,7 @@ from alphapy.metalabel import get_bins
 from alphapy.metalabel import get_daily_vol
 from alphapy.metalabel import get_events
 from alphapy.metalabel import get_t_events
-from alphapy.mflow_server import get_market_config
+from MFlow_Backend.mflow_server import get_market_config
 from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.portfolio import gen_portfolios
