@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Package   : AlphaPy
-# Module    : Ask_Alpha
+# Module    : ask_alpha
 # Created   : February 21, 2021
 #
 # Copyright 2021 ScottFree Analytics LLC
@@ -26,7 +26,7 @@
 #
 # export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
 # cd /Users/markconway/Projects/alphapy-3.0.0/alphapy
-# streamlit run Ask_Alpha.py
+# streamlit run ask_alpha.py
 #
 
 
@@ -49,6 +49,13 @@ from alphapy.alphapy_main import get_alphapy_config
 import alphapy.globals as apg
 from alphapy.requests_ap import alphapy_request
 from alphapy.requests_ap import run_command
+
+
+#
+# Global Variables
+#
+
+dir_assets = './assets/'
 
 
 #
@@ -226,7 +233,9 @@ logger.info('*'*80)
 # Application Configuration
 #
 
-im = Image.open('logo.jpg')
+path_logo = os.path.join(dir_assets, 'logo.jpg')
+print(path_logo)
+im = Image.open(path_logo)
 
 st.set_page_config(
     page_title="Scottfree Analytics",
@@ -265,26 +274,6 @@ else:
     # Read the AlphaPy configuration file
     alphapy_specs = get_alphapy_config(alphapy_root)
 
-# Arrange the columns
-
-col1, col2, col3, col4, col5 = st.columns((2, 3, 3, 3, 2))
-
-# Display the header
-col1.header(":red[α]sk :red[α]lph:red[α]")
-
-# Markets
-temp_list = ["Prompt 1", "Prompt 2", "Prompt 3"]
-col2.selectbox('Markets&nbsp;📈&nbsp;💵&nbsp;🐂&nbsp;🐻&nbsp;🏙&nbsp;💱', temp_list)
-
-# Sports
-col3.selectbox('Sports&nbsp;🏀&nbsp;⚾&nbsp;🏈&nbsp;⚽&nbsp;🏒&nbsp;🎾', temp_list)
-
-# Machine Learning
-col4.selectbox('Machine Learning&nbsp;🧠&nbsp;🤖&nbsp;💻&nbsp;🧮&nbsp;📊&nbsp;💡', temp_list)
-
-# Display the Scottfree logo
-col5.image('logo.jpg', width=140, output_format='PNG')
-
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 if "openai_model" not in st.session_state:
@@ -297,22 +286,42 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+with st.sidebar:
+    # Display the Scottfree logo
+    st.image(path_logo, width=240, output_format='PNG')
+    st.title(':red[α]sk :red[α]lph:red[α]')
+    topic = st.radio(
+        "Select a topic",
+        ["Markets 📈 💵 🐂 🐻 🏙 💱",
+         "Sports 🏀 ⚾ 🏈 ⚽ 🏒 🎾",
+         "Generative AI 🧠 🤖 💻 💡"])
+
+    if topic == ':rainbow[Comedy]':
+        st.write('You selected comedy.')
+    else:
+        st.write("")
+
+    if 'OPENAI_API_KEY' in st.secrets:
+        st.success('API key already provided!', icon='✅')
+        openai.api_key = st.secrets['OPENAI_API_KEY']
+    else:
+        openai.api_key = st.text_input('Enter OpenAI API token:', type='password')
+        if not (openai.api_key.startswith('sk-') and len(openai.api_key)==51):
+            st.warning('Please enter your credentials!', icon='⚠️')
+        else:
+            st.success('Proceed to entering your prompt message!', icon='👉')
+
 if prompt := st.chat_input("What is up?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         full_response = ""
         for response in openai.ChatCompletion.create(
-            model=st.session_state["openai_model"],
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        ):
+            model="gpt-3.5-turbo",
+            messages=[{"role": m["role"], "content": m["content"]}
+                      for m in st.session_state.messages], stream=True):
             full_response += response.choices[0].delta.get("content", "")
             message_placeholder.markdown(full_response + "▌")
         message_placeholder.markdown(full_response)
