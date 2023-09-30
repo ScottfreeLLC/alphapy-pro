@@ -34,13 +34,13 @@
 # Imports
 #
 
-import base64
 from datetime import datetime, timedelta
 import logging
 import openai
 import os
 import pandas as pd
 from PIL import Image
+from simpleaichat import AIChat
 import streamlit as st
 from streamlit_extras.app_logo import add_logo
 import sys
@@ -276,42 +276,27 @@ else:
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
+if 'OPENAI_API_KEY' in st.secrets:
+    st.success('OpenAI API key has been provided.', icon='✅')
+    openai.api_key = st.secrets['OPENAI_API_KEY']
+else:
+    openai.api_key = st.text_input('Enter OpenAI API token:', type='password')
+    if not (openai.api_key.startswith('sk-') and len(openai.api_key)==51):
+        st.warning('Please enter your credentials!', icon='⚠️')
+    else:
+        st.success('Proceed to entering your prompt message!', icon='👉')
+
 if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-3.5-turbo"
+    st.session_state["openai_model"] = "gpt-4-0613"
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-for message in st.session_state.messages:
+for message in reversed(st.session_state.messages):  # Reverse the order of messages
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-with st.sidebar:
-    # Display the Scottfree logo
-    st.image(path_logo, width=240, output_format='PNG')
-    st.title(':red[α]sk :red[α]lph:red[α]')
-    topic = st.radio(
-        "Select a topic",
-        ["Markets 📈 💵 🐂 🐻 🏙 💱",
-         "Sports 🏀 ⚾ 🏈 ⚽ 🏒 🎾",
-         "Generative AI 🧠 🤖 💻 💡"])
-
-    if topic == ':rainbow[Comedy]':
-        st.write('You selected comedy.')
-    else:
-        st.write("")
-
-    if 'OPENAI_API_KEY' in st.secrets:
-        st.success('API key already provided!', icon='✅')
-        openai.api_key = st.secrets['OPENAI_API_KEY']
-    else:
-        openai.api_key = st.text_input('Enter OpenAI API token:', type='password')
-        if not (openai.api_key.startswith('sk-') and len(openai.api_key)==51):
-            st.warning('Please enter your credentials!', icon='⚠️')
-        else:
-            st.success('Proceed to entering your prompt message!', icon='👉')
-
-if prompt := st.chat_input("What is up?"):
+if prompt := st.chat_input("Ask Alpha"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)

@@ -33,7 +33,6 @@ from alphapy.frame import write_frame
 from alphapy.globals import ModelType
 from alphapy.globals import Orders
 from alphapy.globals import BSEP, SSEP, USEP
-from alphapy.metalabel import get_daily_vol
 from alphapy.space import Space
 from alphapy.portfolio import Trade
 from alphapy.utilities import most_recent_file
@@ -74,8 +73,6 @@ class System(object):
         The multiple of volatility for taking a profit.
     stoploss_factor : float
         The multiple of volatility for taking a loss.
-    minimum_return : float
-        The minimum return required to take a profit.
     algo : str
         Abbreviation for algorithm.
     prob_min : float
@@ -111,7 +108,6 @@ class System(object):
                 predict_history = 50,
                 profit_factor = 1.0,
                 stoploss_factor = 1.0,
-                minimum_return = 0.05,
                 algo = 'xgb',
                 prob_min = 0.0,
                 prob_max = 1.0,
@@ -132,7 +128,6 @@ class System(object):
                  predict_history = 50,
                  profit_factor = 1.0,
                  stoploss_factor = 1.0,
-                 minimum_return = 0.05,
                  algo = 'xgb',
                  prob_min = 0.0,
                  prob_max = 1.0,
@@ -145,7 +140,6 @@ class System(object):
         self.predict_history = predict_history
         self.profit_factor = profit_factor
         self.stoploss_factor = stoploss_factor
-        self.minimum_return = minimum_return
         self.algo = algo
         self.prob_min = prob_min
         self.prob_max = prob_max
@@ -388,6 +382,38 @@ def trade_ranking(symbol, quantity, system, df_rank, space, intraday):
                     inshort = False
                 hold = psize =0
     return tradelist
+
+
+#
+# Function get_daily_vol
+#
+
+def get_daily_vol(ds_close, p=60):
+    r"""Calculate daily volatility for dynamic thresholds.
+
+    Parameters
+    ----------
+    ds_close : pandas.Series
+        Array of closing values.
+    p : int
+        The lookback period for computing volatility.
+
+    Returns
+    -------
+    ds_vol : pandas.Series (float)
+        The array of volatilities.
+
+    """
+
+    logger.info('Calculating daily volatility for dynamic thresholds')
+
+    ds_vol = ds_close.index.searchsorted(ds_close.index - pd.Timedelta(days=1))
+    ds_vol = ds_vol[ds_vol > 0]
+    ds_vol = (pd.Series(ds_close.index[ds_vol - 1], index=ds_close.index[ds_close.shape[0] - ds_vol.shape[0]:]))
+    # calculate daily returns
+    ds_vol = ds_close.loc[ds_vol.index] / ds_close.loc[ds_vol.values].values - 1
+    ds_vol = ds_vol.ewm(span=p, min_periods=p).std().dropna()
+    return ds_vol
 
 
 #
