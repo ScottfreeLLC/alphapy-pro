@@ -213,15 +213,17 @@ def run_project(project):
 
 # Initialize Logging
 
-logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
-                    filename="streamlit_main.log", filemode='a', level=logging.INFO,
-                    datefmt='%m/%d/%y %H:%M:%S')
-formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
-                              datefmt='%m/%d/%y %H:%M:%S')
-console = logging.StreamHandler()
-console.setFormatter(formatter)
-console.setLevel(logging.INFO)
-logging.getLogger().addHandler(console)
+if "logging" not in st.session_state:
+    logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
+                        filename="streamlit_main.log", filemode='a', level=logging.INFO,
+                        datefmt='%m/%d/%y %H:%M:%S')
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
+                                datefmt='%m/%d/%y %H:%M:%S')
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    console.setLevel(logging.INFO)
+    logging.getLogger().addHandler(console)
+    st.session_state["logging"] = True
 
 # Start Streamlit
 
@@ -246,7 +248,7 @@ st.set_page_config(
 st.markdown("""
         <style>
                .block-container {
-                    padding-top: 1rem;
+                    padding-top: 0rem;
                     padding-bottom: 0rem;
                     padding-left: 2rem;
                     padding-right: 2rem;
@@ -262,7 +264,6 @@ hide_streamlit_style = """
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-
 # Get the AlphaPy environment variable
 
 alphapy_root = os.environ.get('ALPHAPY_ROOT')
@@ -274,40 +275,81 @@ else:
     # Read the AlphaPy configuration file
     alphapy_specs = get_alphapy_config(alphapy_root)
 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+col1, col2, col3 = st.columns((2, 3, 2))
 
+# Ask Alpha Options
+col1.header(':red[α]sk :red[α]lph:red[α]')
+
+market_string = "Markets 📈 💵 🐂 🐻 🏙 💱"
+sports_string = "Sports 🏀 ⚾ 🏈 ⚽ 🏒 🎾"
+topic = col2.radio(
+    "Select a topic",
+    [market_string, sports_string],
+    horizontal=True,
+    label_visibility="hidden")
+
+# OpenAI API Key
+ 
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 if 'OPENAI_API_KEY' in st.secrets:
-    st.success('OpenAI API key has been provided.', icon='✅')
+    col3.success('OpenAI API key has been provided.', icon='✅')
     openai.api_key = st.secrets['OPENAI_API_KEY']
 else:
-    openai.api_key = st.text_input('Enter OpenAI API token:', type='password')
+    openai.api_key = col3.text_input('Enter OpenAI API token:', type='password')
     if not (openai.api_key.startswith('sk-') and len(openai.api_key)==51):
         st.warning('Please enter your credentials!', icon='⚠️')
     else:
         st.success('Proceed to entering your prompt message!', icon='👉')
 
-if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-4-0613"
+# Markets
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if topic == market_string:
+    market_prompt = st.text_input('Ask Market Alpha:')
 
-for message in reversed(st.session_state.messages):  # Reverse the order of messages
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# Sports
 
-if prompt := st.chat_input("Ask Alpha"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        for response in openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": m["role"], "content": m["content"]}
-                      for m in st.session_state.messages], stream=True):
-            full_response += response.choices[0].delta.get("content", "")
-            message_placeholder.markdown(full_response + "▌")
-        message_placeholder.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+if topic == sports_string:
+    sports_prompt = st.text_input('Ask Sports Alpha:')
+    # Set the number of columns
+    col21, col22, col23, col24, col25, col26 = st.columns(6)
+    # Define the options for the dropdown
+    options = ["NFL", "NBA", "MLB", "NHL", "NCAAF", "NCAAB"]
+    # Create a select dropdown with the options
+    selected_option = col21.selectbox('Select League', options)
+
+
+# Generative AI
+
+if False:
+
+    if "openai_model" not in st.session_state:
+        gpt_model = "gpt-4-0613"
+        st.session_state["openai_model"] = gpt_model
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    if prompt := st.chat_input("Ask Alpha"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
+            for response in openai.ChatCompletion.create(
+                model=st.session_state["openai_model"],
+                messages=[
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                ],
+                stream=True,
+            ):
+                full_response += response.choices[0].delta.get("content", "")
+                message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})

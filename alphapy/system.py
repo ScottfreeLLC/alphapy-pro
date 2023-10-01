@@ -538,8 +538,8 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday,
         h = row[hcol]
         l = row[lcol]
         # evaluate entry and exit conditions
-        lerow = row['entry'] and row['side'] == 1
-        serow = row['entry'] and row['side'] == -1
+        lerow = row['long']
+        serow = row['short']
         end_of_day = row[icol] if intraday else False
         # calculate profit targets and stop losses
         try:
