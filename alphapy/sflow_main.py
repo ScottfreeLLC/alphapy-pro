@@ -26,7 +26,7 @@
 # HOW TO RUN:
 #
 # export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
-# sflow
+# sflow --tdate 2020-01-01 --pdate 2021-11-24
 #
 
 
@@ -333,7 +333,7 @@ def get_day_offset(date_vector):
 
     dv = pd.to_datetime(date_vector)
     offsets = pd.to_datetime(dv) - pd.to_datetime(dv[0])
-    day_offset = offsets.astype('timedelta64[D]').astype(int)
+    day_offset = (offsets / pd.Timedelta('1D')).astype(int)
     return day_offset
 
 
@@ -862,7 +862,7 @@ def main(args=None):
     if args.train_date:
         train_date = args.train_date
     else:
-        train_date = pd.datetime(1900, 1, 1).strftime("%Y-%m-%d")
+        train_date = pd.to_datetime('1900-01-01').strftime("%Y-%m-%d")
 
     if args.predict_date:
         predict_date = args.predict_date
@@ -1001,11 +1001,12 @@ def main(args=None):
         team_frames = {}
         teams = gf.groupby([home_team])
         for team, _ in teams:
-            team_frame = USEP.join([league, team.lower(), series, str(season)])
+            team_name = team[0]
+            team_frame = USEP.join([league, team_name.lower(), series, str(season)])
             logger.info("Generating team frame: %s", team_frame)
-            tf = get_team_frame(gf, team, home_team, away_team)
+            tf = get_team_frame(gf, team_name, home_team, away_team)
             tf = tf.reset_index()
-            tf = generate_team_frame(team, tf, home_team, away_team, window)
+            tf = generate_team_frame(team_name, tf, home_team, away_team, window)
             team_frames[team_frame] = tf
 
         # Create the model frame, initializing the home and away frames
@@ -1025,7 +1026,8 @@ def main(args=None):
         #     Assign team frame fields to respective model frame fields: set gf.at(pos, field)
 
         for team, _ in teams:
-            team_frame = USEP.join([league, team.lower(), series, str(season)])
+            team_name = team[0]
+            team_frame = USEP.join([league, team_name.lower(), series, str(season)])
             logger.info("Merging team frame %s into model frame", team_frame)
             tf = team_frames[team_frame]
             for index in range(0, tf.shape[0]-1):
@@ -1033,10 +1035,10 @@ def main(args=None):
                 model_row = tf.iloc[gindex]
                 key_date = model_row['date']
                 at_home = False
-                if team == model_row[home_team]:
+                if team_name == model_row[home_team]:
                     at_home = True
                     key_team = model_row[home_team]
-                elif team == model_row[away_team]:
+                elif team_name == model_row[away_team]:
                     key_team = model_row[away_team]
                 else:
                     raise KeyError("Team %s not found in Team Frame" % team)            
@@ -1085,10 +1087,10 @@ def main(args=None):
         # split data into training and test data
         new_train_frame = ff.loc[(ff.date >= train_date) & (ff.date < predict_date)]
         if new_train_frame.empty:
-            raise ValueError("Training frame has no rows")
+            raise ValueError(f"Training frame has no rows. Adjust tdate {train_date} back.")
         new_test_frame = ff.loc[ff.date >= predict_date]
         if new_test_frame.empty:
-            raise ValueError("Testing frame has no rows")
+            raise ValueError(f"Testing frame has no rows. Adjust pdate {predict_date} back.")
         # rewrite with all the features to the train and test files
         logger.info("Saving training frame")
         write_frame(new_train_frame, input_dir, datasets[Partition.train],
@@ -1113,36 +1115,6 @@ def main(args=None):
     logger.info('*'*80)
     logger.info("SportFlow End")
     logger.info('*'*80)
-
-
-#
-# FastAPI Startup
-#
-
-@app.on_event("startup")
-async def startup_event():
-    # Initialize Logging
-    logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
-                        filename="mflow_server.log", filemode='a', level=logging.INFO,
-                        datefmt='%m/%d/%y %H:%M:%S')
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
-                                  datefmt='%m/%d/%y %H:%M:%S')
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    console.setLevel(logging.INFO)
-    logging.getLogger().addHandler(console)
-    # Start the pipeline
-    logger.info('*'*80)
-    logger.info("Market Flow Server Start")
-    logger.info('*'*80)
-    # Get the AlphaPy environment variable
-    alphapy_root = os.environ.get('ALPHAPY_ROOT')
-    if not alphapy_root:
-        root_error_string = "ALPHAPY_ROOT environment variable must be set"
-        logger.info(root_error_string)
-        sys.exit(root_error_string)
-    # Finish Startup
-    return
 
 
 #

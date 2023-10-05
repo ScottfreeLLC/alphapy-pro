@@ -457,6 +457,8 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday,
 
     # Unpack the system parameters.
 
+    signal_long = system.signal_long
+    signal_short = system.signal_short
     forecast_period = system.forecast_period
     profit_factor = system.profit_factor
     stoploss_factor = system.stoploss_factor
@@ -538,8 +540,8 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday,
         h = row[hcol]
         l = row[lcol]
         # evaluate entry and exit conditions
-        lerow = row['long']
-        serow = row['short']
+        lerow = row[signal_long] if signal_long else None
+        serow = row[signal_short] if signal_short else None
         end_of_day = row[icol] if intraday else False
         # calculate profit targets and stop losses
         try:
