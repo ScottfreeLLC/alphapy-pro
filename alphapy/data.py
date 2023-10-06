@@ -31,11 +31,11 @@ from alphapy.frame import frame_name
 from alphapy.frame import read_frame
 from alphapy.globals import datasets
 from alphapy.globals import ModelType
+from alphapy.globals import Partition
 from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import SSEP
 from alphapy.globals import SamplingMethod
 from alphapy.globals import WILDCARD
-from alphapy.requests_ap import get_web_content
 from alphapy.space import Space
 from alphapy.transforms import dateparts
 from alphapy.transforms import timeparts
@@ -49,14 +49,9 @@ from imblearn.ensemble import EasyEnsembleClassifier
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import ClusterCentroids
-from imblearn.under_sampling import CondensedNearestNeighbour
-from imblearn.under_sampling import EditedNearestNeighbours
-from imblearn.under_sampling import InstanceHardnessThreshold
 from imblearn.under_sampling import NearMiss
 from imblearn.under_sampling import NeighbourhoodCleaningRule
-from imblearn.under_sampling import OneSidedSelection
 from imblearn.under_sampling import RandomUnderSampler
-from imblearn.under_sampling import RepeatedEditedNearestNeighbours
 from imblearn.under_sampling import TomekLinks
 import json
 import logging
@@ -112,7 +107,6 @@ def get_data(model, partition):
     model_type = model.specs['model_type']
     separator = model.specs['separator']
     target = model.specs['target']
-    allow_na_targets = model.specs['allow_na_targets']
 
     # Initialize X and y
 
@@ -135,21 +129,18 @@ def get_data(model, partition):
             logger.info("Found target %s in data frame", target)
             # check if target column has NaN values
             nan_count = df[target].isnull().sum()
-            if nan_count > 0 and not allow_na_targets:
-                logger.info("Found %d records with NaN target values", nan_count)
-                logger.info("Labels (y) for %s will not be used", partition)
-            else:
-                logger.info("Labels (y) found for %s", partition)
-                # drop NA targets
-                df = df.dropna(subset=[target])
+            logger.info("Found %d records with NaN target values", nan_count)
+            # drop NA targets
+            if partition == Partition.train:
+                df = df.dropna(subset=[target]).reset_index(drop=True)
                 if nan_count > 0:
                     logger.info("Dropped %d records with NaN target values", nan_count)
-                # assign the target column to y
-                df_y = df[target]
-                # encode label only for classification
-                if model_type == ModelType.classification:
-                    y = LabelEncoder().fit_transform(df_y)
-                    df_y = pd.DataFrame(y, columns=[target])
+            # assign the target column to y
+            df_y = df[target]
+            # encode label only for classification
+            if model_type == ModelType.classification:
+                y = LabelEncoder().fit_transform(df_y)
+                df_y = pd.DataFrame(y, columns=[target])
             # drop the target from the original frame
             df = df.drop([target], axis=1)
         else:

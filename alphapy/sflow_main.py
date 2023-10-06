@@ -52,6 +52,7 @@ import math
 import numpy as np
 import os
 import pandas as pd
+import shutil
 import sys
 import yaml
 
@@ -65,6 +66,7 @@ from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.space import Space
 from alphapy.transforms import dateparts
+from alphapy.utilities import datetime_stamp
 from alphapy.utilities import most_recent_file
 from alphapy.utilities import valid_date
 
@@ -647,15 +649,13 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
 # Function record_live_results
 #
 
-def record_live_results(model_specs, directory):
+def record_live_results(model_specs):
     r"""Record the live results.
 
     Parameters
     ----------
     model_specs : dict
-        The input model parameters.
-    directory : str
-        The directory containing the test predictions.
+        The model specifications.
 
     Returns
     -------
@@ -665,15 +665,14 @@ def record_live_results(model_specs, directory):
     """
 
     # Extract model fields
-    
-    target = model_specs['target']
+    directory = model_specs['directory']
     
     # Read the Live Results File.
 
     logger.info("Reading Live Results")
-    output_dir = SSEP.join([directory, 'output'])
+
     try:
-        df_live = read_frame(output_dir, 'live_results', model_specs['extension'], model_specs['separator'])
+        df_live = read_frame(directory, 'live_results', model_specs['extension'], model_specs['separator'])
         df_live.set_index('match_id', inplace=True)
         logger.info("Current Live Records: %d", df_live.shape[0])
     except:
@@ -681,12 +680,12 @@ def record_live_results(model_specs, directory):
         logger.info("No Live Results to Analyze")
 
     logger.info("Updating Live Results")
-    df_live = update_live_results(df_live, target, output_dir)
+    df_live = update_live_results(df_live, model_specs)
     logger.info("Total Live Records: %d", df_live.shape[0])
 
     # Save updated Live Results file.
 
-    file_spec = '/'.join([output_dir, 'live_results.csv'])
+    file_spec = '/'.join([directory, 'live_results.csv'])
     df_live.to_csv(file_spec, index_label='match_id')
     return df_live
 
@@ -695,73 +694,48 @@ def record_live_results(model_specs, directory):
 # Function update_live_results
 #
 
-def update_live_results(df_live, target, results_dir):
+def update_live_results(df_live, model_specs):
     r"""Update the live results.
 
     Parameters
     ----------
     df_live : pandas.DataFrame
         The dataframe of live results.
-    target : str
-        The target variable to predict.
-    results_dir : str
-        The directory containing the test predictions.
+    model_specs : dict
+        The model specifications.
 
     Returns
     -------
     None
 
     """
-    
-    # Read in the game data
-    
-    mrf = most_recent_file(results_dir, 'ranked_train_ts*.csv')
-    df_game = pd.read_csv(mrf)
+
+    # Extract model fields
+
+    run_dir = model_specs['run_dir']
+    target = model_specs['target']
+
+    # Get the run's predictions
+
+    output_dir = '/'.join([run_dir, 'output'])
+    mrf = most_recent_file(output_dir, 'ranked_test*.csv')
+    df_pred = pd.read_csv(mrf)
+
+    # Retain the prediction columns
+
     game_cols = ['match_id', 'season', 'date', 'away_team', 'away_score', 'away_point_spread',
            'away_point_spread_line', 'away_money_line', 'home_team', 'home_score',
            'home_point_spread', 'home_point_spread_line', 'home_money_line',
            'over_under', 'over_line', 'under_line']
-    game_cols = list(itertools.chain(game_cols, [target]))
-    df_game = df_game[game_cols]
-    df_game.sort_values(by='date', inplace=True)
-    df_game.set_index('match_id', inplace=True)
-
-    # Read in the predictions
-    
-    search_spec = '/'.join([results_dir, 'ranked_test_ts*.csv'])
-    prediction_files = glob.glob(search_spec)
-    dfps = []
-    for pf_name in prediction_files:
-        dfp = pd.read_csv(pf_name)
-        dfps.append(dfp)
-    df_pred = pd.concat(dfps)
-    
-    # Retain the prediction columns
-    
-    df_pred.drop_duplicates(subset=['match_id'], keep='last', inplace=True)
     pred_cols = df_pred.columns[df_pred.columns.str.startswith('pred_')]
     prob_cols = df_pred.columns[df_pred.columns.str.startswith('prob_')]
-    df_pred_cols = list(itertools.chain(['match_id'], pred_cols, prob_cols))
+    df_pred_cols = list(itertools.chain(game_cols, pred_cols, prob_cols, [target]))
     df_pred = df_pred[df_pred_cols]
     df_pred.set_index('match_id', inplace=True)
-    
-    # Get new results
 
-    match_ids = []
-    if not df_live.empty:
-        match_ids = df_live.index.unique()
-    new_results = []
-    for index, row in df_pred.iterrows():
-        if index in match_ids:
-            df_live.update(row)
-        else:
-            new_results.append(row)
-    df_new = pd.DataFrame(new_results)
-    
     # Update the live results with the new results
-    
-    df_new = df_new.join(df_game, how='inner')
-    df_live = pd.concat([df_live, df_new])
+
+    df_live = pd.concat([df_live, df_pred])
     df_live = df_live[~df_live.index.duplicated(keep='last')]
     return df_live
 
@@ -805,6 +779,9 @@ def main(args=None):
     parser.add_argument('--predict', dest='predict_mode', action='store_true')
     parser.add_argument('--train', dest='predict_mode', action='store_false')
     parser.set_defaults(predict_mode=False)
+    parser.add_argument('--rundir', dest='run_dir',
+                        help="run directory is in the format: run_YYYYMMDD_hhmmss",
+                        required=False)
     args = parser.parse_args()
 
     # Logging
@@ -843,8 +820,7 @@ def main(args=None):
 
     # Read model configuration file
 
-    directory = '.'
-    _, model_specs = get_model_config(directory)
+    _, model_specs = get_model_config()
     model_specs['alphapy_root'] = alphapy_root
     
     # Extract model fields
@@ -856,6 +832,42 @@ def main(args=None):
     model_specs['predict_mode'] = args.predict_mode
     model_specs['predict_date'] = args.predict_date
     model_specs['train_date'] = args.train_date
+
+    # If not in prediction mode, then create the training infrastructure.
+
+    if not model_specs['predict_mode']:
+        # create the directory infrastructure if necessary
+        output_dirs = ['config', 'data', 'runs']
+        for od in output_dirs:
+            output_dir = SSEP.join([model_specs['directory'], od])
+            if not os.path.exists(output_dir):
+                logger.info("Creating directory %s", output_dir)
+                os.makedirs(output_dir)
+        # create the run directory
+        dt_stamp = datetime_stamp()
+        run_dir_name = USEP.join(['run', dt_stamp])
+        run_dir = SSEP.join([model_specs['directory'], 'runs', run_dir_name])
+        os.makedirs(run_dir)
+        # create the subdirectories of the runs directory
+        sub_dirs = ['config', 'input', 'model', 'output', 'plots']
+        for sd in sub_dirs:
+            output_dir = SSEP.join([run_dir, sd])
+            if not os.path.exists(output_dir):
+                logger.info("Creating directory %s", output_dir)
+                os.makedirs(output_dir)
+        # copy the market file to the config directory
+        file_names = ['model.yml', 'sport.yml']
+        for file_name in file_names:
+            src_file = SSEP.join([model_specs['directory'], 'config', file_name])
+            dst_file = SSEP.join([run_dir, 'config', file_name])
+            shutil.copyfile(src_file, dst_file)
+    else:
+        run_dir = args.run_dir if args.run_dir else None
+        if not run_dir:
+            # get latest directory
+            search_dir = SSEP.join([model_specs['directory'], 'runs'])
+            run_dir = most_recent_file(search_dir, 'run_*')
+    model_specs['run_dir'] = run_dir
 
     # Set train and predict dates
 
@@ -890,15 +902,6 @@ def main(args=None):
     random_scoring = sport_specs['random_scoring']
     seasons = sport_specs['seasons']
     window = sport_specs['rolling_window']   
-
-    # Create directories if necessary
-
-    output_dirs = ['config', 'input', 'model', 'output', 'plots']
-    for od in output_dirs:
-        output_dir = SSEP.join([directory, od])
-        if not os.path.exists(output_dir):
-            logger.info("Creating directory %s", output_dir)
-            os.makedirs(output_dir)
 
     # Create the game scores space
     space = Space('game', 'scores', '1g')
@@ -1074,8 +1077,9 @@ def main(args=None):
 
     # Write out dataframes
 
-    input_dir = SSEP.join([directory, 'input'])
+    input_dir = SSEP.join([run_dir, 'input'])
     if args.predict_mode:
+        # get the prediction frame only
         new_predict_frame = ff.loc[ff.date >= predict_date]
         if len(new_predict_frame) <= 1:
             raise ValueError("Prediction frame has length 1 or less")
@@ -1108,7 +1112,7 @@ def main(args=None):
     # Update the live results
     
     if live_results:
-        df_live = record_live_results(model_specs, directory)
+        df_live = record_live_results(model_specs)
 
     # Complete the pipeline
 

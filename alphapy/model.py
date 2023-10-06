@@ -281,7 +281,6 @@ def get_model_config(directory='.'):
     specs['separator'] = data_section['separator']
     specs['shuffle'] = data_section['shuffle']
     specs['split'] = data_section['split']
-    specs['allow_na_targets'] = data_section['allow_na_targets']
     # sampling
     specs['sampling'] = data_section['sampling']['option']
     # determine whether or not sampling method is valid
@@ -447,7 +446,6 @@ def get_model_config(directory='.'):
 
     logger.info('MODEL PARAMETERS:')
     logger.info('algorithms        = %s', specs['algorithms'])
-    logger.info('allow_na_targets  = %r', specs['allow_na_targets'])
     logger.info('calibration       = %r', specs['calibration'])
     logger.info('cal_type          = %s', specs['cal_type'])
     logger.info('calibration_plot  = %r', specs['calibration'])

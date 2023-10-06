@@ -562,8 +562,6 @@ def prepare_data(model, dfs, market_specs):
                         forecast_check = forecast_period - 1
                         if nan_count != forecast_check:
                             logger.info("%s has %d test records with a NaN target.", symbol, nan_count)
-                        # drop records with NaN values in target column
-                        new_test = new_test.dropna(subset=[target])
                         # append selected records to the test frame
                         test_frame = pd.concat([test_frame, new_test])
                     else:

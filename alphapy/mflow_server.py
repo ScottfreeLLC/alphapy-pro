@@ -39,8 +39,6 @@
 # Imports
 #
 
-from fastapi import FastAPI
-from fastapi import UploadFile
 from finviz.portfolio import Portfolio
 from finviz.screener import Screener
 import finnhub
