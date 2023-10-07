@@ -45,7 +45,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import argparse
 import datetime
-import glob
 import itertools
 import logging
 import math
@@ -715,14 +714,22 @@ def update_live_results(df_live, model_specs):
     run_dir = model_specs['run_dir']
     target = model_specs['target']
 
-    # Get the run's predictions
+    # Get the run's training data, which contains previous results
 
     output_dir = '/'.join([run_dir, 'output'])
+    mrf = most_recent_file(output_dir, 'ranked_train*.csv')
+    df_results = pd.read_csv(mrf, low_memory=False)
+    df_results['date_dt'] = pd.to_datetime(df_results['date'])
+    current_date = datetime.datetime.now()
+    previous_date = current_date - datetime.timedelta(days=30)
+    df_results = df_results[df_results['date_dt'] > previous_date]
+    df_results.drop(columns=['date_dt'], inplace=True)
+    df_results.set_index('match_id', inplace=True)
+
+    # Get the run's predictions
+
     mrf = most_recent_file(output_dir, 'ranked_test*.csv')
     df_pred = pd.read_csv(mrf)
-
-    # Retain the prediction columns
-
     game_cols = ['match_id', 'season', 'date', 'away_team', 'away_score', 'away_point_spread',
            'away_point_spread_line', 'away_money_line', 'home_team', 'home_score',
            'home_point_spread', 'home_point_spread_line', 'home_money_line',
@@ -737,6 +744,10 @@ def update_live_results(df_live, model_specs):
 
     df_live = pd.concat([df_live, df_pred])
     df_live = df_live[~df_live.index.duplicated(keep='last')]
+
+    # Update any scores
+    df_live.update(df_results[['away_score', 'home_score', 'won_on_spread']])
+
     return df_live
 
 
