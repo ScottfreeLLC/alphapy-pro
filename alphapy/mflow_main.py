@@ -948,7 +948,7 @@ def main(args=None):
 
     if not model_specs['predict_mode']:
         # create the directory infrastructure if necessary
-        output_dirs = ['config', 'data', 'runs']
+        output_dirs = ['config', 'runs']
         for od in output_dirs:
             output_dir = SSEP.join([model_specs['directory'], od])
             if not os.path.exists(output_dir):

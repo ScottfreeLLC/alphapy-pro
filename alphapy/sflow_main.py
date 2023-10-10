@@ -645,6 +645,81 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
 
 
 #
+# Function save_timegpt_data
+#
+
+def save_timegpt_data(model_specs):
+    r"""Save the training data for TimeGPT.
+
+    Parameters
+    ----------
+    model_specs : dict
+        The model specifications.
+
+    Returns
+    -------
+    None
+
+    """
+
+    # Extract model fields
+    run_dir = model_specs['run_dir']
+
+    # Get the run's training data, which contains previous results
+
+    output_dir = '/'.join([run_dir, 'output'])
+    mrf = most_recent_file(output_dir, 'ranked_train*.csv')
+    df_train = pd.read_csv(mrf, low_memory=False)
+
+    # Get a list of all unique teams from both 'home_team' and 'away_team' columns
+    all_teams = pd.concat([df_train['home_team'], df_train['away_team']]).unique()
+
+    # List to hold the individual team DataFrames
+    team_frames = []
+
+    for team in all_teams:
+        # Split the data into home and away games for the current team
+        home_games = df_train[df_train['home_team'] == team]
+        away_games = df_train[df_train['away_team'] == team]
+
+        # Keep only the relevant columns and rename them by removing the 'home_' or 'away_' prefix
+        home_games = home_games[['season', 'date'] + [col for col in home_games.columns if col.startswith('home_')]]
+        away_games = away_games[['season', 'date'] + [col for col in away_games.columns if col.startswith('away_')]]
+        
+        home_games.columns = home_games.columns.str.replace('home_', '')
+        away_games.columns = away_games.columns.str.replace('away_', '')
+        
+        # Add a new column to indicate the team name
+        home_games['team'] = team
+        away_games['team'] = team
+        
+        # Append the processed frames to the list
+        team_frames.append(home_games)
+        team_frames.append(away_games)
+
+    # Concatenate all the individual team frames into a single DataFrame
+    merged_frame = pd.concat(team_frames)
+
+    # Create a new ordered column list with 'season' and 'date' first
+
+    columns_order = ['season', 'date'] + [col for col in merged_frame if col not in ['season', 'date']]
+    merged_frame = merged_frame.reindex(columns=columns_order)
+
+    # Sort the final DataFrame based on date and team name
+
+    merged_frame['date_dt'] = pd.to_datetime(merged_frame['date']) 
+    merged_frame = merged_frame.sort_values(by=['date_dt', 'team']).reset_index(drop=True)
+    merged_frame.drop(columns=['date_dt'], inplace=True)
+
+    # Save the DataFrame to a CSV file
+
+    file_spec = '/'.join([run_dir, 'output', 'team_time_series.csv'])
+    merged_frame.to_csv(file_spec, index=False)
+
+    return
+
+
+#
 # Function record_live_results
 #
 
@@ -678,14 +753,14 @@ def record_live_results(model_specs):
         df_live = pd.DataFrame()
         logger.info("No Live Results to Analyze")
 
-    logger.info("Updating Live Results")
-    df_live = update_live_results(df_live, model_specs)
+    df_live = update_live_results(model_specs, df_live)
     logger.info("Total Live Records: %d", df_live.shape[0])
 
     # Save updated Live Results file.
 
     file_spec = '/'.join([directory, 'live_results.csv'])
     df_live.to_csv(file_spec, index_label='match_id')
+
     return df_live
 
 
@@ -693,21 +768,24 @@ def record_live_results(model_specs):
 # Function update_live_results
 #
 
-def update_live_results(df_live, model_specs):
+def update_live_results(model_specs, df_live):
     r"""Update the live results.
 
     Parameters
     ----------
-    df_live : pandas.DataFrame
-        The dataframe of live results.
     model_specs : dict
         The model specifications.
+    df_live : pandas.DataFrame
+        The dataframe of live results.
 
     Returns
     -------
-    None
+    df_live : pandas.DataFrame
+        The dataframe of live results.
 
     """
+
+    logger.info("Updating Live Results")
 
     # Extract model fields
 
@@ -746,9 +824,79 @@ def update_live_results(df_live, model_specs):
     df_live = df_live[~df_live.index.duplicated(keep='last')]
 
     # Update any scores
-    df_live.update(df_results[['away_score', 'home_score', 'won_on_spread']])
+
+    df_live.update(df_results, errors='ignore')
+    df_live = df_live.sort_values(by=['date'])
 
     return df_live
+
+
+#
+# Function record_model_results
+#
+
+def record_model_results(model_specs, df):
+    r"""Save the results for each model.
+
+    Parameters
+    ----------
+    model_specs : dict
+        The model specifications.
+    df : pandas.DataFrame
+        The dataframe of live results.
+
+    Returns
+    -------
+    None
+
+    """
+
+    logger.info("Saving Model Results")
+
+    # Extract model fields
+
+    directory = model_specs['directory']
+    target = model_specs['target']
+
+    # Filter out rows with blank scores
+    df = df.dropna(subset=['home_score', 'away_score'])
+
+    # Identify prediction columns
+    pred_columns = [col for col in df.columns if 'pred_' in col]
+
+    # Initialize a dictionary to store the results
+    modified_winning_percentages = {}
+
+    # Calculate winning percentage for each prediction column
+    for col in pred_columns:
+        # Count the number of matches and mismatches
+        matches = df[df[col] == df[target]].shape[0]
+        total_predictions = df[col].count()
+        
+        # Calculate and store the winning percentage
+        winning_percentage = (matches / total_predictions) * 100
+        
+        # Remove "pred_" and "test_" from column name
+        model_name = col.replace('pred_', '').replace('test_', '')
+        
+        modified_winning_percentages[model_name] = winning_percentage
+
+    # Convert the results to a DataFrame
+    modified_winning_percentages_df = pd.DataFrame(list(modified_winning_percentages.items()), columns=['Model', 'Win %'])
+
+    # Removing the "best" model
+    modified_winning_percentages_df = modified_winning_percentages_df[modified_winning_percentages_df['Model'] != 'best']
+
+    # Sorting the models by winning percentage in descending order
+    modified_winning_percentages_df = modified_winning_percentages_df.sort_values(by='Win %', ascending=False)
+
+    # Shortening the decimal places to 2
+    modified_winning_percentages_df['Win %'] = modified_winning_percentages_df['Win %'].round(2)
+
+    # Save the modified and sorted DataFrame
+
+    file_spec = '/'.join([directory, 'model_results.csv'])
+    modified_winning_percentages_df.to_csv(file_spec, index=False)
 
 
 #
@@ -848,7 +996,7 @@ def main(args=None):
 
     if not model_specs['predict_mode']:
         # create the directory infrastructure if necessary
-        output_dirs = ['config', 'data', 'runs']
+        output_dirs = ['config', 'runs']
         for od in output_dirs:
             output_dir = SSEP.join([model_specs['directory'], od])
             if not os.path.exists(output_dir):
@@ -1119,11 +1267,15 @@ def main(args=None):
 
     # Run the pipeline
     model = main_pipeline(alphapy_specs, model)
+
+    # Save the TimeGPT training data
+    save_timegpt_data(model_specs)
     
     # Update the live results
     
     if live_results:
         df_live = record_live_results(model_specs)
+        record_model_results(model_specs, df_live)
 
     # Complete the pipeline
 

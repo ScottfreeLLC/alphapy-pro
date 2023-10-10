@@ -101,6 +101,7 @@ def get_data(model, partition):
     # Extract the model data
 
     directory = model.specs['directory']
+    live_results = model.specs['live_results']
     run_dir = model.specs['run_dir']
     extension = model.specs['extension']
     features = model.specs['features']
@@ -131,7 +132,7 @@ def get_data(model, partition):
             nan_count = df[target].isnull().sum()
             logger.info("Found %d records with NaN target values", nan_count)
             # drop NA targets
-            if partition == Partition.train:
+            if not live_results or partition == Partition.train:
                 df = df.dropna(subset=[target]).reset_index(drop=True)
                 if nan_count > 0:
                     logger.info("Dropped %d records with NaN target values", nan_count)
