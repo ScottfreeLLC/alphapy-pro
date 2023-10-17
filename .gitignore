@@ -2,4 +2,3 @@
 *.log
 *.DS_Store
 alphapy/*__pycache__*
-*.log
