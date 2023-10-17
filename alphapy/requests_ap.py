@@ -31,25 +31,6 @@ import requests
 import streamlit as st
 import subprocess
 
-from alphapy.mflow_server import request_groups
-from alphapy.mflow_server import request_market_config
-from alphapy.mflow_server import request_model_config
-from alphapy.mflow_server import request_paths
-from alphapy.mflow_server import request_projects
-
-
-#
-# AlphaPy Dispatch Table
-#
-
-alphapy_dispatcher = {
-     'groups'        : request_groups,
-     'market_config' : request_market_config,
-     'model_config'  : request_model_config,
-     'paths'         : request_paths,
-     'projects'      : request_projects
-}
-
 
 #
 # Initialize logger
@@ -116,38 +97,6 @@ def get_web_content(url):
     except requests.RequestException as e:
         logger.debug(f"Error: An unexpected error occurred. {e}")
         return None
-
-
-#
-# Function alphapy_request
-#
-
-def alphapy_request(alphapy_specs, item, *args):
-    r"""Make a request to an AlphaPy server.
-
-    Parameters
-    ----------
-    alphapy_specs : str
-        The specifications for AlphaPy.
-    item : str
-        The name of the AlphaPy server.
-    args : str
-        The specific request.
-
-    Returns
-    -------
-    response : str
-        The results returned from the AlphaPy server.
-
-    """
-    use_server = alphapy_specs['use_server']
-    if use_server:
-        url = alphapy_specs['mflow']['server_url']
-        r = requests.get(url+item)
-        results = r.json()
-    else:
-        results = alphapy_dispatcher[item](*args)
-    return results
 
 
 #

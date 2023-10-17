@@ -726,7 +726,6 @@ def map_dollar_bars(df, cols, fractal, p=100, pv_factor=1.0):
     ddv = get_daily_dollar_vol(df, p)
     time_factor = pd.Timedelta(fractal) / pd.Timedelta('1D')
     dollar_threshold = pv_factor * time_factor * ddv
-    print(dollar_threshold)
 
     # Create a dictionary from the original dataframe.
     df_dict = df.to_dict('records')

@@ -1126,11 +1126,13 @@ def create_portfolio(model, system_name, portfolio_specs, group, tframe, tag):
     
     # Record the trading statistics.
 
-    logger.info("Recording Trading Metrics")
-    rf.index = pd.to_datetime(rf.index)
-    df_metrics = qs.reports.metrics(rf, mode='full', display=False)
-    write_frame(df_metrics, system_dir, 'trade_metrics', extension, separator, tag,
-                index=True, index_label='date')
+    trading_metrics = False
+    if trading_metrics:
+        logger.info("Recording Trading Metrics")
+        rf.index = pd.to_datetime(rf.index)
+        df_metrics = qs.reports.metrics(rf, mode='full', display=False)
+        write_frame(df_metrics, system_dir, 'trade_metrics', extension, separator, tag,
+                    index=True, index_label='date')
     
     # Record the tear sheet (currently not working)
 

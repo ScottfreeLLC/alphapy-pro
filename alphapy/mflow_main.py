@@ -720,23 +720,14 @@ def market_pipeline(alphapy_specs, model, market_specs):
     trade_fractal = fractals[0]
 
     # Get AlphaPy specifications
-
     data_dir = alphapy_specs['data_dir']
-    systems = alphapy_specs['systems']
 
     # Get section specifications
 
     system_specs = market_specs['system']
-    system_name = system_specs['system_name']
-    signal_long = systems[system_name]['long']
-    signal_short = systems[system_name]['short']
-
-    # Augment the system specifications.
-
+    system_specs['system_name'] = target
     system_specs['predict_history'] = predict_history
     system_specs['forecast_period'] = forecast_period
-    system_specs['signal_long'] = signal_long
-    system_specs['signal_short'] = signal_short
     system_specs['fractal'] = trade_fractal
 
     ranking_specs = market_specs['ranking']
@@ -781,7 +772,6 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Apply the features to all frames, including the signals just for the
     # target fractal.
 
-    market_specs['features'][trade_fractal].extend([signal_long, signal_short])
     dfs = vapply(group, market_specs, functions)
 
     # Apply the cohort returns to all frames.
@@ -810,9 +800,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
         system = SystemRank(**ranking_specs)
     else:
         logger.info("System Name      : %s", system_specs['system_name'])
-        logger.info("Signal Long      : %s", signal_long)
-        logger.info("Signal Short     : %s", signal_short)
-        logger.info("Target           : %s", target)
+        logger.info("System Type      : %s", system_specs['system_type'])
         logger.info("Forecast Period  : %s", forecast_period)
         logger.info("Predict History  : %s", predict_history)
         logger.info("Profit Factor    : %s", system_specs['profit_factor'])
@@ -829,7 +817,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
     if df_trades.empty:
         logger.info("No trades to generate a portfolio")
     else:
-        gen_portfolios(model, system_name, portfolio_specs, group,
+        gen_portfolios(model, system_specs['system_name'], portfolio_specs, group,
                        df_trades, df_baseline)
 
     # Return the completed model.

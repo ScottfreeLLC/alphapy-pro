@@ -61,10 +61,8 @@ class System(object):
     ----------
     system_name : str
         The name of the pattern.
-    signal_long : str
-        The entry condition for a long position.
-    signal_short : str
-        The entry condition for a short position.
+    system_type : str
+        Set to long or short.
     predict_history : int
         Historical period required to calculate predictions.
     forecast_period : int
@@ -102,8 +100,7 @@ class System(object):
 
     def __new__(cls,
                 system_name,
-                signal_long,
-                signal_short,
+                system_type,
                 forecast_period = 1,
                 predict_history = 50,
                 profit_factor = 1.0,
@@ -122,8 +119,7 @@ class System(object):
 
     def __init__(self,
                  system_name,
-                 signal_long,
-                 signal_short,
+                 system_type,
                  forecast_period = 1,
                  predict_history = 50,
                  profit_factor = 1.0,
@@ -134,8 +130,7 @@ class System(object):
                  fractal = '1D'):
         # initialization
         self.system_name = system_name
-        self.signal_long = signal_long
-        self.signal_short = signal_short
+        self.system_type = system_type
         self.forecast_period = forecast_period
         self.predict_history = predict_history
         self.profit_factor = profit_factor
@@ -420,8 +415,8 @@ def get_daily_vol(ds_close, p=60):
 # Function trade_system
 #
 
-def trade_system(symbol, quantity, system, df_rank, space, intraday,
-                 ts_flag=False, use_probs=True):
+def trade_system(symbol, quantity, system, target, df_rank, space,
+                 intraday, ts_flag=False, use_probs=True):
     r"""Trade the given system.
 
     Parameters
@@ -432,6 +427,8 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday,
         The amount of the ``symbol`` to trade, e.g., number of shares
     system : alphapy.System
         The long/short system to run.
+    target : str
+        The target variable.
     df_rank : pd.DataFrame
         The dataframe containing the ranked predictions.
     space : alphapy.Space
@@ -457,8 +454,7 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday,
 
     # Unpack the system parameters.
 
-    signal_long = system.signal_long
-    signal_short = system.signal_short
+    system_type = system.system_type
     forecast_period = system.forecast_period
     profit_factor = system.profit_factor
     stoploss_factor = system.stoploss_factor
@@ -540,8 +536,8 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday,
         h = row[hcol]
         l = row[lcol]
         # evaluate entry and exit conditions
-        lerow = row[signal_long] if signal_long else None
-        serow = row[signal_short] if signal_short else None
+        lerow = row[target] if system_type == 'long' else None
+        serow = row[target] if system_type == 'short' else None
         end_of_day = row[icol] if intraday else False
         # calculate profit targets and stop losses
         try:
@@ -669,6 +665,7 @@ def run_system(model,
     extension = model.specs['extension']
     separator = model.specs['separator']
     rank_group_id = model.specs['rank_group_id']
+    target = model.specs['target']
 
     # Extract the group information.
 
@@ -704,9 +701,10 @@ def run_system(model,
         if model_type == ModelType.ranking:
             tlist1 = trade_ranking(symbol, quantity, system, df_rank, gspace, intraday)
         else:
-            tlist1 = trade_system(symbol, quantity, system, df_rank, gspace, intraday, ts_flag)
-            tlist2 = trade_system(symbol, quantity, system, df_rank, gspace, intraday, ts_flag,
-                                  use_probs=False)
+            tlist1 = trade_system(symbol, quantity, system, target,
+                                  df_rank, gspace, intraday, ts_flag)
+            tlist2 = trade_system(symbol, quantity, system, target,
+                                  df_rank, gspace, intraday, ts_flag, use_probs=False)
         if tlist1:
             # add trades to global trade list 1
             for item in tlist1:
