@@ -1,7 +1,5 @@
-
-.DS_Store
-alphapy/*__pycache__*
-alphapy/streamlit_main.log
 *.pyc
 *.log
-*.pyc
+*.DS_Store
+alphapy/*__pycache__*
+*.log
