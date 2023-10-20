@@ -720,48 +720,179 @@ def save_timegpt_data(model_specs):
 
 
 #
-# Function record_live_results
+# Function record_model_results
 #
 
-def record_live_results(model_specs):
-    r"""Record the live results.
+def record_model_results(model_specs, df):
+    r"""Save the results for each model.
 
     Parameters
     ----------
     model_specs : dict
         The model specifications.
+    df : pandas.DataFrame
+        The dataframe of live results.
 
     Returns
     -------
-    df_live : pandas.DataFrame
-        The dataframe of live results.
+    None
 
     """
 
+    logger.info("Saving Model Results")
+
     # Extract model fields
+
     directory = model_specs['directory']
-    
-    # Read the Live Results File.
+    target = model_specs['target']
 
-    logger.info("Reading Live Results")
+    # Filter out rows with blank scores
+    df = df.dropna(subset=['home_score', 'away_score'])
 
-    try:
-        df_live = read_frame(directory, 'live_results', model_specs['extension'], model_specs['separator'])
-        df_live.set_index('match_id', inplace=True)
-        logger.info("Current Live Records: %d", df_live.shape[0])
-    except:
-        df_live = pd.DataFrame()
-        logger.info("No Live Results to Analyze")
+    # Identify prediction columns
+    pred_columns = [col for col in df.columns if 'pred_' in col]
 
-    df_live = update_live_results(model_specs, df_live)
-    logger.info("Total Live Records: %d", df_live.shape[0])
+    # Initialize a dictionary to store the results
+    modified_winning_percentages = {}
 
-    # Save updated Live Results file.
+    # Calculate winning percentage for each prediction column
+    for col in pred_columns:
+        # Count the number of matches and mismatches
+        matches = df[df[col] == df[target]].shape[0]
+        total_predictions = df[col].count()
+        
+        # Calculate and store the winning percentage
+        winning_percentage = (matches / total_predictions) * 100
+        
+        # Remove "pred_" and "test_" from column name
+        model_name = col.replace('pred_', '').replace('test_', '')
+        
+        modified_winning_percentages[model_name] = winning_percentage
 
-    file_spec = '/'.join([directory, 'live_results.csv'])
-    df_live.to_csv(file_spec, index_label='match_id')
+    # Convert the results to a DataFrame
+    modified_winning_percentages_df = pd.DataFrame(list(modified_winning_percentages.items()), columns=['Model', 'Win %'])
 
-    return df_live
+    # Removing the "best" model
+    modified_winning_percentages_df = modified_winning_percentages_df[modified_winning_percentages_df['Model'] != 'best']
+
+    # Sorting the models by winning percentage in descending order
+    modified_winning_percentages_df = modified_winning_percentages_df.sort_values(by='Win %', ascending=False)
+
+    # Shortening the decimal places to 2
+    modified_winning_percentages_df['Win %'] = modified_winning_percentages_df['Win %'].round(2)
+
+    # Save the modified and sorted DataFrame
+
+    file_spec = '/'.join([directory, 'model_results.csv'])
+    modified_winning_percentages_df.to_csv(file_spec, index=False)
+
+
+#
+# Function extract_datasets
+#
+
+def extract_datasets(model_specs, df):
+    """
+    Extract datasets for each category.
+
+    Parameters
+    ----------
+    model_specs : dict
+        The model specifications.
+    df : pandas.DataFrame
+        The dataframe of live results.
+
+    Returns
+    -------
+    dict
+        A dictionary containing three dataframes: results, predictions, summary.
+    """
+
+    directory = model_specs['directory']
+    target = model_specs['target']
+
+    # Define column subsets
+
+    game_cols = ['date', 'away_team', 'home_team']
+    score_cols = ['away_score', 'home_score']
+    spread_cols = ['away_point_spread', 'away_point_spread_line', 'home_point_spread', 'home_point_spread_line']
+    moneyline_cols = ['away_money_line', 'home_money_line']
+    over_under_cols = ['over_under', 'over_line', 'under_line']
+    pred_cols = [col for col in df.columns if 'pred_' in col]
+    prob_cols = [col for col in df.columns if 'prob_' in col]
+
+    # Convert columns types
+
+    cols_to_int = ['away_point_spread_line', 'home_point_spread_line', 'over_line', 'under_line']
+    for col in cols_to_int:
+        df[col] = df[col].astype(int)
+
+    for col in prob_cols:
+        df[col] = df[col].round(3)
+
+    # Get the columns for each dataframe.
+
+    results_col_map = {
+        'won_on_spread' : 'home_point_spread',
+        'won_on_points' : 'home_money_line',
+        'over'          : 'over_under',
+    }
+
+    df_results = df[df['away_score'].notna() & df['home_score'].notna()]
+    results_cols = game_cols + score_cols + [target] + [results_col_map[target]]
+    df_results = df_results[results_cols]
+    matching_cols = [col for col in df.columns if col in df_results.columns]
+    df_results = df_results[matching_cols]
+    cols_to_int = ['away_score', 'home_score']
+    for col in cols_to_int:
+        df_results[col] = df_results[col].astype(int)
+
+    target_col_map = {
+        'won_on_spread' : spread_cols,
+        'won_on_points' : moneyline_cols,
+        'over'          : over_under_cols,
+    }
+
+    df_pred1 = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
+    pred1_cols = game_cols + pred_cols + target_col_map[target]
+    df_pred1 = df_pred1[pred1_cols]
+    matching_cols = [col for col in df.columns if col in df_pred1.columns]
+    df_pred1 = df_pred1[matching_cols]
+    df_pred1.drop(columns=['pred_test_best'], inplace=True)
+
+    df_pred2 = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
+    pred2_cols = game_cols + prob_cols + target_col_map[target]
+    df_pred2 = df_pred2[pred2_cols]
+    matching_cols = [col for col in df.columns if col in df_pred2.columns]
+    df_pred2 = df_pred2[matching_cols]
+    df_pred2.drop(columns=['prob_test_best'], inplace=True)
+
+    summary_data = []
+    for col in pred_cols:
+        matches = df[df[col] == df[target]].shape[0]
+        total_predictions = df[col].count()
+        mismatches = total_predictions - matches
+        winning_percentage = ((matches / total_predictions) * 100).round(2)
+        model_name = col.replace('pred_', '').replace('test_', '')
+        summary_data.append({'model': model_name, 'wins': matches, 'losses': mismatches, 'total games': total_predictions, 'win %': winning_percentage})
+    df_summary = pd.DataFrame(summary_data)
+    df_summary = df_summary.sort_values(by='win %', ascending=False)
+    df_summary = df_summary[df_summary['model'] != 'best']
+
+    # Store the dataframes in a dictionary for easy access
+    datasets = {
+        'results': df_results,
+        'predictions_pred': df_pred1,
+        'predictions_prob': df_pred2,
+        'summary': df_summary
+    }
+
+    for name, dataset in datasets.items():
+        file_name = f"{name}.csv"
+        logger.info(f"Saving {file_name}")
+        dataset.to_csv(f"{directory}/{file_name}", index=False)
+
+    return datasets
 
 
 #
@@ -832,71 +963,48 @@ def update_live_results(model_specs, df_live):
 
 
 #
-# Function record_model_results
+# Function record_live_results
 #
 
-def record_model_results(model_specs, df):
-    r"""Save the results for each model.
+def record_live_results(model_specs):
+    r"""Record the live results.
 
     Parameters
     ----------
     model_specs : dict
         The model specifications.
-    df : pandas.DataFrame
-        The dataframe of live results.
 
     Returns
     -------
-    None
+    df_live : pandas.DataFrame
+        The dataframe of live results.
 
     """
 
-    logger.info("Saving Model Results")
-
     # Extract model fields
-
     directory = model_specs['directory']
-    target = model_specs['target']
+    
+    # Read the Live Results File.
 
-    # Filter out rows with blank scores
-    df = df.dropna(subset=['home_score', 'away_score'])
+    logger.info("Reading Live Results")
 
-    # Identify prediction columns
-    pred_columns = [col for col in df.columns if 'pred_' in col]
+    try:
+        df_live = read_frame(directory, 'live_results', model_specs['extension'], model_specs['separator'])
+        df_live.set_index('match_id', inplace=True)
+        logger.info("Current Live Records: %d", df_live.shape[0])
+    except:
+        df_live = pd.DataFrame()
+        logger.info("No Live Results to Analyze")
 
-    # Initialize a dictionary to store the results
-    modified_winning_percentages = {}
+    df_live = update_live_results(model_specs, df_live)
+    logger.info("Total Live Records: %d", df_live.shape[0])
 
-    # Calculate winning percentage for each prediction column
-    for col in pred_columns:
-        # Count the number of matches and mismatches
-        matches = df[df[col] == df[target]].shape[0]
-        total_predictions = df[col].count()
-        
-        # Calculate and store the winning percentage
-        winning_percentage = (matches / total_predictions) * 100
-        
-        # Remove "pred_" and "test_" from column name
-        model_name = col.replace('pred_', '').replace('test_', '')
-        
-        modified_winning_percentages[model_name] = winning_percentage
+    # Save updated Live Results file.
 
-    # Convert the results to a DataFrame
-    modified_winning_percentages_df = pd.DataFrame(list(modified_winning_percentages.items()), columns=['Model', 'Win %'])
+    file_spec = '/'.join([directory, 'live_results.csv'])
+    df_live.to_csv(file_spec, index_label='match_id')
 
-    # Removing the "best" model
-    modified_winning_percentages_df = modified_winning_percentages_df[modified_winning_percentages_df['Model'] != 'best']
-
-    # Sorting the models by winning percentage in descending order
-    modified_winning_percentages_df = modified_winning_percentages_df.sort_values(by='Win %', ascending=False)
-
-    # Shortening the decimal places to 2
-    modified_winning_percentages_df['Win %'] = modified_winning_percentages_df['Win %'].round(2)
-
-    # Save the modified and sorted DataFrame
-
-    file_spec = '/'.join([directory, 'model_results.csv'])
-    modified_winning_percentages_df.to_csv(file_spec, index=False)
+    return df_live
 
 
 #
@@ -1275,7 +1383,7 @@ def main(args=None):
     
     if live_results:
         df_live = record_live_results(model_specs)
-        record_model_results(model_specs, df_live)
+        extract_datasets(model_specs, df_live)
 
     # Complete the pipeline
 
