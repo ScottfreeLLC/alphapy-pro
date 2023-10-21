@@ -720,74 +720,6 @@ def save_timegpt_data(model_specs):
 
 
 #
-# Function record_model_results
-#
-
-def record_model_results(model_specs, df):
-    r"""Save the results for each model.
-
-    Parameters
-    ----------
-    model_specs : dict
-        The model specifications.
-    df : pandas.DataFrame
-        The dataframe of live results.
-
-    Returns
-    -------
-    None
-
-    """
-
-    logger.info("Saving Model Results")
-
-    # Extract model fields
-
-    directory = model_specs['directory']
-    target = model_specs['target']
-
-    # Filter out rows with blank scores
-    df = df.dropna(subset=['home_score', 'away_score'])
-
-    # Identify prediction columns
-    pred_columns = [col for col in df.columns if 'pred_' in col]
-
-    # Initialize a dictionary to store the results
-    modified_winning_percentages = {}
-
-    # Calculate winning percentage for each prediction column
-    for col in pred_columns:
-        # Count the number of matches and mismatches
-        matches = df[df[col] == df[target]].shape[0]
-        total_predictions = df[col].count()
-        
-        # Calculate and store the winning percentage
-        winning_percentage = (matches / total_predictions) * 100
-        
-        # Remove "pred_" and "test_" from column name
-        model_name = col.replace('pred_', '').replace('test_', '')
-        
-        modified_winning_percentages[model_name] = winning_percentage
-
-    # Convert the results to a DataFrame
-    modified_winning_percentages_df = pd.DataFrame(list(modified_winning_percentages.items()), columns=['Model', 'Win %'])
-
-    # Removing the "best" model
-    modified_winning_percentages_df = modified_winning_percentages_df[modified_winning_percentages_df['Model'] != 'best']
-
-    # Sorting the models by winning percentage in descending order
-    modified_winning_percentages_df = modified_winning_percentages_df.sort_values(by='Win %', ascending=False)
-
-    # Shortening the decimal places to 2
-    modified_winning_percentages_df['Win %'] = modified_winning_percentages_df['Win %'].round(2)
-
-    # Save the modified and sorted DataFrame
-
-    file_spec = '/'.join([directory, 'model_results.csv'])
-    modified_winning_percentages_df.to_csv(file_spec, index=False)
-
-
-#
 # Function extract_datasets
 #
 
@@ -846,6 +778,8 @@ def extract_datasets(model_specs, df):
     cols_to_int = ['away_score', 'home_score']
     for col in cols_to_int:
         df_results[col] = df_results[col].astype(int)
+    df_results = df_results.sort_values(by='date', ascending=False)
+
 
     target_col_map = {
         'won_on_spread' : spread_cols,
@@ -873,8 +807,14 @@ def extract_datasets(model_specs, df):
         total_predictions = df[col].count()
         mismatches = total_predictions - matches
         winning_percentage = ((matches / total_predictions) * 100).round(2)
+        fade_percentage = (100.0 - winning_percentage).round(2)
         model_name = col.replace('pred_', '').replace('test_', '')
-        summary_data.append({'model': model_name, 'wins': matches, 'losses': mismatches, 'total games': total_predictions, 'win %': winning_percentage})
+        summary_data.append({'model': model_name,
+                             'wins': matches,
+                             'losses': mismatches,
+                             'total games': total_predictions,
+                             'win %': winning_percentage,
+                             'fade %': fade_percentage})
     df_summary = pd.DataFrame(summary_data)
     df_summary = df_summary.sort_values(by='win %', ascending=False)
     df_summary = df_summary[df_summary['model'] != 'best']
