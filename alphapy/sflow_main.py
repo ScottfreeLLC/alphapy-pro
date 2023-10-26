@@ -61,6 +61,8 @@ from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Partition, datasets
 from alphapy.globals import SSEP, USEP
+from alphapy.google_drive import gdrive_dict
+from alphapy.google_drive import upload_to_drive
 from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.space import Space
@@ -829,8 +831,11 @@ def extract_datasets(model_specs, df):
 
     for name, dataset in datasets.items():
         file_name = f"{name}.csv"
+        # Save file to local directory
         logger.info(f"Saving {file_name}")
         dataset.to_csv(f"{directory}/{file_name}", index=False)
+        # Upload file to Google Drive
+        # upload_to_drive(f"{directory}/{file_name}", file_name)
 
     return datasets
 
