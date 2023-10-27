@@ -44,7 +44,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 #
 
 import argparse
-import datetime
+from datetime import date, datetime, timedelta
 import itertools
 import logging
 import math
@@ -61,6 +61,7 @@ from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Partition, datasets
 from alphapy.globals import SSEP, USEP
+from alphapy.google_drive import authenticate_google_drive
 from alphapy.google_drive import gdrive_dict
 from alphapy.google_drive import upload_to_drive
 from alphapy.model import get_model_config
@@ -725,7 +726,7 @@ def save_timegpt_data(model_specs):
 # Function extract_datasets
 #
 
-def extract_datasets(model_specs, df):
+def extract_datasets(model_specs, df, league, gdrive=None):
     """
     Extract datasets for each category.
 
@@ -735,6 +736,10 @@ def extract_datasets(model_specs, df):
         The model specifications.
     df : pandas.DataFrame
         The dataframe of live results.
+    league : str
+        The league abbreviation.
+    gdrive : GoogleDrive object, optional
+        The Google Drive object.
 
     Returns
     -------
@@ -763,6 +768,13 @@ def extract_datasets(model_specs, df):
 
     for col in prob_cols:
         df[col] = df[col].round(3)
+    
+    # Get date calculations for results and predictions.
+
+    df['date'] = pd.to_datetime(df['date'])
+    current_date = datetime.now()
+    two_weeks_ago = current_date - timedelta(weeks=2)
+    two_weeks_from_now = current_date + timedelta(weeks=2)
 
     # Get the columns for each dataframe.
 
@@ -780,8 +792,8 @@ def extract_datasets(model_specs, df):
     cols_to_int = ['away_score', 'home_score']
     for col in cols_to_int:
         df_results[col] = df_results[col].astype(int)
+    df_results = df_results[df_results['date'] >= two_weeks_ago]
     df_results = df_results.sort_values(by='date', ascending=False)
-
 
     target_col_map = {
         'won_on_spread' : spread_cols,
@@ -795,6 +807,7 @@ def extract_datasets(model_specs, df):
     matching_cols = [col for col in df.columns if col in df_pred1.columns]
     df_pred1 = df_pred1[matching_cols]
     df_pred1.drop(columns=['pred_test_best'], inplace=True)
+    df_pred1 = df_pred1[df_pred1['date'] <= two_weeks_from_now]
 
     df_pred2 = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
     pred2_cols = game_cols + prob_cols + target_col_map[target]
@@ -802,6 +815,7 @@ def extract_datasets(model_specs, df):
     matching_cols = [col for col in df.columns if col in df_pred2.columns]
     df_pred2 = df_pred2[matching_cols]
     df_pred2.drop(columns=['prob_test_best'], inplace=True)
+    df_pred2 = df_pred2[df_pred2['date'] <= two_weeks_from_now]
 
     summary_data = []
     for col in pred_cols:
@@ -830,12 +844,18 @@ def extract_datasets(model_specs, df):
     }
 
     for name, dataset in datasets.items():
-        file_name = f"{name}.csv"
+        file_name = f"{target}_{name}.csv"
         # Save file to local directory
         logger.info(f"Saving {file_name}")
         dataset.to_csv(f"{directory}/{file_name}", index=False)
         # Upload file to Google Drive
-        # upload_to_drive(f"{directory}/{file_name}", file_name)
+        if gdrive:
+            if name != 'predictions_prob':
+                tag = USEP.join(['nb', league])
+            else:
+                tag = USEP.join(['sb', league])
+            folder_id = gdrive_dict[tag]
+            #upload_to_drive(gdrive, file_name, folder_id)
 
     return datasets
 
@@ -874,8 +894,8 @@ def update_live_results(model_specs, df_live):
     mrf = most_recent_file(output_dir, 'ranked_train*.csv')
     df_results = pd.read_csv(mrf, low_memory=False)
     df_results['date_dt'] = pd.to_datetime(df_results['date'])
-    current_date = datetime.datetime.now()
-    previous_date = current_date - datetime.timedelta(days=30)
+    current_date = datetime.now()
+    previous_date = current_date - timedelta(days=30)
     df_results = df_results[df_results['date_dt'] > previous_date]
     df_results.drop(columns=['date_dt'], inplace=True)
     df_results.set_index('match_id', inplace=True)
@@ -994,7 +1014,17 @@ def main(args=None):
     parser.add_argument('--rundir', dest='run_dir',
                         help="run directory is in the format: run_YYYYMMDD_hhmmss",
                         required=False)
+    parser.add_argument('--gcred', dest='gcred', 
+                    help="Path to Google credentials file",
+                    required=False)
     args = parser.parse_args()
+
+    # Google Drive Authorization
+
+    if args.gcred:
+        gdrive = authenticate_google_drive(args.gcred)
+    else:
+        gdrive = None
 
     # Logging
 
@@ -1091,7 +1121,7 @@ def main(args=None):
     if args.predict_date:
         predict_date = args.predict_date
     else:
-        predict_date = datetime.date.today().strftime("%Y-%m-%d")
+        predict_date = date.today().strftime("%Y-%m-%d")
 
     # Verify that the dates are in sequence.
 
@@ -1328,7 +1358,7 @@ def main(args=None):
     
     if live_results:
         df_live = record_live_results(model_specs)
-        extract_datasets(model_specs, df_live)
+        extract_datasets(model_specs, df_live, league, gdrive)
 
     # Complete the pipeline
 

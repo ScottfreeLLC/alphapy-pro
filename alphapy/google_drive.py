@@ -62,12 +62,12 @@ gdrive_dict = {
 # Function authenticate_google_drive
 #
 
-def authenticate_google_drive():
+def authenticate_google_drive(creds):
     """
     Authenticates and returns a Google Drive object.
     """
     gauth = GoogleAuth()
-    gauth.LocalWebserverAuth()  # Creates local webserver and automatically handles authentication
+    gauth.credentials = creds
     return GoogleDrive(gauth)
 
 
@@ -88,16 +88,27 @@ def upload_to_drive(drive, file_path, folder_id=None):
     logger.info(f"'{file_path}' has been uploaded successfully to Google Drive.")
 
 
+import json
+from google.oauth2.credentials import Credentials
 
-if __name__ == "__main__":
-    # Path to the file you want to upload
-    file_path = "path_to_your_csv_file.csv"
+def get_google_credentials(temp_file_path):
+    """
+    Retrieve Google credentials from a temporary file.
     
-    # Folder ID where you want to upload the file (optional)
-    folder_id = "your_folder_id"
+    Args:
+    - temp_file_path (str): Path to the temporary file containing the serialized credentials.
     
-    # Authenticate and get a Google Drive object
-    drive = authenticate_google_drive()
-    
-    # Upload the file to Google Drive
-    upload_to_drive(drive, file_path, folder_id)
+    Returns:
+    - Credentials object or None if there's an error.
+    """
+    try:
+        with open(temp_file_path, 'r') as temp_file:
+            creds_json = json.load(temp_file)
+        return Credentials.from_authorized_user_info(creds_json)
+    except Exception as e:
+        print(f"Error retrieving credentials from {temp_file_path}: {e}")
+        return None
+
+# Usage example:
+temp_file_path = "path_to_temp_file"  # Replace with the actual path to your temp file
+creds = get_google_credentials(temp_file_path)
