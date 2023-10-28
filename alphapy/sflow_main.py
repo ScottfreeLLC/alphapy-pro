@@ -63,6 +63,7 @@ from alphapy.globals import Partition, datasets
 from alphapy.globals import SSEP, USEP
 from alphapy.google_drive import authenticate_google_drive
 from alphapy.google_drive import gdrive_dict
+from alphapy.google_drive import get_google_credentials
 from alphapy.google_drive import upload_to_drive
 from alphapy.model import get_model_config
 from alphapy.model import Model
@@ -851,11 +852,11 @@ def extract_datasets(model_specs, df, league, gdrive=None):
         # Upload file to Google Drive
         if gdrive:
             if name != 'predictions_prob':
-                tag = USEP.join(['nb', league])
+                tag = USEP.join(['nb', league.lower()])
             else:
-                tag = USEP.join(['sb', league])
+                tag = USEP.join(['sb', league.lower()])
             folder_id = gdrive_dict[tag]
-            #upload_to_drive(gdrive, file_name, folder_id)
+            upload_to_drive(gdrive, file_name, folder_id)
 
     return datasets
 
@@ -1015,14 +1016,15 @@ def main(args=None):
                         help="run directory is in the format: run_YYYYMMDD_hhmmss",
                         required=False)
     parser.add_argument('--gcred', dest='gcred', 
-                    help="Path to Google credentials file",
+                    help="Path to Google Credentials file",
                     required=False)
     args = parser.parse_args()
 
     # Google Drive Authorization
 
     if args.gcred:
-        gdrive = authenticate_google_drive(args.gcred)
+        creds = get_google_credentials(args.gcred)
+        gdrive = authenticate_google_drive(creds)
     else:
         gdrive = None
 

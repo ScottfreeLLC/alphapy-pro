@@ -26,6 +26,8 @@
 # Imports
 #
 
+from google.oauth2.credentials import Credentials
+import json
 import logging
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
@@ -59,37 +61,8 @@ gdrive_dict = {
 
 
 #
-# Function authenticate_google_drive
+# Function get_google_credentials
 #
-
-def authenticate_google_drive(creds):
-    """
-    Authenticates and returns a Google Drive object.
-    """
-    gauth = GoogleAuth()
-    gauth.credentials = creds
-    return GoogleDrive(gauth)
-
-
-#
-# Function upload_to_drive
-#
-
-def upload_to_drive(drive, file_path, folder_id=None):
-    """
-    Uploads a file to Google Drive.
-    :param drive: Authenticated Google Drive object.
-    :param file_path: Path to the file to be uploaded.
-    :param folder_id: Google Drive folder ID where the file will be uploaded.
-    """
-    file = drive.CreateFile({'parents': [{'id': folder_id}]}) if folder_id else drive.CreateFile()
-    file.SetContentFile(file_path)
-    file.Upload()
-    logger.info(f"'{file_path}' has been uploaded successfully to Google Drive.")
-
-
-import json
-from google.oauth2.credentials import Credentials
 
 def get_google_credentials(temp_file_path):
     """
@@ -106,9 +79,68 @@ def get_google_credentials(temp_file_path):
             creds_json = json.load(temp_file)
         return Credentials.from_authorized_user_info(creds_json)
     except Exception as e:
-        print(f"Error retrieving credentials from {temp_file_path}: {e}")
+        logger.info(f"Error retrieving credentials from {temp_file_path}: {e}")
         return None
 
-# Usage example:
-temp_file_path = "path_to_temp_file"  # Replace with the actual path to your temp file
-creds = get_google_credentials(temp_file_path)
+
+#
+# Function authenticate_google_drive
+#
+
+def authenticate_google_drive(creds):
+    """
+    Authenticates and returns a Google Drive object.
+    """
+    gauth = GoogleAuth()
+    gauth.credentials = creds
+    return GoogleDrive(gauth)
+
+#
+# Function get_gfile_id
+#
+
+def get_gfile_id(drive: GoogleDrive, file_name: str, folder_id: str = None) -> str:
+    """
+    Retrieves the file ID of an existing file based on its name in Google Drive.
+    
+    :param drive: Authenticated Google Drive object.
+    :param file_name: Name of the file to search for.
+    :param folder_id: Google Drive folder ID to search within. If not provided, it searches the entire drive.
+    :return: File ID of the matching file or None if not found.
+    """
+    
+    query = f"title='{file_name}'"
+    if folder_id:
+        query += f" and '{folder_id}' in parents"
+    
+    file_list = drive.ListFile({'q': query}).GetList()
+    
+    # If the file exists, return its ID
+    for file in file_list:
+        if file['title'] == file_name:
+            return file['id']
+    
+    # If no matching file is found, return None
+    return None
+
+#
+# Function upload_to_drive
+#
+
+def upload_to_drive(drive, file_path, folder_id=None):
+    """
+    Uploads a file to Google Drive.
+    :param drive: Authenticated Google Drive object.
+    :param file_path: Path to the file to be uploaded.
+    :param folder_id: Google Drive folder ID where the file will be uploaded.
+    """
+    file_id = get_gfile_id(drive, file_path, folder_id)
+    if file_id:
+        gfile = drive.CreateFile({'id': file_id})
+        verb = 'replaced'
+    else:
+        gfile = drive.CreateFile({'parents': [{'id': folder_id}]}) if folder_id else drive.CreateFile()
+        verb = 'created'
+    gfile.SetContentFile(file_path)
+    gfile.Upload()
+    logger.info(f"{file_path} has been {verb} successfully on Google Drive.")
