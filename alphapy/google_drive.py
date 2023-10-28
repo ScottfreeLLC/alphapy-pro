@@ -26,11 +26,15 @@
 # Imports
 #
 
-from google.oauth2.credentials import Credentials
 import json
 import logging
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
+import os
+
+from google.oauth2.credentials import Credentials
+from googleapiclient.http import MediaFileUpload
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 
 #
@@ -39,6 +43,14 @@ from pydrive.drive import GoogleDrive
 
 logger = logging.getLogger(__name__)
 
+
+#
+# Global Constants
+#
+
+CREDENTIALS_FILE = './client_secrets.json'
+SCOPES = ['https://www.googleapis.com/auth/drive']
+TOKEN_FILE = './token.json'
 
 #
 # Google Drive Dictionary
@@ -59,6 +71,33 @@ gdrive_dict = {
     'sb_nhl'   : '1tSgMfgnUNz_i7sk0X71fOTmUCKhD6iSA',
 }
 
+
+#
+# Function save_credentials_to_file
+#
+
+def save_credentials_to_file(creds, file_path=TOKEN_FILE):
+    """Save Google credentials to a file."""
+    with open(file_path, 'w') as token:
+        token.write(creds.to_json())
+
+#
+# Function get_google_credentials
+#
+
+def authenticate_google():
+    """Handle Google Authentication."""
+    if os.path.exists(TOKEN_FILE):
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE)
+        # If the credentials are not valid, delete the token file and re-authenticate
+        if not creds.valid:
+            os.remove(TOKEN_FILE)
+            return authenticate_google()
+    else:
+        flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+        creds = flow.run_local_server(port=0)
+        save_credentials_to_file(creds)
+    return creds
 
 #
 # Function get_google_credentials
@@ -82,65 +121,52 @@ def get_google_credentials(temp_file_path):
         logger.info(f"Error retrieving credentials from {temp_file_path}: {e}")
         return None
 
-
 #
 # Function authenticate_google_drive
 #
 
 def authenticate_google_drive(creds):
-    """
-    Authenticates and returns a Google Drive object.
-    """
-    gauth = GoogleAuth()
-    gauth.credentials = creds
-    return GoogleDrive(gauth)
+    """Authenticates and returns a Google Drive service object."""
+    return build('drive', 'v3', credentials=creds)
 
 #
 # Function get_gfile_id
 #
 
-def get_gfile_id(drive: GoogleDrive, file_name: str, folder_id: str = None) -> str:
-    """
-    Retrieves the file ID of an existing file based on its name in Google Drive.
-    
-    :param drive: Authenticated Google Drive object.
-    :param file_name: Name of the file to search for.
-    :param folder_id: Google Drive folder ID to search within. If not provided, it searches the entire drive.
-    :return: File ID of the matching file or None if not found.
-    """
-    
-    query = f"title='{file_name}'"
+def get_gfile_id(drive_service, file_name, folder_id=None):
+    """Retrieve the file ID of an existing file based on its name in Google Drive."""
+    query = f"name='{file_name}'"
     if folder_id:
         query += f" and '{folder_id}' in parents"
-    
-    file_list = drive.ListFile({'q': query}).GetList()
-    
-    # If the file exists, return its ID
-    for file in file_list:
-        if file['title'] == file_name:
-            return file['id']
-    
-    # If no matching file is found, return None
+    try:
+        response = drive_service.files().list(q=query, spaces='drive', fields='nextPageToken, files(id, name)').execute()
+        for file in response.get('files', []):
+            if file.get('name') == file_name:
+                return file.get('id')
+    except HttpError as error:
+        logger.error(f"An error occurred: {error}")
     return None
 
 #
 # Function upload_to_drive
 #
 
-def upload_to_drive(drive, file_path, folder_id=None):
-    """
-    Uploads a file to Google Drive.
-    :param drive: Authenticated Google Drive object.
-    :param file_path: Path to the file to be uploaded.
-    :param folder_id: Google Drive folder ID where the file will be uploaded.
-    """
-    file_id = get_gfile_id(drive, file_path, folder_id)
+def upload_to_drive(drive_service, file_path, folder_id=None):
+    """Uploads a file to Google Drive."""
+    file_metadata = {
+        'name': os.path.basename(file_path)
+    }
+    if folder_id:
+        file_metadata['parents'] = [folder_id]
+
+    file_id = get_gfile_id(drive_service, file_metadata['name'], folder_id)
+    media = MediaFileUpload(file_path)
+
     if file_id:
-        gfile = drive.CreateFile({'id': file_id})
         verb = 'replaced'
+        drive_service.files().update(fileId=file_id, media_body=media).execute()
     else:
-        gfile = drive.CreateFile({'parents': [{'id': folder_id}]}) if folder_id else drive.CreateFile()
         verb = 'created'
-    gfile.SetContentFile(file_path)
-    gfile.Upload()
+        drive_service.files().create(body=file_metadata, media_body=media).execute()
+
     logger.info(f"{file_path} has been {verb} successfully on Google Drive.")

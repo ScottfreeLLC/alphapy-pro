@@ -61,9 +61,9 @@ from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Partition, datasets
 from alphapy.globals import SSEP, USEP
+from alphapy.google_drive import authenticate_google
 from alphapy.google_drive import authenticate_google_drive
 from alphapy.google_drive import gdrive_dict
-from alphapy.google_drive import get_google_credentials
 from alphapy.google_drive import upload_to_drive
 from alphapy.model import get_model_config
 from alphapy.model import Model
@@ -1015,18 +1015,12 @@ def main(args=None):
     parser.add_argument('--rundir', dest='run_dir',
                         help="run directory is in the format: run_YYYYMMDD_hhmmss",
                         required=False)
-    parser.add_argument('--gcred', dest='gcred', 
-                    help="Path to Google Credentials file",
-                    required=False)
     args = parser.parse_args()
 
     # Google Drive Authorization
 
-    if args.gcred:
-        creds = get_google_credentials(args.gcred)
-        gdrive = authenticate_google_drive(creds)
-    else:
-        gdrive = None
+    creds = authenticate_google()
+    gdrive = authenticate_google_drive(creds) if creds else None
 
     # Logging
 
