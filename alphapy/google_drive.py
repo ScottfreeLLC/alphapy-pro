@@ -52,6 +52,7 @@ CREDENTIALS_FILE = './client_secrets.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
 TOKEN_FILE = './token.json'
 
+
 #
 # Google Drive Dictionary
 #
@@ -130,6 +131,13 @@ def authenticate_google_drive(creds):
     return build('drive', 'v3', credentials=creds)
 
 #
+# Function get_sheets_service
+#
+
+def get_sheets_service(creds):
+    return build('sheets', 'v4', credentials=creds)
+
+#
 # Function get_gfile_id
 #
 
@@ -146,6 +154,34 @@ def get_gfile_id(drive_service, file_name, folder_id=None):
     except HttpError as error:
         logger.error(f"An error occurred: {error}")
     return None
+
+#
+# Function convert_csv_to_sheet
+#
+
+def convert_csv_to_sheet(drive_service, file_id):
+    """
+    Converts an uploaded CSV file to Google Sheets format.
+    
+    :param drive_service: The authenticated Google Drive service object.
+    :param file_id: The ID of the uploaded CSV file.
+    """
+    # Retrieve the metadata for the uploaded CSV file
+    file_metadata = drive_service.files().get(fileId=file_id).execute()
+    
+    # Update the MIME type to convert to Google Sheets
+    updated_metadata = {
+        'mimeType': 'application/vnd.google-apps.spreadsheet'
+    }
+    
+    # Update the file's metadata to convert it to Google Sheets format
+    drive_service.files().update(
+        fileId=file_id,
+        body=updated_metadata,
+        fields='id'
+    ).execute()
+    
+    logger.info(f"File {file_metadata['name']} has been converted to Google Sheets format.")
 
 #
 # Function upload_to_drive
@@ -170,3 +206,4 @@ def upload_to_drive(drive_service, file_path, folder_id=None):
         drive_service.files().create(body=file_metadata, media_body=media).execute()
 
     logger.info(f"{file_path} has been {verb} successfully on Google Drive.")
+    return file_id

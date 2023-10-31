@@ -856,7 +856,8 @@ def extract_datasets(model_specs, df, league, gdrive=None):
             else:
                 tag = USEP.join(['sb', league.lower()])
             folder_id = gdrive_dict[tag]
-            upload_to_drive(gdrive, file_name, folder_id)
+            file_id = upload_to_drive(gdrive, file_name, folder_id)
+            # convert_csv_to_sheet(gdrive, file_id)
 
     return datasets
 
