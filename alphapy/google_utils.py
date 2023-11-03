@@ -50,7 +50,6 @@ logger = logging.getLogger(__name__)
 
 CREDENTIALS_FILE = './client_secrets.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
-TOKEN_FILE = './token.json'
 
 
 #
@@ -77,27 +76,28 @@ gdrive_dict = {
 # Function save_credentials_to_file
 #
 
-def save_credentials_to_file(creds, file_path=TOKEN_FILE):
+def save_credentials_to_file(creds, token_file):
     """Save Google credentials to a file."""
-    with open(file_path, 'w') as token:
+    with open(token_file, 'w') as token:
         token.write(creds.to_json())
+    logger.info(f"Credentials saved to {token_file}")
 
 #
 # Function get_google_credentials
 #
 
-def authenticate_google():
+def authenticate_google(script_directory='.', token_file='token.json'):
     """Handle Google Authentication."""
-    if os.path.exists(TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE)
+    if os.path.exists(token_file):
+        creds = Credentials.from_authorized_user_file(token_file)
         # If the credentials are not valid, delete the token file and re-authenticate
         if not creds.valid:
-            os.remove(TOKEN_FILE)
-            return authenticate_google()
+            os.remove(token_file)
+            return authenticate_google(script_directory, token_file)
     else:
         flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
         creds = flow.run_local_server(port=0)
-        save_credentials_to_file(creds)
+        save_credentials_to_file(creds, token_file)
     return creds
 
 #
