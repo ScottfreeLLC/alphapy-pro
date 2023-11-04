@@ -819,19 +819,20 @@ def extract_datasets(model_specs, df, league, gdrive=None):
     df_pred2 = df_pred2[df_pred2['date'] <= two_weeks_from_now]
 
     summary_data = []
+    df_summ = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
     for col in pred_cols:
-        matches = df[df[col] == df[target]].shape[0]
-        total_predictions = df[col].count()
+        matches = df_summ[df_summ[col] == df_summ[target]].shape[0]
+        total_predictions = df_summ[col].count()
         mismatches = total_predictions - matches
         winning_percentage = ((matches / total_predictions) * 100).round(2)
         fade_percentage = (100.0 - winning_percentage).round(2)
         model_name = col.replace('pred_', '').replace('test_', '')
-        summary_data.append({'model': model_name,
-                             'wins': matches,
-                             'losses': mismatches,
-                             'total games': total_predictions,
-                             'win %': winning_percentage,
-                             'fade %': fade_percentage})
+        summary_data.append({'model'       : model_name,
+                             'wins'        : matches,
+                             'losses'      : mismatches,
+                             'total games' : total_predictions,
+                             'win %'       : winning_percentage,
+                             'fade %'      : fade_percentage})
     df_summary = pd.DataFrame(summary_data)
     df_summary = df_summary.sort_values(by='win %', ascending=False)
     df_summary = df_summary[df_summary['model'] != 'best']
