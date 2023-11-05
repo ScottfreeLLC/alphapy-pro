@@ -63,6 +63,7 @@ from alphapy.globals import Partition, datasets
 from alphapy.globals import SSEP, USEP
 from alphapy.google_utils import authenticate_google
 from alphapy.google_utils import authenticate_google_drive
+from alphapy.google_utils import gformat_csv
 from alphapy.google_utils import gdrive_dict
 from alphapy.google_utils import upload_to_drive
 from alphapy.model import get_model_config
@@ -727,7 +728,7 @@ def save_timegpt_data(model_specs):
 # Function extract_datasets
 #
 
-def extract_datasets(model_specs, df, league, gdrive=None):
+def extract_datasets(model_specs, df, league, creds):
     """
     Extract datasets for each category.
 
@@ -739,8 +740,8 @@ def extract_datasets(model_specs, df, league, gdrive=None):
         The dataframe of live results.
     league : str
         The league abbreviation.
-    gdrive : GoogleDrive object, optional
-        The Google Drive object.
+    creds : Google Credentials object
+        The credentials needed to access Google Drive.
 
     Returns
     -------
@@ -819,7 +820,7 @@ def extract_datasets(model_specs, df, league, gdrive=None):
     df_pred2 = df_pred2[df_pred2['date'] <= two_weeks_from_now]
 
     summary_data = []
-    df_summ = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
+    df_summ = df[~(pd.isna(df['away_score']) | pd.isna(df['home_score']))]
     for col in pred_cols:
         matches = df_summ[df_summ[col] == df_summ[target]].shape[0]
         total_predictions = df_summ[col].count()
@@ -845,20 +846,23 @@ def extract_datasets(model_specs, df, league, gdrive=None):
         'summary': df_summary
     }
 
-    for name, dataset in datasets.items():
-        file_name = f"{target}_{name}.csv"
-        # Save file to local directory
-        logger.info(f"Saving {file_name}")
-        dataset.to_csv(f"{directory}/{file_name}", index=False)
-        # Upload file to Google Drive
-        if gdrive:
+    gdrive = authenticate_google_drive(creds) if creds else None
+    if gdrive:
+        for name, dataset in datasets.items():
+            file_name = f"{target}_{name}.csv"
+            # Save file to local directory
+            logger.info(f"Saving {file_name}")
+            dataset.to_csv(f"{directory}/{file_name}", index=False)
+            # Upload file to Google Drive
             if name != 'predictions_prob':
                 tag = USEP.join(['nb', league.lower()])
             else:
                 tag = USEP.join(['sb', league.lower()])
             folder_id = gdrive_dict[tag]
             file_id = upload_to_drive(gdrive, file_name, folder_id)
-            # convert_csv_to_sheet(gdrive, file_id)
+            # gformat_csv(creds, gdrive, file_id)
+    else:
+        logger.info("Google Drive not authenticated. Skipping upload.")
 
     return datasets
 
@@ -1020,9 +1024,7 @@ def main(args=None):
     args = parser.parse_args()
 
     # Google Drive Authorization
-
     creds = authenticate_google()
-    gdrive = authenticate_google_drive(creds) if creds else None
 
     # Logging
 
@@ -1356,7 +1358,7 @@ def main(args=None):
     
     if live_results:
         df_live = record_live_results(model_specs)
-        extract_datasets(model_specs, df_live, league, gdrive)
+        extract_datasets(model_specs, df_live, league, creds)
 
     # Complete the pipeline
 

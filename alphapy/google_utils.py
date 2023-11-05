@@ -156,13 +156,14 @@ def get_gfile_id(drive_service, file_name, folder_id=None):
     return None
 
 #
-# Function convert_csv_to_sheet
+# Function gformat_csv
 #
 
-def convert_csv_to_sheet(drive_service, file_id):
+def gformat_csv(creds, drive_service, file_id):
     """
-    Converts an uploaded CSV file to Google Sheets format.
+    Converts an uploaded CSV file to Google Sheets and formats it.
     
+    :param creds: The Google Credentials object.
     :param drive_service: The authenticated Google Drive service object.
     :param file_id: The ID of the uploaded CSV file.
     """
