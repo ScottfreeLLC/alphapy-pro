@@ -86,6 +86,7 @@ from sklearn.metrics import roc_curve
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 import sys
+from venn_abers import VennAbersCalibrator
 import yaml
 
 
@@ -977,8 +978,11 @@ def make_predictions(model, algo):
 
     if model_type == ModelType.classification:
         if calibrate:
-            logger.info("Calibrating Classifier")
-            est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
+            logger.info(f"Calibrating Classifier with {cal_type}")
+            if cal_type == 'vennabers':
+                est = VennAbersCalibrator(estimator=est, inductive=True, cal_size=0.2)
+            else:
+                est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
             est.fit(X_train, y_train.values.ravel())
             model.estimators[algo] = est
             logger.info("Calibration Complete")
@@ -988,11 +992,31 @@ def make_predictions(model, algo):
     # Make predictions on original training and test data.
 
     logger.info("Making Predictions")
-    model.preds[(algo, Partition.train)] = est.predict(X_train)
-    model.preds[(algo, Partition.test)] = est.predict(X_test)
+    train_preds = est.predict(X_train)
+    test_preds = est.predict(X_test)
+
+    # Check if the predictions are one-hot encoded.
+
+    if train_preds.ndim > 1 and train_preds.shape[1] > 1:
+        # Convert one-hot encoded predictions to single class labels
+        train_preds = np.argmax(train_preds, axis=1)
+        test_preds = np.argmax(test_preds, axis=1)
+
+    # Assign predictions to model
+    model.preds[(algo, Partition.train)] = train_preds
+    model.preds[(algo, Partition.test)] = test_preds
+
     if model_type == ModelType.classification:
-        model.probas[(algo, Partition.train)] = est.predict_proba(X_train)[:, 1]
-        model.probas[(algo, Partition.test)] = est.predict_proba(X_test)[:, 1]
+        # Get probabilities for the positive class.
+        train_probas = est.predict_proba(X_train)
+        test_probas = est.predict_proba(X_test)
+
+        # Check if probabilities are given in a one-hot encoded format.
+        if train_probas.ndim > 1 and train_probas.shape[1] == 2:
+            # We take the second column for binary classification which is the probability of the positive class.
+            model.probas[(algo, Partition.train)] = train_probas[:, 1]
+            model.probas[(algo, Partition.test)] = test_probas[:, 1]
+
     logger.info("Predictions Complete")
 
     # Return the model
