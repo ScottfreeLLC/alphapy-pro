@@ -803,47 +803,82 @@ def extract_datasets(model_specs, df, league, creds):
         'over'          : over_under_cols,
     }
 
-    df_pred1 = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
-    pred1_cols = game_cols + pred_cols + target_col_map[target]
-    df_pred1 = df_pred1[pred1_cols]
-    matching_cols = [col for col in df.columns if col in df_pred1.columns]
-    df_pred1 = df_pred1[matching_cols]
-    df_pred1.drop(columns=['pred_test_best'], inplace=True)
-    df_pred1 = df_pred1[df_pred1['date'] <= two_weeks_from_now]
+    df_pred_nb = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
+    cols_pred_nb = game_cols + pred_cols + target_col_map[target]
+    df_pred_nb = df_pred_nb[cols_pred_nb]
+    matching_cols = [col for col in df.columns if col in df_pred_nb.columns]
+    df_pred_nb = df_pred_nb[matching_cols]
+    df_pred_nb.drop(columns=['pred_test_best'], inplace=True)
+    df_pred_nb = df_pred_nb[df_pred_nb['date'] <= two_weeks_from_now]
 
-    df_pred2 = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
-    pred2_cols = game_cols + prob_cols + target_col_map[target]
-    df_pred2 = df_pred2[pred2_cols]
-    matching_cols = [col for col in df.columns if col in df_pred2.columns]
-    df_pred2 = df_pred2[matching_cols]
-    df_pred2.drop(columns=['prob_test_best'], inplace=True)
-    df_pred2 = df_pred2[df_pred2['date'] <= two_weeks_from_now]
+    df_pred_sb = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
+    cols_pred_sb = game_cols + prob_cols + target_col_map[target]
+    df_pred_sb = df_pred_sb[cols_pred_sb]
+    matching_cols = [col for col in df.columns if col in df_pred_sb.columns]
+    df_pred_sb = df_pred_sb[matching_cols]
+    df_pred_sb.drop(columns=['prob_test_best'], inplace=True)
+    df_pred_sb = df_pred_sb[df_pred_sb['date'] <= two_weeks_from_now]
 
-    summary_data = []
+    summary_data_nb = []
+    summary_data_sb = []
     df_summ = df[~(pd.isna(df['away_score']) | pd.isna(df['home_score']))]
+    n_days = 30
+    df_summ_n = df_summ[df_summ['date'] > (datetime.now() - timedelta(days=n_days))]
     for col in pred_cols:
+        # Basic Summary for Nose Bleed
         matches = df_summ[df_summ[col] == df_summ[target]].shape[0]
         total_predictions = df_summ[col].count()
         mismatches = total_predictions - matches
         winning_percentage = ((matches / total_predictions) * 100).round(2)
         fade_percentage = (100.0 - winning_percentage).round(2)
         model_name = col.replace('pred_', '').replace('test_', '')
-        summary_data.append({'model'       : model_name,
-                             'wins'        : matches,
-                             'losses'      : mismatches,
-                             'total games' : total_predictions,
-                             'win %'       : winning_percentage,
-                             'fade %'      : fade_percentage})
-    df_summary = pd.DataFrame(summary_data)
-    df_summary = df_summary.sort_values(by='win %', ascending=False)
-    df_summary = df_summary[df_summary['model'] != 'best']
+        summary_data_nb.append({'model'       : model_name,
+                                'wins'        : matches,
+                                'losses'      : mismatches,
+                                'total games' : total_predictions,
+                                'win %'       : winning_percentage,
+                                'fade %'      : fade_percentage})
+        # Extended Summary for Skybox
+        total_predictions_n = df_summ_n[col].count()
+        # Calculate for all data
+        wins_pos = df_summ[(df_summ[col] == 1) & (df_summ[col] == df_summ[target])].shape[0]
+        total_pos = float(df_summ[df_summ[col] == 1].shape[0])
+        win_percentage_pos = "{:.2f}".format((wins_pos / total_pos) * 100) if total_pos else "50.00"
+        wins_neg = df_summ[(df_summ[col] == 0) & (df_summ[col] != df_summ[target])].shape[0]
+        total_neg = float(df_summ[df_summ[col] == 0].shape[0])
+        win_percentage_neg = "{:.2f}".format((wins_neg / total_neg) * 100) if total_neg else "50.00"
+        # Calculate for last n days
+        wins_pos_n = df_summ_n[(df_summ_n[col] == 1) & (df_summ_n[col] == df_summ_n[target])].shape[0]
+        total_pos_n = df_summ_n[df_summ_n[col] == 1].shape[0]
+        win_percentage_pos_n = "{:.2f}".format((wins_pos_n / total_pos_n) * 100) if total_pos_n else "50.00"
+        wins_neg_n = df_summ_n[(df_summ_n[col] == 0) & (df_summ_n[col] != df_summ_n[target])].shape[0]
+        total_neg_n = df_summ_n[df_summ_n[col] == 0].shape[0]
+        win_percentage_neg_n = "{:.2f}".format((wins_neg_n / total_neg_n) * 100) if total_neg_n else "50.00"
+        summary_data_sb.append({'model'       : model_name,
+                                'wins'        : matches,
+                                'losses'      : mismatches,
+                                'total games' : total_predictions,
+                                'win %'       : winning_percentage,
+                                'fade %'      : fade_percentage,
+                                'pos %'       : win_percentage_pos,
+                                'neg %'       : win_percentage_neg,
+                                'pos30 %'     : win_percentage_pos_n,
+                                'neg30 %'     : win_percentage_neg_n
+                                })
+    df_summary_nb = pd.DataFrame(summary_data_nb)
+    df_summary_nb = df_summary_nb.sort_values(by='win %', ascending=False)
+    df_summary_nb = df_summary_nb[df_summary_nb['model'] != 'best']
+    df_summary_sb = pd.DataFrame(summary_data_sb)
+    df_summary_sb = df_summary_sb.sort_values(by='win %', ascending=False)
+    df_summary_sb = df_summary_sb[df_summary_sb['model'] != 'best']
 
     # Store the dataframes in a dictionary for easy access
     datasets = {
         'results': df_results,
-        'predictions_pred': df_pred1,
-        'predictions_prob': df_pred2,
-        'summary': df_summary
+        'predictions_nb': df_pred_nb,
+        'predictions_sb': df_pred_sb,
+        'summary_nb': df_summary_nb,
+        'summary_sb': df_summary_sb
     }
 
     gdrive = authenticate_google_drive(creds) if creds else None
@@ -854,7 +889,7 @@ def extract_datasets(model_specs, df, league, creds):
             logger.info(f"Saving {file_name}")
             dataset.to_csv(f"{directory}/{file_name}", index=False)
             # Upload file to Google Drive
-            if name != 'predictions_prob':
+            if 'sb' not in name:
                 tag = USEP.join(['nb', league.lower()])
             else:
                 tag = USEP.join(['sb', league.lower()])
