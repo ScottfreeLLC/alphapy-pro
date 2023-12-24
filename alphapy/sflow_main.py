@@ -829,8 +829,8 @@ def extract_datasets(model_specs, df, league, creds):
         matches = df_summ[df_summ[col] == df_summ[target]].shape[0]
         total_predictions = df_summ[col].count()
         mismatches = total_predictions - matches
-        winning_percentage = ((matches / total_predictions) * 100).round(2)
-        fade_percentage = (100.0 - winning_percentage).round(2)
+        winning_percentage = "{:.2f}".format((matches / total_predictions) * 100 if total_predictions else "50.00")
+        fade_percentage = "{:.2f}".format(100.0 - float(winning_percentage) if total_predictions else "50.00")
         model_name = col.replace('pred_', '').replace('test_', '')
         summary_data_nb.append({'model'       : model_name,
                                 'wins'        : matches,
@@ -855,13 +855,14 @@ def extract_datasets(model_specs, df, league, creds):
         total_neg_n = df_summ_n[df_summ_n[col] == 0].shape[0]
         win_percentage_neg_n = "{:.2f}".format((wins_neg_n / total_neg_n) * 100) if total_neg_n else "50.00"
         summary_data_sb.append({'model'       : model_name,
+                                'total games' : total_predictions,
                                 'wins'        : matches,
                                 'losses'      : mismatches,
-                                'total games' : total_predictions,
                                 'win %'       : winning_percentage,
                                 'fade %'      : fade_percentage,
                                 'pos %'       : win_percentage_pos,
                                 'neg %'       : win_percentage_neg,
+                                'last30 days' : total_predictions_n,
                                 'pos30 %'     : win_percentage_pos_n,
                                 'neg30 %'     : win_percentage_neg_n
                                 })
