@@ -725,6 +725,62 @@ def save_timegpt_data(model_specs):
 
 
 #
+# Function get_odds
+#
+
+def get_odds(ml):
+    if ml > 0:
+        odds = ml / 100.0 + 1.0
+    elif ml < 0:
+        odds = 100.0 / abs(ml) + 1.0
+    else:
+        odds = 0.0
+    return odds
+
+
+#
+# Function get_prob_win
+#
+
+def get_prob_win(ml):
+    if ml > 0:
+        prob = 1.0 - (ml / (ml + 100.0))
+    elif ml < 0:
+        prob = abs(ml) / (abs(ml) + 100.0)
+    else:
+        prob = 0.5
+    return prob
+
+
+#
+# Function expected_value
+#
+
+def expected_value(ml, prob_win, bet_amount=100):
+    odds = get_odds(ml)
+    net_gain = (odds - 1) * bet_amount
+    ev = (prob_win * net_gain) - ((1 - prob_win) * bet_amount)
+    return int(ev)
+
+
+#
+# Function get_kelly_pct
+#
+
+def get_kelly_pct(row, side, prob_col, kelly_frac=0.5):
+    colname = USEP.join([side, 'odds'])
+    odds = row[colname]
+    colname = USEP.join([side, 'prob', 'win'])
+    prob_win = row[colname]
+    prob_model = row[prob_col]
+    if side == 'home':
+        kelly_pct = ((odds - 1.0) * prob_win - (1.0 - prob_model)) / (odds - 1.0) * kelly_frac
+    elif side == 'away':
+        kelly_pct = ((odds - 1.0) * prob_win - prob_model) / (odds - 1.0) * kelly_frac
+    return kelly_pct
+
+
+#
 # Function extract_datasets
 #
 
@@ -778,7 +834,7 @@ def extract_datasets(model_specs, df, league, creds):
     two_weeks_ago = current_date - timedelta(weeks=2)
     two_weeks_from_now = current_date + timedelta(weeks=2)
 
-    # Get the columns for each dataframe.
+    # Results Data
 
     results_col_map = {
         'won_on_spread' : 'home_point_spread',
@@ -797,6 +853,8 @@ def extract_datasets(model_specs, df, league, creds):
     df_results = df_results[df_results['date'] >= two_weeks_ago]
     df_results = df_results.sort_values(by='date', ascending=False)
 
+    # Predictions Data
+
     target_col_map = {
         'won_on_spread' : spread_cols,
         'won_on_points' : moneyline_cols,
@@ -811,6 +869,12 @@ def extract_datasets(model_specs, df, league, creds):
     df_pred_nb.drop(columns=['pred_test_best'], inplace=True)
     df_pred_nb = df_pred_nb[df_pred_nb['date'] <= two_weeks_from_now]
 
+    target_ev_map = {
+        'won_on_spread' : ['home_point_spread_line', 'away_point_spread_line'],
+        'won_on_points' : ['home_money_line', 'away_money_line'],
+        'over'          : ['over_line', 'under_line'],
+    }
+
     df_pred_sb = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
     cols_pred_sb = game_cols + prob_cols + target_col_map[target]
     df_pred_sb = df_pred_sb[cols_pred_sb]
@@ -818,6 +882,13 @@ def extract_datasets(model_specs, df, league, creds):
     df_pred_sb = df_pred_sb[matching_cols]
     df_pred_sb.drop(columns=['prob_test_best'], inplace=True)
     df_pred_sb = df_pred_sb[df_pred_sb['date'] <= two_weeks_from_now]
+
+    ml_pos_col, ml_neg_col = target_ev_map[target]
+    ev_prob_col = 'prob_test_blend'
+    df_pred_sb['EV Pos'] = df_pred_sb.apply(lambda row: expected_value(row[ml_pos_col], row[ev_prob_col]), axis=1)
+    df_pred_sb['EV Neg'] = df_pred_sb.apply(lambda row: expected_value(row[ml_neg_col], 1.0 - row[ev_prob_col]), axis=1)
+
+    # Summary Data
 
     summary_data_nb = []
     summary_data_sb = []
@@ -862,9 +933,9 @@ def extract_datasets(model_specs, df, league, creds):
                                 'fade %'      : fade_percentage,
                                 'pos %'       : win_percentage_pos,
                                 'neg %'       : win_percentage_neg,
-                                'last30 days' : total_predictions_n,
-                                'pos30 %'     : win_percentage_pos_n,
-                                'neg30 %'     : win_percentage_neg_n
+                                'total 30d'   : total_predictions_n,
+                                'pos 30d %'   : win_percentage_pos_n,
+                                'neg 30d %'   : win_percentage_neg_n
                                 })
     df_summary_nb = pd.DataFrame(summary_data_nb)
     df_summary_nb = df_summary_nb.sort_values(by='win %', ascending=False)
@@ -961,6 +1032,10 @@ def update_live_results(model_specs, df_live):
 
     df_live = pd.concat([df_live, df_pred])
     df_live = df_live[~df_live.index.duplicated(keep='last')]
+
+    # Calculate Expected Value
+
+    pass
 
     # Update any scores
 
