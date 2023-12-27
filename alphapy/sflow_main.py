@@ -893,8 +893,8 @@ def extract_datasets(model_specs, df, league, creds):
     summary_data_nb = []
     summary_data_sb = []
     df_summ = df[~(pd.isna(df['away_score']) | pd.isna(df['home_score']))]
-    n_days = 30
-    df_summ_n = df_summ[df_summ['date'] > (datetime.now() - timedelta(days=n_days))]
+    n_games = 100
+    df_summ_n = df_summ.tail(n_games)
     for col in pred_cols:
         # Basic Summary for Nose Bleed
         matches = df_summ[df_summ[col] == df_summ[target]].shape[0]
@@ -913,10 +913,10 @@ def extract_datasets(model_specs, df, league, creds):
         total_predictions_n = df_summ_n[col].count()
         # Calculate for all data
         wins_pos = df_summ[(df_summ[col] == 1) & (df_summ[col] == df_summ[target])].shape[0]
-        total_pos = float(df_summ[df_summ[col] == 1].shape[0])
+        total_pos = df_summ[df_summ[col] == 1].shape[0]
         win_percentage_pos = "{:.2f}".format((wins_pos / total_pos) * 100) if total_pos else "50.00"
         wins_neg = df_summ[(df_summ[col] == 0) & (df_summ[col] == df_summ[target])].shape[0]
-        total_neg = float(df_summ[df_summ[col] == 0].shape[0])
+        total_neg = df_summ[df_summ[col] == 0].shape[0]
         win_percentage_neg = "{:.2f}".format((wins_neg / total_neg) * 100) if total_neg else "50.00"
         # Calculate for last n days
         wins_pos_n = df_summ_n[(df_summ_n[col] == 1) & (df_summ_n[col] == df_summ_n[target])].shape[0]
@@ -925,17 +925,20 @@ def extract_datasets(model_specs, df, league, creds):
         wins_neg_n = df_summ_n[(df_summ_n[col] == 0) & (df_summ_n[col] == df_summ_n[target])].shape[0]
         total_neg_n = df_summ_n[df_summ_n[col] == 0].shape[0]
         win_percentage_neg_n = "{:.2f}".format((wins_neg_n / total_neg_n) * 100) if total_neg_n else "50.00"
-        summary_data_sb.append({'model'       : model_name,
-                                'total games' : total_predictions,
-                                'wins'        : matches,
-                                'losses'      : mismatches,
-                                'win %'       : winning_percentage,
-                                'fade %'      : fade_percentage,
-                                'pos %'       : win_percentage_pos,
-                                'neg %'       : win_percentage_neg,
-                                'games 30d'   : total_predictions_n,
-                                'pos 30d %'   : win_percentage_pos_n,
-                                'neg 30d %'   : win_percentage_neg_n
+        summary_data_sb.append({'model'         : model_name,
+                                'total games'   : total_predictions,
+                                'wins'          : matches,
+                                'losses'        : mismatches,
+                                'win %'         : winning_percentage,
+                                'fade %'        : fade_percentage,
+                                'pos games'     : total_pos,
+                                'pos %'         : win_percentage_pos,
+                                'neg games'     : total_neg,
+                                'neg %'         : win_percentage_neg,
+                                'pos 100 games' : total_pos_n,
+                                'pos 100 %'     : win_percentage_pos_n,
+                                'neg 100 games' : total_neg_n,
+                                'neg 100 %'     : win_percentage_neg_n
                                 })
     df_summary_nb = pd.DataFrame(summary_data_nb)
     df_summary_nb = df_summary_nb.sort_values(by='win %', ascending=False)
@@ -967,7 +970,7 @@ def extract_datasets(model_specs, df, league, creds):
                 tag = USEP.join(['sb', league.lower()])
             folder_id = gdrive_dict[tag]
             file_id = upload_to_drive(gdrive, file_name, folder_id)
-            # gformat_csv(creds, gdrive, file_id)
+            # gformat_csv(creds, gdrive, file_id, dataset)
     else:
         logger.info("Google Drive not authenticated. Skipping upload.")
 
