@@ -947,6 +947,11 @@ def extract_datasets(model_specs, df, league, creds):
     df_summary_sb = df_summary_sb.sort_values(by='win %', ascending=False)
     df_summary_sb = df_summary_sb[df_summary_sb['model'] != 'best']
 
+    ml_pos_col, ml_neg_col = target_ev_map[target]
+    ev_prob_col = 'prob_test_blend'
+    df_pred_sb['EV Pos'] = df_pred_sb.apply(lambda row: expected_value(row[ml_pos_col], row[ev_prob_col]), axis=1)
+    df_pred_sb['EV Neg'] = df_pred_sb.apply(lambda row: expected_value(row[ml_neg_col], 1.0 - row[ev_prob_col]), axis=1)
+
     # Store the dataframes in a dictionary for easy access
     datasets = {
         'results': df_results,
@@ -1040,6 +1045,13 @@ def update_live_results(model_specs, df_live):
 
     df_live.update(df_results, errors='ignore')
     df_live = df_live.sort_values(by=['date'])
+
+    # Calculate the Expected Value
+
+    ml_pos_col, ml_neg_col = target_ev_map[target]
+    ev_prob_col = 'prob_test_blend'
+    df_live['EV Pos'] = df_live.apply(lambda row: expected_value(row[ml_pos_col], row[ev_prob_col]), axis=1)
+    df_live['EV Neg'] = df_live.apply(lambda row: expected_value(row[ml_neg_col], 1.0 - row[ev_prob_col]), axis=1)
 
     return df_live
 
