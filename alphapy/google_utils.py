@@ -536,13 +536,14 @@ def highlight_differences(sheets_service, sheet_id, range_to_check, range_to_hig
 # Function gformat_csv
 #
 
-def gformat_csv(creds, drive_service, csv_file_id):
+def gformat_csv(creds, drive_service, csv_file_id, df):
     """
     Updates an existing Google Sheet with the contents of a new CSV file and formats it.
     
     :param creds: The Google Credentials object.
     :param drive_service: The authenticated Google Drive service object.
     :param csv_file_id: The ID of the uploaded CSV file.
+    :param df: pandas DataFrame containing the CSV data.
     """
 
     # Initialize the Google Sheets service object
@@ -560,20 +561,7 @@ def gformat_csv(creds, drive_service, csv_file_id):
         logger.info(f"No Google Sheet found with name '{sheet_name_without_extension}'")
         return
 
-    # Download the CSV file from Google Drive
-    request = drive_service.files().get_media(fileId=csv_file_id)
-    fh = io.BytesIO()
-    downloader = MediaIoBaseDownload(fh, request)
-    done = False
-    while not done:
-        status, done = downloader.next_chunk()
-    fh.seek(0)
-
-    # Read the CSV data into a DataFrame
-    df = pd.read_csv(fh)
-
     # Define the Google Sheet range to clear
-    # Adjust the range as necessary
     range_all = f'{sheet_name_without_extension}!A:Z'
 
     # Clear the existing data in the Google Sheet
@@ -584,10 +572,10 @@ def gformat_csv(creds, drive_service, csv_file_id):
     ).execute()
 
     # Prepare the new CSV data for uploading
-    values = df.values.tolist()
-    body = {
-        'values': values
-    }
+    headers = [df.columns.tolist()]
+    data = df.fillna('').values.tolist()
+    values = headers + data
+    body = {'values': values}
 
     # Write the new data to the Google Sheet
     sheets_service.spreadsheets().values().update(
