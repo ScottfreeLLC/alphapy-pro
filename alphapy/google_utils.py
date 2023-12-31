@@ -28,11 +28,9 @@
 
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-import io
 import json
 import logging
 import os
@@ -191,60 +189,62 @@ def find_gsheet_by_name(drive_service, name):
 
 
 #
-# Function update_gsheet_with_csv
+# Function get_sheet_id_by_name
 #
 
-def update_gsheet_with_csv(sheets_service, drive_service, file_id, csv_path):
+def get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name):
     """
-    Update an existing Google Sheet with data from a CSV file.
-    
+    Retrieves the sheet ID for a given sheet name within a spreadsheet.
+
     :param sheets_service: The authenticated Google Sheets service object.
-    :param drive_service: The authenticated Google Drive service object.
-    :param file_id: The ID of the existing Google Sheet.
-    :param csv_path: The file path of the CSV file.
+    :param spreadsheet_id: The ID of the spreadsheet.
+    :param sheet_name: The name of the sheet.
+    :return: The ID of the sheet or None if not found.
     """
 
-    # First, clear the existing contents of the Google Sheet
-    sheets_service.spreadsheets().values().clear(
-        spreadsheetId=file_id,
-        range="Sheet1",  # Assume the Sheet is named 'Sheet1', change if needed
-    ).execute()
+    # Get metadata about all sheets in the spreadsheet
+    sheet_metadata = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    sheets = sheet_metadata.get('sheets', '')
 
-    # Upload CSV content to Google Sheet
-    media = MediaFileUpload(csv_path, mimetype='text/csv', resumable=True)
-    file = drive_service.files().update(
-        fileId=file_id,
-        media_body=media,
-        fields='id'
-    ).execute()
-    
-    logger.info(f"Updated Google Sheet with ID: {file['id']}")
+    # Find the ID of the sheet with the given name
+    for sheet in sheets:
+        if sheet['properties']['title'] == sheet_name:
+            return sheet['properties']['sheetId']
+
+    return None
 
 
 #
 # Function format_header_row
 #
 
-def format_header_row(sheets_service, sheet_id):
+def format_header_row(sheets_service, spreadsheet_id, sheet_name):
     """
-    Applies text formatting to the header row of a Google Sheet.
+    Formats the header row of a specific sheet in a Google Sheets spreadsheet.
 
     :param sheets_service: The authenticated Google Sheets service object.
-    :param sheet_id: The ID of the Google Sheet to format.
+    :param spreadsheet_id: The ID of the spreadsheet.
+    :param sheet_name: The name of the sheet to format.
     """
+
+    # Find the ID of the sheet
+    sheet_id = get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name)
+    if sheet_id is None:
+        logger.info(f"Sheet named '{sheet_name}' not found in the spreadsheet.")
+        return
 
     # Define the header text format requests
     requests = [{
         "repeatCell": {
             "range": {
-                "sheetId": 0,  # Assumes the first sheet - you might need to adjust this depending on the actual sheet ID
+                "sheetId": sheet_id,
                 "startRowIndex": 0,
                 "endRowIndex": 1
             },
             "cell": {
                 "userEnteredFormat": {
                     "textFormat": {
-                        "fontSize": 12,
+                        "fontSize": 10,
                         "bold": True
                     }
                 }
@@ -252,38 +252,158 @@ def format_header_row(sheets_service, sheet_id):
             "fields": "userEnteredFormat.textFormat(fontSize,bold)"
         }
     }]
-    
+
     # Send the batchUpdate request
     body = {
         'requests': requests
     }
     response = sheets_service.spreadsheets().batchUpdate(
-        spreadsheetId=sheet_id,
+        spreadsheetId=spreadsheet_id,
         body=body
     ).execute()
-    
-    logger.info(f"Formatted header row for Sheet ID: {sheet_id}")
+
+    logger.info(f"Formatted header row for Sheet ID: {sheet_id} in '{sheet_name}'")
+
+
+#
+# Function apply_alternating_row_colors
+#
+
+def apply_alternating_row_colors(sheets_service, spreadsheet_id, sheet_name, start_row, end_row):
+    """
+    Applies alternating row colors to a specified range in a Google Sheet for better readability.
+
+    :param sheets_service: The authenticated Google Sheets service object.
+    :param spreadsheet_id: The ID of the Google Sheet.
+    :param sheet_name: The name of the sheet in the spreadsheet.
+    :param start_row: The starting row index for the banding (0-indexed).
+    :param end_row: The ending row index for the banding (0-indexed).
+    """
+
+    # Get the sheet ID based on the sheet name
+    sheet_id = get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name)
+    if sheet_id is None:
+        logger.info(f"No sheet found with the name '{sheet_name}'")
+        return
+
+    # Define the request for alternating row colors
+    requests = [{
+        "addBanding": {
+            "bandedRange": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": start_row,
+                    "endRowIndex": end_row
+                },
+                "rowProperties": {
+                    "headerColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                    "firstBandColor": {"red": 0.88, "green": 0.96, "blue": 1.0},
+                    "secondBandColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
+                }
+            }
+        }
+    }]
+
+    # Send the batchUpdate request
+    body = {'requests': requests}
+
+    try:
+        response = sheets_service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body=body
+        ).execute()
+        logger.info(f"Applied alternating row colors to '{sheet_name}' in the spreadsheet.")
+    except HttpError as error:
+        logger.info(f"Alternating row colors already applied: {error}")
+        return    
+
+
+#
+# Function auto_resize_columns
+#
+
+def auto_resize_columns(sheets_service, spreadsheet_id, start_column, end_column):
+    """
+    Sets the column width to auto fit the content in the specified range.
+
+    :param sheets_service: The authenticated Google Sheets service object.
+    :param spreadsheet_id: The ID of the Google Sheet.
+    :param start_column: The starting column index to resize.
+    :param end_column: The ending column index to resize.
+    """
+
+    # Define the request to update column widths
+    requests = [{
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": 0,
+                "dimension": "COLUMNS",
+                "startIndex": start_column,
+                "endIndex": end_column
+            },
+            "properties": {
+                "pixelSize": 150
+            },
+            "fields": "pixelSize"
+        }
+    }]
+
+    # Send the batchUpdate request
+    body = {'requests': requests}
+    response = sheets_service.spreadsheets().batchUpdate(
+        spreadsheetId=spreadsheet_id,
+        body=body
+    ).execute()
+
+    logger.info(f"Auto-resized columns from {start_column} to {end_column} in Sheet ID: {sheet_id}")
 
 
 #
 # Function apply_conditional_formatting
 #
 
-def apply_conditional_formatting(sheets_service, sheet_id):
+def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, format_dict):
     """
     Applies conditional formatting to the Google Sheet.
 
     :param sheets_service: The authenticated Google Sheets service object.
+    :param sheet_name: The name of the sheet.
     :param sheet_id: The ID of the Google Sheet to format.
+    :param format_dict: Dictionary of formatting options.
     """
 
+    # Get the sheet ID based on the sheet name
+    sheet_id = get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name)
+    if sheet_id is None:
+        logger.info(f"No sheet found with the name '{sheet_name}'")
+        return
+
+    # format_dict = {'league'    : league,
+    #                'target'    : target,
+    #                'file_type' : file_type,
+    #                'level'     : level}
+
+    #
+    # results_nb (6: 1 green, 0 red)
+    # results_sb (6: 1 green, 0 red)
+    #
+    # over (6), won_on_points (5), won_on_spread (7)
+    # predictions_nb (n6-12: 1 green, 0 red)
+    # predictions_sb (n6-12: >68 green, 50-68 light green, 32-50 light red, <32 red)
+    #                (13-14: >10 green, >0-10 light green, -10<0 light red, <-10 red)
+    #
+    # summary_nb (4-5: >55 green, 50-55 light green, 45-50 light red, <45 red)
+    # summary_sb (4, 5, 7, 9, 11, 13)
+    #
+
     # Define the conditional formatting rules
-    requests = [{
+
+    requests = [
+    {
         "addConditionalFormatRule": {
             "rule": {
                 "ranges": [{
                     "sheetId": 0,  # Assumes the first sheet - you might need to adjust this depending on the actual sheet ID
-                    "startRowIndex": 1,  # Skip header row
                     "startColumnIndex": 0,  # Adjust if your data starts from a different column
                     "endColumnIndex": 2,  # Adjust based on the number of columns to format
                 }],
@@ -303,12 +423,12 @@ def apply_conditional_formatting(sheets_service, sheet_id):
             },
             "index": 0
         }
-    }, {
+    },
+    {
         "addConditionalFormatRule": {
             "rule": {
                 "ranges": [{
                     "sheetId": 0,
-                    "startRowIndex": 1,
                     "startColumnIndex": 0,
                     "endColumnIndex": 2,
                 }],
@@ -396,92 +516,6 @@ def apply_gradient_formatting(sheets_service, sheet_id, start_column, end_column
 
 
 #
-# Function auto_resize_columns
-#
-
-def auto_resize_columns(sheets_service, sheet_id, start_column, end_column):
-    """
-    Sets the column width to auto fit the content in the specified range.
-
-    :param sheets_service: The authenticated Google Sheets service object.
-    :param sheet_id: The ID of the Google Sheet to format.
-    :param start_column: The starting column index to resize.
-    :param end_column: The ending column index to resize.
-    """
-
-    # Define the request to update column widths
-    requests = [{
-        "updateDimensionProperties": {
-            "range": {
-                "sheetId": 0,
-                "dimension": "COLUMNS",
-                "startIndex": start_column,  # 0 based index, 0 is column A
-                "endIndex": end_column
-            },
-            "properties": {
-                "pixelSize": 150  # You may need to adjust this value
-            },
-            "fields": "pixelSize"
-        }
-    }]
-
-    # Send the batchUpdate request
-    body = {'requests': requests}
-    response = sheets_service.spreadsheets().batchUpdate(
-        spreadsheetId=sheet_id,
-        body=body
-    ).execute()
-
-    logger.info(f"Auto-resized columns from {start_column} to {end_column} in Sheet ID: {sheet_id}")
-
-
-#
-# Function apply_alternating_row_colors
-#
-
-def apply_alternating_row_colors(sheets_service, sheet_id, start_row, end_row, start_column, end_column):
-    """
-    Applies alternating row colors to a specified range in the Google Sheet for better readability.
-
-    :param sheets_service: The authenticated Google Sheets service object.
-    :param sheet_id: The ID of the Google Sheet to format.
-    :param start_row: The starting row index for the banding.
-    :param end_row: The ending row index for the banding.
-    :param start_column: The starting column index for the banding.
-    :param end_column: The ending column index for the banding.
-    """
-
-    # Define the request to add banding to rows
-    requests = [{
-        "addBanding": {
-            "bandedRange": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": start_column,
-                    "endColumnIndex": end_column,
-                },
-                "rowProperties": {
-                    "headerColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
-                    "firstBandColor": {"red": 0.95, "green": 0.95, "blue": 0.95},
-                    "secondBandColor": {"red": 0.90, "green": 0.90, "blue": 0.90},
-                }
-            }
-        }
-    }]
-
-    # Send the batchUpdate request
-    body = {'requests': requests}
-    response = sheets_service.spreadsheets().batchUpdate(
-        spreadsheetId=sheet_id,
-        body=body
-    ).execute()
-
-    logger.info(f"Applied alternating row colors in Sheet ID: {sheet_id}")
-
-
-#
 # Function highlight_differences
 #
 
@@ -533,10 +567,10 @@ def highlight_differences(sheets_service, sheet_id, range_to_check, range_to_hig
 
 
 #
-# Function gformat_csv
+# Function gsheet_format
 #
 
-def gformat_csv(creds, drive_service, csv_file_id, df):
+def gsheet_format(creds, drive_service, csv_file_id, df, format_dict):
     """
     Updates an existing Google Sheet with the contents of a new CSV file and formats it.
     
@@ -544,6 +578,7 @@ def gformat_csv(creds, drive_service, csv_file_id, df):
     :param drive_service: The authenticated Google Drive service object.
     :param csv_file_id: The ID of the uploaded CSV file.
     :param df: pandas DataFrame containing the CSV data.
+    :param format_dict: Dictionary of formatting options.
     """
 
     # Initialize the Google Sheets service object
@@ -554,15 +589,15 @@ def gformat_csv(creds, drive_service, csv_file_id, df):
     csv_file_name = csv_file_metadata.get('name')
 
     # Find the Google Sheet by name
-    sheet_name_without_extension = csv_file_name.rsplit('.', 1)[0]
-    sheet_id = find_gsheet_by_name(drive_service, sheet_name_without_extension)
+    sheet_name = csv_file_name.rsplit('.', 1)[0]
+    sheet_id = find_gsheet_by_name(drive_service, sheet_name)
 
     if not sheet_id:
-        logger.info(f"No Google Sheet found with name '{sheet_name_without_extension}'")
+        logger.info(f"No Google Sheet found with name '{sheet_name}'")
         return
 
     # Define the Google Sheet range to clear
-    range_all = f'{sheet_name_without_extension}!A:Z'
+    range_all = f'{sheet_name}!A:Z'
 
     # Clear the existing data in the Google Sheet
     sheets_service.spreadsheets().values().clear(
@@ -573,6 +608,8 @@ def gformat_csv(creds, drive_service, csv_file_id, df):
 
     # Prepare the new CSV data for uploading
     headers = [df.columns.tolist()]
+    for col in df.select_dtypes(include=['datetime']):
+        df[col] = df[col].dt.strftime('%Y-%m-%d')
     data = df.fillna('').values.tolist()
     values = headers + data
     body = {'values': values}
@@ -584,6 +621,19 @@ def gformat_csv(creds, drive_service, csv_file_id, df):
         valueInputOption='USER_ENTERED',
         body=body
     ).execute()
+
+    # Apply formatting functions
+    format_header_row(sheets_service, sheet_id, sheet_name)
+
+    # Apply alternating colors
+    alternating_colors = False
+    if alternating_colors:
+        start_row = 1
+        end_row = len(df) + 1
+        apply_alternating_row_colors(sheets_service, sheet_id, sheet_name, start_row, end_row)
+
+    # Apply conditional formatting
+    # apply_conditional_formatting(sheets_service, sheet_id, sheet_name, format_dict)
 
     logger.info(f"Google Sheet with ID {sheet_id} has been updated with the new CSV data.")
 

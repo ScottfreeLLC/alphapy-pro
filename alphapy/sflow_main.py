@@ -53,6 +53,7 @@ import os
 import pandas as pd
 import shutil
 import sys
+import time
 import yaml
 
 from alphapy.alphapy_main import get_alphapy_config
@@ -63,7 +64,7 @@ from alphapy.globals import Partition, datasets
 from alphapy.globals import SSEP, USEP
 from alphapy.google_utils import authenticate_google
 from alphapy.google_utils import authenticate_google_drive
-from alphapy.google_utils import gformat_csv
+from alphapy.google_utils import gsheet_format
 from alphapy.google_utils import gdrive_dict
 from alphapy.google_utils import upload_to_drive
 from alphapy.model import get_model_config
@@ -954,7 +955,8 @@ def extract_datasets(model_specs, df, league, creds):
 
     # Store the dataframes in a dictionary for easy access
     datasets = {
-        'results': df_results,
+        'results_nb': df_results,
+        'results_sb': df_results,
         'predictions_nb': df_pred_nb,
         'predictions_sb': df_pred_sb,
         'summary_nb': df_summary_nb,
@@ -963,19 +965,25 @@ def extract_datasets(model_specs, df, league, creds):
 
     gdrive = authenticate_google_drive(creds) if creds else None
     if gdrive:
+        league_lower = league.lower()
         for name, dataset in datasets.items():
-            file_name = f"{target}_{name}.csv"
+            file_name = f"{league_lower}_{target}_{name}.csv"
+            name_parts = name.split("_")
+            file_type = name_parts[0]
+            level = name_parts[1]
             # Save file to local directory
             logger.info(f"Saving {file_name}")
             dataset.to_csv(f"{directory}/{file_name}", index=False)
             # Upload file to Google Drive
-            if 'sb' not in name:
-                tag = USEP.join(['nb', league.lower()])
-            else:
-                tag = USEP.join(['sb', league.lower()])
+            tag = USEP.join([level, league_lower])
             folder_id = gdrive_dict[tag]
             file_id = upload_to_drive(gdrive, file_name, folder_id)
-            # gformat_csv(creds, gdrive, file_id, dataset)
+            # Format the file
+            format_dict = {'league'    : league,
+                           'target'    : target,
+                           'file_type' : file_type,
+                           'level'     : level}
+            gsheet_format(creds, gdrive, file_id, dataset, format_dict)
     else:
         logger.info("Google Drive not authenticated. Skipping upload.")
 
