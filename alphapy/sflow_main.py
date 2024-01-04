@@ -903,7 +903,7 @@ def extract_datasets(model_specs, df, league, creds):
         mismatches = total_predictions - matches
         winning_percentage = "{:.3f}".format(matches / total_predictions) if total_predictions else 0.5
         fade_percentage = "{:.3f}".format(1.0 - float(winning_percentage)) if total_predictions else 0.5
-        model_name = col.replace('pred_', '').replace('test_', '')
+        model_name = col.replace('pred_', '').replace('test_', '').upper()
         summary_data_nb.append({'model'       : model_name,
                                 'wins'        : matches,
                                 'losses'      : mismatches,
@@ -941,12 +941,13 @@ def extract_datasets(model_specs, df, league, creds):
                                 'neg 100 games' : total_neg_n,
                                 'neg 100 %'     : win_percentage_neg_n
                                 })
+    best_model_str = 'BEST'
     df_summary_nb = pd.DataFrame(summary_data_nb)
     df_summary_nb = df_summary_nb.sort_values(by='win %', ascending=False)
-    df_summary_nb = df_summary_nb[df_summary_nb['model'] != 'best']
+    df_summary_nb = df_summary_nb[df_summary_nb['model'] != best_model_str]
     df_summary_sb = pd.DataFrame(summary_data_sb)
     df_summary_sb = df_summary_sb.sort_values(by='win %', ascending=False)
-    df_summary_sb = df_summary_sb[df_summary_sb['model'] != 'best']
+    df_summary_sb = df_summary_sb[df_summary_sb['model'] != best_model_str]
 
     ml_pos_col, ml_neg_col = target_ev_map[target]
     ev_prob_col = 'prob_test_blend'

@@ -671,10 +671,10 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
         return
 
     # Define the colors
-    color_green = {"red": 0.0, "green": 1.0, "blue": 0.0}
-    color_green_light = {"red": 0.56, "green": 0.93, "blue": 0.56}
-    color_red_light = {"red": 1.0, "green": 0.71, "blue": 0.76}
-    color_red = {"red": 1.0, "green": 0.0, "blue": 0.0}
+    color_green = {"red": 0.0, "green": 0.8, "blue": 0.0}
+    color_green_light = {"red": 0.5, "green": 1.0, "blue": 0.5}
+    color_red_light = {"red": 1.0, "green": 0.7, "blue": 0.7}
+    color_red = {"red": 1.0, "green": 0.3, "blue": 0.3}
 
     # Set the requests parameter based on the formatting dictionary
 
