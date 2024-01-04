@@ -583,6 +583,55 @@ def clear_conditional_formatting(sheets_service, spreadsheet_id, sheet_name):
 
 
 #
+# Function col_index_to_letter
+#
+
+def col_index_to_letter(col_index):
+    """
+    Converts a zero-based column index to a column letter (e.g., 0 -> A, 1 -> B, etc.)
+
+    :param col_index: Zero-based column index.
+    :return: Corresponding column letter.
+    """
+
+    if col_index < 26:
+        return chr(65 + col_index)
+    else:
+        first_letter = chr(65 + col_index // 26 - 1)
+        second_letter = chr(65 + col_index % 26)
+        return first_letter + second_letter
+
+
+#
+# Function get_formulas
+#
+
+def get_formulas(start_index, thresholds):
+    """
+    Generates a list of conditional formatting formulas based on the given start column index
+    and a list of thresholds.
+
+    :param start_index: The starting column index for applying the formatting.
+    :param thresholds: A list of three numbers [low, middle, high] for conditional thresholds.
+    :return: A list of conditional formatting formulas.
+    """
+
+    if len(thresholds) != 3:
+        raise ValueError("Thresholds list must contain exactly three numbers.")
+
+    low, middle, high = thresholds
+    column_letter = col_index_to_letter(start_index)
+    
+    formulas = [
+        f'={column_letter}2 < {low}',
+        f'=AND({column_letter}2 >= {low}, {column_letter}2 < {middle})',
+        f'=AND({column_letter}2 > {middle}, {column_letter}2 <= {high})',
+        f'={column_letter}2 > {high}'
+    ]
+    return formulas
+
+
+#
 # Function apply_conditional_formatting
 #
 
@@ -690,16 +739,10 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
                 {"sheetId": sheet_id, "startColumnIndex": start_index, "endColumnIndex": end_index,
                  "startRowIndex": start_row, "endRowIndex": end_row}
             ]
-            formulas = ['=A1 < 0.32',
-                        '=AND(A1 >= 0.32, A1 < 0.50)',
-                        '=AND(A1 > 0.50, A1 <= 0.68)',
-                        '=A1 > 0.68']
+            thresholds = [0.32, 0.50, 0.68]
+            formulas = get_formulas(start_index, thresholds)
         # summary_nb and summary_sb
         else:
-            formulas = ['=A1 < 0.45',
-                        '=AND(A1 >= 0.45, A1 < 0.50)',
-                        '=AND(A1 > 0.50, A1 <= 0.55)',
-                        '=A1 > 0.55']
             # summary_nb
             if level == 'nb':
                 start_index = 4
@@ -724,6 +767,8 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
                     {"sheetId": sheet_id, "startColumnIndex": 13, "endColumnIndex": 14,
                       "startRowIndex": start_row, "endRowIndex": end_row}
                ]
+            thresholds = [0.45, 0.50, 0.55]
+            formulas = get_formulas(start_index, thresholds)
         # construct the request
         requests = [{
             "addConditionalFormatRule": {
