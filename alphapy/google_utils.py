@@ -753,6 +753,7 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
                 ]
             # summary_sb
             else:
+                start_index = 4
                 ranges = [
                     {"sheetId": sheet_id, "startColumnIndex": 4, "endColumnIndex": 5,
                      "startRowIndex": start_row, "endRowIndex": end_row},
