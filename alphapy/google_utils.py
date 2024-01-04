@@ -539,6 +539,50 @@ def auto_resize_columns(sheets_service, spreadsheet_id, start_column, end_column
 
 
 #
+# Function clear_conditional_formatting
+#
+
+def clear_conditional_formatting(sheets_service, spreadsheet_id, sheet_name):
+    """
+    Clears all conditional formatting from a specified sheet.
+
+    :param sheets_service: The authenticated Google Sheets service object.
+    :param spreadsheet_id: The ID of the Google Sheet.
+    :param sheet_name: The name of the sheet from which to remove the banding.
+    """
+
+    # Get the sheet ID based on the sheet name
+    sheet_id = get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name)
+    if sheet_id is None:
+        logger.info(f"No sheet found with the name '{sheet_name}'")
+        return
+
+    # Get existing conditional formatting rules
+    sheet = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id, 
+                                              ranges=sheet_name, 
+                                              fields='sheets(conditionalFormats)').execute()
+    rules = sheet.get('sheets', [])[0].get('conditionalFormats', [])
+
+    # Prepare requests to delete each rule
+    requests = []
+    for i in range(len(rules)):
+        requests.append({
+            "deleteConditionalFormatRule": {
+                "sheetId": sheet_id,
+                "index": 0  # Always delete the first rule since each deletion shifts the remaining rules
+            }
+        })
+
+    # Execute batchUpdate to clear all rules
+    if requests:
+        body = {'requests': requests}
+        sheets_service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
+        logger.info(f"Cleared all conditional formatting from sheet ID {sheet_id}.")
+    else:
+        logger.info(f"No conditional formatting rules found in sheet ID {sheet_id}.")
+
+
+#
 # Function apply_conditional_formatting
 #
 
@@ -548,8 +592,8 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
     Applies conditional formatting to the Google Sheet.
 
     :param sheets_service: The authenticated Google Sheets service object.
+    :param spreadsheet_id: The ID of the Google Sheet to format.
     :param sheet_name: The name of the sheet.
-    :param sheet_id: The ID of the Google Sheet to format.
     :param format_dict: Dictionary of formatting options.
     :param start_row: The starting row index for the formatting (0-indexed).
     :param end_row: The ending row index for the formatting (0-indexed).
@@ -939,6 +983,7 @@ def gsheet_format(creds, drive_service, csv_file_id, df, format_dict):
                                  start_row, end_row)
 
     # Apply conditional formatting
+    clear_conditional_formatting(sheets_service, sheet_id, sheet_name)
     apply_conditional_formatting(sheets_service, sheet_id, sheet_name, format_dict,
                                  start_row, end_row)
 
