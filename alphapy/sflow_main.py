@@ -901,8 +901,8 @@ def extract_datasets(model_specs, df, league, creds):
         matches = df_summ[df_summ[col] == df_summ[target]].shape[0]
         total_predictions = df_summ[col].count()
         mismatches = total_predictions - matches
-        winning_percentage = "{:.2f}".format((matches / total_predictions) * 100 if total_predictions else "50.00")
-        fade_percentage = "{:.2f}".format(100.0 - float(winning_percentage) if total_predictions else "50.00")
+        winning_percentage = "{:.3f}".format(matches / total_predictions) if total_predictions else 0.5
+        fade_percentage = "{:.3f}".format(1.0 - float(winning_percentage)) if total_predictions else 0.5
         model_name = col.replace('pred_', '').replace('test_', '')
         summary_data_nb.append({'model'       : model_name,
                                 'wins'        : matches,
@@ -915,17 +915,17 @@ def extract_datasets(model_specs, df, league, creds):
         # Calculate for all data
         wins_pos = df_summ[(df_summ[col] == 1) & (df_summ[col] == df_summ[target])].shape[0]
         total_pos = df_summ[df_summ[col] == 1].shape[0]
-        win_percentage_pos = "{:.2f}".format((wins_pos / total_pos) * 100) if total_pos else "50.00"
+        win_percentage_pos = "{:.3f}".format(wins_pos / total_pos) if total_pos else 0.5
         wins_neg = df_summ[(df_summ[col] == 0) & (df_summ[col] == df_summ[target])].shape[0]
         total_neg = df_summ[df_summ[col] == 0].shape[0]
-        win_percentage_neg = "{:.2f}".format((wins_neg / total_neg) * 100) if total_neg else "50.00"
+        win_percentage_neg = "{:.3f}".format(wins_neg / total_neg) if total_neg else 0.5
         # Calculate for last n days
         wins_pos_n = df_summ_n[(df_summ_n[col] == 1) & (df_summ_n[col] == df_summ_n[target])].shape[0]
         total_pos_n = df_summ_n[df_summ_n[col] == 1].shape[0]
-        win_percentage_pos_n = "{:.2f}".format((wins_pos_n / total_pos_n) * 100) if total_pos_n else "50.00"
+        win_percentage_pos_n = "{:.3f}".format(wins_pos_n / total_pos_n) if total_pos_n else 0.5
         wins_neg_n = df_summ_n[(df_summ_n[col] == 0) & (df_summ_n[col] == df_summ_n[target])].shape[0]
         total_neg_n = df_summ_n[df_summ_n[col] == 0].shape[0]
-        win_percentage_neg_n = "{:.2f}".format((wins_neg_n / total_neg_n) * 100) if total_neg_n else "50.00"
+        win_percentage_neg_n = "{:.3f}".format(wins_neg_n / total_neg_n) if total_neg_n else 0.5
         summary_data_sb.append({'model'         : model_name,
                                 'total games'   : total_predictions,
                                 'wins'          : matches,

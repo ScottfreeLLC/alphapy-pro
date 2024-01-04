@@ -266,6 +266,136 @@ def format_header_row(sheets_service, spreadsheet_id, sheet_name):
 
 
 #
+# Function create_repeat_cell
+#
+
+def create_repeat_cell(sheet_id, start_row, end_row, start_column, end_column):
+    """
+    Creates a Repeat Cell.
+
+    :param sheet_id: The ID of the Google Sheet to format.
+    :param start_row: The starting row index for the formatting (0-indexed).
+    :param end_row: The ending row index for the formatting (0-indexed).
+    :param start_column: The starting column index for applying the formatting.
+    :param end_column: The ending column index for applying the formatting.
+    """
+
+    repeat_cell_dict = {
+        "repeatCell":
+        {
+            "range":
+            {
+                "sheetId": sheet_id,
+                "startRowIndex": start_row,
+                "endRowIndex": end_row,
+                "startColumnIndex": start_column,
+                "endColumnIndex": end_column
+            },
+            "cell":
+            {
+                "userEnteredFormat":
+                {
+                    "numberFormat":
+                    {
+                    "type": "PERCENT",
+                    "pattern": "#,##0.0%"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
+        }
+    }
+    return repeat_cell_dict
+
+
+#
+# Function format_cells
+#
+
+def format_cells(sheets_service, spreadsheet_id, sheet_name, format_dict,
+                 start_row, end_row):
+    """
+    Applies conditional formatting to the Google Sheet.
+
+    :param sheets_service: The authenticated Google Sheets service object.
+    :param sheet_name: The name of the sheet.
+    :param sheet_id: The ID of the Google Sheet to format.
+    :param format_dict: Dictionary of formatting options.
+    :param start_row: The starting row index for the formatting (0-indexed).
+    :param end_row: The ending row index for the formatting (0-indexed).
+    """
+
+    # Get the sheet ID based on the sheet name
+    sheet_id = get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name)
+    if sheet_id is None:
+        logger.info(f"No sheet found with the name '{sheet_name}'")
+        return
+
+    # Get the formatting options
+    target = format_dict['target']
+    file_type = format_dict['file_type']
+    level = format_dict['level']
+
+    # Set the first column index based on the target
+    if target == 'over':
+        first_index = 6
+    elif target == 'won_on_spread':
+        first_index = 7
+    elif target == 'won_on_points':
+        first_index = 5
+    else:
+        logger.info(f"Invalid target: {target}")
+        return
+
+    # Set the requests parameter based on the formatting dictionary
+
+    make_request = False
+    # predictions_sb
+    if file_type == 'predictions' and level == 'sb':
+        start_index = first_index
+        end_index = start_index + 7
+        # create repeat cell dictionary
+        requests = [create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)]
+        make_request = True
+    # summary_nb and summary_sb
+    elif file_type == 'summary':
+        # summary_nb
+        if level == 'nb':
+            start_index = 4
+            end_index = 6
+            # create repeat cell dictionary
+            requests = [create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)]
+        # summary_sb
+        else:
+            start_index = 4; end_index = 5
+            rcd1 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
+            start_index = 5; end_index = 6
+            rcd2 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
+            start_index = 7; end_index = 8
+            rcd3 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
+            start_index = 9; end_index = 10
+            rcd4 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
+            start_index = 11; end_index = 12
+            rcd5 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
+            start_index = 13; end_index = 14
+            rcd6 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
+            # create repeat cells
+            requests = [rcd1, rcd2, rcd3, rcd4, rcd5, rcd6]
+        make_request = True
+    
+    if make_request:
+        # Send the batchUpdate request
+        body = {
+            'requests': requests
+        }
+        response = sheets_service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body=body
+        ).execute()
+        logger.info(f"Formatted percentage cells to Sheet ID: {sheet_id}")
+
+
+#
 # Function apply_alternating_row_colors
 #
 
@@ -319,6 +449,56 @@ def apply_alternating_row_colors(sheets_service, spreadsheet_id, sheet_name, sta
 
 
 #
+# Function remove_banding
+#
+
+def remove_banding(sheets_service, spreadsheet_id, sheet_name):
+    """
+    Removes alternating row colors from a specified sheet in a Google Sheet.
+
+    :param sheets_service: The authenticated Google Sheets service object.
+    :param spreadsheet_id: The ID of the Google Sheet.
+    :param sheet_name: The name of the sheet from which to remove the banding.
+    """
+
+    # Get the sheet ID based on the sheet name
+    sheet_id = get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name)
+    if sheet_id is None:
+        logger.info(f"No sheet found with the name '{sheet_name}'")
+        return
+
+    try:
+        # Retrieve the spreadsheet to find all banded ranges
+        sheet_metadata = sheets_service.spreadsheets().get(
+            spreadsheetId=spreadsheet_id,
+            fields='sheets(properties(sheetId,title),bandedRanges(bandedRangeId))'
+        ).execute()
+
+        # Find the banded ranges for the given sheet
+        for sheet in sheet_metadata.get('sheets', []):
+            if sheet['properties']['sheetId'] == sheet_id:
+                banded_ranges = sheet.get('bandedRanges', [])
+                for banded_range in banded_ranges:
+                    banded_range_id = banded_range.get('bandedRangeId')
+                    # If a bandedRangeId is found, remove the banding
+                    if banded_range_id:
+                        requests = [{
+                            "deleteBanding": {
+                                "bandedRangeId": banded_range_id
+                            }
+                        }]
+                        # Send the request to remove the banding
+                        body = {'requests': requests}
+                        response = sheets_service.spreadsheets().batchUpdate(
+                            spreadsheetId=spreadsheet_id,
+                            body=body
+                        ).execute()
+                        logger.info(f"Removed banding with ID {banded_range_id} from '{sheet_name}'.")
+    except HttpError as error:
+        logger.error(f"Failed to remove banding from '{sheet_name}': {error}")
+
+
+#
 # Function auto_resize_columns
 #
 
@@ -362,7 +542,8 @@ def auto_resize_columns(sheets_service, spreadsheet_id, start_column, end_column
 # Function apply_conditional_formatting
 #
 
-def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, format_dict):
+def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, format_dict,
+                                 start_row, end_row):
     """
     Applies conditional formatting to the Google Sheet.
 
@@ -370,6 +551,8 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
     :param sheet_name: The name of the sheet.
     :param sheet_id: The ID of the Google Sheet to format.
     :param format_dict: Dictionary of formatting options.
+    :param start_row: The starting row index for the formatting (0-indexed).
+    :param end_row: The ending row index for the formatting (0-indexed).
     """
 
     # Get the sheet ID based on the sheet name
@@ -378,84 +561,201 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
         logger.info(f"No sheet found with the name '{sheet_name}'")
         return
 
-    # format_dict = {'league'    : league,
-    #                'target'    : target,
-    #                'file_type' : file_type,
-    #                'level'     : level}
+    # Get the formatting options
+    target = format_dict['target']
+    file_type = format_dict['file_type']
+    level = format_dict['level']
 
-    #
-    # results_nb (6: 1 green, 0 red)
-    # results_sb (6: 1 green, 0 red)
-    #
-    # over (6), won_on_points (5), won_on_spread (7)
-    # predictions_nb (n6-12: 1 green, 0 red)
-    # predictions_sb (n6-12: >68 green, 50-68 light green, 32-50 light red, <32 red)
-    #                (13-14: >10 green, >0-10 light green, -10<0 light red, <-10 red)
-    #
-    # summary_nb (4-5: >55 green, 50-55 light green, 45-50 light red, <45 red)
-    # summary_sb (4, 5, 7, 9, 11, 13)
-    #
+    # Set the first column index based on the target
+    if target == 'over':
+        first_index = 6
+    elif target == 'won_on_spread':
+        first_index = 7
+    elif target == 'won_on_points':
+        first_index = 5
+    else:
+        logger.info(f"Invalid target: {target}")
+        return
 
-    # Define the conditional formatting rules
+    # Define the colors
+    color_green = {"red": 0.0, "green": 1.0, "blue": 0.0}
+    color_green_light = {"red": 0.56, "green": 0.93, "blue": 0.56}
+    color_red_light = {"red": 1.0, "green": 0.71, "blue": 0.76}
+    color_red = {"red": 1.0, "green": 0.0, "blue": 0.0}
 
-    requests = [
-    {
-        "addConditionalFormatRule": {
-            "rule": {
-                "ranges": [{
-                    "sheetId": 0,  # Assumes the first sheet - you might need to adjust this depending on the actual sheet ID
-                    "startColumnIndex": 0,  # Adjust if your data starts from a different column
-                    "endColumnIndex": 2,  # Adjust based on the number of columns to format
-                }],
-                "booleanRule": {
-                    "condition": {
-                        "type": "NUMBER_EQ",
-                        "values": [{"userEnteredValue": "1"}]
-                    },
-                    "format": {
-                        "backgroundColor": {
-                            "red": 0.0,
-                            "green": 1.0,
-                            "blue": 0.0
+    # Set the requests parameter based on the formatting dictionary
+
+    if file_type == 'results' or (file_type == 'predictions' and level == 'nb'):
+        # results_nb and results_sb
+        if file_type == 'results':
+            start_index = 6
+            end_index = 7
+        # predictions_nb
+        else:
+            start_index = first_index
+            end_index = start_index + 7
+        # construct the request
+        requests = [{
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": [{
+                        "sheetId": sheet_id,
+                        "startColumnIndex": start_index,
+                        "endColumnIndex": end_index,
+                    }],
+                    "booleanRule": {
+                        "condition": {
+                            "type": "NUMBER_EQ",
+                            "values": [{"userEnteredValue": "1"}]
+                        },
+                        "format": {
+                            "backgroundColor": color_green_light
                         }
                     }
-                }
-            },
-            "index": 0
-        }
-    },
-    {
-        "addConditionalFormatRule": {
-            "rule": {
-                "ranges": [{
-                    "sheetId": 0,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": 2,
-                }],
-                "booleanRule": {
-                    "condition": {
-                        "type": "NUMBER_EQ",
-                        "values": [{"userEnteredValue": "0"}]
-                    },
-                    "format": {
-                        "backgroundColor": {
-                            "red": 1.0,
-                            "green": 0.0,
-                            "blue": 0.0
+                },
+                "index": 0
+            }
+        },
+        {
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": [{
+                        "sheetId": sheet_id,
+                        "startColumnIndex": start_index,
+                        "endColumnIndex": end_index,
+                    }],
+                    "booleanRule": {
+                        "condition": {
+                            "type": "NUMBER_EQ",
+                            "values": [{"userEnteredValue": "0"}]
+                        },
+                        "format": {
+                            "backgroundColor": color_red_light
                         }
                     }
-                }
-            },
-            "index": 1
-        }
-    }]
-    
+                },
+                "index": 1
+            }
+        }]
+    else:
+        # predictions_sb
+        if file_type == 'predictions':
+            start_index = first_index
+            end_index = start_index + 7
+            ranges = [
+                {"sheetId": sheet_id, "startColumnIndex": start_index, "endColumnIndex": end_index,
+                 "startRowIndex": start_row, "endRowIndex": end_row}
+            ]
+            formulas = ['=A1 < 0.32',
+                        '=AND(A1 >= 0.32, A1 < 0.50)',
+                        '=AND(A1 > 0.50, A1 <= 0.68)',
+                        '=A1 > 0.68']
+        # summary_nb and summary_sb
+        else:
+            formulas = ['=A1 < 0.45',
+                        '=AND(A1 >= 0.45, A1 < 0.50)',
+                        '=AND(A1 > 0.50, A1 <= 0.55)',
+                        '=A1 > 0.55']
+            # summary_nb
+            if level == 'nb':
+                start_index = 4
+                end_index = 6
+                ranges = [
+                    {"sheetId": sheet_id, "startColumnIndex": start_index, "endColumnIndex": end_index,
+                     "startRowIndex": start_row, "endRowIndex": end_row}
+                ]
+            # summary_sb
+            else:
+                ranges = [
+                    {"sheetId": sheet_id, "startColumnIndex": 4, "endColumnIndex": 5,
+                     "startRowIndex": start_row, "endRowIndex": end_row},
+                    {"sheetId": sheet_id, "startColumnIndex": 5, "endColumnIndex": 6,
+                     "startRowIndex": start_row, "endRowIndex": end_row},
+                    {"sheetId": sheet_id, "startColumnIndex": 7, "endColumnIndex": 8,
+                     "startRowIndex": start_row, "endRowIndex": end_row},
+                    {"sheetId": sheet_id, "startColumnIndex": 9, "endColumnIndex": 10,
+                     "startRowIndex": start_row, "endRowIndex": end_row},
+                    {"sheetId": sheet_id, "startColumnIndex": 11, "endColumnIndex": 12,
+                     "startRowIndex": start_row, "endRowIndex": end_row},
+                    {"sheetId": sheet_id, "startColumnIndex": 13, "endColumnIndex": 14,
+                      "startRowIndex": start_row, "endRowIndex": end_row}
+               ]
+        # construct the request
+        requests = [{
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": ranges,
+                    "booleanRule": {
+                        "condition": {
+                            "type": "CUSTOM_FORMULA",
+                            "values": [{"userEnteredValue": formulas[0]}]
+                        },
+                        "format": {
+                            "backgroundColor": color_red
+                        }
+                    }
+                },
+                "index": 0
+            }
+        },
+        {
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": ranges,
+                    "booleanRule": {
+                        "condition": {
+                            "type": "CUSTOM_FORMULA",
+                            "values": [{"userEnteredValue": formulas[1]}]
+                        },
+                        "format": {
+                            "backgroundColor": color_red_light
+                        }
+                    }
+                },
+                "index": 1
+            }
+        },
+        {
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": ranges,
+                    "booleanRule": {
+                        "condition": {
+                            "type": "CUSTOM_FORMULA",
+                            "values": [{"userEnteredValue": formulas[2]}]
+                        },
+                        "format": {
+                            "backgroundColor": color_green_light
+                        }
+                    }
+                },
+                "index": 2
+            }
+        },
+        {
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": ranges,
+                    "booleanRule": {
+                        "condition": {
+                            "type": "CUSTOM_FORMULA",
+                            "values": [{"userEnteredValue": formulas[3]}]
+                        },
+                        "format": {
+                            "backgroundColor": color_green
+                        }
+                    }
+                },
+                "index": 3
+            }
+        }]
+
     # Send the batchUpdate request
     body = {
         'requests': requests
     }
     response = sheets_service.spreadsheets().batchUpdate(
-        spreadsheetId=sheet_id,
+        spreadsheetId=spreadsheet_id,
         body=body
     ).execute()
     
@@ -622,18 +922,25 @@ def gsheet_format(creds, drive_service, csv_file_id, df, format_dict):
         body=body
     ).execute()
 
+    # Set the start and end rows for formatting
+    start_row = 1
+    end_row = len(df) + 1
+
     # Apply formatting functions
     format_header_row(sheets_service, sheet_id, sheet_name)
 
+    # Format cells
+    format_cells(sheets_service, sheet_id, sheet_name, format_dict,
+                 start_row, end_row)
+
     # Apply alternating colors
-    alternating_colors = False
-    if alternating_colors:
-        start_row = 1
-        end_row = len(df) + 1
-        apply_alternating_row_colors(sheets_service, sheet_id, sheet_name, start_row, end_row)
+    remove_banding(sheets_service, sheet_id, sheet_name)
+    apply_alternating_row_colors(sheets_service, sheet_id, sheet_name,
+                                 start_row, end_row)
 
     # Apply conditional formatting
-    # apply_conditional_formatting(sheets_service, sheet_id, sheet_name, format_dict)
+    apply_conditional_formatting(sheets_service, sheet_id, sheet_name, format_dict,
+                                 start_row, end_row)
 
     logger.info(f"Google Sheet with ID {sheet_id} has been updated with the new CSV data.")
 
