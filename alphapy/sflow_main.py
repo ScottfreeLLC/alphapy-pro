@@ -769,9 +769,12 @@ def get_prob_win(ml):
 #
 
 def expected_value(ml, prob_win, bet_amount=100):
-    odds = get_odds(ml)
-    net_gain = (odds - 1) * bet_amount
-    ev = (prob_win * net_gain) - ((1 - prob_win) * bet_amount)
+    if ml == 0:
+        ev = 0
+    else:
+        odds = get_odds(ml)
+        net_gain = (odds - 1) * bet_amount
+        ev = (prob_win * net_gain) - ((1 - prob_win) * bet_amount)
     return int(ev)
 
 

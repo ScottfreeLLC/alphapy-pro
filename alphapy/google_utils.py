@@ -512,43 +512,45 @@ def remove_banding(sheets_service, spreadsheet_id, sheet_name):
 
 
 #
-# Function auto_resize_columns
+# Function widen_columns
 #
 
-def auto_resize_columns(sheets_service, spreadsheet_id, start_column, end_column):
+def widen_columns(sheets_service, spreadsheet_id, sheet_name, column_indexes, width):
     """
-    Sets the column width to auto fit the content in the specified range.
+    Widen specific columns in a Google Sheet based on the sheet name.
 
     :param sheets_service: The authenticated Google Sheets service object.
     :param spreadsheet_id: The ID of the Google Sheet.
-    :param start_column: The starting column index to resize.
-    :param end_column: The ending column index to resize.
+    :param sheet_name: The name of the sheet in which to widen columns.
+    :param column_indexes: A list of column indexes to widen.
+    :param width: The new width to set for these columns.
     """
+    # Find the ID of the sheet based on its name
+    sheet_id = get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name)
+    if sheet_id is None:
+        logger.info(f"Sheet named '{sheet_name}' not found in the spreadsheet.")
+        return
 
-    # Define the request to update column widths
-    requests = [{
-        "updateDimensionProperties": {
-            "range": {
-                "sheetId": 0,
-                "dimension": "COLUMNS",
-                "startIndex": start_column,
-                "endIndex": end_column
-            },
-            "properties": {
-                "pixelSize": 150
-            },
-            "fields": "pixelSize"
-        }
-    }]
+    requests = []
+    for col_index in column_indexes:
+        requests.append({
+            "updateDimensionProperties": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "dimension": "COLUMNS",
+                    "startIndex": col_index,
+                    "endIndex": col_index + 1
+                },
+                "properties": {
+                    "pixelSize": width
+                },
+                "fields": "pixelSize"
+            }
+        })
 
-    # Send the batchUpdate request
-    body = {'requests': requests}
-    response = sheets_service.spreadsheets().batchUpdate(
-        spreadsheetId=spreadsheet_id,
-        body=body
-    ).execute()
-
-    logger.info(f"Auto-resized columns from {start_column} to {end_column} in Sheet ID: {sheet_id}")
+    body = {"requests": requests}
+    sheets_service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
+    logger.info(f"Widened columns at indexes {column_indexes} to width {width} in sheet '{sheet_name}'")
 
 
 #
@@ -863,59 +865,6 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
     ).execute()
     
     logger.info(f"Applied conditional formatting to Sheet ID: {sheet_id}")
-
-
-#
-# Function apply_gradient_formatting
-#
-
-def apply_gradient_formatting(sheets_service, sheet_id, start_column, end_column):
-    """
-    Applies gradient conditional formatting to the Google Sheet based on cell values.
-
-    :param sheets_service: The authenticated Google Sheets service object.
-    :param sheet_id: The ID of the Google Sheet to format.
-    :param start_column: The starting column index for applying the formatting.
-    :param end_column: The ending column index for applying the formatting.
-    """
-
-    # Define the gradient conditional formatting rules
-    requests = [{
-        "addConditionalFormatRule": {
-            "rule": {
-                "gradientRule": {
-                    "minpoint": {
-                        "color": {"red": 1.0, "green": 0.0, "blue": 0.0},  # Red color
-                        "type": "MIN"
-                    },
-                    "midpoint": {
-                        "color": {"red": 1.0, "green": 1.0, "blue": 0.0},  # Yellow color
-                        "type": "PERCENTILE",
-                        "value": "50"
-                    },
-                    "maxpoint": {
-                        "color": {"red": 0.0, "green": 1.0, "blue": 0.0},  # Green color
-                        "type": "MAX"
-                    }
-                },
-                "ranges": [{
-                    "sheetId": 0,
-                    "startColumnIndex": start_column,
-                    "endColumnIndex": end_column,
-                    "startRowIndex": 1  # Assuming the first row is headers
-                }]
-            }
-        }
-    }]
-    
-    # Send the batchUpdate request
-    body = {'requests': requests}
-    response = sheets_service.spreadsheets().batchUpdate(
-        spreadsheetId=sheet_id,
-        body=body
-    ).execute()
-
-    logger.info(f"Applied gradient formatting to columns {start_column} to {end_column} in Sheet ID: {sheet_id}")
 
 
 #
