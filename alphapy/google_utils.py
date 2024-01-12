@@ -220,11 +220,11 @@ def get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name):
 
 def format_header_row(sheets_service, spreadsheet_id, sheet_name):
     """
-    Formats the header row of a specific sheet in a Google Sheets spreadsheet.
+    Formats and freezes the header row of a specific sheet in a Google Sheets spreadsheet.
 
     :param sheets_service: The authenticated Google Sheets service object.
     :param spreadsheet_id: The ID of the spreadsheet.
-    :param sheet_name: The name of the sheet to format.
+    :param sheet_name: The name of the sheet to format and freeze the header row.
     """
 
     # Find the ID of the sheet
@@ -233,25 +233,38 @@ def format_header_row(sheets_service, spreadsheet_id, sheet_name):
         logger.info(f"Sheet named '{sheet_name}' not found in the spreadsheet.")
         return
 
-    # Define the header text format requests
-    requests = [{
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 0,
-                "endRowIndex": 1
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "textFormat": {
-                        "fontSize": 10,
-                        "bold": True
+    # Define the requests for formatting the header and freezing the first row
+    requests = [
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "fontSize": 10,
+                            "bold": True
+                        }
                     }
-                }
-            },
-            "fields": "userEnteredFormat.textFormat(fontSize,bold)"
+                },
+                "fields": "userEnteredFormat.textFormat(fontSize,bold)"
+            }
+        },
+        {
+            "updateSheetProperties": {
+                "properties": {
+                    "sheetId": sheet_id,
+                    "gridProperties": {
+                        "frozenRowCount": 1
+                    }
+                },
+                "fields": "gridProperties.frozenRowCount"
+            }
         }
-    }]
+    ]
 
     # Send the batchUpdate request
     body = {
@@ -262,7 +275,7 @@ def format_header_row(sheets_service, spreadsheet_id, sheet_name):
         body=body
     ).execute()
 
-    logger.info(f"Formatted header row for Sheet ID: {sheet_id} in '{sheet_name}'")
+    logger.info(f"Formatted and froze header row for Sheet ID: {sheet_id} in '{sheet_name}'")
 
 
 #
