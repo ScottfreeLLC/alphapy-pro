@@ -981,6 +981,12 @@ def gsheet_format(creds, drive_service, csv_file_id, df, format_dict):
     # Apply formatting functions
     format_header_row(sheets_service, sheet_id, sheet_name)
 
+    # Widen team name columns
+    search_string = 'team'
+    column_indices = [i for i, col in enumerate(df.columns) if search_string in col]
+    if column_indices:
+        widen_columns(sheets_service, sheet_id, sheet_name, column_indices, 150)
+
     # Format cells
     format_cells(sheets_service, sheet_id, sheet_name, format_dict,
                  start_row, end_row)

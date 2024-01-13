@@ -897,7 +897,7 @@ def extract_datasets(model_specs, df, league, creds):
     summary_data_nb = []
     summary_data_sb = []
     df_summ = df[~(pd.isna(df['away_score']) | pd.isna(df['home_score']))]
-    n_games = 100
+    n_games = 200
     df_summ_n = df_summ.tail(n_games)
     for col in pred_cols:
         # Basic Summary for Nose Bleed
@@ -939,10 +939,10 @@ def extract_datasets(model_specs, df, league, creds):
                                 'pos %'         : win_percentage_pos,
                                 'neg games'     : total_neg,
                                 'neg %'         : win_percentage_neg,
-                                'pos 100 games' : total_pos_n,
-                                'pos 100 %'     : win_percentage_pos_n,
-                                'neg 100 games' : total_neg_n,
-                                'neg 100 %'     : win_percentage_neg_n
+                                'pos games 200' : total_pos_n,
+                                'pos % 200'     : win_percentage_pos_n,
+                                'neg games 200' : total_neg_n,
+                                'neg % 200'     : win_percentage_neg_n
                                 })
     best_model_str = 'BEST'
     df_summary_nb = pd.DataFrame(summary_data_nb)
