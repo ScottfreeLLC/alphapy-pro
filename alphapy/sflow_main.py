@@ -769,6 +769,8 @@ def get_prob_win(ml):
 #
 
 def expected_value(ml, prob_win, bet_amount=100):
+    if np.isnan(ml) or np.isnan(prob_win):
+        return 0
     if ml == 0:
         ev = 0
     else:
@@ -776,7 +778,6 @@ def expected_value(ml, prob_win, bet_amount=100):
         net_gain = (odds - 1) * bet_amount
         ev = (prob_win * net_gain) - ((1 - prob_win) * bet_amount)
     return int(ev)
-
 
 #
 # Function get_kelly_pct
@@ -935,13 +936,9 @@ def extract_datasets(model_specs, df, league, creds):
                                 'losses'        : mismatches,
                                 'win %'         : winning_percentage,
                                 'fade %'        : fade_percentage,
-                                'pos games'     : total_pos,
                                 'pos %'         : win_percentage_pos,
-                                'neg games'     : total_neg,
                                 'neg %'         : win_percentage_neg,
-                                'pos games 200' : total_pos_n,
                                 'pos % 200'     : win_percentage_pos_n,
-                                'neg games 200' : total_neg_n,
                                 'neg % 200'     : win_percentage_neg_n
                                 })
     best_model_str = 'BEST'
@@ -1022,34 +1019,45 @@ def update_live_results(model_specs, df_live):
     run_dir = model_specs['run_dir']
     target = model_specs['target']
 
+    # Define a function to create a composite key
+
+    def create_composite_key(df):
+        return df['date'] + '_' + df['away_team'] + '_' + df['home_team']
+
     # Get the run's training data, which contains previous results
 
     output_dir = '/'.join([run_dir, 'output'])
     mrf = most_recent_file(output_dir, 'ranked_train*.csv')
     df_results = pd.read_csv(mrf, low_memory=False)
+    df_results['composite_key'] = create_composite_key(df_results)
     df_results['date_dt'] = pd.to_datetime(df_results['date'])
     current_date = datetime.now()
     previous_date = current_date - timedelta(days=30)
     df_results = df_results[df_results['date_dt'] > previous_date]
     df_results.drop(columns=['date_dt'], inplace=True)
-    df_results.set_index('match_id', inplace=True)
+    df_results.set_index('composite_key', inplace=True)
 
     # Get the run's predictions
 
     mrf = most_recent_file(output_dir, 'ranked_test*.csv')
     df_pred = pd.read_csv(mrf)
-    game_cols = ['match_id', 'season', 'date', 'away_team', 'away_score', 'away_point_spread',
-           'away_point_spread_line', 'away_money_line', 'home_team', 'home_score',
-           'home_point_spread', 'home_point_spread_line', 'home_money_line',
-           'over_under', 'over_line', 'under_line']
+    df_pred['composite_key'] = create_composite_key(df_pred)
+    game_cols = ['composite_key', 'season', 'date',
+                 'away_team', 'away_score', 'away_point_spread',
+                 'away_point_spread_line', 'away_money_line',
+                 'home_team', 'home_score', 'home_point_spread',
+                 'home_point_spread_line', 'home_money_line',
+                 'over_under', 'over_line', 'under_line']
     pred_cols = df_pred.columns[df_pred.columns.str.startswith('pred_')]
     prob_cols = df_pred.columns[df_pred.columns.str.startswith('prob_')]
     df_pred_cols = list(itertools.chain(game_cols, pred_cols, prob_cols, [target]))
     df_pred = df_pred[df_pred_cols]
-    df_pred.set_index('match_id', inplace=True)
+    df_pred.set_index('composite_key', inplace=True)
 
     # Update the live results with the new results
 
+    df_live['composite_key'] = create_composite_key(df_live)
+    df_live.set_index('composite_key', inplace=True)
     df_live = pd.concat([df_live, df_pred])
     df_live = df_live[~df_live.index.duplicated(keep='last')]
 
@@ -1064,6 +1072,9 @@ def update_live_results(model_specs, df_live):
     ev_prob_col = 'prob_test_blend'
     df_live['EV Pos'] = df_live.apply(lambda row: expected_value(row[ml_pos_col], row[ev_prob_col]), axis=1)
     df_live['EV Neg'] = df_live.apply(lambda row: expected_value(row[ml_neg_col], 1.0 - row[ev_prob_col]), axis=1)
+
+    # Reset index and drop composite key before returning
+    df_live.reset_index(drop=True, inplace=True)
 
     return df_live
 
@@ -1096,7 +1107,6 @@ def record_live_results(model_specs):
 
     try:
         df_live = read_frame(directory, 'live_results', model_specs['extension'], model_specs['separator'])
-        df_live.set_index('match_id', inplace=True)
         logger.info("Current Live Records: %d", df_live.shape[0])
     except:
         df_live = pd.DataFrame()
@@ -1108,7 +1118,7 @@ def record_live_results(model_specs):
     # Save updated Live Results file.
 
     file_spec = '/'.join([directory, 'live_results.csv'])
-    df_live.to_csv(file_spec, index_label='match_id')
+    df_live.to_csv(file_spec, index=False)
 
     return df_live
 
