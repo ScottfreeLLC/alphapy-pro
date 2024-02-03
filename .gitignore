@@ -6,6 +6,6 @@
 *.__pycache__
 build/
 dist/
-*.egg-info/
+*egg-info*/
 credentials.json
 token.json
