@@ -1,6 +1,9 @@
 *.pyc
 *.log
+*.whl
 *.DS_Store
 alphapy/*__pycache__*
 alphapy/token.json
 alphapy/.DS_Store
+build/*
+dist/*
