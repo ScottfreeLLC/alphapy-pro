@@ -1,10 +1,11 @@
 *.pyc
 *.log
 *.whl
+*.gz
 *.DS_Store
-alphapy/*__pycache__*
-alphapy/token.json
-alphapy/.DS_Store
-alphapy.egg-info/*
-build/*
-dist/*
+*.__pycache__
+**/build
+**/dist
+**/*.egg-info
+credentials.json
+token.json
