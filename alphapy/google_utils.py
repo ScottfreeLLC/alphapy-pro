@@ -380,20 +380,10 @@ def format_cells(sheets_service, spreadsheet_id, sheet_name, format_dict,
             requests = [create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)]
         # summary_sb
         else:
-            start_index = 4; end_index = 5
-            rcd1 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
-            start_index = 5; end_index = 6
-            rcd2 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
-            start_index = 7; end_index = 8
-            rcd3 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
-            start_index = 9; end_index = 10
-            rcd4 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
-            start_index = 11; end_index = 12
-            rcd5 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
-            start_index = 13; end_index = 14
-            rcd6 = create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)
+            start_index = 4
+            end_index = 10
             # create repeat cells
-            requests = [rcd1, rcd2, rcd3, rcd4, rcd5, rcd6]
+            requests = [create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)]
         make_request = True
     
     if make_request:
@@ -763,25 +753,18 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
                 start_index = 4
                 end_index = 6
                 ranges = [
-                    {"sheetId": sheet_id, "startColumnIndex": start_index, "endColumnIndex": end_index,
+                    {"sheetId": sheet_id,
+                     "startColumnIndex": start_index, "endColumnIndex": end_index,
                      "startRowIndex": start_row, "endRowIndex": end_row}
                 ]
             # summary_sb
             else:
                 start_index = 4
+                end_index = 10
                 ranges = [
-                    {"sheetId": sheet_id, "startColumnIndex": 4, "endColumnIndex": 5,
-                     "startRowIndex": start_row, "endRowIndex": end_row},
-                    {"sheetId": sheet_id, "startColumnIndex": 5, "endColumnIndex": 6,
-                     "startRowIndex": start_row, "endRowIndex": end_row},
-                    {"sheetId": sheet_id, "startColumnIndex": 7, "endColumnIndex": 8,
-                     "startRowIndex": start_row, "endRowIndex": end_row},
-                    {"sheetId": sheet_id, "startColumnIndex": 9, "endColumnIndex": 10,
-                     "startRowIndex": start_row, "endRowIndex": end_row},
-                    {"sheetId": sheet_id, "startColumnIndex": 11, "endColumnIndex": 12,
-                     "startRowIndex": start_row, "endRowIndex": end_row},
-                    {"sheetId": sheet_id, "startColumnIndex": 13, "endColumnIndex": 14,
-                      "startRowIndex": start_row, "endRowIndex": end_row}
+                    {"sheetId": sheet_id,
+                     "startColumnIndex": start_index, "endColumnIndex": end_index,
+                     "startRowIndex": start_row, "endRowIndex": end_row}
                ]
             thresholds = [0.45, 0.50, 0.55]
             formulas = get_formulas(start_index, thresholds)
