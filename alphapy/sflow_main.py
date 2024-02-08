@@ -956,11 +956,11 @@ def extract_datasets(model_specs, df, league, creds):
 
     # Store the dataframes in a dictionary for easy access
     datasets = {
-        'results_nb': df_results,
+        # 'results_nb': df_results,
         'results_sb': df_results,
-        'predictions_nb': df_pred_nb,
+        # 'predictions_nb': df_pred_nb,
         'predictions_sb': df_pred_sb,
-        'summary_nb': df_summary_nb,
+        # 'summary_nb': df_summary_nb,
         'summary_sb': df_summary_sb
     }
 
