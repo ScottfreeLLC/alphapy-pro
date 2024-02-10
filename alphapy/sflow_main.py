@@ -950,7 +950,7 @@ def extract_datasets(model_specs, df, league, creds):
     df_summary_sb = df_summary_sb[df_summary_sb['model'] != best_model_str]
 
     ml_pos_col, ml_neg_col = target_ev_map[target]
-    ev_prob_col = 'prob_test_blend'
+    ev_prob_col = 'prob_test_logr'
     df_pred_sb['EV Pos'] = df_pred_sb.apply(lambda row: expected_value(row[ml_pos_col], row[ev_prob_col]), axis=1)
     df_pred_sb['EV Neg'] = df_pred_sb.apply(lambda row: expected_value(row[ml_neg_col], 1.0 - row[ev_prob_col]), axis=1)
 
