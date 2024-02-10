@@ -689,33 +689,39 @@ def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
         # Make the request
         url = '/'.join([base_url, ticker, fractal, date_range, modifiers])
         response = get_web_content(url)
-        json_data = json.loads(response)
-        # Create the data frame and rename columns
-        df = pd.DataFrame(json_data['results'])
-        df.drop(columns=['vw', 'n'], inplace=True)
-        df['t'] = pd.to_datetime(df['t'], unit='ms')
-        df = df.rename(columns={
-            'v': 'volume',
-            'o' : 'open',
-            'c' : 'close',
-            'h' : 'high',
-            'l' : 'low',
-            't' : 'datetime'
-        })
-        cols = ['datetime', 'open', 'high', 'low', 'close', 'volume']
-        df = df[cols]
-        # check the last date to see if we are done
-        last_date = df['datetime'].iloc[-1]
-        n_days = abs(last_date - to_date_dt).days
-        if n_days <= 3:
-            done = True
+        if response:
+            json_data = json.loads(response)
+            # Create the data frame and rename columns
+            df = pd.DataFrame(json_data['results'])
+            df.drop(columns=['vw', 'n'], inplace=True)
+            df['t'] = pd.to_datetime(df['t'], unit='ms')
+            df = df.rename(columns={
+                'v': 'volume',
+                'o' : 'open',
+                'c' : 'close',
+                'h' : 'high',
+                'l' : 'low',
+                't' : 'datetime'
+            })
+            cols = ['datetime', 'open', 'high', 'low', 'close', 'volume']
+            df = df[cols]
+            # check the last date to see if we are done
+            last_date = df['datetime'].iloc[-1]
+            n_days = abs(last_date - to_date_dt).days
+            if n_days <= 3:
+                done = True
+            else:
+                df = df[df['datetime'] < last_date]
+                start_date = last_date.strftime('%Y-%m-%d')
+            # add the dataframe to the list of dataframes
+            dfs.append(df)
         else:
-            df = df[df['datetime'] < last_date]
-            start_date = last_date.strftime('%Y-%m-%d')
-        # add the dataframe to the list of dataframes
-        dfs.append(df)
+            logger.info(f"No response from Polygon for symbol {symbol}")
+            done = True
+
     # concatenate all of the dataframes
-    df = pd.concat(dfs)
+    if dfs:
+        df = pd.concat(dfs)
 
     # Return the dataframe
     return df
