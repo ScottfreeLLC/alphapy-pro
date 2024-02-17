@@ -414,7 +414,7 @@ def plot_importances(model, partition):
                 indices = np.argsort(importances)[::-1]
                 importances = importances[indices]
                 feature_names = np.array(model.fnames_algo[algo])[indices]
-                n_features = 20
+                n_features = len(feature_names)
                 # plot the feature importances
                 title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
                 plt.figure()
@@ -460,12 +460,6 @@ def plot_learning_curve(alphapy_specs, model, partition):
     plot_dir = get_plot_directory(model)
     pstring = datasets[partition]
 
-    # For classification only
-
-    if model.specs['model_type'] != ModelType.classification:
-        logger.info('Learning Curve plot is for classification only')
-        return None
-
     # Extract model parameters.
 
     cv_folds = model.specs['cv_folds']
@@ -505,7 +499,7 @@ def plot_learning_curve(alphapy_specs, model, partition):
         train_sizes=np.linspace(0.1, 1.0, cv_folds)
         train_sizes, train_scores, test_scores = \
             learning_curve(est, X, y.values.ravel(), train_sizes=train_sizes,
-                           cv=cv, n_jobs=n_jobs, verbose=verbosity)
+                           cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
