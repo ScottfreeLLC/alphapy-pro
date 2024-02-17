@@ -316,7 +316,8 @@ def dump_frames(group, directory, extension, separator):
 # Function sequence_frame
 #
 
-def sequence_frame(df, target, forecast_period=1, leaders=[], lag_period=1):
+def sequence_frame(df, target, date_id, forecast_period=1, n_lags=1,
+                   leaders=[], group_id=None):
     r"""Create sequences of lagging and leading values.
 
     Parameters
@@ -325,12 +326,16 @@ def sequence_frame(df, target, forecast_period=1, leaders=[], lag_period=1):
         The original dataframe.
     target : str
         The target variable for prediction.
+    date_id : str
+        The datetime column.
     forecast_period : int
         The period for forecasting the target of the analysis.
+    n_lags : int
+        The number of lagged rows for prediction.
     leaders : list
         The features that are contemporaneous with the target.
-    lag_period : int
-        The number of lagged rows for prediction.
+    group_id : str
+        The grouping column.
 
     Returns
     -------
@@ -339,27 +344,35 @@ def sequence_frame(df, target, forecast_period=1, leaders=[], lag_period=1):
 
     """
 
-    # Set Leaders and Laggards
+    # Copy the original frame
+    df_copy = df.copy()
+
+    # Determine leader and lag columns
     le_cols = sorted(leaders)
     le_len = len(le_cols)
-    df_cols = sorted(list(set(df.columns) - set(le_cols)))
-    df_len = len(df_cols)
+    lag_cols = sorted(list(set(df_copy.columns) - set(le_cols)))
+    lag_cols.remove(target)
+    lag_cols.remove(date_id)
+    if group_id is not None:
+        lag_cols.remove(group_id)
+    lag_len = len(lag_cols)
 
     # Add lagged columns
     new_cols, new_names = list(), list()
-    for i in range(lag_period, 0, -1):
-        new_cols.append(df[df_cols].shift(i))
-        new_names += ['%s[%d]' % (df_cols[j], i) for j in range(df_len)]
+    for i in range(n_lags, 0, -1):
+        new_cols.append(df_copy[lag_cols].shift(i))
+        new_names += ['%s[%d]' % (lag_cols[j], i) for j in range(lag_len)]
 
     # Preserve leader columns
-    new_cols.append(df[le_cols])
+    new_cols.append(df_copy[le_cols])
     new_names += [le_cols[j] for j in range(le_len)]
 
     # Forecast Target(s)
-    new_cols.append(pd.DataFrame(df[target].shift(1-forecast_period)))
+    new_cols.append(pd.DataFrame(df_copy[target].shift(1-forecast_period)))
     new_names.append(target)
 
     # Collect all columns into new frame
     new_frame = pd.concat(new_cols, axis=1)
     new_frame.columns = new_names
+    new_frame = pd.concat([df_copy[[group_id, date_id]], new_frame], axis=1)
     return new_frame

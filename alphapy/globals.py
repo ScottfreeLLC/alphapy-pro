@@ -203,8 +203,6 @@ class Partition(Enum):
     """
     train = 1
     test = 2
-    train_ts = 3
-    test_ts = 4
 
 
 #
@@ -261,6 +259,4 @@ class Scalers(Enum):
 #
 
 datasets = {Partition.train    : 'train',
-            Partition.test     : 'test',
-            Partition.train_ts : 'train_ts',
-            Partition.test_ts  : 'test_ts'}
+            Partition.test     : 'test'}

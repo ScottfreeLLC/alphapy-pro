@@ -76,7 +76,6 @@ from sklearn.metrics import matthews_corrcoef
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
-from sklearn.metrics import mean_squared_log_error
 from sklearn.metrics import median_absolute_error
 from sklearn.metrics import ndcg_score
 from sklearn.metrics import precision_score
@@ -137,10 +136,6 @@ class Model:
         Test labels in vector format.
     groups_test : numpy.array
         Groups sizes for the test data.
-    X_train_ts  : pandas.DataFrame
-        Time series training frame.
-    y_train_ts  : pandas.Series
-        Time series target.
     algolist : list
         Algorithms to use in training.
     estimators : dict
@@ -184,9 +179,6 @@ class Model:
         self.X_test = None
         self.y_test = None
         self.groups_test = None
-        # time series train/test
-        self.X_train_ts = None
-        self.y_train_ts = None
         # test labels
         self.test_labels = False
         # datasets
@@ -404,13 +396,11 @@ def get_model_config(directory='.'):
     specs['target'] = model_section['target']
     # time series
     specs['ts_option'] = model_section['time_series']['option']
-    specs['ts_backtests'] = model_section['time_series']['backtests']
     specs['ts_date_index'] = model_section['time_series']['date_index']
-    # forecast window
     specs['ts_forecast'] = model_section['time_series']['forecast']
-    # derivation (rolling) window
-    specs['ts_window'] = model_section['time_series']['window']
-
+    specs['ts_n_lags'] = model_section['time_series']['n_lags']
+    specs['ts_group_id'] = model_section['time_series']['group_id']
+    specs['ts_leaders'] = model_section['time_series']['leaders']
     if specs['ts_option'] and specs['shuffle']:
         logger.info("Time Series is enabled, turning off Shuffling")
         specs['shuffle'] = False
@@ -520,10 +510,11 @@ def get_model_config(directory='.'):
     logger.info('target [y]        = %s', specs['target'])
     logger.info('transforms        = %s', specs['transforms'])
     logger.info('ts_option         = %r', specs['ts_option'])
-    logger.info('ts_backtests      = %d', specs['ts_backtests'])
     logger.info('ts_date_index     = %s', specs['ts_date_index'])
     logger.info('ts_forecast       = %d', specs['ts_forecast'])
-    logger.info('ts_window         = %d', specs['ts_window'])
+    logger.info('ts_n_lags         = %d', specs['ts_n_lags'])
+    logger.info('ts_group_id       = %s', specs['ts_group_id'])
+    logger.info('ts_leaders        = %s', specs['ts_leaders'])
     logger.info('tsne              = %r', specs['tsne'])
     logger.info('tsne_components   = %d', specs['tsne_components'])
     logger.info('tsne_learn_rate   = %f', specs['tsne_learn_rate'])
@@ -786,137 +777,6 @@ def first_fit(model, algo, est):
         model.coefs[algo] = est.coef_
 
     # Save the estimator in the model and return the model
-    return model
-
-
-#
-# Function time_series_model
-#
-
-def time_series_model(model, algo):
-    r"""Train a model using a walk-backward time series technique.
-
-    Parameters
-    ----------
-    model : alphapy.Model
-        The model object with specifications.
-    algo : str
-        Abbreviation of the algorithm to run.
-
-    Returns
-    -------
-    model : alphapy.Model
-        The model object with the predictions.
-
-    Notes
-    -----
-    We use a training window (derivation window) and a test window
-    (forecast window) to make predictions incrementally. This technique
-    is in contrast to the traditional train/test split, where the model
-    does not predict using the most recent data.
-
-    """
-
-    logger.info("Walk-Backward Time Series Model")
-
-    # Extract model parameters.
-
-    model_type = model.specs['model_type']
-    target = model.specs['target']
-    ts_backtests = model.specs['ts_backtests']
-    ts_date_index = model.specs['ts_date_index']
-    ts_forecast = model.specs['ts_forecast']
-    ts_window = model.specs['ts_window']
-
-    # Extract model data.
-
-    if model.test_labels:
-        df = pd.concat([model.df_X_test[ts_date_index], pd.DataFrame(model.X_test), model.y_test], axis=1)
-    else:
-        df = pd.concat([model.df_X_train[ts_date_index], pd.DataFrame(model.X_train), model.y_train], axis=1)
-    est = model.estimators[algo]
-
-    # Sort train and test by ascending date
-
-    df.sort_values(by=[ts_date_index], inplace=True)
-    df_y = df[[ts_date_index, target]]
-    df_X = df.drop(columns=[target])
-
-    # Walk forward through the training set, incrementally adding predictions
-
-    dates_ts = df_X[ts_date_index]
-    _, date_index = np.unique(dates_ts, return_index=True)
-    
-    if len(date_index) < ts_window:
-        raise ValueError("Window Length Exceeded. Maximum Window is: %d", len(date_index))
-
-    first_date = dates_ts.iloc[date_index[0]]
-    last_date = dates_ts.iloc[date_index[-1]]
-    test_date = last_date
-    train2_date = dates_ts.iloc[date_index[-ts_forecast - 1]]
-    train1_date = dates_ts.iloc[date_index[-ts_forecast - ts_window]]
-
-    all_indices = []
-    all_preds = []
-    all_probas = []
-
-    niters = 1
-    walk_backward = True
-
-    while walk_backward and niters <= ts_backtests:
-        logger.info("%d: Train: [%s, %s], Test: [%s]",
-                    niters, train1_date, train2_date, test_date)
-        # define train and prediction datasets
-        df_X_sub = df_X[(df_X[ts_date_index] >= train1_date) & (df_X[ts_date_index] <= train2_date)]
-        df_y_sub = df_y[(df_y[ts_date_index] >= train1_date) & (df_y[ts_date_index] <= train2_date)]
-        # fit the model
-        est.fit(df_X_sub.drop(columns=[ts_date_index]), df_y_sub[target])
-        # make walk-forward predictions
-        df_pred_X = df_X[df_X[ts_date_index] == test_date]
-        df_pred_y = df_y[df_y[ts_date_index] == test_date]
-        preds = est.predict(df_pred_X.drop(columns=[ts_date_index]))
-        if model_type == ModelType.classification:
-            probas = est.predict_proba(df_pred_X.drop(columns=[ts_date_index]))[:, 1]
-        # save actuals and predicted
-        all_indices.extend(df_pred_y.index)
-        all_preds.extend(preds)
-        if model_type == ModelType.classification:
-            all_probas.extend(probas)
-        if train1_date > first_date:
-            # next iteration
-            next_index = -niters - ts_forecast
-            test_date = dates_ts.iloc[date_index[-niters - 1]]
-            train2_date = dates_ts.iloc[date_index[next_index - 1]]
-            train1_date = dates_ts.iloc[date_index[next_index - ts_window]]
-            niters += 1
-        else:
-            walk_backward = False
-
-    # Store the time series dataframes and training predictions
-
-    model.X_train_ts = model.df_X_train.loc[all_indices]
-    model.y_train_ts = model.df_y_train.loc[all_indices]
-
-    model.preds[(algo, Partition.train_ts)] = all_preds
-    if model_type == ModelType.classification:
-        model.probas[(algo, Partition.train_ts)] = all_probas
-
-    # Fit on the most recent train data and make test predictions
-
-    logger.info("Time Series Test Predictions")
-    train_date = dates_ts.iloc[date_index[-ts_window]]
-    df_X_sub = df_X[df_X[ts_date_index] >= train_date].drop(columns=[ts_date_index]).values
-    df_y_sub = df_y[df_y[ts_date_index] >= train_date][target].values
-
-    est = model.estimators[algo]
-    est.fit(df_X_sub, df_y_sub)
-
-    partition = Partition.test_ts
-    model.preds[(algo, partition)] = est.predict(model.X_test)
-    if model_type == ModelType.classification:
-        model.probas[(algo, partition)] = est.predict_proba(model.X_test)[:, 1]
-
-    # Return the model
     return model
 
 
@@ -1234,10 +1094,6 @@ def generate_metrics(model, partition):
     elif partition == Partition.test:
         expected = model.y_test
         groups = model.groups_test
-    elif partition == Partition.train_ts:
-        expected = model.y_train_ts
-    elif partition == Partition.test_ts:
-        expected = model.y_test
     else:
         raise ValueError("Invalid Partition: %s", partition)
 
@@ -1341,10 +1197,6 @@ def generate_metrics(model, partition):
                 except:
                     logger.info("Mean Squared Error not calculated")
                 try:
-                    model.metrics[(algo, partition, 'neg_mean_squared_log_error')] = mean_squared_log_error(expected, predicted)
-                except:
-                    logger.info("Mean Squared Log Error not calculated")
-                try:
                     model.metrics[(algo, partition, 'r2')] = r2_score(expected, predicted)
                 except:
                     logger.info("R-Squared Score not calculated")
@@ -1431,13 +1283,11 @@ def save_predictions(model, partition):
     df_master = pd.DataFrame()
     if partition == Partition.train:
         df_master = pd.concat([model.df_X_train, model.df_y_train], axis=1)
-    elif partition == Partition.test or partition == Partition.test_ts:
+    elif partition == Partition.test:
         if model.test_labels:
             df_master = pd.concat([model.df_X_test, model.df_y_test], axis=1)
         else:
             df_master = model.df_X_test
-    elif partition == Partition.train_ts:
-        df_master = pd.concat([model.X_train_ts, model.y_train_ts], axis=1)
     else:
         raise ValueError("Invalid Partition: %s", partition)
 
@@ -1448,8 +1298,8 @@ def save_predictions(model, partition):
     tag_list = []
 
     best_tag = 'BEST'
-    condition1 = (partition == Partition.train or partition == Partition.train_ts)
-    condition2 = (partition == Partition.test or partition == Partition.test_ts) and model.test_labels
+    condition1 = partition == Partition.train
+    condition2 = partition == Partition.test and model.test_labels
     if condition1 or condition2:
         sort_tag = best_tag
     else:

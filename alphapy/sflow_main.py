@@ -954,6 +954,12 @@ def extract_datasets(model_specs, df, league, creds):
     df_pred_sb['EV Pos'] = df_pred_sb.apply(lambda row: expected_value(row[ml_pos_col], row[ev_prob_col]), axis=1)
     df_pred_sb['EV Neg'] = df_pred_sb.apply(lambda row: expected_value(row[ml_neg_col], 1.0 - row[ev_prob_col]), axis=1)
 
+    # Rename the columns for the prediction dataframe
+    new_columns = {}
+    for col in prob_cols:
+        new_columns[col] = col.split('_')[-1].upper()
+    df_pred_sb.rename(columns=new_columns, inplace=True)
+
     # Store the dataframes in a dictionary for easy access
     datasets = {
         # 'results_nb': df_results,

@@ -61,6 +61,7 @@ from alphapy.features import remove_lv_features
 from alphapy.features import save_features
 from alphapy.features import select_features_lofo
 from alphapy.features import select_features_univariate
+from alphapy.frame import sequence_frame
 from alphapy.frame import write_frame
 from alphapy.globals import SSEP, USEP
 from alphapy.globals import ModelType
@@ -79,7 +80,6 @@ from alphapy.model import save_feature_map
 from alphapy.model import save_metrics
 from alphapy.model import save_predictions
 from alphapy.model import save_predictor
-from alphapy.model import time_series_model
 from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
@@ -255,14 +255,16 @@ def training_pipeline(alphapy_specs, model):
     split = model.specs['split']
     target = model.specs['target']
     ts_date = model.specs['ts_date_index']
+    ts_forecast = model.specs['ts_forecast']
+    ts_group_id = model.specs['ts_group_id']
+    ts_leaders = model.specs['ts_leaders']
+    ts_n_lags = model.specs['ts_n_lags']
     ts_option = model.specs['ts_option']
 
     # Get train and test data
 
     X_train, y_train = get_data(model, Partition.train)
-    print(X_train.shape, y_train.shape)
     X_test, y_test = get_data(model, Partition.test)
-    print(X_test.shape, y_test.shape)
 
     # If there is no test partition, then we will split the train partition
 
@@ -271,13 +273,18 @@ def training_pipeline(alphapy_specs, model):
         if ts_option:
             logger.info("Splitting Training Data for Time Series")
             df_train = pd.concat([X_train, y_train], axis=1)
-            df_sorted = df_train.sort_values(by=[ts_date])
+            df_sorted = df_train.sort_values(by=[ts_date]).reset_index(drop=True)
+            df_sorted = sequence_frame(df_sorted, target, ts_date,
+                                       forecast_period=ts_forecast,
+                                       n_lags=ts_n_lags,
+                                       leaders=ts_leaders,
+                                       group_id=ts_group_id)
             split_index = int((1.0 - split) * df_sorted.shape[0])
             split_date = df_sorted.iloc[split_index][ts_date]
-            df_train = df_sorted[df_sorted[ts_date] <= split_date].reset_index()
+            df_train = df_sorted[df_sorted[ts_date] <= split_date].reset_index(drop=True)
             y_train = pd.DataFrame(df_train[target], columns=[target])
             X_train = df_train.drop(columns=[target])
-            df_test = df_sorted[df_sorted[ts_date] > split_date].reset_index()
+            df_test = df_sorted[df_sorted[ts_date] > split_date].reset_index(drop=True)
             y_test = pd.DataFrame(df_test[target], columns=[target])
             X_test = df_test.drop(columns=[target])
         else:
@@ -436,9 +443,6 @@ def training_pipeline(alphapy_specs, model):
                 model = hyper_grid_search(model, estimator)
             # predictions
             model = make_predictions(model, algo)
-            # walk-forward time series
-            if ts_option and not shuffle:
-                time_series_model(model, algo)
 
     # Create a blended estimator
 
@@ -463,15 +467,6 @@ def training_pipeline(alphapy_specs, model):
         generate_results(model, partition)
     else:
         model = save_predictions(model, partition)
-
-    if ts_option:
-        partition = Partition.train_ts
-        generate_results(model, partition)
-        partition = Partition.test_ts
-        if model.test_labels:
-            generate_results(model, partition)
-        else:
-            model = save_predictions(model, partition)
 
     # Save the model and metrics
 

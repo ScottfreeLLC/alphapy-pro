@@ -119,12 +119,9 @@ def get_partition_data(model, partition):
     if partition == Partition.train:
         X = model.X_train
         y = model.y_train
-    elif partition == Partition.test or partition == Partition.test_ts:
+    elif partition == Partition.test:
         X = model.X_test
         y = model.y_test
-    elif partition == Partition.train_ts:
-        X = model.X_train_ts
-        y = model.y_train_ts
     else:
         raise ValueError("Invalid Partition: %s", partition)
 

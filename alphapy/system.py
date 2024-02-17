@@ -416,7 +416,7 @@ def get_daily_vol(ds_close, p=60):
 #
 
 def trade_system(symbol, quantity, system, target, df_rank, space,
-                 intraday, ts_flag=False, use_probs=True):
+                 intraday, use_probs=True):
     r"""Trade the given system.
 
     Parameters
@@ -435,8 +435,6 @@ def trade_system(symbol, quantity, system, target, df_rank, space,
         Namespace of all variables over all fractals.
     intraday : bool
         If True, then run an intraday system.
-    ts_flag : bool (optional)
-        True if using time series probabilities.
     use_probs : bool (optional)
         Flag indicating whether to use probabilities.
 
@@ -503,10 +501,7 @@ def trade_system(symbol, quantity, system, target, df_rank, space,
     symbol = symbol.upper()
     logger.info("Getting probabilities for %s", symbol)
     partition_tag = 'test'
-    if ts_flag:
-        pcol = USEP.join(['prob', partition_tag, 'ts', algo.lower()])
-    else:
-        pcol = USEP.join(['prob', partition_tag, algo.lower()])
+    pcol = USEP.join(['prob', partition_tag, algo.lower()])
     df_trade = df_trade.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
     df_sym[pcol].fillna(0.5, inplace=True)
     if use_probs:
@@ -679,7 +674,6 @@ def run_system(model,
     file_path = most_recent_file(rank_dir, 'ranked_test*')
     file_name = file_path.split(SSEP)[-1].split('.')[0]
     df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
-    ts_flag = '_ts_' in file_name
 
     # If ranking, sort the dataframe, and assign long and short ranks
 
@@ -702,9 +696,9 @@ def run_system(model,
             tlist1 = trade_ranking(symbol, quantity, system, df_rank, gspace, intraday)
         else:
             tlist1 = trade_system(symbol, quantity, system, target,
-                                  df_rank, gspace, intraday, ts_flag)
+                                  df_rank, gspace, intraday)
             tlist2 = trade_system(symbol, quantity, system, target,
-                                  df_rank, gspace, intraday, ts_flag, use_probs=False)
+                                  df_rank, gspace, intraday, use_probs=False)
         if tlist1:
             # add trades to global trade list 1
             for item in tlist1:

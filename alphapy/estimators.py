@@ -82,7 +82,6 @@ scorers = {'accuracy'                              : (ModelType.classification, 
            'neg_mean_absolute_error'               : (ModelType.regression,     Objective.minimize),
            'neg_mean_absolute_percentage_error'    : (ModelType.regression,     Objective.minimize),
            'neg_mean_squared_error'                : (ModelType.regression,     Objective.minimize),
-           'neg_mean_squared_log_error'            : (ModelType.regression,     Objective.minimize),
            'neg_median_absolute_error'             : (ModelType.regression,     Objective.minimize),
            'r2'                                    : (ModelType.regression,     Objective.maximize)}
 
