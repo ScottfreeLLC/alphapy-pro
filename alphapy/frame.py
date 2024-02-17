@@ -316,9 +316,9 @@ def dump_frames(group, directory, extension, separator):
 # Function sequence_frame
 #
 
-def sequence_frame(df, target, date_id, forecast_period=1, n_lags=1,
-                   leaders=[], group_id=None):
-    r"""Create sequences of lagging and leading values.
+def sequence_frame(df, target, date_id, forecast_period=1, n_lags=1, leaders=[], group_id=None):
+    """
+    Create sequences of lagging and leading values, with lagging applied within groups.
 
     Parameters
     ----------
@@ -334,45 +334,47 @@ def sequence_frame(df, target, date_id, forecast_period=1, n_lags=1,
         The number of lagged rows for prediction.
     leaders : list
         The features that are contemporaneous with the target.
-    group_id : str
+    group_id : str, optional
         The grouping column.
 
     Returns
     -------
     new_frame : pandas.DataFrame
         The transformed dataframe with variable sequences.
-
     """
 
-    # Copy the original frame
+    logger.info(f"Sequencing frame for target {target}")
+
+    # Copy the original frame to avoid modifying it
     df_copy = df.copy()
 
-    # Determine leader and lag columns
-    le_cols = sorted(leaders)
-    le_len = len(le_cols)
-    lag_cols = sorted(list(set(df_copy.columns) - set(le_cols)))
-    lag_cols.remove(target)
-    lag_cols.remove(date_id)
-    if group_id is not None:
-        lag_cols.remove(group_id)
-    lag_len = len(lag_cols)
+    # Exclude non-relevant columns from lagging
+    exclude_cols = [target, date_id] + leaders
+    if group_id:
+        exclude_cols.append(group_id)
+    lag_cols = [col for col in df_copy.columns if col not in exclude_cols]
 
-    # Add lagged columns
-    new_cols, new_names = list(), list()
-    for i in range(n_lags, 0, -1):
-        new_cols.append(df_copy[lag_cols].shift(i))
-        new_names += ['%s[%d]' % (lag_cols[j], i) for j in range(lag_len)]
+    # Initialize a list to hold the new lagged DataFrames
+    lagged_frames = []
 
-    # Preserve leader columns
-    new_cols.append(df_copy[le_cols])
-    new_names += [le_cols[j] for j in range(le_len)]
+    # If a group_id is provided, apply lagging within each group
+    if group_id:
+        for i in range(1, n_lags + 1):
+            lagged = df_copy.groupby(group_id)[lag_cols].shift(i).add_suffix(f'[-{i}]')
+            lagged_frames.append(lagged)
+    else:  # Apply lagging to the entire DataFrame
+        for i in range(1, n_lags + 1):
+            lagged = df_copy[lag_cols].shift(i).add_suffix(f'[-{i}]')
+            lagged_frames.append(lagged)
 
-    # Forecast Target(s)
-    new_cols.append(pd.DataFrame(df_copy[target].shift(1-forecast_period)))
-    new_names.append(target)
+    # Concatenate the lagged DataFrames
+    lagged_df = pd.concat(lagged_frames, axis=1)
 
-    # Collect all columns into new frame
-    new_frame = pd.concat(new_cols, axis=1)
-    new_frame.columns = new_names
-    new_frame = pd.concat([df_copy[[group_id, date_id]], new_frame], axis=1)
-    return new_frame
+    # Handle leaders (if any) and the target variable
+    leader_df = df_copy[leaders] if leaders else pd.DataFrame(index=df_copy.index)
+    target_df = df_copy[target].shift(1-forecast_period)
+
+    # Combine all parts together
+    final_df = pd.concat([df_copy[[date_id] + ([group_id] if group_id else [])], lagged_df, leader_df, target_df], axis=1)
+
+    return final_df
