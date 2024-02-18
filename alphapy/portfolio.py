@@ -28,7 +28,6 @@
 
 from alphapy.frame import Frame
 from alphapy.frame import frame_name
-from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import SSEP, USEP
 from alphapy.globals import Orders
@@ -1126,21 +1125,13 @@ def create_portfolio(model, system_name, portfolio_specs, group, tframe, tag):
     
     # Record the trading statistics.
 
-    trading_metrics = False
-    if trading_metrics:
-        logger.info("Recording Trading Metrics")
-        rf.index = pd.to_datetime(rf.index)
-        df_metrics = qs.reports.metrics(rf, mode='full', display=False)
-        write_frame(df_metrics, system_dir, 'trade_metrics', extension, separator, tag,
-                    index=True, index_label='date')
-    
-    # Record the tear sheet (currently not working)
-
-    tear_sheet = False
-    if tear_sheet:
-        tear_sheet_spec = SSEP.join([system_dir, 'tear_sheet.html'])
-        logger.info("Saving Tear Sheet to: %s", tear_sheet_spec)
-        qs.reports.html(rf, output=True, download_filename=tear_sheet_spec)
+    logger.info("Recording Trading Metrics")
+    rf.index = pd.to_datetime(rf.index)
+    df_metrics = rf.squeeze()
+    ts_file_name = ''.join(['qs_tear_sheet_', tag, '.html'])
+    tear_sheet_spec = SSEP.join([system_dir, ts_file_name])
+    logger.info("Saving Tear Sheet to: %s", tear_sheet_spec)
+    qs.reports.html(df_metrics, output=tear_sheet_spec)
 
     return
 
