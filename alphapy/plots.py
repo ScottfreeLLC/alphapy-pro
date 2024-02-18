@@ -381,6 +381,8 @@ def plot_importances(model, partition):
     """
 
     logger.info("Generating Feature Importance Plots")
+
+    max_fimp = 20
     plot_dir = get_plot_directory(model)
     pstring = datasets[partition]
 
@@ -414,7 +416,7 @@ def plot_importances(model, partition):
                 indices = np.argsort(importances)[::-1]
                 importances = importances[indices]
                 feature_names = np.array(model.fnames_algo[algo])[indices]
-                n_features = len(feature_names)
+                n_features = min(max_fimp, len(feature_names))
                 # plot the feature importances
                 title = BSEP.join([algo, "Feature Importances [", pstring, "]"])
                 plt.figure()

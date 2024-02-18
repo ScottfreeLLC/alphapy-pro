@@ -60,6 +60,7 @@ import numpy as np
 import pandas as pd
 pd.core.common.is_list_like = pd.api.types.is_list_like
 import pandas_datareader.data as web
+from polygon import RESTClient
 import re
 import requests
 from sklearn.preprocessing import LabelEncoder
@@ -650,14 +651,13 @@ def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
         else:
             raise ValueError(f"Invalid offset alias: {alias}")
 
-    # Google requires upper-case symbol, otherwise not found
-    symbol = symbol.upper()
+    # Set up parameters for Polygon API
 
-    # Initialize data frame
-    df = pd.DataFrame()
+    symbol = symbol.upper()
+    period, timespan = convert_offset(data_fractal)
 
     #
-    # Compose the request to Polygon
+    # Note: HTTP Request to Polygon API
     #
     # Example:
     #
@@ -665,63 +665,30 @@ def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
     # ?adjusted=true&sort=asc&limit=120&apiKey=_BynHqDfXhPoQcFf8Nb6hJzC_p67_5Sf1tn5ms
     #
 
-    base_url = 'https://api.polygon.io/v2/aggs'
-    ticker = SSEP.join(['ticker', symbol])
-    period, timespan = convert_offset(data_fractal)
-    fractal = SSEP.join(['range', str(period), timespan])
-    date_range = SSEP.join([from_date, to_date])
+    client = RESTClient(api_key=alphapy_specs['sources']['polygon']['api_key'])
 
-    # Set the request modifiers
+    df = pd.DataFrame()
+    aggs = []
+    for a in client.list_aggs(ticker=symbol,
+                              multiplier=period,
+                              timespan=timespan,
+                              from_=from_date,
+                              to=to_date,
+                              limit=50000):
+        aggs.append(a)
+    df = pd.DataFrame(aggs)
 
-    limit = '='.join(['limit', str(50000)])
-    api_key = '='.join(['apiKey', alphapy_specs['sources']['polygon']['api_key']])
-    modifiers = '&'.join(['?adjusted=true&sort=asc', limit, api_key])
+    # Convert timestamp to datetime and adjust the format based on timespan
+    df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+    if timespan not in ['minute', 'hour']:
+        df['date'] = df['datetime'].dt.date
+        df.drop(columns=['datetime'], inplace=True)
+        rename_column = 'date'
+    else:
+        rename_column = 'datetime'
 
-    # Make as many requests as needed to get all the data.
-
-    done = False
-    dfs = []
-    to_date_dt = datetime.strptime(to_date, '%Y-%m-%d')
-
-    start_date = from_date
-    while not done:
-        date_range = '/'.join([start_date, to_date])
-        # Make the request
-        url = '/'.join([base_url, ticker, fractal, date_range, modifiers])
-        response = get_web_content(url)
-        if response:
-            json_data = json.loads(response)
-            # Create the data frame and rename columns
-            df = pd.DataFrame(json_data['results'])
-            df.drop(columns=['vw', 'n'], inplace=True)
-            df['t'] = pd.to_datetime(df['t'], unit='ms')
-            df = df.rename(columns={
-                'v': 'volume',
-                'o' : 'open',
-                'c' : 'close',
-                'h' : 'high',
-                'l' : 'low',
-                't' : 'datetime'
-            })
-            cols = ['datetime', 'open', 'high', 'low', 'close', 'volume']
-            df = df[cols]
-            # check the last date to see if we are done
-            last_date = df['datetime'].iloc[-1]
-            n_days = abs(last_date - to_date_dt).days
-            if n_days <= 3:
-                done = True
-            else:
-                df = df[df['datetime'] < last_date]
-                start_date = last_date.strftime('%Y-%m-%d')
-            # add the dataframe to the list of dataframes
-            dfs.append(df)
-        else:
-            logger.info(f"No response from Polygon for symbol {symbol}")
-            done = True
-
-    # concatenate all of the dataframes
-    if dfs:
-        df = pd.concat(dfs)
+    df.drop(columns=['timestamp', 'otc'], inplace=True)
+    df = df[[rename_column] + [col for col in df.columns if col != rename_column]]
 
     # Return the dataframe
     return df
