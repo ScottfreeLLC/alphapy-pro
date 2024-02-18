@@ -400,8 +400,6 @@ def get_daily_vol(ds_close, p=60):
 
     """
 
-    logger.info('Calculating daily volatility for dynamic thresholds')
-
     ds_vol = ds_close.index.searchsorted(ds_close.index - pd.Timedelta(days=1))
     ds_vol = ds_vol[ds_vol > 0]
     ds_vol = (pd.Series(ds_close.index[ds_vol - 1], index=ds_close.index[ds_close.shape[0] - ds_vol.shape[0]:]))
