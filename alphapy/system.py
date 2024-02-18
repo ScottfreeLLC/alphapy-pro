@@ -496,8 +496,6 @@ def trade_system(symbol, quantity, system, target, df_rank, space,
 
     # evaluate entries by joining price with ranked probabilities
 
-    symbol = symbol.upper()
-    logger.info("Getting probabilities for %s", symbol)
     partition_tag = 'test'
     pcol = USEP.join(['prob', partition_tag, algo.lower()])
     df_trade = df_trade.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
@@ -509,6 +507,7 @@ def trade_system(symbol, quantity, system, target, df_rank, space,
 
     # Initialize trading state variables
 
+    symbol = symbol.upper()
     inlong = False
     inshort = False
     psize = 0

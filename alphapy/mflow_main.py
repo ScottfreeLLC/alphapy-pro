@@ -646,6 +646,10 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     # Run the system designated for that model type.
 
+    logger.info('*'*80)
+    logger.info("Running the System")
+    logger.info('*'*80)
+
     df_trades = pd.DataFrame()
     if model_type == ModelType.ranking:
         logger.info("System Name     : %s", ranking_specs['system_name'])
