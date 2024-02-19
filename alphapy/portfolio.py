@@ -1140,7 +1140,7 @@ def create_portfolio(model, system_name, portfolio_specs, group, tframe, tag):
 # Function gen_portfolio
 #
 
-def gen_portfolios(model, system_name, portfolio_specs, group, tframe, bframe):
+def gen_portfolios(model, system_name, portfolio_specs, group, bframe, pframe):
     r"""Generate portfolios from trade lists.
 
     Parameters
@@ -1153,22 +1153,22 @@ def gen_portfolios(model, system_name, portfolio_specs, group, tframe, bframe):
         The portfolio specifications.
     group : alphapy.Group
         The group of instruments in the portfolio.
-    tframe : pandas.DataFrame
-        The input trade list from running the system.
     bframe : pandas.DataFrame
-        The baseline trade list from running the system (not applicable for ranking models).
+        The baseline trade list from running the system.
+    pframe : pandas.DataFrame
+        The probability trade list from running the system (not applicable for ranking models).
     """
     
     logger.info("Generating Portfolios")
 
     # Create the list of trade dataframes.
 
-    if bframe.empty:        
-        trade_dfs = [tframe]
+    if pframe.empty:        
+        trade_dfs = [bframe]
     else:
-        trade_dfs = [tframe, bframe]
-    tags = ['prob', 'base']
-    
+        trade_dfs = [bframe, pframe]
+    tags = ['base', 'prob']
+
     # Create the portfolios.
 
     for index, df in enumerate(trade_dfs):

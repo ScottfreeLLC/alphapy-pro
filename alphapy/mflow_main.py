@@ -391,7 +391,7 @@ def prepare_data(model, dfs, market_specs):
         if not df.empty:
             # find patterns in dataframe
             rows_old = df.shape[0]
-            rows_new = df[target].sum()
+            rows_new = df[target].count()
             logger.info("%d Patterns Found in %d Rows", rows_new, rows_old)
             # shift target column back by the number of forecast periods
             df[target] = df[target].shift(-forecast_period)
@@ -676,12 +676,12 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     # Run the system and generate the portfolio.
 
-    df_trades, df_baseline = run_system(model, system, group, intraday)
-    if df_trades.empty:
+    df_trades_base, df_trades_prob = run_system(model, system, group, intraday)
+    if df_trades_base.empty:
         logger.info("No trades to generate a portfolio")
     else:
         gen_portfolios(model, system_specs['system_name'], portfolio_specs, group,
-                       df_trades, df_baseline)
+                       df_trades_base, df_trades_prob)
 
     # Return the completed model.
     return model

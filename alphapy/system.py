@@ -683,31 +683,30 @@ def run_system(model,
 
     # Run the system for each member of the group
 
-    gtlist1 = []
-    gtlist2 = []
+    gtlist_base = []
+    gtlist_prob = []
     for symbol in gmembers:
-        tlist1 = []
-        tlist2 = []
+        tlist_base = []
+        tlist_prob = []
         # generate the trades for this member
         if model_type == ModelType.ranking:
-            tlist1 = trade_ranking(symbol, quantity, system, df_rank, gspace, intraday)
+            tlist_base = trade_ranking(symbol, quantity, system, df_rank, gspace, intraday)
         else:
-            tlist1 = trade_system(symbol, quantity, system, target,
-                                  df_rank, gspace, intraday)
-            tlist2 = trade_system(symbol, quantity, system, target,
-                                  df_rank, gspace, intraday, use_probs=False)
-        if tlist1:
-            # add trades to global trade list 1
-            for item in tlist1:
-                gtlist1.append(item)
+            tlist_prob = trade_system(symbol, quantity, system, target,
+                                      df_rank, gspace, intraday)
+            tlist_base = trade_system(symbol, quantity, system, target,
+                                      df_rank, gspace, intraday, use_probs=False)
+        if tlist_base:
+            for item in tlist_base:
+                gtlist_base.append(item)
         else:
-            logger.info("No trades for symbol %s with probability", symbol.upper())
-        if tlist2:
-            # add trades to global trade list 2
-            for item in tlist2:
-                gtlist2.append(item)
-        else:
-            logger.info("No trades for symbol %s without probability", symbol.upper())
+            logger.info("No baseline trades for symbol %s", symbol.upper())
+        if model_type != ModelType.ranking:
+            if tlist_prob:
+                for item in tlist_prob:
+                    gtlist_prob.append(item)
+            else:
+                logger.info("No probability trades for symbol %s", symbol.upper())
 
     # Determine index column
 
@@ -737,9 +736,12 @@ def run_system(model,
         return tf
             
     # Get the trading frames for all system runs.
-    
-    df_t1 = record_trades(gtlist1, 'prob')
-    df_t2 = record_trades(gtlist2, 'base')
+
+    df_trades_base = record_trades(gtlist_base, 'base')
+    if model_type != ModelType.ranking:
+        df_trades_prob = record_trades(gtlist_prob, 'prob')
+    else:
+        df_trades_prob = pd.DataFrame()
 
     # Return trades frame
-    return df_t1, df_t2
+    return df_trades_base, df_trades_prob
