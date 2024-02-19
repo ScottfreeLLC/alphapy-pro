@@ -391,7 +391,7 @@ def prepare_data(model, dfs, market_specs):
         if not df.empty:
             # find patterns in dataframe
             rows_old = df.shape[0]
-            rows_new = df[target].count()
+            rows_new = df[target].sum()
             logger.info("%d Patterns Found in %d Rows", rows_new, rows_old)
             # shift target column back by the number of forecast periods
             df[target] = df[target].shift(-forecast_period)
