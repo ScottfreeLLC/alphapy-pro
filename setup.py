@@ -30,15 +30,17 @@ install_reqs = [
     'iexfinance>=0.4.3',
     'imbalanced-learn>=0.5',
     'ipython>=7.2',
+    'lofo-importance>=0.3.4',
     'matplotlib>=3.0',
     'numpy>=1.17',
     'pandas>=1.0',
     'pandas-datareader>=0.8',
-    'pyfolio>=0.9',
+    'polygon-api-client>=1.13.4',
     'pyyaml>=5.0',
     'scikit-learn>=0.23.1',
     'scipy>=1.5',
     'seaborn>=0.9',
+    'venn-abers>=1.4.1',
     'yfinance>=0.1.59',
 ]
 

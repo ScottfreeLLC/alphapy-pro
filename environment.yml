@@ -20,5 +20,7 @@ dependencies:
   - category_encoders>=2.1
   - iexfinance>=0.4.3
   - imbalanced-learn>=0.5
+  - lofo-importance>=0.3.4
   - pandas-datareader>=0.8
-  - pyfolio>=0.9
+  - polygon-api-client>=1.13.4
+  - venn-abers>=1.4.1
