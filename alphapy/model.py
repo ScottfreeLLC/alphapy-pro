@@ -65,12 +65,9 @@ from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics import brier_score_loss
 from sklearn.metrics import cohen_kappa_score
 from sklearn.metrics import confusion_matrix
-from sklearn.metrics import coverage_error
 from sklearn.metrics import dcg_score
 from sklearn.metrics import explained_variance_score
 from sklearn.metrics import f1_score
-from sklearn.metrics import label_ranking_average_precision_score
-from sklearn.metrics import label_ranking_loss
 from sklearn.metrics import log_loss
 from sklearn.metrics import matthews_corrcoef
 from sklearn.metrics import mean_absolute_error
@@ -83,6 +80,7 @@ from sklearn.metrics import r2_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import roc_curve
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import train_test_split
 import sys
 from venn_abers import VennAbersCalibrator
@@ -758,8 +756,9 @@ def first_fit(model, algo, est):
 
     if model_type != ModelType.ranking:
         logger.info("Cross-Validation")
+        strat_k_fold = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
         scores = cross_val_score(est, X_train, y_train.values.ravel(), scoring=scorer,
-                                 cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
+                                 cv=strat_k_fold, n_jobs=n_jobs, verbose=verbosity)
         logger.info("Cross-Validation Scores: %s", scores)
 
     # Store the estimator
