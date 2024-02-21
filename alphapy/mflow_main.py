@@ -398,6 +398,7 @@ def prepare_data(model, dfs, market_specs):
             # split the dataframe
             if predict_mode:
                 new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)].copy()
+                new_predict = new_predict.dropna(subset=[target])
                 if len(new_predict) > 0:
                     predict_frame = pd.concat([predict_frame, new_predict])
                 else:
@@ -470,9 +471,11 @@ def prepare_data(model, dfs, market_specs):
         train_frame.sort_index(inplace=True)
         write_frame(train_frame, directory, train_file, extension, separator,
                     index=True, index_label='date')
-        test_frame.sort_index(inplace=True)
-        write_frame(test_frame, directory, test_file, extension, separator,
-                    index=True, index_label='date')
+        test_frame = test_frame.dropna(subset=[target])
+        if not test_frame.empty:
+            test_frame.sort_index(inplace=True)
+            write_frame(test_frame, directory, test_file, extension, separator,
+                        index=True, index_label='date')
     return
 
 
