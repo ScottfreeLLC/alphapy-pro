@@ -1157,6 +1157,10 @@ def generate_metrics(model, partition):
                 except:
                     logger.info("F1 Score not calculated")
                 try:
+                    model.metrics[(algo, partition, 'f1_weighted')] = f1_score(expected, predicted, average='weighted')
+                except:
+                    logger.info("F1 Weighted Score not calculated")
+                try:
                     model.metrics[(algo, partition, 'neg_log_loss')] = log_loss(expected, probas)
                 except:
                     logger.info("Log Loss not calculated")

@@ -381,7 +381,7 @@ def format_cells(sheets_service, spreadsheet_id, sheet_name, format_dict,
         # summary_sb
         else:
             start_index = 4
-            end_index = 10
+            end_index = 12
             # create repeat cells
             requests = [create_repeat_cell(sheet_id, start_row, end_row, start_index, end_index)]
         make_request = True
@@ -760,7 +760,7 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
             # summary_sb
             else:
                 start_index = 4
-                end_index = 10
+                end_index = 12
                 ranges = [
                     {"sheetId": sheet_id,
                      "startColumnIndex": start_index, "endColumnIndex": end_index,

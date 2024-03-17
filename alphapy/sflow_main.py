@@ -847,7 +847,9 @@ def extract_datasets(model_specs, df, league, creds):
 
     df['date'] = pd.to_datetime(df['date'])
     current_date = datetime.now()
+    four_weeks_ago = current_date - timedelta(weeks=4)
     two_weeks_ago = current_date - timedelta(weeks=2)
+    one_week_ago = current_date - timedelta(weeks=1)
     two_weeks_from_now = current_date + timedelta(weeks=2)
 
     # Results Data
@@ -867,6 +869,7 @@ def extract_datasets(model_specs, df, league, creds):
     for col in cols_to_int:
         df_results[col] = df_results[col].astype(int)
     df_results = df_results[df_results['date'] >= two_weeks_ago]
+    df_results = df_results[df_results[results_col_map[target]] != 0]
     df_results = df_results.sort_values(by='date', ascending=False)
 
     # Predictions Data
@@ -883,6 +886,7 @@ def extract_datasets(model_specs, df, league, creds):
     matching_cols = [col for col in df.columns if col in df_pred_nb.columns]
     df_pred_nb = df_pred_nb[matching_cols]
     df_pred_nb.drop(columns=['pred_test_best'], inplace=True)
+    df_pred_nb = df_pred_nb[df_pred_nb[results_col_map[target]] != 0]
     df_pred_nb = df_pred_nb[df_pred_nb['date'] <= two_weeks_from_now]
 
     df_pred_sb = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
@@ -891,6 +895,7 @@ def extract_datasets(model_specs, df, league, creds):
     matching_cols = [col for col in df.columns if col in df_pred_sb.columns]
     df_pred_sb = df_pred_sb[matching_cols]
     df_pred_sb.drop(columns=['prob_test_best'], inplace=True)
+    df_pred_sb = df_pred_sb[df_pred_sb[results_col_map[target]] != 0]
     df_pred_sb = df_pred_sb[df_pred_sb['date'] <= two_weeks_from_now]
 
     # Summary Data
@@ -898,8 +903,9 @@ def extract_datasets(model_specs, df, league, creds):
     summary_data_nb = []
     summary_data_sb = []
     df_summ = df[~(pd.isna(df['away_score']) | pd.isna(df['home_score']))]
-    n_games = 200
-    df_summ_n = df_summ.tail(n_games)
+    df_summ = df_summ[df_summ[results_col_map[target]] != 0]
+    df_summ_1w = df_summ[df_summ['date'] >= one_week_ago]
+    df_summ_4w = df_summ[df_summ['date'] >= four_weeks_ago]
     for col in pred_cols:
         # Basic Summary for Nose Bleed
         matches = df_summ[df_summ[col] == df_summ[target]].shape[0]
@@ -914,8 +920,6 @@ def extract_datasets(model_specs, df, league, creds):
                                 'total games' : total_predictions,
                                 'win %'       : winning_percentage,
                                 'fade %'      : fade_percentage})
-        # Extended Summary for Skybox
-        total_predictions_n = df_summ_n[col].count()
         # Calculate for all data
         wins_pos = df_summ[(df_summ[col] == 1) & (df_summ[col] == df_summ[target])].shape[0]
         total_pos = df_summ[df_summ[col] == 1].shape[0]
@@ -923,23 +927,33 @@ def extract_datasets(model_specs, df, league, creds):
         wins_neg = df_summ[(df_summ[col] == 0) & (df_summ[col] == df_summ[target])].shape[0]
         total_neg = df_summ[df_summ[col] == 0].shape[0]
         win_percentage_neg = "{:.3f}".format(wins_neg / total_neg) if total_neg else 0.5
-        # Calculate for last n days
-        wins_pos_n = df_summ_n[(df_summ_n[col] == 1) & (df_summ_n[col] == df_summ_n[target])].shape[0]
-        total_pos_n = df_summ_n[df_summ_n[col] == 1].shape[0]
-        win_percentage_pos_n = "{:.3f}".format(wins_pos_n / total_pos_n) if total_pos_n else 0.5
-        wins_neg_n = df_summ_n[(df_summ_n[col] == 0) & (df_summ_n[col] == df_summ_n[target])].shape[0]
-        total_neg_n = df_summ_n[df_summ_n[col] == 0].shape[0]
-        win_percentage_neg_n = "{:.3f}".format(wins_neg_n / total_neg_n) if total_neg_n else 0.5
-        summary_data_sb.append({'model'         : model_name,
-                                'total games'   : total_predictions,
-                                'wins'          : matches,
-                                'losses'        : mismatches,
-                                'win %'         : winning_percentage,
-                                'fade %'        : fade_percentage,
-                                'pos %'         : win_percentage_pos,
-                                'neg %'         : win_percentage_neg,
-                                'pos % 200'     : win_percentage_pos_n,
-                                'neg % 200'     : win_percentage_neg_n
+        # Calculate for last 1 week
+        wins_pos_1w = df_summ_1w[(df_summ_1w[col] == 1) & (df_summ_1w[col] == df_summ_1w[target])].shape[0]
+        total_pos_1w = df_summ_1w[df_summ_1w[col] == 1].shape[0]
+        win_percentage_pos_1w = "{:.3f}".format(wins_pos_1w / total_pos_1w) if total_pos_1w else "N/A"
+        wins_neg_1w = df_summ_1w[(df_summ_1w[col] == 0) & (df_summ_1w[col] == df_summ_1w[target])].shape[0]
+        total_neg_1w = df_summ_1w[df_summ_1w[col] == 0].shape[0]
+        win_percentage_neg_1w = "{:.3f}".format(wins_neg_1w / total_neg_1w) if total_neg_1w else "N/A"
+        # Calculate for last 4 weeks
+        wins_pos_4w = df_summ_4w[(df_summ_4w[col] == 1) & (df_summ_4w[col] == df_summ_4w[target])].shape[0]
+        total_pos_4w = df_summ_4w[df_summ_4w[col] == 1].shape[0]
+        win_percentage_pos_4w = "{:.3f}".format(wins_pos_4w / total_pos_4w) if total_pos_4w else "N/A"
+        wins_neg_4w = df_summ_4w[(df_summ_4w[col] == 0) & (df_summ_4w[col] == df_summ_4w[target])].shape[0]
+        total_neg_4w = df_summ_4w[df_summ_4w[col] == 0].shape[0]
+        win_percentage_neg_4w = "{:.3f}".format(wins_neg_4w / total_neg_4w) if total_neg_4w else "N/A"
+        # Append to summary data
+        summary_data_sb.append({'model'       : model_name,
+                                'total games' : total_predictions,
+                                'wins'        : matches,
+                                'losses'      : mismatches,
+                                'win %'       : winning_percentage,
+                                'fade %'      : fade_percentage,
+                                'pos %'       : win_percentage_pos,
+                                'neg %'       : win_percentage_neg,
+                                'pos % 1W'    : win_percentage_pos_1w,
+                                'neg % 1W'    : win_percentage_neg_1w,
+                                'pos % 4W'    : win_percentage_pos_4w,
+                                'neg % 4W'    : win_percentage_neg_4w
                                 })
     best_model_str = 'BEST'
     df_summary_nb = pd.DataFrame(summary_data_nb)
