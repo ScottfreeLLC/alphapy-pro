@@ -850,6 +850,7 @@ def extract_datasets(model_specs, df, league, creds):
     four_weeks_ago = current_date - timedelta(weeks=4)
     two_weeks_ago = current_date - timedelta(weeks=2)
     one_week_ago = current_date - timedelta(weeks=1)
+    one_day_ago = current_date - timedelta(days=1)
     two_weeks_from_now = current_date + timedelta(weeks=2)
 
     # Results Data
@@ -888,6 +889,7 @@ def extract_datasets(model_specs, df, league, creds):
     df_pred_nb.drop(columns=['pred_test_best'], inplace=True)
     df_pred_nb = df_pred_nb[df_pred_nb[results_col_map[target]] != 0]
     df_pred_nb = df_pred_nb[df_pred_nb['date'] <= two_weeks_from_now]
+    df_pred_nb = df_pred_nb[df_pred_nb['date'] > one_day_ago]
 
     df_pred_sb = df[pd.isna(df['away_score']) & pd.isna(df['home_score'])]
     cols_pred_sb = game_cols + prob_cols + target_col_map[target]
@@ -897,6 +899,7 @@ def extract_datasets(model_specs, df, league, creds):
     df_pred_sb.drop(columns=['prob_test_best'], inplace=True)
     df_pred_sb = df_pred_sb[df_pred_sb[results_col_map[target]] != 0]
     df_pred_sb = df_pred_sb[df_pred_sb['date'] <= two_weeks_from_now]
+    df_pred_sb = df_pred_sb[df_pred_sb['date'] > one_day_ago]
 
     # Summary Data
 
