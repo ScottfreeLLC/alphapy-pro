@@ -4,7 +4,7 @@
 # Module    : utilities
 # Created   : July 11, 2013
 #
-# Copyright 2017 ScottFree Analytics LLC
+# Copyright 2024 ScottFree Analytics LLC
 # Mark Conway & Robert D. Scott II
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,19 +26,17 @@
 # Imports
 #
 
-from alphapy.globals import PSEP, SSEP, USEP
+from alphapy.globals import PSEP, SSEP
 
 import argparse
 from datetime import datetime, timedelta
 import glob
-import inspect
-from itertools import groupby
 import logging
 import numpy as np
 import os
-from os import listdir
-from os.path import isfile, join
 import re
+import requests
+import subprocess
 
 
 #
@@ -68,6 +66,66 @@ def datetime_stamp():
 
 
 #
+# Function get_web_content
+#
+
+def get_web_content(url):
+    r"""Use the requests package to get data over HTTP.
+
+    Parameters
+    ----------
+    url : str
+        The URL for making the request over HTTP.
+
+    Returns
+    -------
+    response : str
+        The results returned from the request.
+
+    """
+
+    logger.debug(f"Connecting to {url}")
+    try:
+        response = requests.get(url)
+
+        # Successful request
+        if response.status_code == 200:
+            logger.debug("Success!")
+            return response.text
+
+        # Page not found
+        elif response.status_code == 404:
+            logger.debug("Error: Page not found.")
+            return None
+
+        # Server error
+        elif response.status_code >= 500:
+            logger.debug("Server error.")
+            return None
+
+        # Other errors
+        else:
+            logger.debug(f"Unexpected status code: {response.status_code}")
+            return None
+
+    except requests.ConnectionError:
+        logger.debug("Error: Failed to establish a new connection.")
+        return None
+
+    except requests.Timeout:
+        logger.debug("Error: The request timed out.")
+        return None
+
+    except requests.TooManyRedirects:
+        logger.debug("Error: Too many redirects.")
+        return None
+
+    except requests.RequestException as e:
+        logger.debug(f"Error: An unexpected error occurred. {e}")
+        return None
+
+
+#
 # Function most_recent_file
 #
 
@@ -87,6 +145,7 @@ def most_recent_file(directory, file_spec):
         Name of the file to read, excluding the ``extension``.
 
     """
+
     # Create search path
     search_path = SSEP.join([directory, file_spec])
     # find the latest file
@@ -120,6 +179,7 @@ def np_store_data(data, dir_name, file_name, extension, separator):
     None : None
 
     """
+
     output_file = PSEP.join([file_name, extension])
     output = SSEP.join([dir_name, output_file])
     logger.info("Storing output to %s", output)
@@ -152,8 +212,43 @@ def remove_list_items(elements, alist):
     >>> remove_list_items([test_func], test_list)  # ['a', 'b', 'c']
 
     """
+
     sublist = [x for x in alist if x not in elements]
     return sublist
+
+
+#
+# Function run_subprocess
+#
+
+def run_command(cmd_with_args, cwd):
+    r"""Run a subprocess based on the command with arguments.
+
+    Parameters
+    ----------
+    cmd_with_args : str
+        The command to run as a subprocess.
+    cwd: str
+        The current working directory.
+
+    Returns
+    -------
+    result : str
+        The result returned from running the subprocess.
+
+    """
+
+    result = subprocess.run(cmd_with_args, capture_output=True, text=True, cwd=cwd)
+    try:
+        result.check_returncode()
+        result_text = result.stderr.replace('[', '\n[')
+        logger.info(result_text)
+    except subprocess.CalledProcessError as e:
+        error_text = result.stderr.replace('[', '\n[')
+        error_split_text = error_text.split('Traceback')
+        logger.info(error_split_text[0])
+        logger.error(' '.join(['ERROR', error_split_text[1]]))
+    return result
 
 
 #
@@ -181,6 +276,7 @@ def subtract_days(date_string, ndays):
     >>> subtract_days('2017-11-10', 31)   # '2017-10-10'
 
     """
+
     new_date_string = None
     valid = valid_date(date_string)
     if valid:
@@ -219,6 +315,7 @@ def valid_date(date_string):
     >>> valid_date('345')        # ValueError: Not a valid date
 
     """
+
     try:
         date_time = datetime.strptime(date_string, "%Y-%m-%d")
         return date_string
@@ -252,6 +349,7 @@ def valid_name(name):
     >>> valid_name('!alpha')  # False
 
     """
+
     identifier = re.compile(r"^[^\d\W]\w*\Z", re.UNICODE)
     result = re.match(identifier, name)
     return result is not None
