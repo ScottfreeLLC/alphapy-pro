@@ -33,6 +33,7 @@ from alphapy.frame import write_frame
 from alphapy.globals import ModelType
 from alphapy.globals import Orders
 from alphapy.globals import BSEP, SSEP, USEP
+from alphapy.metalabel import get_daily_vol
 from alphapy.space import Space
 from alphapy.portfolio import Trade
 from alphapy.utilities import most_recent_file
@@ -380,33 +381,213 @@ def trade_ranking(symbol, quantity, system, df_rank, space, intraday):
 
 
 #
-# Function get_daily_vol
+# Function trade_metalabel
 #
 
-def get_daily_vol(ds_close, p=60):
-    r"""Calculate daily volatility for dynamic thresholds.
+def trade_metalabel(symbol, quantity, system, df_rank, space, intraday,
+                    ts_flag=False, use_probs=True):
+    r"""Trade the given system.
 
     Parameters
     ----------
-    ds_close : pandas.Series
-        Array of closing values.
-    p : int
-        The lookback period for computing volatility.
+    symbol : str
+        The symbol to trade.
+    quantity : float
+        The amount of the ``symbol`` to trade, e.g., number of shares
+    system : alphapy.System
+        The long/short system to run.
+    df_rank : pd.DataFrame
+        The dataframe containing the ranked predictions.
+    space : alphapy.Space
+        Namespace of all variables over all fractals.
+    intraday : bool
+        If True, then run an intraday system.
+    ts_flag : bool (optional)
+        True if using time series probabilities.
+    use_probs : bool (optional)
+        Flag indicating whether to use probabilities.
 
     Returns
     -------
-    ds_vol : pandas.Series (float)
-        The array of volatilities.
+    tradelist : list
+        List of trade entries and exits.
+
+    Other Parameters
+    ----------------
+    Frame.frames : dict
+        All of the data frames containing price data.
 
     """
 
-    ds_vol = ds_close.index.searchsorted(ds_close.index - pd.Timedelta(days=1))
-    ds_vol = ds_vol[ds_vol > 0]
-    ds_vol = (pd.Series(ds_close.index[ds_vol - 1], index=ds_close.index[ds_close.shape[0] - ds_vol.shape[0]:]))
-    # calculate daily returns
-    ds_vol = ds_close.loc[ds_vol.index] / ds_close.loc[ds_vol.values].values - 1
-    ds_vol = ds_vol.ewm(span=p, min_periods=p).std().dropna()
-    return ds_vol
+    # Unpack the system parameters.
+
+    forecast_period = system.forecast_period
+    profit_factor = system.profit_factor
+    stoploss_factor = system.stoploss_factor
+    trade_fractal = system.fractal
+    algo = system.algo
+    prob_min = system.prob_min
+    prob_max = system.prob_max
+
+    # Read in the price frame for all fractals and variables.
+
+    symbol = symbol.lower()
+    tspace = Space(space.subject, space.source, 'ALL')
+    df_trade = Frame.frames[frame_name(symbol, tspace)].df.copy()
+
+    # Get daily volatility and calculate the profit target and stop loss.
+
+    close_col = USEP.join(['close', trade_fractal])
+    ds_close = df_trade[close_col]
+    ds_vol = get_daily_vol(ds_close)
+
+    # extract the rankings frame for the given symbol
+
+    df_sym = df_rank.query('symbol==@symbol').copy()
+    df_sym.index = pd.to_datetime(df_sym.index)
+
+    # entry probability function
+
+    def assign_entry(df, prob_col, prob_min, prob_max):
+        if prob_min and prob_max:
+            lhs = BSEP.join(['(', prob_col, '>=', str(prob_min), ')'])
+            rhs = BSEP.join(['(', prob_col, '<=', str(prob_max), ')'])
+            expr = BSEP.join(['entry', '=', lhs, '&', rhs])
+        elif prob_min:
+            expr = BSEP.join(['entry', '=', prob_col, '>=', str(prob_min)])
+        elif prob_max:
+            expr = BSEP.join(['entry', '=', prob_col, '<=', str(prob_max)])
+        else:
+            lhs = BSEP.join(['(', prob_col, '>= 0.0)'])
+            rhs = BSEP.join(['(', prob_col, '<= 1.0)'])
+            expr = BSEP.join(['entry', '=', lhs, '&', rhs])
+        df = df.eval(expr)
+        return df
+
+    # evaluate entries by joining price with ranked probabilities
+
+    symbol = symbol.upper()
+    logger.info("Getting probabilities for %s", symbol)
+    partition_tag = 'test'
+    if ts_flag:
+        pcol = USEP.join(['prob', partition_tag, 'ts', algo.lower()])
+    else:
+        pcol = USEP.join(['prob', partition_tag, algo.lower()])
+    df_trade = df_trade.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
+    df_sym[pcol].fillna(0.5, inplace=True)
+    if use_probs:
+        df_trade = assign_entry(df_trade, pcol, prob_min, prob_max)
+    else:
+        df_trade = assign_entry(df_trade, pcol, 0.0, 1.0)
+
+    # Initialize trading state variables
+
+    inlong = False
+    inshort = False
+    psize = 0
+    q = quantity
+    hold = 0
+    tradelist = []
+
+    # Loop through prices and generate trades
+
+    ccol = USEP.join(['close', trade_fractal])
+    hcol = USEP.join(['high', trade_fractal])
+    lcol = USEP.join(['low', trade_fractal])
+    icol = USEP.join(['endofday', trade_fractal])
+
+    for dt, row in df_trade.iterrows():
+        # get prices for this row
+        c = row[ccol]
+        h = row[hcol]
+        l = row[lcol]
+        # evaluate entry and exit conditions
+        lerow = row['entry'] and row['side'] == 1
+        serow = row['entry'] and row['side'] == -1
+        end_of_day = row[icol] if intraday else False
+        # calculate profit targets and stop losses
+        try:
+            daily_vol = ds_vol.loc[dt]
+        except KeyError:
+            try:
+                daily_vol = ds_vol.iloc[0]
+            except IndexError:
+                daily_vol = 0.03
+        profit_target = profit_factor * daily_vol * c
+        stop_loss = stoploss_factor * daily_vol * c
+        # process the long and short events
+        if lerow:
+            if inshort:
+                # short active, so exit short
+                tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
+                inshort = False
+                hold = psize = 0
+            if psize == 0 and not end_of_day:
+                # go long
+                tradelist.append((dt, [symbol, Orders.le, q, c]))
+                inlong = True
+                le_price = c
+                psize = psize + q
+        if serow:
+            if inlong:
+                # long active, so exit long
+                tradelist.append((dt, [symbol, Orders.lx, -psize, c]))
+                inlong = False
+                hold = psize = 0
+            if psize == 0 and not end_of_day:
+                # go short
+                tradelist.append((dt, [symbol, Orders.se, -q, c]))
+                inshort = True
+                se_price = c
+                psize = psize - q
+        # Exit when holding period is reached
+        if hold >= forecast_period:
+            if inlong:
+                tradelist.append((dt, [symbol, Orders.lh, -psize, c]))
+                inlong = False
+            if inshort:
+                tradelist.append((dt, [symbol, Orders.sh, -psize, c]))
+                inshort = False
+            hold = psize = 0
+        # check current positions for exit
+        if inlong or inshort:
+            # increment the hold counter
+            hold += 1
+            # check for profit targets or stop losses
+            if inlong and hold > 1:
+                if h >= le_price + profit_target:
+                    # profit target
+                    tradelist.append((dt, [symbol, Orders.lx, -psize, le_price + profit_target]))
+                    inlong = False
+                if l <= le_price - stop_loss:
+                    # stop loss
+                    tradelist.append((dt, [symbol, Orders.lx, -psize, le_price - stop_loss]))
+                    inlong = False
+                if not inlong:
+                    hold = psize = 0
+            if inshort and hold > 1:
+                if l <= se_price - profit_target:
+                    # profit target
+                    tradelist.append((dt, [symbol, Orders.sx, -psize, se_price - profit_target]))
+                    inshort = False
+                if h >= se_price + stop_loss:
+                    # stop loss
+                    tradelist.append((dt, [symbol, Orders.sx, -psize, se_price + stop_loss]))
+                    inshort = False
+                if not inshort:
+                    hold = psize = 0
+            # close any intraday trades at the end of the day
+            if intraday and end_of_day:
+                if inlong:
+                    # long active, so exit long
+                    tradelist.append((dt, [symbol, Orders.lx, -psize, c]))
+                    inlong = False
+                if inshort:
+                    # short active, so exit short
+                    tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
+                    inshort = False
+                hold = psize =0
+    return tradelist
 
 
 #
@@ -691,6 +872,8 @@ def run_system(model,
         # generate the trades for this member
         if model_type == ModelType.ranking:
             tlist_base = trade_ranking(symbol, quantity, system, df_rank, gspace, intraday)
+        elif model_type == ModelType.metalabel:
+            tlist_base = trade_metalabel(symbol, quantity, system, df_rank, gspace, intraday)
         else:
             tlist_prob = trade_system(symbol, quantity, system, target,
                                       df_rank, gspace, intraday)
