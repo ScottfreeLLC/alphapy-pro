@@ -2127,6 +2127,52 @@ def ttmsqueezeshort(f, c='close', p=20, sd=2.0, atrs=1.5):
 
 
 #
+# Function vwap
+#
+
+def vwap(f, c='close', v='volume', granularity='month', anchor_dates=None):
+    """
+    Adjusted VWAP calculation using Unix timestamps for compatibility with np.digitize.
+    """
+
+    # Ensure the index is in datetime format
+    f.index = pd.to_datetime(f.index)
+
+    if not anchor_dates:
+        # Generate anchor dates automatically based on granularity
+        if granularity == 'day':
+            anchor_dates = pd.Series(f.index.normalize()).unique()
+        elif granularity == 'week':
+            anchor_dates = (f.index - pd.to_timedelta(f.index.dayofweek, unit='d')).normalize().unique()
+        elif granularity == 'month':
+            anchor_dates = f.index.to_period('M').to_timestamp().normalize().unique()
+        elif granularity == 'quarter':
+            anchor_dates = f.index.to_period('Q').to_timestamp().normalize().unique()
+    else:
+        anchor_dates = pd.to_datetime(anchor_dates).normalize()
+    
+    # Convert datetime index and anchor_dates to Unix timestamps for np.digitize
+    unix_index = f.index.astype(np.int64) // 10**9  # Convert to seconds
+    unix_anchor_dates = anchor_dates.astype(np.int64) // 10**9  # Convert to seconds
+
+    # Assign periods based on Unix timestamps
+    f['period'] = np.digitize(unix_index, bins=unix_anchor_dates, right=False)
+
+    # Calculate VWAP
+    f['dollar_volume'] = f[c] * f[v]
+    grouped = f.groupby('period')
+    f['cumulative_dollar_volume'] = grouped['dollar_volume'].cumsum()
+    f['cumulative_volume'] = grouped[v].cumsum()
+    f['vwap'] = f['cumulative_dollar_volume'] / f['cumulative_volume']
+
+    # Clean up by dropping temporary columns
+    result = f[['vwap']].copy()  # Keep the original datetime index
+    f.drop(['period', 'dollar_volume', 'cumulative_dollar_volume', 'cumulative_volume'], axis=1, inplace=True)
+
+    return result
+
+
+#
 # Function xmadown
 #
 
