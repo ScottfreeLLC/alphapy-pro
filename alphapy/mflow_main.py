@@ -54,6 +54,11 @@ from alphapy.globals import ModelType
 from alphapy.globals import LOFF, ROFF, SSEP, USEP
 from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.group import Group
+from alphapy.metalabel import add_vertical_barrier
+from alphapy.metalabel import get_bins
+from alphapy.metalabel import get_daily_vol
+from alphapy.metalabel import get_events
+from alphapy.metalabel import get_t_events
 from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.portfolio import gen_portfolios
@@ -312,6 +317,107 @@ def set_targets_ranking(model, df, ranking_specs):
 
 
 #
+# Function set_targets_metalabel
+#
+
+def set_targets_metalabel(model, df, system_specs):
+    r"""Set classification targets
+
+    1. Extract the signal for long and short entries.
+    2. Run the Triple Barrier Method analysis.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model specifications.
+    df : pandas.DataFrame
+        The dataframe to assign metalabels.
+    system_specs : dict
+        Trade management specifications.
+
+    Returns
+    -------
+    df_meta : pandas.DataFrame
+        The dataframe containing TBM returns, target, and labels
+
+    """
+
+    logger.info("Setting Classification Targets")
+
+    # Unpack model specifications
+    target = model.specs['target']
+
+    # Unpack trading specifications
+
+    signal_long = system_specs['signal_long']
+    signal_short = system_specs['signal_short']
+    predict_history = system_specs['predict_history']
+    forecast_period = system_specs['forecast_period']
+    profit_factor = system_specs['profit_factor']
+    stoploss_factor = system_specs['stoploss_factor']
+    minimum_return = system_specs['minimum_return']
+    trade_fractal = system_specs['fractal']
+
+    # Find the patterns (signals) in the dataframe.
+    
+    nrows = df.shape[0]
+
+    if signal_long:
+        long_col = USEP.join([signal_long, trade_fractal])
+        long_label = 1
+        df.loc[df[long_col], 'side'] = long_label
+        npats = df[df['side'] == long_label].shape[0]
+        logger.info("%d Long Patterns Found in %d Rows", npats, nrows)
+
+    if signal_short:
+        short_col = USEP.join([signal_short, trade_fractal])
+        short_label = -1
+        df.loc[df[short_col], 'side'] = short_label
+        npats = df[df['side'] == short_label].shape[0]
+        logger.info("%d Short Patterns Found in %d Rows", npats, nrows)
+
+    # Lag the signal.
+    df['side'] = df['side'].shift(1)
+
+    # Get closing values for the trading fractal.
+
+    close_col = USEP.join(['close', trade_fractal])
+    ds_close = df[close_col]
+
+    # Get daily volatility.
+    daily_vol = get_daily_vol(ds_close, p=predict_history)
+
+    # Get the CUSUM events.
+    cusum_events = get_t_events(ds_close, threshold=minimum_return)
+
+    # Establish the vertical barriers.
+    vertical_barriers = add_vertical_barrier(cusum_events, ds_close, num_days=forecast_period)
+
+    # Set the Triple Barrier Method (TBM) events.
+
+    df_tbm = get_events(ds_close,
+                        cusum_events,
+                        [profit_factor, stoploss_factor],
+                        daily_vol,
+                        minimum_return,
+                        vertical_barriers,
+                        df['side'])
+
+    # Assign labels based on returns.
+    df_labels = get_bins(df_tbm, ds_close)
+
+    # Evaluate the primary model.
+    pass
+
+    # Filter the dataframe with the events for the secondary model.
+
+    df_meta = df.loc[df_labels.index, :].copy()
+    df_meta[target] = df_labels[target]
+
+    return df_meta
+
+
+#
 # Function prepare_data
 #
 
@@ -352,6 +458,8 @@ def prepare_data(model, dfs, market_specs):
 
     # Unpack market specifications
 
+    system_specs = market_specs['system']
+    ranking_specs = market_specs['ranking']
     predict_history = market_specs['predict_history']
     forecast_period = market_specs['forecast_period']
 
@@ -389,12 +497,21 @@ def prepare_data(model, dfs, market_specs):
         last_date = df.index[-1]
         logger.info("Analyzing %s from %s to %s", symbol, first_date, last_date)
         if not df.empty:
-            # find patterns in dataframe
-            rows_old = df.shape[0]
-            rows_new = df[target].sum()
-            logger.info("%d Patterns Found in %d Rows", rows_new, rows_old)
-            # shift target column back by the number of forecast periods
-            df[target] = df[target].shift(-forecast_period)
+            # set model targets based on model type
+            if model_type == ModelType.ranking:
+                df = set_targets_ranking(model, df, ranking_specs)
+            elif model_type == ModelType.metalabel:
+                df = set_targets_metalabel(model, df, system_specs)
+            elif model_type == ModelType.classification or model_type == ModelType.regression:
+                # shift target column back by the number of forecast periods
+                df[target] = df[target].shift(-forecast_period)
+                # count patterns found for classification            
+                if model_type == ModelType.classification:
+                    rows_old = df.shape[0]
+                    rows_new = df[target].sum()
+                    logger.info("%d Patterns Found in %d Rows", rows_new, rows_old)
+            else:
+                raise ValueError("Unsupported Model Type")
             # split the dataframe
             if predict_mode:
                 new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)].copy()
@@ -452,11 +569,18 @@ def prepare_data(model, dfs, market_specs):
     # Take random samples of each dataframe.
 
     if model_type == ModelType.ranking:
-        logger.info("Random Sampling %d Rows for Ranking", rank_group_size)
+        # Adjust the rank group size if necessary
+        n_symbols = len(dfs)
+        if n_symbols < rank_group_size:
+            logger.info("Ranking Group Size %d > Number of Symbols %d",
+                        rank_group_size, n_symbols)
+        n_samples = min(rank_group_size, n_symbols)
+        logger.info("Random Sampling %d Rows for Ranking", n_samples)
+        # Sample the dataframes
         if not test_frame.empty:
-            test_frame = test_frame.groupby(rank_group_id).sample(n=rank_group_size, random_state=seed)
+            test_frame = test_frame.groupby(rank_group_id).sample(n=n_samples, random_state=seed)
         if not predict_mode and not train_frame.empty:
-            train_frame = train_frame.groupby(rank_group_id).sample(n=rank_group_size, random_state=seed)
+            train_frame = train_frame.groupby(rank_group_id).sample(n=n_samples, random_state=seed)
 
     # Write out the frames for input into the AlphaPy pipeline
 
