@@ -124,6 +124,7 @@ class ModelType(Enum):
     ranking = 2
     multiclass = 3
     regression = 4
+    metalabel = 5
 
 
 #
