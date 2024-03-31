@@ -36,7 +36,6 @@ from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import SSEP
 from alphapy.globals import SamplingMethod
 from alphapy.globals import WILDCARD
-from alphapy.requests_ap import get_web_content
 from alphapy.space import Space
 from alphapy.transforms import dateparts
 from alphapy.transforms import timeparts
@@ -54,7 +53,7 @@ from imblearn.under_sampling import NearMiss
 from imblearn.under_sampling import NeighbourhoodCleaningRule
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.under_sampling import TomekLinks
-import json
+from io import BytesIO
 import logging
 import numpy as np
 import pandas as pd
@@ -357,6 +356,140 @@ def convert_data(df, intraday_data):
 
 
 #
+# Function convert_offset
+#
+
+def convert_offset(alias, mappings):
+    r"""Convert the market data frame to canonical format.
+
+    Parameters
+    ----------
+    alias : pandas.tseries.offsets
+        Pandas offset alias.
+    mappings : dict
+        Mapping of offset alias time frame.
+
+    Returns
+    -------
+    number : int
+        The number of periods of the data to be retrieved.
+    timespan : str
+        The period of the data feed to be retrieved.
+
+    """
+
+    # Separate number and term
+
+    match = re.match(r"(\d+)?(\w+)", alias)
+    if match:
+        number, term = match.groups()
+        number = int(number) if number else 1
+
+        # Convert term to timespan
+        if term in mappings:
+            timespan = mappings[term]
+            return (number, timespan)
+        else:
+            raise ValueError(f"Unknown offset alias: {alias}")
+    else:
+        raise ValueError(f"Invalid offset alias: {alias}")
+
+
+#
+# Function get_eodhd_data
+#
+
+def get_eodhd_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
+                   from_date, to_date, lookback_period):
+    r"""Get EODHD daily and intraday data.
+
+    Parameters
+    ----------
+    source : str
+        The data feed.
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
+    symbol : str
+        A valid stock symbol.
+    intraday_data : bool
+        If True, then get intraday data.
+    data_fractal : str
+        Pandas offset alias.
+    from_date : str
+        Starting date for symbol retrieval.
+    to_date : str
+        Ending date for symbol retrieval.
+    lookback_period : int
+        The number of periods of data to retrieve.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        The dataframe containing the intraday data.
+
+    """
+
+    # Set up parameters for EODHD API
+
+    symbol = symbol.upper()
+
+    mappings = {
+        "min" : "m",
+        "T"   : "m",
+        "H"   : "h",
+        "D"   : "d",
+        "W"   : "w",
+        "M"   : "m",
+    }
+    n_periods, period = convert_offset(data_fractal, mappings)
+
+    #
+    # Note: HTTP Request to EODHD API
+    #
+    # Examples:
+    #
+    # https://eodhd.com/api/eod/MCD.US?period=d&api_token=demo&fmt=csv
+    #
+    # https://eodhd.com/api/eod/MCD.US?from=2020-01-05&to=2020-02-10&period=d&api_token=647208fdeb65b4.31965673&fmt=json
+    #
+
+    df = pd.DataFrame()
+
+    api_key = alphapy_specs['sources']['eodhd']['api_key']
+    api_key_str = 'api_token=' + api_key
+    from_str = 'from=' + from_date
+    to_str = 'to=' + to_date
+    format_str = 'fmt=csv'
+    if intraday_data:
+        url_base = f'https://eodhd.com/api/intraday/{symbol}?'
+        interval_str = 'interval=' + str(n_periods) + period
+        url_str = '&'.join([api_key_str, from_str, to_str, interval_str, format_str])
+    else:
+        url_base = f'https://eodhd.com/api/eod/{symbol}?'
+        period_str = 'period=' + period
+        url_str = '&'.join([api_key_str, from_str, to_str, period_str, format_str])
+    url = url_base + url_str
+
+    response = requests.get(url).content
+    df = pd.read_csv(BytesIO(response))
+
+    # Convert timestamp to datetime and adjust the format based on timespan
+    df['datetime'] = pd.to_datetime(df['Date'])
+    if not intraday_data:
+        df['date'] = df['datetime'].dt.date
+        df.drop(columns=['datetime'], inplace=True)
+        rename_column = 'date'
+    else:
+        rename_column = 'datetime'
+
+    df.drop(columns=['Date'], inplace=True)
+    df = df[[rename_column] + [col for col in df.columns if col != rename_column]]
+
+    # Return the dataframe
+    return df
+
+
+#
 # Function get_google_intraday_data
 #
 
@@ -622,39 +755,21 @@ def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
 
     """
 
-    # Function to convert the Pandas offset.
-    
-    def convert_offset(alias):
-        mappings = {
-            "min" : "minute",
-            "T"   : "minute",
-            "H"   : "hour",
-            "D"   : "day",
-            "W"   : "week",
-            "M"   : "month",
-            "Q"   : "quarter",
-            "A"   : "year",
-        }
-
-        # Separate number and term
-        match = re.match(r"(\d+)?(\w+)", alias)
-        if match:
-            number, term = match.groups()
-            number = int(number) if number else 1  # Default to 1 if not provided
-
-            # Convert term to timespan
-            if term in mappings:
-                timespan = mappings[term]
-                return (number, timespan)
-            else:
-                raise ValueError(f"Unknown offset alias: {alias}")
-        else:
-            raise ValueError(f"Invalid offset alias: {alias}")
-
     # Set up parameters for Polygon API
 
     symbol = symbol.upper()
-    period, timespan = convert_offset(data_fractal)
+
+    mappings = {
+        "min" : "minute",
+        "T"   : "minute",
+        "H"   : "hour",
+        "D"   : "day",
+        "W"   : "week",
+        "M"   : "month",
+        "Q"   : "quarter",
+        "A"   : "year",
+    }
+    n_periods, period = convert_offset(data_fractal, mappings)
 
     #
     # Note: HTTP Request to Polygon API
@@ -670,8 +785,8 @@ def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
     df = pd.DataFrame()
     aggs = []
     for a in client.list_aggs(ticker=symbol,
-                              multiplier=period,
-                              timespan=timespan,
+                              multiplier=n_periods,
+                              timespan=period,
                               from_=from_date,
                               to=to_date,
                               limit=50000):
@@ -680,7 +795,7 @@ def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
 
     # Convert timestamp to datetime and adjust the format based on timespan
     df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
-    if timespan not in ['minute', 'hour']:
+    if not intraday_data:
         df['date'] = df['datetime'].dt.date
         df.drop(columns=['datetime'], inplace=True)
         rename_column = 'date'
@@ -757,7 +872,8 @@ def get_yahoo_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
 # Data Dispatch Tables
 #
 
-data_dispatch_table = {'google'  : get_google_data,
+data_dispatch_table = {'eodhd'   : get_eodhd_data,
+                       'google'  : get_google_data,
                        'iex'     : get_iex_data,
                        'pandas'  : get_pandas_data,
                        'polygon' : get_polygon_data,
