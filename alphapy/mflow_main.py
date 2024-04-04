@@ -123,26 +123,28 @@ def get_market_config(directory='.'):
         specs['portfolio'] = cfg['portfolio']
     except:
         raise ValueError("No Portfolio Parameters Found")
-
+    
     #
-    # Section: system
-    #
-
-    logger.info("Getting System Parameters")
-    try:
-        specs['system'] = cfg['system']
-    except:
-        raise ValueError("No System Parameters Found")
-
-    #
-    # Section: ranking
+    # Section: system or ranking
     #
 
-    logger.info("Getting Ranking Parameters")
-    try:
-        specs['ranking'] = cfg['ranking']
-    except:
-        raise ValueError("No Ranking Parameters Found")
+    logger.info("Checking for System and Ranking Parameters")
+
+    system_present = 'system' in cfg
+    ranking_present = 'ranking' in cfg
+
+    if system_present and ranking_present:
+        raise ValueError("Both System and Ranking Parameters Found - Only one is allowed")
+    elif not system_present and not ranking_present:
+        raise ValueError("Neither System nor Ranking Parameters Found - One is required")
+    else:
+        # Only one of the sections is present, so proceed to get that section
+        if system_present:
+            logger.info("Getting System Parameters")
+            specs['system'] = cfg['system']
+        else:  # ranking_present must be True here
+            logger.info("Getting Ranking Parameters")
+            specs['ranking'] = cfg['ranking']
 
     #
     # Section: data
@@ -270,9 +272,11 @@ def get_market_config(directory='.'):
     logger.info('fractals         = %s', specs['fractals'])
     logger.info('portfolio        = %s', specs['portfolio'])
     logger.info('predict_history  = %d', specs['predict_history'])
-    logger.info('ranking          = %s', specs['ranking'])
+    if ranking_present:
+        logger.info('ranking          = %s', specs['ranking'])
     logger.info('subject          = %s', specs['subject'])
-    logger.info('system           = %s', specs['system'])
+    if system_present:
+        logger.info('system           = %s', specs['system'])
     logger.info('target_group     = %s', specs['target_group'])
 
     # Market Specifications
@@ -458,8 +462,6 @@ def prepare_data(model, dfs, market_specs):
 
     # Unpack market specifications
 
-    system_specs = market_specs['system']
-    ranking_specs = market_specs['ranking']
     predict_history = market_specs['predict_history']
     forecast_period = market_specs['forecast_period']
 
@@ -499,8 +501,10 @@ def prepare_data(model, dfs, market_specs):
         if not df.empty:
             # set model targets based on model type
             if model_type == ModelType.ranking:
+                ranking_specs = market_specs['ranking']
                 df = set_targets_ranking(model, df, ranking_specs)
             elif model_type == ModelType.metalabel:
+                system_specs = market_specs['system']
                 df = set_targets_metalabel(model, df, system_specs)
             elif model_type == ModelType.classification or model_type == ModelType.regression:
                 # shift target column back by the number of forecast periods
@@ -708,21 +712,6 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Get AlphaPy specifications
     data_dir = alphapy_specs['data_dir']
 
-    # Get section specifications
-
-    system_specs = market_specs['system']
-    system_specs['system_name'] = target
-    system_specs['predict_history'] = predict_history
-    system_specs['forecast_period'] = forecast_period
-    system_specs['fractal'] = trade_fractal
-
-    ranking_specs = market_specs['ranking']
-    ranking_specs['system_name'] = 'ranking'
-    ranking_specs['forecast_period'] = forecast_period
-    ranking_specs['fractal'] = trade_fractal
-
-    portfolio_specs = market_specs['portfolio']
-
     # Set the target group and space
 
     group = Group.groups[target_group]
@@ -777,8 +766,11 @@ def market_pipeline(alphapy_specs, model, market_specs):
     logger.info("Running the System")
     logger.info('*'*80)
 
-    df_trades = pd.DataFrame()
     if model_type == ModelType.ranking:
+        ranking_specs = market_specs['ranking']
+        ranking_specs['system_name'] = 'ranking'
+        ranking_specs['forecast_period'] = forecast_period
+        ranking_specs['fractal'] = trade_fractal
         logger.info("System Name     : %s", ranking_specs['system_name'])
         logger.info("Forecast Period : %s", forecast_period)
         logger.info("Algorithm       : %s", ranking_specs['algo'])
@@ -789,8 +781,12 @@ def market_pipeline(alphapy_specs, model, market_specs):
         logger.info("Trade Fractal   : %s", trade_fractal)
         system = SystemRank(**ranking_specs)
     else:
+        system_specs = market_specs['system']
+        system_specs['system_name'] = target
+        system_specs['predict_history'] = predict_history
+        system_specs['forecast_period'] = forecast_period
+        system_specs['fractal'] = trade_fractal
         logger.info("System Name      : %s", system_specs['system_name'])
-        logger.info("System Type      : %s", system_specs['system_type'])
         logger.info("Forecast Period  : %s", forecast_period)
         logger.info("Predict History  : %s", predict_history)
         logger.info("Profit Factor    : %s", system_specs['profit_factor'])
@@ -807,6 +803,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
     if df_trades_base.empty:
         logger.info("No trades to generate a portfolio")
     else:
+        portfolio_specs = market_specs['portfolio']
         gen_portfolios(model, system_specs['system_name'], portfolio_specs, group,
                        df_trades_base, df_trades_prob)
 

@@ -62,8 +62,6 @@ class System(object):
     ----------
     system_name : str
         The name of the pattern.
-    system_type : str
-        Set to long or short.
     predict_history : int
         Historical period required to calculate predictions.
     forecast_period : int
@@ -101,7 +99,6 @@ class System(object):
 
     def __new__(cls,
                 system_name,
-                system_type,
                 forecast_period = 1,
                 predict_history = 50,
                 profit_factor = 1.0,
@@ -120,7 +117,6 @@ class System(object):
 
     def __init__(self,
                  system_name,
-                 system_type,
                  forecast_period = 1,
                  predict_history = 50,
                  profit_factor = 1.0,
@@ -131,7 +127,6 @@ class System(object):
                  fractal = '1D'):
         # initialization
         self.system_name = system_name
-        self.system_type = system_type
         self.forecast_period = forecast_period
         self.predict_history = predict_history
         self.profit_factor = profit_factor
@@ -631,7 +626,6 @@ def trade_system(symbol, quantity, system, target, df_rank, space,
 
     # Unpack the system parameters.
 
-    system_type = system.system_type
     forecast_period = system.forecast_period
     profit_factor = system.profit_factor
     stoploss_factor = system.stoploss_factor
