@@ -139,8 +139,8 @@ def get_data(model, partition):
                     logger.info("Dropped %d records with NaN target values", nan_count)
             # assign the target column to y
             df_y = df[target]
-            # encode label only for classification
-            if model_type == ModelType.classification:
+            # encode label only for classification or metalabel
+            if model_type == ModelType.classification or model_type == ModelType.metalabel:
                 y = LabelEncoder().fit_transform(df_y)
                 df_y = pd.DataFrame(y, columns=[target])
             # drop the target from the original frame

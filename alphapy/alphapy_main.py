@@ -337,13 +337,13 @@ def training_pipeline(alphapy_specs, model):
     logger.info("Original Feature Statistics")
     logger.info("Number of Training Rows    : %d", X_train.shape[0])
     logger.info("Number of Training Columns : %d", X_train.shape[1])
-    if model_type == ModelType.classification:
+    if model_type == ModelType.classification or model_type == ModelType.metalabel:
         uv, uc = np.unique(y_train, return_counts=True)
         logger.info("Unique Training Values for %s : %s", target, uv)
         logger.info("Unique Training Counts for %s : %s", target, uc)
     logger.info("Number of Testing Rows     : %d", X_test.shape[0])
     logger.info("Number of Testing Columns  : %d", X_test.shape[1])
-    if model_type == ModelType.classification and model.test_labels:
+    if (model_type == ModelType.classification or model_type == ModelType.metalabel) and model.test_labels:
         uv, uc = np.unique(y_test, return_counts=True)
         logger.info("Unique Testing Values for %s : %s", target, uv)
         logger.info("Unique Testing Counts for %s : %s", target, uc)
@@ -378,7 +378,7 @@ def training_pipeline(alphapy_specs, model):
 
     # Create crosstabs for any categorical features
 
-    if model_type == ModelType.classification:
+    if model_type == ModelType.classification or model_type == ModelType.metalabel:
         create_crosstabs(model, target)
 
     # Create initial features
@@ -600,7 +600,7 @@ def prediction_pipeline(alphapy_specs, model):
     logger.info("Making Predictions")
     tag = 'BEST'
     model.preds[(tag, partition)] = predictor.predict(X_all)
-    if model_type == ModelType.classification:
+    if model_type == ModelType.classification or model_type == ModelType.metalabel:
         model.probas[(tag, partition)]  = predictor.predict_proba(X_all)[:, 1]
 
     # Save predictions

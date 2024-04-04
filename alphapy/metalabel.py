@@ -235,7 +235,7 @@ def apply_pt_sl_on_t1(ds_close, df_events, pt_sl):
 # Function get_events
 #
 
-def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, ds_vb=False, ds_side=None):
+def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_ret=0.01):
     r"""Get the dataframe of target events.
 
     Parameters
@@ -248,12 +248,12 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, min_ret, ds_vb=False, ds_side=Non
         The profit-taking and stop-loss percentage levels, with 0 disabling the respective level.
     ds_vol : pandas.Series (float)
         The array of volatilities used in conjunction with ``pt_sl``.
-    min_ret : float
-        The minimum target return required for running a triple barrier search.
     ds_vb : pandas.Series (datetime)
         The vector of timestamps for the vertical barriers.
     ds_side : pandas.Series (datetime)
         Side of the bet (long/short) as decided by the primary model
+    min_ret : float
+        The minimum target return required for running a triple barrier search.
 
     Returns
     -------

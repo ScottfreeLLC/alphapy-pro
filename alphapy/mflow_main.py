@@ -273,6 +273,7 @@ def get_market_config(directory='.'):
     logger.info('portfolio        = %s', specs['portfolio'])
     logger.info('predict_history  = %d', specs['predict_history'])
     if ranking_present:
+        specs['ranking']['forecast_period'] = specs['forecast_period']
         logger.info('ranking          = %s', specs['ranking'])
     logger.info('subject          = %s', specs['subject'])
     if system_present:
@@ -355,11 +356,9 @@ def set_targets_metalabel(model, df, system_specs):
 
     signal_long = system_specs['signal_long']
     signal_short = system_specs['signal_short']
-    predict_history = system_specs['predict_history']
     forecast_period = system_specs['forecast_period']
     profit_factor = system_specs['profit_factor']
     stoploss_factor = system_specs['stoploss_factor']
-    minimum_return = system_specs['minimum_return']
     trade_fractal = system_specs['fractal']
 
     # Find the patterns (signals) in the dataframe.
@@ -389,10 +388,10 @@ def set_targets_metalabel(model, df, system_specs):
     ds_close = df[close_col]
 
     # Get daily volatility.
-    daily_vol = get_daily_vol(ds_close, p=predict_history)
+    daily_vol = get_daily_vol(ds_close)
 
     # Get the CUSUM events.
-    cusum_events = get_t_events(ds_close, threshold=minimum_return)
+    cusum_events = get_t_events(ds_close)
 
     # Establish the vertical barriers.
     vertical_barriers = add_vertical_barrier(cusum_events, ds_close, num_days=forecast_period)
@@ -403,7 +402,6 @@ def set_targets_metalabel(model, df, system_specs):
                         cusum_events,
                         [profit_factor, stoploss_factor],
                         daily_vol,
-                        minimum_return,
                         vertical_barriers,
                         df['side'])
 
@@ -709,6 +707,22 @@ def market_pipeline(alphapy_specs, model, market_specs):
     target_group = market_specs['target_group']
     trade_fractal = fractals[0]
 
+    # Get system and ranking specifications
+
+    if model_type == ModelType.ranking:
+        ranking_specs = market_specs['ranking']
+        ranking_specs['system_name'] = 'ranking'
+        ranking_specs['forecast_period'] = forecast_period
+        ranking_specs['fractal'] = trade_fractal
+        system_name = ranking_specs['system_name']
+    else:
+        system_specs = market_specs['system']
+        system_specs['system_name'] = target
+        system_specs['predict_history'] = predict_history
+        system_specs['forecast_period'] = forecast_period
+        system_specs['fractal'] = trade_fractal
+        system_name = system_specs['system_name']
+
     # Get AlphaPy specifications
     data_dir = alphapy_specs['data_dir']
 
@@ -767,10 +781,6 @@ def market_pipeline(alphapy_specs, model, market_specs):
     logger.info('*'*80)
 
     if model_type == ModelType.ranking:
-        ranking_specs = market_specs['ranking']
-        ranking_specs['system_name'] = 'ranking'
-        ranking_specs['forecast_period'] = forecast_period
-        ranking_specs['fractal'] = trade_fractal
         logger.info("System Name     : %s", ranking_specs['system_name'])
         logger.info("Forecast Period : %s", forecast_period)
         logger.info("Algorithm       : %s", ranking_specs['algo'])
@@ -781,11 +791,6 @@ def market_pipeline(alphapy_specs, model, market_specs):
         logger.info("Trade Fractal   : %s", trade_fractal)
         system = SystemRank(**ranking_specs)
     else:
-        system_specs = market_specs['system']
-        system_specs['system_name'] = target
-        system_specs['predict_history'] = predict_history
-        system_specs['forecast_period'] = forecast_period
-        system_specs['fractal'] = trade_fractal
         logger.info("System Name      : %s", system_specs['system_name'])
         logger.info("Forecast Period  : %s", forecast_period)
         logger.info("Predict History  : %s", predict_history)
@@ -804,8 +809,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
         logger.info("No trades to generate a portfolio")
     else:
         portfolio_specs = market_specs['portfolio']
-        gen_portfolios(model, system_specs['system_name'], portfolio_specs, group,
-                       df_trades_base, df_trades_prob)
+        gen_portfolios(model, system_name, portfolio_specs, group, df_trades_base, df_trades_prob)
 
     # Return the completed model.
     return model

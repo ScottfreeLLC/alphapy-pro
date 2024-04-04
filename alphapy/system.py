@@ -62,6 +62,10 @@ class System(object):
     ----------
     system_name : str
         The name of the pattern.
+    signal_long : str
+        The entry condition for a long position.
+    signal_short : str
+        The entry condition for a short position.
     predict_history : int
         Historical period required to calculate predictions.
     forecast_period : int
@@ -70,6 +74,8 @@ class System(object):
         The multiple of volatility for taking a profit.
     stoploss_factor : float
         The multiple of volatility for taking a loss.
+    minimum_return : float
+        The minimum return required to take a profit.
     algo : str
         Abbreviation for algorithm.
     prob_min : float
@@ -99,10 +105,13 @@ class System(object):
 
     def __new__(cls,
                 system_name,
+                signal_long,
+                signal_short,
                 forecast_period = 1,
                 predict_history = 50,
                 profit_factor = 1.0,
                 stoploss_factor = 1.0,
+                minimum_return = 0.05,
                 algo = 'xgb',
                 prob_min = 0.0,
                 prob_max = 1.0,
@@ -117,20 +126,26 @@ class System(object):
 
     def __init__(self,
                  system_name,
+                 signal_long,
+                 signal_short,
                  forecast_period = 1,
                  predict_history = 50,
                  profit_factor = 1.0,
                  stoploss_factor = 1.0,
+                 minimum_return = 0.05,
                  algo = 'xgb',
                  prob_min = 0.0,
                  prob_max = 1.0,
                  fractal = '1D'):
         # initialization
         self.system_name = system_name
+        self.signal_long = signal_long
+        self.signal_short = signal_short
         self.forecast_period = forecast_period
         self.predict_history = predict_history
         self.profit_factor = profit_factor
         self.stoploss_factor = stoploss_factor
+        self.minimum_return = minimum_return
         self.algo = algo
         self.prob_min = prob_min
         self.prob_max = prob_max
@@ -589,8 +604,7 @@ def trade_metalabel(symbol, quantity, system, df_rank, space, intraday,
 # Function trade_system
 #
 
-def trade_system(symbol, quantity, system, target, df_rank, space,
-                 intraday, use_probs=True):
+def trade_system(symbol, quantity, system, df_rank, space, intraday, use_probs=True):
     r"""Trade the given system.
 
     Parameters
@@ -601,8 +615,6 @@ def trade_system(symbol, quantity, system, target, df_rank, space,
         The amount of the ``symbol`` to trade, e.g., number of shares
     system : alphapy.System
         The long/short system to run.
-    target : str
-        The target variable.
     df_rank : pd.DataFrame
         The dataframe containing the ranked predictions.
     space : alphapy.Space
@@ -626,6 +638,8 @@ def trade_system(symbol, quantity, system, target, df_rank, space,
 
     # Unpack the system parameters.
 
+    long_entry = system.signal_long
+    short_entry = system.signal_short
     forecast_period = system.forecast_period
     profit_factor = system.profit_factor
     stoploss_factor = system.stoploss_factor
@@ -703,8 +717,8 @@ def trade_system(symbol, quantity, system, target, df_rank, space,
         h = row[hcol]
         l = row[lcol]
         # evaluate entry and exit conditions
-        lerow = row['entry'] if system_type == 'long' else None
-        serow = row['entry'] if system_type == 'short' else None
+        lerow = row['entry'] if long_entry else None
+        serow = row['entry'] if short_entry else None
         end_of_day = row[icol] if intraday else False
         # calculate profit targets and stop losses
         try:
@@ -869,10 +883,10 @@ def run_system(model,
         elif model_type == ModelType.metalabel:
             tlist_base = trade_metalabel(symbol, quantity, system, df_rank, gspace, intraday)
         else:
-            tlist_prob = trade_system(symbol, quantity, system, target,
-                                      df_rank, gspace, intraday)
-            tlist_base = trade_system(symbol, quantity, system, target,
-                                      df_rank, gspace, intraday, use_probs=False)
+            tlist_prob = trade_system(symbol, quantity, system, df_rank,
+                                      gspace, intraday)
+            tlist_base = trade_system(symbol, quantity, system, df_rank,
+                                      gspace, intraday, use_probs=False)
         if tlist_base:
             for item in tlist_base:
                 gtlist_base.append(item)

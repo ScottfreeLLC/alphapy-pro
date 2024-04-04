@@ -1397,7 +1397,7 @@ def create_interactions(model, X):
             logger.info("Polynomial Degree      : %d", poly_degree)
             if model_type == ModelType.regression:
                 selector = SelectPercentile(f_regression, percentile=isample_pct)
-            elif model_type == ModelType.classification:
+            elif model_type == ModelType.classification or model_type == ModelType.metalabel:
                 selector = SelectPercentile(f_classif, percentile=isample_pct)
             else:
                 raise TypeError("Unknown model type when creating interactions")
