@@ -455,7 +455,6 @@ def vfunc(f, v, vfuncs):
     """
 
     _, root, _, plist, _ = vparse(v)
-    func_name = root
     # Convert the parameter list and prepend the data frame
     newlist = []
     for param in plist:
@@ -469,6 +468,7 @@ def vfunc(f, v, vfuncs):
     newlist.insert(0, f)
     # Find the module and function
     module = None
+    func_name = root
     if vfuncs:
         for module_name in vfuncs:
             funcs = vfuncs[module_name]
@@ -493,7 +493,8 @@ def vfunc(f, v, vfuncs):
             except:
                 func = None
     # return function and parameter list
-    logger.debug("Found function %s with parameters %s", func_name, newlist)
+    if func:
+        logger.debug("Found function %s with parameters %s", func_name, newlist)
     return func, newlist
 
 
@@ -551,8 +552,8 @@ def vexec(f, v, vfuncs=None):
             if func:
                 f[v] = func(*newlist)
             elif root not in dir(builtins):
-                vinfo = "Variable {} could not be defined".format(root)
-                logger.info(vinfo)
+                vinfo = "Variable {} is not a function".format(root)
+                logger.debug(vinfo)
     # if necessary, add the lagged variable
     if lag > 0 and vxlag in f.columns:
         f[v] = f[vxlag].shift(lag)
@@ -623,9 +624,9 @@ def vapply(group, market_specs, vfuncs=None):
                     all_features = features[fractal]
                     for feature in all_features:
                         allv = vtree(feature)
-                        logger.debug("%s Feature: %s_%s", symbol.upper(), fractal, feature)
+                        logger.debug("%s Feature: %s_%s", symbol.upper(), feature, fractal)
                         for v in allv:
-                            logger.debug("%s Variable: %s_%s", symbol.upper(), fractal, v)
+                            logger.debug("%s Variable: %s_%s", symbol.upper(), v, fractal)
                             df = vexec(df, v, vfuncs)
                     # rename the columns
                     df = df.add_suffix(USEP + fractal)
