@@ -668,31 +668,46 @@ def main(args=None):
 
     parser = argparse.ArgumentParser(description="AlphaPy Parser")
     parser.add_argument("-d", "--debug", action="store_true", default=False)
-    parser.add_mutually_exclusive_group(required=False)
-    parser.add_argument('--predict', dest='predict_mode', action='store_true')
-    parser.add_argument('--train', dest='predict_mode', action='store_false')
+
+    # Fixing mutually exclusive group setup
+    mode_group = parser.add_mutually_exclusive_group(required=False)
+    mode_group.add_argument('--predict', dest='predict_mode', action='store_true', help="Enable predict mode")
+    mode_group.add_argument('--train', dest='predict_mode', action='store_false', help="Enable train mode (default)")
     parser.set_defaults(predict_mode=False)
+
     parser.add_argument('--rundir', dest='run_dir',
-                        help="run directory is in the format: run_YYYYMMDD_hhmmss",
+                        help="Run directory is in the format: run_YYYYMMDD_hhmmss",
                         required=False)
     args = parser.parse_args()
 
-    # Logging
+    # Logging Configuration
 
-    if args.debug:
-        log_level = logging.DEBUG
+    # Set log level based on debug flag
+    log_level = logging.DEBUG if args.debug else logging.INFO
+
+    logging.basicConfig(filename="alphapy.log", filemode='a', level=log_level,
+                        format="[%(asctime)s] %(levelname)s\t%(message)s",
+                        datefmt='%Y/%m/%d %H:%M:%S')
+
+    # Configure console handler to output to stdout
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)  # Adjust console log level based on argument
+    console_handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
+                                                datefmt='%Y/%m/%d %H:%M:%S'))
+
+    # Add the handler to the root logger
+    logging.getLogger().addHandler(console_handler)
+
+    logger = logging.getLogger(__name__)
+
+    # Example logging messages based on command line options
+    logger.debug("Debug mode is on.")
+    if args.predict_mode:
+        logger.info("Running in predict mode.")
     else:
-        log_level = logging.INFO
-
-    logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
-                        filename="alphapy.log", filemode='a', level=log_level,
-                        datefmt='%m/%d/%y %H:%M:%S')
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
-                                  datefmt='%m/%d/%y %H:%M:%S')
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    console.setLevel(logging.INFO)
-    logging.getLogger().addHandler(console)
+        logger.info("Running in train mode.")
+    if args.run_dir:
+        logger.info(f"Using run directory: {args.run_dir}")
 
     # Start the pipeline
 
