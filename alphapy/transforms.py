@@ -3,7 +3,7 @@ Package   : AlphaPy
 Module    : transforms
 Created   : March 14, 2020
 
-Copyright 2022 ScottFree Analytics LLC
+Copyright 2024 ScottFree Analytics LLC
 Mark Conway & Robert D. Scott II
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,12 +48,12 @@ logger = logging.getLogger(__name__)
 # Function adx
 #
 
-def adx(f, p=14):
+def adx(df, p=14):
     r"""Calculate the Average Directional Index (ADX).
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with all columns required for calculation. If you
         are applying ADX through ``vapply``, then these columns are
         calculated automatically.
@@ -75,12 +75,12 @@ def adx(f, p=14):
 
     """
     c1 = 'diplus'
-    f = vexec(f, c1)
+    df = vexec(df, c1)
     c2 = 'diminus'
-    f = vexec(f, c2)
+    df = vexec(df, c2)
     # calculations
-    dip = f[c1]
-    dim = f[c2]
+    dip = df[c1]
+    dim = df[c2]
     didiff = abs(dip - dim)
     disum = dip + dim
     new_column = 100 * didiff.ewm(span=p).mean() / disum
@@ -91,15 +91,15 @@ def adx(f, p=14):
 # Function bbands
 #
 
-def bbands(f, c='close', p=20, sd=2.0, low_band=True):
+def bbands(df, c='close', p=20, sd=2.0, low_band=True):
     r"""Calculate the Bollinger Bands.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Simple Moving Average.
     sd : float
@@ -113,11 +113,11 @@ def bbands(f, c='close', p=20, sd=2.0, low_band=True):
         The series for the selected Bollinger Band.
     """
 
-    sma = ma(f, c, p)
+    sma = ma(df, c, p)
     if low_band:
-        bband = sma - sd * f[c].rolling(p).std(ddof=0)
+        bband = sma - sd * df[c].rolling(p).std(ddof=0)
     else:
-        bband = sma + sd * f[c].rolling(p).std(ddof=0)
+        bband = sma + sd * df[c].rolling(p).std(ddof=0)
     return bband
 
 
@@ -125,15 +125,15 @@ def bbands(f, c='close', p=20, sd=2.0, low_band=True):
 # Function bblower
 #
 
-def bblower(f, c='close', p=20, sd=1.5):
+def bblower(df, c='close', p=20, sd=1.5):
     r"""Calculate the lower Bollinger Band.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Simple Moving Average.
     sd : float
@@ -145,7 +145,7 @@ def bblower(f, c='close', p=20, sd=1.5):
         The series containing the lower Bollinger Band.
     """
 
-    lower_band = bbands(f, c, p, sd)
+    lower_band = bbands(df, c, p, sd)
     return lower_band
 
 
@@ -153,15 +153,15 @@ def bblower(f, c='close', p=20, sd=1.5):
 # Function bbupper
 #
 
-def bbupper(f, c='close', p=20, sd=1.5):
+def bbupper(df, c='close', p=20, sd=1.5):
     r"""Calculate the upper Bollinger Band.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Simple Moving Average.
     sd : float
@@ -173,7 +173,7 @@ def bbupper(f, c='close', p=20, sd=1.5):
         The series containing the upper Bollinger Band.
     """
 
-    upper_band = bbands(f, c, p, sd, low_band=False)
+    upper_band = bbands(df, c, p, sd, low_band=False)
     return upper_band
 
 
@@ -181,15 +181,15 @@ def bbupper(f, c='close', p=20, sd=1.5):
 # Function bizday
 #
 
-def bizday(f, c):
+def bizday(df, c):
     r"""Extract business day of month and week.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
 
     Returns
     -------
@@ -199,7 +199,7 @@ def bizday(f, c):
 
     date_features = pd.DataFrame()
     try:
-        date_features = dateparts(f[c])
+        date_features = dateparts(df[c])
         rdate = date_features.apply(get_rdate, axis=1)
         bdm = pd.Series(rdate.apply(biz_day_month), name='bizdaymonth')
         bdw = pd.Series(rdate.apply(biz_day_week), name='bizdayweek')
@@ -214,17 +214,17 @@ def bizday(f, c):
 # Function c2max
 #
 
-def c2max(f, c1, c2):
+def c2max(df, c1, c2):
     r"""Take the maximum value between two columns in a dataframe.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the two columns ``c1`` and ``c2``.
     c1 : str
-        Name of the first column in the dataframe ``f``.
+        Name of the first column in the dataframe ``df``.
     c2 : str
-        Name of the second column in the dataframe ``f``.
+        Name of the second column in the dataframe ``df``.
 
     Returns
     -------
@@ -232,25 +232,25 @@ def c2max(f, c1, c2):
         The maximum value of the two columns.
 
     """
-    max_val = max(f[c1], f[c2])
+    max_val = max(df[c1], df[c2])
     return max_val
 
 
 #
 # Function c2min
 #
-    
-def c2min(f, c1, c2):
+
+def c2min(df, c1, c2):
     r"""Take the minimum value between two columns in a dataframe.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the two columns ``c1`` and ``c2``.
     c1 : str
-        Name of the first column in the dataframe ``f``.
+        Name of the first column in the dataframe ``df``.
     c2 : str
-        Name of the second column in the dataframe ``f``.
+        Name of the second column in the dataframe ``df``.
 
     Returns
     -------
@@ -258,7 +258,7 @@ def c2min(f, c1, c2):
         The minimum value of the two columns.
 
     """
-    min_val = min(f[c1], f[c2])
+    min_val = min(df[c1], df[c2])
     return min_val
 
 
@@ -266,15 +266,15 @@ def c2min(f, c1, c2):
 # Function dateparts
 #
 
-def dateparts(f, c):
+def dateparts(df, c):
     r"""Extract date into its components: year, month, day, dayofweek.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
 
     Returns
     -------
@@ -282,7 +282,7 @@ def dateparts(f, c):
         The dataframe containing the date features.
     """
 
-    ds_dt = pd.to_datetime(f[c])
+    ds_dt = pd.to_datetime(df[c])
     date_features = pd.DataFrame()
     try:
         fyear = pd.Series(ds_dt.dt.year, name='year').astype(int)
@@ -300,15 +300,15 @@ def dateparts(f, c):
 # Function diff
 #
 
-def diff(f, c, n=1):
+def diff(df, c, n=1):
     r"""Calculate the n-th order difference for the given variable.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     n : int
         The number of times that the values are differenced.
 
@@ -316,9 +316,8 @@ def diff(f, c, n=1):
     -------
     new_column : pandas.Series (float)
         The array containing the new feature.
-
     """
-    new_column = np.diff(f[c], n)
+    new_column = np.diff(df[c], n)
     return new_column
 
 
@@ -326,12 +325,12 @@ def diff(f, c, n=1):
 # Function diminus
 #
 
-def diminus(f, p=14):
+def diminus(df, p=14):
     r"""Calculate the Minus Directional Indicator (-DI).
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with columns ``high`` and ``low``.
     p : int
         The period over which to calculate the -DI.
@@ -351,12 +350,12 @@ def diminus(f, p=14):
 
     """
     tr = 'truerange'
-    f = vexec(f, tr)
+    df = vexec(df, tr)
     atr = USEP.join(['atr', str(p)])
-    f = vexec(f, atr)
+    df = vexec(df, atr)
     dmm = 'dmminus'
-    f[dmm] = dminus(f)
-    new_column = 100 * dminus(f).ewm(span=p).mean() / f[atr]
+    df[dmm] = dminus(df)
+    new_column = 100 * dminus(df).ewm(span=p).mean() / df[atr]
     return new_column
 
 
@@ -364,12 +363,12 @@ def diminus(f, p=14):
 # Function diplus
 #
 
-def diplus(f, p=14):
+def diplus(df, p=14):
     r"""Calculate the Plus Directional Indicator (+DI).
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with columns ``high`` and ``low``.
     p : int
         The period over which to calculate the +DI.
@@ -389,12 +388,12 @@ def diplus(f, p=14):
 
     """
     tr = 'truerange'
-    f = vexec(f, tr)
+    df = vexec(df, tr)
     atr = USEP.join(['atr', str(p)])
-    f = vexec(f, atr)
+    df = vexec(df, atr)
     dmp = 'dmplus'
-    f = vexec(f, dmp)
-    new_column = 100 * f[dmp].ewm(span=p).mean() / f[atr]
+    df = vexec(df, dmp)
+    new_column = 100 * df[dmp].ewm(span=p).mean() / df[atr]
     return new_column
 
 
@@ -402,17 +401,13 @@ def diplus(f, p=14):
 # Function dminus
 #
 
-def dminus(f, h='high', l='low'):
+def dminus(df):
     r"""Calculate the Minus Directional Movement (-DM).
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with high and low columns.
-    h : str
-        Name of the high column in the dataframe ``f``.
-    l : str
-        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -429,10 +424,10 @@ def dminus(f, h='high', l='low'):
 
     """
     c1 = 'downmove'
-    f[c1] = -net(f, l)
+    df[c1] = -net(df, 'low')
     c2 = 'upmove'
-    f[c2] = net(f, h)
-    new_column = f.apply(gtval0, axis=1, args=[c1, c2])
+    df[c2] = net(df, 'high')
+    new_column = df.apply(gtval0, axis=1, args=[c1, c2])
     return new_column
 
 
@@ -440,17 +435,13 @@ def dminus(f, h='high', l='low'):
 # Function dmplus
 #
 
-def dmplus(f, h='high', l='low'):
+def dmplus(df):
     r"""Calculate the Plus Directional Movement (+DM).
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with high and low columns.
-    h : str
-        Name of the high column in the dataframe ``f``.
-    l : str
-        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -469,10 +460,10 @@ def dmplus(f, h='high', l='low'):
 
     """
     c1 = 'upmove'
-    f[c1] = net(f, h)
+    df[c1] = net(df, 'high')
     c2 = 'downmove'
-    f[c2] = -net(f, l)
-    new_column = f.apply(gtval0, axis=1, args=[c1, c2])
+    df[c2] = -net(df, 'low')
+    new_column = df.apply(gtval0, axis=1, args=[c1, c2])
     return new_column
 
 
@@ -480,15 +471,15 @@ def dmplus(f, h='high', l='low'):
 # Function ema
 #
 
-def ema(f, c, p=20):
+def ema(df, c, p=20):
     r"""Calculate the Exponential Moving Average (EMA) on a rolling basis.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average (EMA).
 
@@ -506,7 +497,7 @@ def ema(f, c, p=20):
     .. [IP_EMA] http://www.investopedia.com/terms/e/ema.asp
 
     """
-    new_column = f[c].ewm(span=p).mean()
+    new_column = df[c].ewm(span=p).mean()
     return new_column
 
 
@@ -514,18 +505,14 @@ def ema(f, c, p=20):
 # Function gap
 #
 
-def gap(f, o='open', c='close'):
+def gap(df):
     r"""Calculate the gap percentage between the current open and
     the previous close.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with open and close columns.
-    o : str
-        Name of the open column in the dataframe ``f``.
-    c : str
-        Name of the close column in the dataframe ``f``.
 
     Returns
     -------
@@ -541,9 +528,9 @@ def gap(f, o='open', c='close'):
     .. [IP_GAP] http://www.investopedia.com/terms/g/gap.asp
 
     """
-    c1 = ''.join([c, '[1]'])
-    f = vexec(f, c1)
-    new_column = 100 * pchange2(f, o, c1)
+    c1 = ''.join(['close', '[1]'])
+    df = vexec(df, c1)
+    new_column = 100 * pchange2(df, 'open', c1)
     return new_column
 
 
@@ -551,17 +538,13 @@ def gap(f, o='open', c='close'):
 # Function gapbadown
 #
 
-def gapbadown(f, o='open', l='low'):
+def gapbadown(df):
     r"""Determine whether or not there has been a breakaway gap down.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with open and low columns.
-    o : str
-        Name of the open column in the dataframe ``f``.
-    l : str
-        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -576,7 +559,7 @@ def gapbadown(f, o='open', l='low'):
     .. [IP_BAGAP] http://www.investopedia.com/terms/b/breakawaygap.asp
 
     """
-    new_column = f[o] < f[l].shift(1)
+    new_column = df['open'] < df['low'].shift(1)
     return new_column
 
 
@@ -584,17 +567,13 @@ def gapbadown(f, o='open', l='low'):
 # Function gapbaup
 #
 
-def gapbaup(f, o='open', h='high'):
+def gapbaup(df):
     r"""Determine whether or not there has been a breakaway gap up.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with open and high columns.
-    o : str
-        Name of the open column in the dataframe ``f``.
-    h : str
-        Name of the high column in the dataframe ``f``.
 
     Returns
     -------
@@ -607,7 +586,7 @@ def gapbaup(f, o='open', h='high'):
     supported by levels of high volume* [IP_BAGAP]_.
 
     """
-    new_column = f[o] > f[h].shift(1)
+    new_column = df['open'] > df['high'].shift(1)
     return new_column
 
 
@@ -615,17 +594,13 @@ def gapbaup(f, o='open', h='high'):
 # Function gapdown
 #
 
-def gapdown(f, o='open', c='close'):
+def gapdown(df):
     r"""Determine whether or not there has been a gap down.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with open and close columns.
-    o : str
-        Name of the open column in the dataframe ``f``.
-    c : str
-        Name of the close column in the dataframe ``f``.
 
     Returns
     -------
@@ -639,7 +614,7 @@ def gapdown(f, o='open', c='close'):
     occurring in between* [IP_GAP]_.
 
     """
-    new_column = f[o] < f[c].shift(1)
+    new_column = df['open'] < df['close'].shift(1)
     return new_column
 
 
@@ -647,17 +622,13 @@ def gapdown(f, o='open', c='close'):
 # Function gapup
 #
 
-def gapup(f, o='open', c='close'):
+def gapup(df):
     r"""Determine whether or not there has been a gap up.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with open and close columns.
-    o : str
-        Name of the open column in the dataframe ``f``.
-    c : str
-        Name of the close column in the dataframe ``f``.
 
     Returns
     -------
@@ -671,7 +642,7 @@ def gapup(f, o='open', c='close'):
     occurring in between* [IP_GAP]_.
 
     """
-    new_column = f[o] > f[c].shift(1)
+    new_column = df['open'] > df['close'].shift(1)
     return new_column
 
 
@@ -679,18 +650,18 @@ def gapup(f, o='open', c='close'):
 # Function gtval
 #
 
-def gtval(f, c1, c2):
+def gtval(df, c1, c2):
     r"""Determine whether or not the first column of a dataframe
     is greater than the second.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the two columns ``c1`` and ``c2``.
     c1 : str
-        Name of the first column in the dataframe ``f``.
+        Name of the first column in the dataframe ``df``.
     c2 : str
-        Name of the second column in the dataframe ``f``.
+        Name of the second column in the dataframe ``df``.
 
     Returns
     -------
@@ -698,7 +669,7 @@ def gtval(f, c1, c2):
         The array containing the new feature.
 
     """
-    new_column = f[c1] > f[c2]
+    new_column = df[c1] > df[c2]
     return new_column
 
 
@@ -706,19 +677,19 @@ def gtval(f, c1, c2):
 # Function gtval0
 #
 
-def gtval0(f, c1, c2):
+def gtval0(df, c1, c2):
     r"""For positive values in the first column of the dataframe
     that are greater than the second column, get the value in
     the first column, otherwise return zero.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the two columns ``c1`` and ``c2``.
     c1 : str
-        Name of the first column in the dataframe ``f``.
+        Name of the first column in the dataframe ``df``.
     c2 : str
-        Name of the second column in the dataframe ``f``.
+        Name of the second column in the dataframe ``df``.
 
     Returns
     -------
@@ -726,8 +697,8 @@ def gtval0(f, c1, c2):
         A positive value or zero.
 
     """
-    if f[c1] > f[c2] and f[c1] > 0:
-        new_val = f[c1]
+    if df[c1] > df[c2] and df[c1] > 0:
+        new_val = df[c1]
     else:
         new_val = 0
     return new_val
@@ -737,12 +708,12 @@ def gtval0(f, c1, c2):
 # Function haclose
 #
 
-def haclose(f):
+def haclose(df):
     r"""Calculate the Heikin-Ashi Close.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with OHLC columns.
 
     Returns
@@ -751,7 +722,7 @@ def haclose(f):
         The series containing the Heikin-Ashi Close.
 
     """
-    haclose_ds = (f['open'] + f['high'] + f['low'] + f['close']) / 4.0
+    haclose_ds = (df['open'] + df['high'] + df['low'] + df['close']) / 4.0
     return haclose_ds
 
 
@@ -759,12 +730,12 @@ def haclose(f):
 # Function hahigh
 #
 
-def hahigh(f):
+def hahigh(df):
     r"""Calculate the Heikin-Ashi High.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with OHLC columns.
 
     Returns
@@ -773,7 +744,7 @@ def hahigh(f):
         The series containing the Heikin-Ashi High.
 
     """
-    hahigh_ds = pd.DataFrame([f['high'], haopen(f), haclose(f)]).max(axis=0)
+    hahigh_ds = pd.DataFrame([df['high'], haopen(df), haclose(df)]).max(axis=0)
     return hahigh_ds
 
 
@@ -781,12 +752,12 @@ def hahigh(f):
 # Function halow
 #
 
-def halow(f):
+def halow(df):
     r"""Calculate the Heikin-Ashi Low.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with OHLC columns.
 
     Returns
@@ -795,7 +766,7 @@ def halow(f):
         The series containing the Heikin-Ashi Low.
 
     """
-    halow_ds = pd.DataFrame([f['low'], haopen(f), haclose(f)]).min(axis=0)
+    halow_ds = pd.DataFrame([df['low'], haopen(df), haclose(df)]).min(axis=0)
     return halow_ds
 
 
@@ -803,12 +774,12 @@ def halow(f):
 # Function haopen
 #
 
-def haopen(f):
+def haopen(df):
     r"""Calculate the Heikin-Ashi Open.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with OHLC columns.
 
     Returns
@@ -817,8 +788,8 @@ def haopen(f):
         The series containing the Heikin-Ashi Open.
 
     """
-    s1 = haclose(f)
-    s2 = (f['open'] + f['close']) / 2.0
+    s1 = haclose(df)
+    s2 = (df['open'] + df['close']) / 2.0
     dfha = pd.concat([s1, s2], axis=1)
     dfha.columns = ['haclose', 'haopen']
     for i in range(1, len(dfha)):
@@ -830,16 +801,16 @@ def haopen(f):
 # Function higher
 #
 
-def higher(f, c, o=1):
+def higher(df, c, o=1):
     r"""Determine whether or not a series value is higher than
     the value ``o`` periods back.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     o : int, optional
         Offset value for shifting the series.
 
@@ -849,7 +820,7 @@ def higher(f, c, o=1):
         The array containing the new feature.
 
     """
-    new_column = f[c] > f[c].shift(o)
+    new_column = df[c] > df[c].shift(o)
     return new_column
 
 
@@ -857,15 +828,15 @@ def higher(f, c, o=1):
 # Function highest
 #
 
-def highest(f, c, p=20):
+def highest(df, c, p=20):
     r"""Calculate the highest value on a rolling basis.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the rolling maximum.
 
@@ -875,7 +846,7 @@ def highest(f, c, p=20):
         The array containing the new feature.
 
     """
-    new_column = f[c].rolling(p).max()
+    new_column = df[c].rolling(p).max()
     return new_column
 
 
@@ -883,17 +854,13 @@ def highest(f, c, p=20):
 # Function hlrange
 #
 
-def hlrange(f, h='high', l='low', p=1):
+def hlrange(df, p=1):
     r"""Calculate the Range, the difference between High and Low.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with columns ``high`` and ``low``.
-    h : str
-        Name of the high column in the dataframe ``f``.
-    l : str
-        Name of the low column in the dataframe ``f``.
     p : int
         The period over which the range is calculated.
 
@@ -903,7 +870,7 @@ def hlrange(f, h='high', l='low', p=1):
         The array containing the new feature.
 
     """
-    new_column = highest(f, h, p) - lowest(f, l, p)
+    new_column = highest(df, 'high', p) - lowest(df, 'low', p)
     return new_column
 
 
@@ -911,15 +878,15 @@ def hlrange(f, h='high', l='low', p=1):
 # Function keltner
 #
 
-def keltner(f, c='close', p=20, atrs=1.5, channel='midline'):
+def keltner(df, c='close', p=20, atrs=1.5, channel='midline'):
     r"""Calculate the Keltner Channels.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average.
     atrs : float
@@ -931,13 +898,13 @@ def keltner(f, c='close', p=20, atrs=1.5, channel='midline'):
         The series containing the Keltner Channel.
     """
 
-    ds_ema = ema(f, c, p)
+    ds_ema = ema(df, c, p)
     atr = USEP.join(['atr', str(p)])
-    f = vexec(f, atr)
+    df = vexec(df, atr)
     if channel == 'lower':
-        kc = ds_ema - f[atr].apply(lambda x: atrs * x)
+        kc = ds_ema - df[atr].apply(lambda x: atrs * x)
     elif channel == 'upper':
-        kc = ds_ema + f[atr].apply(lambda x: atrs * x)
+        kc = ds_ema + df[atr].apply(lambda x: atrs * x)
     else:
         kc = ds_ema
     return kc
@@ -947,15 +914,15 @@ def keltner(f, c='close', p=20, atrs=1.5, channel='midline'):
 # Function keltnerlb
 #
 
-def keltnerlb(f, c='close', p=20, atrs=1.5):
+def keltnerlb(df, c='close', p=20, atrs=1.5):
     r"""Calculate the lower Keltner Channel.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average.
     atrs : float
@@ -967,7 +934,7 @@ def keltnerlb(f, c='close', p=20, atrs=1.5):
         The series containing the lower Keltner Channel.
     """
 
-    kclb = keltner(f, c, p, atrs, channel='lower')
+    kclb = keltner(df, c, p, atrs, channel='lower')
     return kclb
 
 
@@ -975,15 +942,15 @@ def keltnerlb(f, c='close', p=20, atrs=1.5):
 # Function keltnerml
 #
 
-def keltnerml(f, c='close', p=20, atrs=1.5):
+def keltnerml(df, c='close', p=20, atrs=1.5):
     r"""Calculate the midline Keltner Channel.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average.
     atrs : float
@@ -995,7 +962,7 @@ def keltnerml(f, c='close', p=20, atrs=1.5):
         The series containing the midline Keltner Channel.
     """
 
-    kcml = keltner(f, c, p, atrs)
+    kcml = keltner(df, c, p, atrs)
     return kcml
 
 
@@ -1003,15 +970,15 @@ def keltnerml(f, c='close', p=20, atrs=1.5):
 # Function keltnerub
 #
 
-def keltnerub(f, c='close', p=20, atrs=1.5):
+def keltnerub(df, c='close', p=20, atrs=1.5):
     r"""Calculate the upper Keltner Channel.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average.
     atrs : float
@@ -1023,7 +990,7 @@ def keltnerub(f, c='close', p=20, atrs=1.5):
         The series containing the upper Keltner Channel.
     """
 
-    kcub = keltner(f, c, p, atrs, channel='upper')
+    kcub = keltner(df, c, p, atrs, channel='upper')
     return kcub
 
 
@@ -1031,16 +998,16 @@ def keltnerub(f, c='close', p=20, atrs=1.5):
 # Function lower
 #
 
-def lower(f, c, o=1):
+def lower(df, c, o=1):
     r"""Determine whether or not a series value is lower than
     the value ``o`` periods back.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     o : int, optional
         Offset value for shifting the series.
 
@@ -1050,7 +1017,7 @@ def lower(f, c, o=1):
         The array containing the new feature.
 
     """
-    new_column = f[c] < f[c].shift(o)
+    new_column = df[c] < df[c].shift(o)
     return new_column
 
 
@@ -1058,15 +1025,15 @@ def lower(f, c, o=1):
 # Function lowest
 #
 
-def lowest(f, c, p=20):
+def lowest(df, c, p=20):
     r"""Calculate the lowest value on a rolling basis.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the rolling minimum.
 
@@ -1076,22 +1043,22 @@ def lowest(f, c, p=20):
         The array containing the new feature.
 
     """
-    return f[c].rolling(p).min()
+    return df[c].rolling(p).min()
 
 
 #
 # Function ma
 #
 
-def ma(f, c='close', p=20):
+def ma(df, c='close', p=20):
     r"""Calculate the mean on a rolling basis.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the rolling mean.
 
@@ -1109,7 +1076,7 @@ def ma(f, c='close', p=20):
     .. [WIKI_MA] https://en.wikipedia.org/wiki/Moving_average
 
     """
-    new_column = f[c].rolling(p).mean()
+    new_column = df[c].rolling(p).mean()
     return new_column
 
 
@@ -1117,16 +1084,16 @@ def ma(f, c='close', p=20):
 # Function maabove
 #
 
-def maabove(f, c, p=50):
+def maabove(df, c, p=50):
     r"""Determine those values of the dataframe that are above the
     moving average.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period of the moving average.
 
@@ -1136,7 +1103,7 @@ def maabove(f, c, p=50):
         The array containing the new feature.
 
     """
-    new_column = f[c] > ma(f, c, p)
+    new_column = df[c] > ma(df, c, p)
     return new_column
 
 
@@ -1144,16 +1111,16 @@ def maabove(f, c, p=50):
 # Function mabelow
 #
 
-def mabelow(f, c, p=50):
+def mabelow(df, c, p=50):
     r"""Determine those values of the dataframe that are below the
     moving average.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period of the moving average.
 
@@ -1163,7 +1130,7 @@ def mabelow(f, c, p=50):
         The array containing the new feature.
 
     """
-    new_column = f[c] < ma(f, c, p)
+    new_column = df[c] < ma(df, c, p)
     return new_column
 
 
@@ -1171,15 +1138,15 @@ def mabelow(f, c, p=50):
 # Function maratio
 #
 
-def maratio(f, c, p1=1, p2=10):
+def maratio(df, c, p1=1, p2=10):
     r"""Calculate the ratio of two moving averages.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p1 : int
         The period of the first moving average.
     p2 : int
@@ -1191,7 +1158,7 @@ def maratio(f, c, p1=1, p2=10):
         The array containing the new feature.
 
     """
-    new_column = ma(f, c, p1) / ma(f, c, p2)
+    new_column = ma(df, c, p1) / ma(df, c, p2)
     return new_column
 
 
@@ -1199,15 +1166,15 @@ def maratio(f, c, p1=1, p2=10):
 # Function negval0
 #
 
-def negval0(f, c):
+def negval0(df, c):
     r"""Get the negative value, otherwise zero.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
 
     Returns
     -------
@@ -1215,7 +1182,7 @@ def negval0(f, c):
         Negative value or zero.
 
     """
-    new_column = f[c].apply(lambda x: -x if x < 0 else 0)
+    new_column = df[c].apply(lambda x: -x if x < 0 else 0)
     return new_column
 
 
@@ -1223,15 +1190,15 @@ def negval0(f, c):
 # Function negvals
 #
 
-def negvals(f, c):
+def negvals(df, c):
     r"""Find the negative values in the series.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
 
     Returns
     -------
@@ -1239,7 +1206,7 @@ def negvals(f, c):
         The array containing the new feature.
 
     """
-    new_column = f[c] < 0
+    new_column = df[c] < 0
     return new_column
 
 
@@ -1247,15 +1214,15 @@ def negvals(f, c):
 # Function net
 #
 
-def net(f, c='close', o=1):
+def net(df, c='close', o=1):
     r"""Calculate the net change of a given column.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     o : int, optional
         Offset value for shifting the series.
 
@@ -1273,7 +1240,7 @@ def net(f, c='close', o=1):
     .. [IP_NET] http://www.investopedia.com/terms/n/netchange.asp
 
     """
-    new_column = f[c] - f[c].shift(o)
+    new_column = df[c] - df[c].shift(o)
     return new_column
 
 
@@ -1281,15 +1248,15 @@ def net(f, c='close', o=1):
 # Function netreturn
 #
 
-def netreturn(f, c, o=1):
+def netreturn(df, c, o=1):
     r"""Calculate the net return, or Return On Invesment (ROI)
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     o : int, optional
         Offset value for shifting the series.
 
@@ -1308,7 +1275,7 @@ def netreturn(f, c, o=1):
     .. [IP_ROI] http://www.investopedia.com/terms/r/returnoninvestment.asp
 
     """
-    new_column = 100 * pchange1(f, c, o)
+    new_column = 100 * pchange1(df, c, o)
     return new_column
 
 
@@ -1316,15 +1283,15 @@ def netreturn(f, c, o=1):
 # Function pchange1
 #
 
-def pchange1(f, c, o=1):
+def pchange1(df, c, o=1):
     r"""Calculate the percentage change within the same variable.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     o : int
         Offset to the previous value.
 
@@ -1334,7 +1301,7 @@ def pchange1(f, c, o=1):
         The array containing the new feature.
 
     """
-    new_column = f[c] / f[c].shift(o) - 1.0
+    new_column = df[c] / df[c].shift(o) - 1.0
     return new_column
 
 
@@ -1342,17 +1309,17 @@ def pchange1(f, c, o=1):
 # Function pchange2
 #
 
-def pchange2(f, c1, c2):
+def pchange2(df, c1, c2):
     r"""Calculate the percentage change between two variables.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the two columns ``c1`` and ``c2``.
     c1 : str
-        Name of the first column in the dataframe ``f``.
+        Name of the first column in the dataframe ``df``.
     c2 : str
-        Name of the second column in the dataframe ``f``.
+        Name of the second column in the dataframe ``df``.
 
     Returns
     -------
@@ -1360,7 +1327,7 @@ def pchange2(f, c1, c2):
         The array containing the new feature.
 
     """
-    new_column = f[c1] / f[c2] - 1.0
+    new_column = df[c1] / df[c2] - 1.0
     return new_column
 
 
@@ -1368,15 +1335,15 @@ def pchange2(f, c1, c2):
 # Function pivot_high
 #
 
-def pivot_high(f, c, p=20):
+def pivot_high(df, c, p=20):
     r"""Find the pivot high values in the series.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         Period of the series.
 
@@ -1402,7 +1369,7 @@ def pivot_high(f, c, p=20):
                     break
             return pivot
 
-    ds = f[c]
+    ds = df[c]
     ds_pivot_highs = ds.expanding().apply(get_pivot_high, args=(p,))
     return ds_pivot_highs
 
@@ -1411,15 +1378,15 @@ def pivot_high(f, c, p=20):
 # Function pivot_low
 #
 
-def pivot_low(f, c, p=20):
+def pivot_low(df, c, p=20):
     r"""Find the pivot low values in the series.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         Period of the series.
 
@@ -1445,7 +1412,7 @@ def pivot_low(f, c, p=20):
                     break
             return pivot
 
-    ds = f[c]
+    ds = df[c]
     ds_pivot_lows = ds.expanding().apply(get_pivot_low, args=(p,))
     return ds_pivot_lows
 
@@ -1454,15 +1421,15 @@ def pivot_low(f, c, p=20):
 # Function posvals
 #
 
-def posvals(f, c):
+def posvals(df, c):
     r"""Find the positive values in the series.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
 
     Returns
     -------
@@ -1470,7 +1437,7 @@ def posvals(f, c):
         The array containing the new feature.
 
     """
-    new_column = f[c] > 0
+    new_column = df[c] > 0
     return new_column
 
 
@@ -1478,15 +1445,15 @@ def posvals(f, c):
 # Function posval0
 #
 
-def posval0(f, c):
+def posval0(df, c):
     r"""Get the positive value, otherwise zero.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
 
     Returns
     -------
@@ -1494,7 +1461,7 @@ def posval0(f, c):
         Positive value or zero.
 
     """
-    new_column = f[c].apply(lambda x: x if x > 0 else 0)
+    new_column = df[c].apply(lambda x: x if x > 0 else 0)
     return new_column
 
 
@@ -1502,7 +1469,7 @@ def posval0(f, c):
 # Function rindex
 #
 
-def rindex(f, ci, ch, cl, p=1):
+def rindex(df, ci, ch, cl, p=1):
     r"""Calculate the *range index* spanning a given period ``p``.
 
     The **range index** is a number between 0 and 100 that
@@ -1514,14 +1481,14 @@ def rindex(f, ci, ch, cl, p=1):
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the columns ``ci``, ``ch``, and ``cl``.
     ci : str
-        Name of the index column in the dataframe ``f``.
+        Name of the index column in the dataframe ``df``.
     ch : str
-        Name of the high column in the dataframe ``f``.
+        Name of the high column in the dataframe ``df``.
     cl : str
-        Name of the low column in the dataframe ``f``.
+        Name of the low column in the dataframe ``df``.
     p : int
         The period over which the range index of column ``ci``
         is calculated.
@@ -1532,10 +1499,10 @@ def rindex(f, ci, ch, cl, p=1):
         The array containing the new feature.
 
     """
-    o = p-1 if f[ci].name == 'open' else 0
-    hh = highest(f, ch, p)
-    ll = lowest(f, cl, p)
-    fn = f[ci].shift(o) - ll
+    o = p-1 if df[ci].name == 'open' else 0
+    hh = highest(df, ch, p)
+    ll = lowest(df, cl, p)
+    fn = df[ci].shift(o) - ll
     fd = hh - ll
     new_column = 100 * fn / fd
     return new_column
@@ -1545,12 +1512,12 @@ def rindex(f, ci, ch, cl, p=1):
 # Function rsi
 #
 
-def rsi(f, p=14):
+def rsi(df, p=14):
     r"""Calculate the Relative Strength Index (RSI).
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``net``.
     p : int
         The period over which to calculate the RSI.
@@ -1569,11 +1536,11 @@ def rsi(f, p=14):
 
     """
     cdiff = 'net'
-    f = vexec(f, cdiff)
-    f['pval'] = posval0(f, cdiff)
-    f['mval'] = negval0(f, cdiff)
-    upcs = ma(f, 'pval', p)
-    dpcs = ma(f, 'mval', p)
+    df = vexec(df, cdiff)
+    df['pval'] = posval0(df, cdiff)
+    df['mval'] = negval0(df, cdiff)
+    upcs = ma(df, 'pval', p)
+    dpcs = ma(df, 'mval', p)
     new_column = 100 - (100 / (1 + (upcs / dpcs)))
     return new_column
 
@@ -1582,15 +1549,15 @@ def rsi(f, p=14):
 # Function rtotal
 #
 
-def rtotal(f, c, w):
+def rtotal(df, c, w):
     r"""Calculate the running total.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     w : int
         The rolling period.
 
@@ -1602,10 +1569,10 @@ def rtotal(f, c, w):
     Example
     -------
 
-    >>> rtotal(f, c, 20))
+    >>> rtotal(df, c, 20))
 
     """
-    ds = f[c]
+    ds = df[c]
     running_total = ds.rolling(window=w).apply(np.count_nonzero)
     return running_total.fillna(0).astype(int)
 
@@ -1614,15 +1581,15 @@ def rtotal(f, c, w):
 # Function runs
 #
 
-def runs(f, c, w):
+def runs(df, c, w):
     r"""Calculate the total number of runs.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     w : int
         The rolling period.
 
@@ -1634,10 +1601,10 @@ def runs(f, c, w):
     Example
     -------
 
-    >>> runs(f, c, 20)
+    >>> runs(df, c, 20)
 
     """
-    ds = f[c]
+    ds = df[c]
     runs_value = ds.rolling(window=w).apply(lambda x: len(list(itertools.groupby(x))))
     return runs_value.fillna(0).astype(int)
 
@@ -1646,15 +1613,15 @@ def runs(f, c, w):
 # Function runstest
 #
 
-def runstest(f, c, wfuncs, w):
+def runstest(df, c, wfuncs, w):
     r"""Perform a runs test on binary series.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     wfuncs : list
         The set of runs test functions to apply to the column:
 
@@ -1696,7 +1663,7 @@ def runstest(f, c, wfuncs, w):
     new_features = pd.DataFrame()
     for wf in wfuncs:
         if wf in all_funcs:
-            new_feature = all_funcs[wf](f, c, w)
+            new_feature = all_funcs[wf](df, c, w)
             new_feature.fillna(0, inplace=True)
             new_column_name = USEP.join([wf, c])
             new_feature = new_feature.rename(new_column_name)
@@ -1711,15 +1678,15 @@ def runstest(f, c, wfuncs, w):
 # Function split2letters
 #
 
-def split2letters(f, c):
+def split2letters(df, c):
     r"""Separate text into distinct characters.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the text column in the dataframe ``f``.
+        Name of the text column in the dataframe ``df``.
 
     Returns
     -------
@@ -1731,7 +1698,7 @@ def split2letters(f, c):
     The value 'abc' becomes 'a b c'.
 
     """
-    fc = f[c]
+    fc = df[c]
     new_feature = None
     dtype = fc.dtypes
     if dtype == 'object':
@@ -1746,15 +1713,15 @@ def split2letters(f, c):
 # Function streak
 #
 
-def streak(f, c, w):
+def streak(df, c, w):
     r"""Determine the length of the latest streak.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     w : int
         The rolling period.
 
@@ -1766,10 +1733,10 @@ def streak(f, c, w):
     Example
     -------
 
-    >>> streak(f, c, 20)
+    >>> streak(df, c, 20)
 
     """
-    ds = f[c]
+    ds = df[c]
     latest_streak = ds.rolling(window=w).apply(lambda x: [len(list(g)) for k, g in itertools.groupby(x)][-1])
     return latest_streak.fillna(0).astype(int)
 
@@ -1778,15 +1745,15 @@ def streak(f, c, w):
 # Function texplode
 #
 
-def texplode(f, c):
+def texplode(df, c):
     r"""Get dummy values for a text column.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the text column in the dataframe ``f``.
+        Name of the text column in the dataframe ``df``.
 
     Returns
     -------
@@ -1812,7 +1779,7 @@ def texplode(f, c):
     === === === === === ===
 
     """
-    fc = f[c]
+    fc = df[c]
     maxlen = fc.astype(str).str.len().max()
     fc.fillna(maxlen * BSEP, inplace=True)
     fpad = str().join(['{:', BSEP, '>', str(maxlen), '}'])
@@ -1826,15 +1793,15 @@ def texplode(f, c):
 # Function timeparts
 #
 
-def timeparts(f, c):
+def timeparts(df, c):
     r"""Extract time into its components: hour, minute, second.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
 
     Returns
     -------
@@ -1842,7 +1809,7 @@ def timeparts(f, c):
         The dataframe containing the time features.
     """
 
-    ds_dt = pd.to_datetime(f[c].astype(str))
+    ds_dt = pd.to_datetime(df[c].astype(str))
     time_features = pd.DataFrame()
     try:
         fhour = pd.Series(ds_dt.dt.hour, name='hour').astype(int)
@@ -1859,17 +1826,13 @@ def timeparts(f, c):
 # Function truehigh
 #
 
-def truehigh(f, h='high', l='low'):
+def truehigh(df):
     r"""Calculate the *True High* value.
 
     Parameters
     ----------
     f : pandas.DataFrame
         Dataframe with high and low columns.
-    h : str
-        Name of the high column in the dataframe ``f``.
-    l : str
-        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -1883,9 +1846,9 @@ def truehigh(f, h='high', l='low'):
     .. [TS_TR] http://help.tradestation.com/09_01/tradestationhelp/charting_definitions/true_range.htm
 
     """
-    l1 = ''.join([l, '[1]'])
-    f = vexec(f, l1)
-    new_column = f.apply(c2max, axis=1, args=[l1, h])
+    l1 = ''.join(['low', '[1]'])
+    df = vexec(df, l1)
+    new_column = df.apply(c2max, axis=1, args=[l1, 'high'])
     return new_column
 
 
@@ -1893,17 +1856,13 @@ def truehigh(f, h='high', l='low'):
 # Function truelow
 #
 
-def truelow(f, h='high', l='low'):
+def truelow(df):
     r"""Calculate the *True Low* value.
 
     Parameters
     ----------
     f : pandas.DataFrame
         Dataframe with high and low columns.
-    h : str
-        Name of the high column in the dataframe ``f``.
-    l : str
-        Name of the low column in the dataframe ``f``.
 
     Returns
     -------
@@ -1915,9 +1874,9 @@ def truelow(f, h='high', l='low'):
     *Today's low, or the previous close, whichever is lower* [TS_TR]_.
 
     """
-    h1 = ''.join([h, '[1]'])
-    f = vexec(f, h1)
-    new_column = f.apply(c2min, axis=1, args=[h1, l])
+    h1 = ''.join(['high', '[1]'])
+    df = vexec(df, h1)
+    new_column = df.apply(c2min, axis=1, args=[h1, 'low'])
     return new_column
 
 
@@ -1925,12 +1884,12 @@ def truelow(f, h='high', l='low'):
 # Function truerange
 #
 
-def truerange(f):
+def truerange(df):
     r"""Calculate the *True Range* value.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe with with high and low columns.
 
     Returns
@@ -1943,7 +1902,7 @@ def truerange(f):
     *True High - True Low* [TS_TR]_.
 
     """
-    new_column = truehigh(f) - truelow(f)
+    new_column = truehigh(df) - truelow(df)
     return new_column
 
 
@@ -1951,15 +1910,15 @@ def truerange(f):
 # Function ttmsqueeze
 #
 
-def ttmsqueeze(f, c='close', p=20):
+def ttmsqueeze(df, c='close', p=20):
     r"""Calculate the TTM Squeeze momentum oscillator.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average.
 
@@ -1970,13 +1929,13 @@ def ttmsqueeze(f, c='close', p=20):
     """
 
     # calculate Donchian midline    
-    hh = highest(f, 'high')
-    ll = lowest(f, 'low')
+    hh = highest(df, 'high')
+    ll = lowest(df, 'low')
     midp = (hh + ll) / 2.0
     # calculate the Simple Moving Average
-    sma = ma(f)
+    sma = ma(df)
     # calculate the delta between the midline and SMA
-    delta = (f[c] - (midp + sma) / 2.0)
+    delta = (df[c] - (midp + sma) / 2.0)
     # linear regression
     fit_y = np.array(range(0, p))
     ttmosc = delta.rolling(window = p).apply(lambda x:
@@ -1989,15 +1948,15 @@ def ttmsqueeze(f, c='close', p=20):
 # Function ttmsqueezelong
 #
 
-def ttmsqueezelong(f, c='close', p=20, sd=2.0, atrs=1.5):
+def ttmsqueezelong(df, c='close', p=20, sd=2.0, atrs=1.5):
     r"""Signal a TTM Squeeze Long Entry.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average.
     sd : float
@@ -2011,8 +1970,8 @@ def ttmsqueezelong(f, c='close', p=20, sd=2.0, atrs=1.5):
         True if there is a TTM Squeeze Long Entry.
     """
 
-    squeeze_off = ttmsqueezeoff(f, c, p, sd, atrs)
-    ttm_squeeze = ttmsqueeze(f, c, p)
+    squeeze_off = ttmsqueezeoff(df, c, p, sd, atrs)
+    ttm_squeeze = ttmsqueeze(df, c, p)
     squeeze1 = squeeze_off.shift(1).fillna(False)
     squeeze2 = squeeze_off.shift(2).fillna(False)
     long_cond1 = np.logical_and(squeeze1, ~squeeze2)
@@ -2025,15 +1984,15 @@ def ttmsqueezelong(f, c='close', p=20, sd=2.0, atrs=1.5):
 # Function ttmsqueezeoff
 #
 
-def ttmsqueezeoff(f, c='close', p=20, sd=2.0, atrs=1.5):
+def ttmsqueezeoff(df, c='close', p=20, sd=2.0, atrs=1.5):
     r"""Determine the TTM Squeeze Off condition.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average.
     sd : float
@@ -2047,10 +2006,10 @@ def ttmsqueezeoff(f, c='close', p=20, sd=2.0, atrs=1.5):
         The status of the TTM Squeeze Off Indicator.
     """
 
-    kclb = keltner(f, c, p, atrs, channel='lower')
-    kcub = keltner(f, c, p, atrs, channel='upper')
-    bblb = bbands(f, c, p, sd)
-    bbub = bbands(f, c, p, sd, low_band=False)
+    kclb = keltner(df, c, p, atrs, channel='lower')
+    kcub = keltner(df, c, p, atrs, channel='upper')
+    bblb = bbands(df, c, p, sd)
+    bbub = bbands(df, c, p, sd, low_band=False)
     squeezeoff = np.logical_and(np.greater(bbub, kcub), np.less(bblb, kclb))
     return squeezeoff
 
@@ -2059,15 +2018,15 @@ def ttmsqueezeoff(f, c='close', p=20, sd=2.0, atrs=1.5):
 # Function ttmsqueezeon
 #
 
-def ttmsqueezeon(f, c='close', p=20, sd=2.0, atrs=1.5):
+def ttmsqueezeon(df, c='close', p=20, sd=2.0, atrs=1.5):
     r"""Determine the TTM Squeeze On condition.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average.
     sd : float
@@ -2081,10 +2040,10 @@ def ttmsqueezeon(f, c='close', p=20, sd=2.0, atrs=1.5):
         The status of the TTM Squeeze On Indicator.
     """
 
-    kclb = keltner(f, c, p, atrs, channel='lower')
-    kcub = keltner(f, c, p, atrs, channel='upper')
-    bblb = bbands(f, c, p, sd)
-    bbub = bbands(f, c, p, sd, low_band=False)
+    kclb = keltner(df, c, p, atrs, channel='lower')
+    kcub = keltner(df, c, p, atrs, channel='upper')
+    bblb = bbands(df, c, p, sd)
+    bbub = bbands(df, c, p, sd, low_band=False)
     squeezeon = np.logical_and(np.less(bbub, kcub), np.greater(bblb, kclb))
     return squeezeon
 
@@ -2093,15 +2052,15 @@ def ttmsqueezeon(f, c='close', p=20, sd=2.0, atrs=1.5):
 # Function ttmsqueezeshort
 #
 
-def ttmsqueezeshort(f, c='close', p=20, sd=2.0, atrs=1.5):
+def ttmsqueezeshort(df, c='close', p=20, sd=2.0, atrs=1.5):
     r"""Signal a TTM Squeeze Short Entry.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     p : int
         The period over which to calculate the Exponential Moving Average.
     sd : float
@@ -2115,8 +2074,8 @@ def ttmsqueezeshort(f, c='close', p=20, sd=2.0, atrs=1.5):
         True if there is a TTM Squeeze Short Entry.
     """
 
-    squeeze_off = ttmsqueezeoff(f, c, p, sd, atrs)
-    ttm_squeeze = ttmsqueeze(f, c, p)
+    squeeze_off = ttmsqueezeoff(df, c, p, sd, atrs)
+    ttm_squeeze = ttmsqueeze(df, c, p)
 
     squeeze1 = squeeze_off.shift(1).fillna(False)
     squeeze2 = squeeze_off.shift(2).fillna(False)
@@ -2130,62 +2089,80 @@ def ttmsqueezeshort(f, c='close', p=20, sd=2.0, atrs=1.5):
 # Function vwap
 #
 
-def vwap(f, c='close', v='volume', granularity='month', anchor_dates=None):
+def vwap(df, c='close', granularity='day', anchor_dates=None):
     """
     Adjusted VWAP calculation using Unix timestamps for compatibility with np.digitize.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``df``.
+    granularity : str
+        The calendrical period over which to calculate VWAP.
+    anchor_dates : list
+        The set of dates over which to calculate VWAP.
+
+    Returns
+    -------
+    vwap_value : float
+        The calculated Volume-Weighted Average Price (VWAP).
     """
 
     # Ensure the index is in datetime format
-    f.index = pd.to_datetime(f.index)
+    df.index = pd.to_datetime(df.index)
 
     if not anchor_dates:
         # Generate anchor dates automatically based on granularity
         if granularity == 'day':
-            anchor_dates = pd.Series(f.index.normalize()).unique()
+            anchor_dates = pd.Series(df.index.normalize()).unique()
         elif granularity == 'week':
-            anchor_dates = (f.index - pd.to_timedelta(f.index.dayofweek, unit='d')).normalize().unique()
+            anchor_dates = (df.index - pd.to_timedelta(df.index.dayofweek, unit='d')).normalize().unique()
         elif granularity == 'month':
-            anchor_dates = f.index.to_period('M').to_timestamp().normalize().unique()
+            anchor_dates = df.index.to_period('M').to_timestamp().normalize().unique()
         elif granularity == 'quarter':
-            anchor_dates = f.index.to_period('Q').to_timestamp().normalize().unique()
+            anchor_dates = df.index.to_period('Q').to_timestamp().normalize().unique()
     else:
         anchor_dates = pd.to_datetime(anchor_dates).normalize()
     
     # Convert datetime index and anchor_dates to Unix timestamps for np.digitize
-    unix_index = f.index.astype(np.int64) // 10**9  # Convert to seconds
-    unix_anchor_dates = anchor_dates.astype(np.int64) // 10**9  # Convert to seconds
+    denominator = 10**9
+    unix_index = df.index.astype(np.int64) // denominator
+    unix_anchor_dates = anchor_dates.astype(np.int64) // denominator
 
     # Assign periods based on Unix timestamps
-    f['period'] = np.digitize(unix_index, bins=unix_anchor_dates, right=False)
+    df['period'] = np.digitize(unix_index, bins=unix_anchor_dates, right=False)
 
     # Calculate VWAP
-    f['dollar_volume'] = f[c] * f[v]
-    grouped = f.groupby('period')
-    f['cumulative_dollar_volume'] = grouped['dollar_volume'].cumsum()
-    f['cumulative_volume'] = grouped[v].cumsum()
-    f['vwap'] = f['cumulative_dollar_volume'] / f['cumulative_volume']
+    df['dollar_volume'] = df[c] * df['volume']
+    grouped = df.groupby('period')
+    df['cumulative_dollar_volume'] = grouped['dollar_volume'].cumsum()
+    df['cumulative_volume'] = grouped['volume'].cumsum()
+    df['vwap'] = df['cumulative_dollar_volume'] / df['cumulative_volume']
 
-    # Clean up by dropping temporary columns
-    result = f[['vwap']].copy()  # Keep the original datetime index
-    f.drop(['period', 'dollar_volume', 'cumulative_dollar_volume', 'cumulative_volume'], axis=1, inplace=True)
+    # Clean up by dropping temporary columns and keeping the original datetime index
+    vwap_value = df[['vwap']].copy()
+    df.drop(['period', 'dollar_volume', 'cumulative_dollar_volume', 'cumulative_volume', 'vwap'],
+            axis=1, inplace=True)
 
-    return result
+    return vwap_value
 
 
 #
 # Function xmadown
 #
 
-def xmadown(f, c='close', pfast=20, pslow=50):
+def xmadown(df, c='close', pfast=20, pslow=50):
     r"""Determine those values of the dataframe that cross below the
     moving average.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str, optional
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     pfast : int, optional
         The period of the fast moving average.
     pslow : int, optional
@@ -2207,9 +2184,9 @@ def xmadown(f, c='close', pfast=20, pslow=50):
     .. [WIKI_XMA] https://en.wikipedia.org/wiki/Moving_average_crossover
 
     """
-    sma = ma(f, c, pfast)
+    sma = ma(df, c, pfast)
     sma_prev = sma.shift(1)
-    lma = ma(f, c, pslow)
+    lma = ma(df, c, pslow)
     lma_prev = lma.shift(1)
     new_column = (sma < lma) & (sma_prev > lma_prev)
     return new_column
@@ -2219,16 +2196,16 @@ def xmadown(f, c='close', pfast=20, pslow=50):
 # Function xmaup
 #
 
-def xmaup(f, c='close', pfast=20, pslow=50):
+def xmaup(df, c='close', pfast=20, pslow=50):
     r"""Determine those values of the dataframe that are below the
     moving average.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str, optional
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     pfast : int, optional
         The period of the fast moving average.
     pslow : int, optional
@@ -2248,9 +2225,9 @@ def xmaup(f, c='close', pfast=20, pslow=50):
     cross* [WIKI_XMA]_.
 
     """
-    sma = ma(f, c, pfast)
+    sma = ma(df, c, pfast)
     sma_prev = sma.shift(1)
-    lma = ma(f, c, pslow)
+    lma = ma(df, c, pslow)
     lma_prev = lma.shift(1)
     new_column = (sma > lma) & (sma_prev < lma_prev)
     return new_column
@@ -2260,15 +2237,15 @@ def xmaup(f, c='close', pfast=20, pslow=50):
 # Function zscore
 #
 
-def zscore(f, c, w):
+def zscore(df, c, w):
     r"""Calculate the Z-Score.
 
     Parameters
     ----------
-    f : pandas.DataFrame
+    df : pandas.DataFrame
         Dataframe containing the column ``c``.
     c : str
-        Name of the column in the dataframe ``f``.
+        Name of the column in the dataframe ``df``.
     w : int
         The rolling period.
 
@@ -2289,7 +2266,7 @@ def zscore(f, c, w):
     >>> zscore(f, c, 20)
 
     """
-    ds = f[c]
+    ds = df[c]
     r = ds.rolling(window=w)
     m = r.mean().shift(1)
     s = r.std(ddof=0).shift(1)
