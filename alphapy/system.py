@@ -394,8 +394,7 @@ def trade_ranking(symbol, quantity, system, df_rank, space, intraday):
 # Function trade_metalabel
 #
 
-def trade_metalabel(symbol, quantity, system, df_rank, space, intraday,
-                    ts_flag=False, use_probs=True):
+def trade_metalabel(symbol, quantity, system, df_rank, space, intraday, use_probs=True):
     r"""Trade the given system.
 
     Parameters
@@ -412,8 +411,6 @@ def trade_metalabel(symbol, quantity, system, df_rank, space, intraday,
         Namespace of all variables over all fractals.
     intraday : bool
         If True, then run an intraday system.
-    ts_flag : bool (optional)
-        True if using time series probabilities.
     use_probs : bool (optional)
         Flag indicating whether to use probabilities.
 
@@ -479,10 +476,7 @@ def trade_metalabel(symbol, quantity, system, df_rank, space, intraday,
     symbol = symbol.upper()
     logger.info("Getting probabilities for %s", symbol)
     partition_tag = 'test'
-    if ts_flag:
-        pcol = USEP.join(['prob', partition_tag, 'ts', algo.lower()])
-    else:
-        pcol = USEP.join(['prob', partition_tag, algo.lower()])
+    pcol = USEP.join(['prob', partition_tag, algo.lower()])
     df_trade = df_trade.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
     df_sym[pcol].fillna(0.5, inplace=True)
     if use_probs:
@@ -655,10 +649,11 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday, use_probs=T
     df_trade = Frame.frames[frame_name(symbol, tspace)].df.copy()
 
     # Get daily volatility and calculate the profit target and stop loss.
-
-    close_col = USEP.join(['close', trade_fractal])
-    ds_close = df_trade[close_col]
-    ds_vol = get_daily_vol(ds_close)
+    
+    if profit_factor or stoploss_factor:
+        close_col = USEP.join(['close', trade_fractal])
+        ds_close = df_trade[close_col]
+        ds_vol = get_daily_vol(ds_close)
 
     # extract the rankings frame for the given symbol
 
@@ -721,15 +716,18 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday, use_probs=T
         serow = row['entry'] if short_entry else None
         end_of_day = row[icol] if intraday else False
         # calculate profit targets and stop losses
-        try:
-            daily_vol = ds_vol.loc[dt]
-        except KeyError:
+        if profit_factor or stoploss_factor:
             try:
-                daily_vol = ds_vol.iloc[0]
-            except IndexError:
-                daily_vol = 0.03
-        profit_target = profit_factor * daily_vol * c
-        stop_loss = stoploss_factor * daily_vol * c
+                daily_vol = ds_vol.loc[dt]
+            except KeyError:
+                try:
+                    daily_vol = ds_vol.iloc[0]
+                except IndexError:
+                    daily_vol = 0.03
+            if profit_factor:
+                profit_target = profit_factor * daily_vol * c
+            if stoploss_factor:
+                stop_loss = stoploss_factor * daily_vol * c
         # process the long and short events
         if lerow:
             if inshort:
@@ -770,22 +768,22 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday, use_probs=T
             hold += 1
             # check for profit targets or stop losses
             if inlong and hold > 1:
-                if h >= le_price + profit_target:
+                if profit_factor and h >= le_price + profit_target:
                     # profit target
                     tradelist.append((dt, [symbol, Orders.lx, -psize, le_price + profit_target]))
                     inlong = False
-                if l <= le_price - stop_loss:
+                if stoploss_factor and l <= le_price - stop_loss:
                     # stop loss
                     tradelist.append((dt, [symbol, Orders.lx, -psize, le_price - stop_loss]))
                     inlong = False
                 if not inlong:
                     hold = psize = 0
             if inshort and hold > 1:
-                if l <= se_price - profit_target:
+                if profit_factor and l <= se_price - profit_target:
                     # profit target
                     tradelist.append((dt, [symbol, Orders.sx, -psize, se_price - profit_target]))
                     inshort = False
-                if h >= se_price + stop_loss:
+                if stoploss_factor and h >= se_price + stop_loss:
                     # stop loss
                     tradelist.append((dt, [symbol, Orders.sx, -psize, se_price + stop_loss]))
                     inshort = False
