@@ -1042,10 +1042,11 @@ def update_live_results(model_specs, df_live):
     run_dir = model_specs['run_dir']
     target = model_specs['target']
 
-    # Define a function to create a composite key
+    # Define functions to create composite keys
 
     def create_composite_key(df):
-        return df['date'] + '_' + df['away_team'] + '_' + df['home_team']
+        time_prefix = df['time_est'].fillna('00').str[:2]
+        return df['date'] + '_' + df['away_team'] + '_' + df['home_team'] + '_' + time_prefix
 
     # Get the run's training data, which contains previous results
 
@@ -1065,7 +1066,7 @@ def update_live_results(model_specs, df_live):
     mrf = most_recent_file(output_dir, 'ranked_test*.csv')
     df_pred = pd.read_csv(mrf)
     df_pred['composite_key'] = create_composite_key(df_pred)
-    game_cols = ['composite_key', 'season', 'date',
+    game_cols = ['composite_key', 'season', 'date', 'time_est',
                  'away_team', 'away_score', 'away_point_spread',
                  'away_point_spread_line', 'away_money_line',
                  'home_team', 'home_score', 'home_point_spread',
