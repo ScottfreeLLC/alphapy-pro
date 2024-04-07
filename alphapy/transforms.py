@@ -1809,7 +1809,7 @@ def timeparts(df, c):
         The dataframe containing the time features.
     """
 
-    ds_dt = pd.to_datetime(df[c].astype(str))
+    ds_dt = pd.to_datetime(df[c].astype(str), format='%H:%M:%S')
     time_features = pd.DataFrame()
     try:
         fhour = pd.Series(ds_dt.dt.hour, name='hour').astype(int)

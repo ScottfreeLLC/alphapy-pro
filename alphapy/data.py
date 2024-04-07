@@ -60,6 +60,7 @@ import pandas as pd
 pd.core.common.is_list_like = pd.api.types.is_list_like
 import pandas_datareader.data as web
 from polygon import RESTClient
+import pytz
 import re
 import requests
 from sklearn.preprocessing import LabelEncoder
@@ -457,33 +458,43 @@ def get_eodhd_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
 
     api_key = alphapy_specs['sources']['eodhd']['api_key']
     api_key_str = 'api_token=' + api_key
-    from_str = 'from=' + from_date
-    to_str = 'to=' + to_date
     format_str = 'fmt=csv'
     if intraday_data:
         url_base = f'https://eodhd.com/api/intraday/{symbol}?'
+        tz_eastern = pytz.timezone('US/Eastern')
+        from_obj = datetime.strptime(from_date, "%Y-%m-%d")
+        from_obj_est = tz_eastern.localize(from_obj)
+        from_unix_time = int(from_obj_est.timestamp())
+        from_str = 'from=' + str(from_unix_time)
+        to_obj = datetime.strptime(to_date, "%Y-%m-%d")
+        to_obj_est = tz_eastern.localize(to_obj)
+        to_unix_time  = int(to_obj_est.timestamp())
+        to_str = 'to=' + str(to_unix_time)
         interval_str = 'interval=' + str(n_periods) + period
         url_str = '&'.join([api_key_str, from_str, to_str, interval_str, format_str])
     else:
         url_base = f'https://eodhd.com/api/eod/{symbol}?'
+        from_str = 'from=' + from_date
+        to_str = 'to=' + to_date
         period_str = 'period=' + period
         url_str = '&'.join([api_key_str, from_str, to_str, period_str, format_str])
     url = url_base + url_str
 
     response = requests.get(url).content
     df = pd.read_csv(BytesIO(response))
+    df.columns = [col.lower() for col in df.columns]
+    cols_ohlcv = ['open', 'high', 'low', 'close', 'volume']
 
-    # Convert timestamp to datetime and adjust the format based on timespan
-    df['datetime'] = pd.to_datetime(df['Date'])
-    if not intraday_data:
-        df['date'] = df['datetime'].dt.date
-        df.drop(columns=['datetime'], inplace=True)
-        rename_column = 'date'
+    if intraday_data:
+        col_dt = 'datetime'
+        df[col_dt] = pd.to_datetime(df[col_dt], utc=True)
+        df[col_dt] = df[col_dt].dt.tz_convert(tz_eastern)
     else:
-        rename_column = 'datetime'
+        col_dt = 'date'
+        df[col_dt] = pd.to_datetime(df[col_dt])
 
-    df.drop(columns=['Date'], inplace=True)
-    df = df[[rename_column] + [col for col in df.columns if col != rename_column]]
+    cols_df = [col_dt] + cols_ohlcv
+    df = df[cols_df]
 
     # Return the dataframe
     return df
