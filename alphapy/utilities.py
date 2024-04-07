@@ -252,6 +252,39 @@ def run_command(cmd_with_args, cwd):
 
 
 #
+# Function split_duration
+#
+
+def split_duration(duration_str):
+    r"""Subtract a number of days from a given date.
+
+    Parameters
+    ----------
+    duration_str : str
+        An alphanumeric string in the format of a Pandas offset alias.
+
+    Returns
+    -------
+    value : int
+        The duration value.
+    unit : str
+        The scale of the period.
+
+    Examples
+    --------
+
+    >>> split_duration('5min')   # 5, 'min'
+
+    """
+    match = re.match(r"(\d+)(\w+)", duration_str)
+    if match:
+        value, unit = match.groups()
+        return int(value), unit
+    else:
+        raise ValueError(f"Invalid duration format: {duration_str}")
+
+
+#
 # Function subtract_days
 #
 
