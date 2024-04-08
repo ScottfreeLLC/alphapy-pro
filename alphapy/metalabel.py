@@ -29,6 +29,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+from alphapy.utilities import split_duration
+
 
 #
 # Initialize logger
@@ -38,16 +40,16 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Function get_daily_vol
+# Function get_vol_ema
 #
 
-def get_daily_vol(ds_close, p=60):
-    r"""Calculate daily volatility for dynamic thresholds.
+def get_vol_ema(ds_close, p=60):
+    """Calculate volatility for dynamic thresholds.
 
     Parameters
     ----------
     ds_close : pandas.Series
-        Array of closing values.
+        Array of closing values, indexed by datetime.
     p : int
         The lookback period for computing volatility.
 
@@ -57,16 +59,15 @@ def get_daily_vol(ds_close, p=60):
         The array of volatilities.
 
     """
+    logger.info('Calculating volatility for dynamic thresholds')
 
-    logger.info('Calculating daily volatility for dynamic thresholds')
+    # Calculate returns
+    returns = ds_close.pct_change().dropna()
 
-    ds_vol = ds_close.index.searchsorted(ds_close.index - pd.Timedelta(days=1))
-    ds_vol = ds_vol[ds_vol > 0]
-    ds_vol = (pd.Series(ds_close.index[ds_vol - 1], index=ds_close.index[ds_close.shape[0] - ds_vol.shape[0]:]))
-    # calculate daily returns
-    ds_vol = ds_close.loc[ds_vol.index] / ds_close.loc[ds_vol.values].values - 1
-    ds_vol = ds_vol.ewm(span=p, min_periods=p).std().dropna()
+    # Calculate volatility using exponentially weighted moving average (EWMA)
+    ds_vol = returns.ewm(span=p, min_periods=p).std()
     return ds_vol
+
 
 #
 # Function get_daily_dollar_vol
@@ -101,10 +102,10 @@ def get_daily_dollar_vol(df, p=60):
 
 
 #
-# Function get_t_events
+# Function get_threshold_events
 #
 
-def get_t_events(ds_close, threshold=0.01):
+def get_threshold_events(ds_close, threshold):
     r"""Calculate daily volatility for dynamic thresholds.
 
     Parameters
@@ -153,67 +154,74 @@ def get_t_events(ds_close, threshold=0.01):
 # Function add_vertical_barrier
 #
 
-def add_vertical_barrier(t_events, ds_close, num_days=1.0):
-    r"""Calculate daily volatility for dynamic thresholds.
+def add_vertical_barrier(t_events, ds_close, n_periods, fractal='1D'):
+    """Calculate vertical barriers for given events.
 
-    Parameters
+    Parameters:
     ----------
     t_events : pandas.Series (datetime)
-        Series of events based on the CUSUM Filter
+        Series of events based on the CUSUM Filter.
     ds_close : pandas.Series
-        Array of closing values.
-    num_days : float
-        The maximum number of (fractional) days that a trade can be active.
+        Series of closing values, indexed by datetime.
+    n_periods : int
+        The number of periods that a trade can be active.
+    fractal : str
+        Duration and scale of the events (for example, '1D' for 1 minute).
 
-    Returns
+    Returns:
     -------
     ds_vb : pandas.Series (datetime)
         The vector of timestamps for the vertical barriers.
-
     """
 
     logger.info('Getting Vertical Barriers')
 
-    ds_vb = ds_close.index.searchsorted(t_events + pd.Timedelta(days=num_days))
-    ds_vb = ds_vb[ds_vb < ds_close.shape[0]]
-    ds_vb = pd.Series(ds_close.index[ds_vb], index=t_events[:ds_vb.shape[0]])
+    # Creating a Timedelta for n_periods forward based on the time fractal
+
+    duration, unit = split_duration(fractal)
+    time_delta = pd.Timedelta(n_periods * duration, unit=unit)
+    
+    # Calculating the vertical barrier for each event
+    ds_vb = ds_close.index.searchsorted(t_events + time_delta)
+    ds_vb = ds_vb[ds_vb < len(ds_close)]
+    ds_vb = pd.Series(ds_close.index[ds_vb], index=t_events[:len(ds_vb)])
     return ds_vb
 
 
 #
-# Function apply_pt_sl_on_t1
+# Function apply_targets
 #
 
-def apply_pt_sl_on_t1(ds_close, df_events, pt_sl):
-    r"""Apply Profit Targets and Stop Losses.
+def apply_targets(ds_close, df_events, pt_sl):
+    """Apply profit target and stop loss logic on time-to-event (t1) data.
 
-    Parameters
+    Parameters:
     ----------
-    ds_close : pandas.Series
-        Array of closing values.
-    df_events : pandas.DataFrame
-        The record of events
-    pt_sl : list[2]
-        The profit-taking and stop-loss percentage levels, with 0 disabling the respective level.
+    ds_close (pandas.Series):
+        Closing prices, indexed by date.
+    df_events (pandas.DataFrame):
+        Events containing at least a 't1' column for the event's end time.
+    pt_sl (tuple):
+        A tuple of two elements, a profit target multiplier and stop loss multiplier.
+        If None for either element, then that particular threshold is not applied.
 
-    Returns
+    Returns:
     -------
-    df_touch : pandas.DataFrame
-        The dataframe of timestamps at which each barrier was touched
-
+    df_touch (pandas.DataFrame):
+        DataFrame with additional columns for stop loss ('sl') and profit target ('pt')
+        hit times.
     """
 
-    logger.info('Applying Profit Targets and Stop Losses')
-
-    # Apply stop loss and profit taking, if either event occurs before t1 (end of event).
-
     df_touch = df_events[['t1']].copy(deep=True)
-    if pt_sl[0] > 0:
+
+    # Set profit target ('pt') series
+    if pt_sl and pt_sl[0] and pt_sl[0] > 0:
         pt = pt_sl[0] * df_events['trgt']
     else:
         pt = pd.Series(index=df_events.index)
 
-    if pt_sl[1] > 0:
+    # Set stop loss ('sl') series
+    if pt_sl and pt_sl[1] and pt_sl[1] > 0:
         sl = -pt_sl[1] * df_events['trgt']
     else:
         sl = pd.Series(index=df_events.index)
@@ -221,12 +229,12 @@ def apply_pt_sl_on_t1(ds_close, df_events, pt_sl):
     for loc, t1 in df_events['t1'].fillna(ds_close.index[-1]).items():
         # path prices
         df0 = ds_close[loc:t1]
-        # path returns
+        # path returns, adjusted by 'side'
         df0 = (df0 / ds_close[loc] - 1) * df_events.at[loc, 'side']
-        # earliest stop loss
-        df_touch.loc[loc, 'sl'] = df0[df0 < sl[loc]].index.min()
-        # earliest profit taking
-        df_touch.loc[loc, 'pt'] = df0[df0 > pt[loc]].index.min()
+        # earliest stop loss hit
+        df_touch.loc[loc, 'sl'] = df0[df0 < sl[loc]].index.min() if pt_sl and pt_sl[1] and pt_sl[1] > 0 else None
+        # earliest profit target hit
+        df_touch.loc[loc, 'pt'] = df0[df0 > pt[loc]].index.min() if pt_sl and pt_sl[0] and pt_sl[0] > 0 else None
 
     return df_touch
 
@@ -271,7 +279,7 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_re
     # Get the target based on volatility.
 
     ds_vol = ds_vol.loc[ds_vol.index.intersection(ds_dt)]
-    ds_vol = ds_vol[ds_vol > min_ret]
+    ds_vol = ds_vol[ds_vol >= min_ret]
 
     # Get the vertical barrier with maximum holding period.
 
@@ -281,7 +289,7 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_re
     # Form the events dataframe, applying the stop loss on the vertical barrier.
 
     if ds_side is None:
-        ds_side_ = pd.Series(1., index=ds_vol.index)
+        ds_side_ = pd.Series(1.0, index=ds_vol.index)
         pt_sl_ = [pt_sl[0], pt_sl[0]]
     else:
         ds_side_ = ds_side.loc[ds_vol.index]
@@ -292,9 +300,11 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_re
 
     # Apply the Triple Barrier.
 
-    df_tbm = apply_pt_sl_on_t1(ds_close, df_events, pt_sl_)
-
-    df_events['t1'] = df_tbm.dropna(how='all').min(axis=1)  # pd.min ignores nan
+    df_tbm = apply_targets(ds_close, df_events, pt_sl_)
+    df_tbm_filtered = df_tbm[['t1', 'sl', 'pt']].copy()
+    df_tbm_filtered['sl'] = pd.to_datetime(df_tbm_filtered['sl'], errors='coerce')
+    df_tbm_filtered['pt'] = pd.to_datetime(df_tbm_filtered['pt'], errors='coerce')
+    df_events['t1'] = df_tbm_filtered.dropna(how='all').min(axis=1)
 
     if ds_side is None:
         df_events = df_events.drop('side', axis=1)
@@ -372,10 +382,20 @@ def get_bins(df_events, ds_close):
     """
 
     # Align prices with their respective events.
-
     df_events_ = df_events.dropna(subset=['t1'])
+
+    # Convert 't1' to timezone-naive, assuming it's timezone-aware
+    df_events_ = df_events.copy()
+    df_events_['t1'] = df_events_['t1'].dt.tz_localize(None)
+
+    # If df_events_.index is timezone-aware, also convert it to timezone-naive
+    if df_events_.index.tz is not None:
+        df_events_.index = df_events_.index.tz_localize(None)
+
+    # Perform the union operation
     prices = df_events_.index.union(df_events_['t1'].values)
     prices = prices.drop_duplicates()
+    ds_close = ds_close.tz_localize(None)
     prices = ds_close.reindex(prices, method='bfill')
 
     # Create the output dataframe.
@@ -406,6 +426,6 @@ def get_bins(df_events, ds_close):
 
     tb_cols = df_events.columns
     if 'side' in tb_cols:
-        df_meta['side'] = df_events['side']
+        df_meta['side'] = df_events_['side']
 
     return df_meta

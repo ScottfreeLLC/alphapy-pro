@@ -37,6 +37,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import argparse
 import datetime
 import logging
+import numpy as np
 import os
 import pandas as pd
 import shutil
@@ -56,9 +57,9 @@ from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.group import Group
 from alphapy.metalabel import add_vertical_barrier
 from alphapy.metalabel import get_bins
-from alphapy.metalabel import get_daily_vol
+from alphapy.metalabel import get_vol_ema
 from alphapy.metalabel import get_events
-from alphapy.metalabel import get_t_events
+from alphapy.metalabel import get_threshold_events
 from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.portfolio import gen_portfolios
@@ -69,7 +70,8 @@ from alphapy.system import SystemRank
 from alphapy.transforms import netreturn
 from alphapy.utilities import datetime_stamp
 from alphapy.utilities import most_recent_file
-from alphapy.utilities import subtract_days, valid_date
+from alphapy.utilities import subtract_days
+from alphapy.utilities import valid_date
 from alphapy.variables import vapply
 
 
@@ -347,7 +349,7 @@ def set_targets_metalabel(model, df, system_specs):
 
     """
 
-    logger.info("Setting Classification Targets")
+    logger.info("Setting Metalabel Targets")
 
     # Unpack model specifications
     target = model.specs['target']
@@ -382,28 +384,29 @@ def set_targets_metalabel(model, df, system_specs):
     # Lag the signal.
     df['side'] = df['side'].shift(1)
 
-    # Get closing values for the trading fractal.
+    # Get daily volatility.
 
     close_col = USEP.join(['close', trade_fractal])
     ds_close = df[close_col]
-
-    # Get daily volatility.
-    daily_vol = get_daily_vol(ds_close)
+    vol_ema = get_vol_ema(ds_close)
+    vol_mean = np.nanmean(vol_ema)
 
     # Get the CUSUM events.
-    cusum_events = get_t_events(ds_close)
+    cusum_events = get_threshold_events(ds_close, vol_mean)
 
     # Establish the vertical barriers.
-    vertical_barriers = add_vertical_barrier(cusum_events, ds_close, num_days=forecast_period)
+    vertical_barriers = add_vertical_barrier(cusum_events, ds_close, forecast_period,
+                                             trade_fractal)
 
     # Set the Triple Barrier Method (TBM) events.
 
     df_tbm = get_events(ds_close,
                         cusum_events,
                         [profit_factor, stoploss_factor],
-                        daily_vol,
+                        vol_ema,
                         vertical_barriers,
-                        df['side'])
+                        df['side'],
+                        vol_mean)
 
     # Assign labels based on returns.
     df_labels = get_bins(df_tbm, ds_close)
@@ -413,6 +416,7 @@ def set_targets_metalabel(model, df, system_specs):
 
     # Filter the dataframe with the events for the secondary model.
 
+    df.index = df.index.tz_localize(None)
     df_meta = df.loc[df_labels.index, :].copy()
     df_meta[target] = df_labels[target]
 
@@ -493,9 +497,6 @@ def prepare_data(model, dfs, market_specs):
     for df in dfs:
         # subset each individual frame and add to the master frame
         symbol = df['symbol'].iloc[0].upper()
-        first_date = df.index[0]
-        last_date = df.index[-1]
-        logger.info("Analyzing %s from %s to %s", symbol, first_date, last_date)
         if not df.empty:
             # set model targets based on model type
             if model_type == ModelType.ranking:
@@ -514,6 +515,10 @@ def prepare_data(model, dfs, market_specs):
                     logger.info("%d Patterns Found in %d Rows", rows_new, rows_old)
             else:
                 raise ValueError("Unsupported Model Type")
+            # process each symbol
+            first_date = df.index[0]
+            last_date = df.index[-1]
+            logger.info("Processing %s from %s to %s", symbol, first_date, last_date)
             # split the dataframe
             if predict_mode:
                 new_predict = df.loc[(df.index >= split_date) & (df.index <= last_date)].copy()

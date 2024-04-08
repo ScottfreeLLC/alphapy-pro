@@ -33,7 +33,7 @@ from alphapy.frame import write_frame
 from alphapy.globals import ModelType
 from alphapy.globals import Orders
 from alphapy.globals import BSEP, SSEP, USEP
-from alphapy.metalabel import get_daily_vol
+from alphapy.metalabel import get_vol_ema
 from alphapy.space import Space
 from alphapy.portfolio import Trade
 from alphapy.utilities import most_recent_file
@@ -446,7 +446,7 @@ def trade_metalabel(symbol, quantity, system, df_rank, space, intraday, use_prob
 
     close_col = USEP.join(['close', trade_fractal])
     ds_close = df_trade[close_col]
-    ds_vol = get_daily_vol(ds_close)
+    ds_vol = get_vol_ema(ds_close)
 
     # extract the rankings frame for the given symbol
 
@@ -483,6 +483,7 @@ def trade_metalabel(symbol, quantity, system, df_rank, space, intraday, use_prob
         df_trade = assign_entry(df_trade, pcol, prob_min, prob_max)
     else:
         df_trade = assign_entry(df_trade, pcol, 0.0, 1.0)
+    print(df_trade)
 
     # Initialize trading state variables
 
@@ -653,7 +654,7 @@ def trade_system(symbol, quantity, system, df_rank, space, intraday, use_probs=T
     if profit_factor or stoploss_factor:
         close_col = USEP.join(['close', trade_fractal])
         ds_close = df_trade[close_col]
-        ds_vol = get_daily_vol(ds_close)
+        ds_vol = get_vol_ema(ds_close)
 
     # extract the rankings frame for the given symbol
 
