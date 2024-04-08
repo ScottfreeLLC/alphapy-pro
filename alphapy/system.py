@@ -442,7 +442,7 @@ def trade_metalabel(symbol, quantity, system, df_rank, space, intraday, use_prob
     tspace = Space(space.subject, space.source, 'ALL')
     df_trade = Frame.frames[frame_name(symbol, tspace)].df.copy()
 
-    # Get daily volatility and calculate the profit target and stop loss.
+    # Get volatility and calculate the profit target and stop loss.
 
     close_col = USEP.join(['close', trade_fractal])
     ds_close = df_trade[close_col]
@@ -477,13 +477,12 @@ def trade_metalabel(symbol, quantity, system, df_rank, space, intraday, use_prob
     logger.info("Getting probabilities for %s", symbol)
     partition_tag = 'test'
     pcol = USEP.join(['prob', partition_tag, algo.lower()])
-    df_trade = df_trade.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
     df_sym[pcol].fillna(0.5, inplace=True)
+    df_trade = df_trade.merge(df_sym[pcol], how='left', left_index=True, right_index=True)
     if use_probs:
         df_trade = assign_entry(df_trade, pcol, prob_min, prob_max)
     else:
         df_trade = assign_entry(df_trade, pcol, 0.0, 1.0)
-    print(df_trade)
 
     # Initialize trading state variables
 
@@ -512,14 +511,14 @@ def trade_metalabel(symbol, quantity, system, df_rank, space, intraday, use_prob
         end_of_day = row[icol] if intraday else False
         # calculate profit targets and stop losses
         try:
-            daily_vol = ds_vol.loc[dt]
+            dv = ds_vol.loc[dt]
         except KeyError:
             try:
-                daily_vol = ds_vol.iloc[0]
+                dv = ds_vol.iloc[0]
             except IndexError:
-                daily_vol = 0.03
-        profit_target = profit_factor * daily_vol * c
-        stop_loss = stoploss_factor * daily_vol * c
+                dv = 0.001
+        profit_target = profit_factor * dv * c
+        stop_loss = stoploss_factor * dv * c
         # process the long and short events
         if lerow:
             if inshort:

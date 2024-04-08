@@ -416,7 +416,6 @@ def set_targets_metalabel(model, df, system_specs):
 
     # Filter the dataframe with the events for the secondary model.
 
-    df.index = df.index.tz_localize(None)
     df_meta = df.loc[df_labels.index, :].copy()
     df_meta[target] = df_labels[target]
 
