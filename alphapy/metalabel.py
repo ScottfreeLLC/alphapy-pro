@@ -382,20 +382,11 @@ def get_bins(df_events, ds_close):
     """
 
     # Align prices with their respective events.
-    df_events_ = df_events.dropna(subset=['t1'])
-
-    # Convert 't1' to timezone-naive, assuming it's timezone-aware
-    df_events_ = df_events.copy()
-    df_events_['t1'] = df_events_['t1'].dt.tz_localize(None)
-
-    # If df_events_.index is timezone-aware, also convert it to timezone-naive
-    if df_events_.index.tz is not None:
-        df_events_.index = df_events_.index.tz_localize(None)
+    df_events_ = df_events.dropna(subset=['t1']).copy()
 
     # Perform the union operation
     prices = df_events_.index.union(df_events_['t1'].values)
     prices = prices.drop_duplicates()
-    ds_close = ds_close.tz_localize(None)
     prices = ds_close.reindex(prices, method='bfill')
 
     # Create the output dataframe.

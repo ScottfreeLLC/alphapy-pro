@@ -489,6 +489,7 @@ def get_eodhd_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
         col_dt = 'datetime'
         df[col_dt] = pd.to_datetime(df[col_dt], utc=True)
         df[col_dt] = df[col_dt].dt.tz_convert(tz_eastern)
+        df[col_dt] = df[col_dt].dt.tz_localize(None)
     else:
         col_dt = 'date'
         df[col_dt] = pd.to_datetime(df[col_dt])
