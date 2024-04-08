@@ -879,7 +879,10 @@ def run_system(model,
         if model_type == ModelType.ranking:
             tlist_base = trade_ranking(symbol, quantity, system, df_rank, gspace, intraday)
         elif model_type == ModelType.metalabel:
-            tlist_base = trade_metalabel(symbol, quantity, system, df_rank, gspace, intraday)
+            tlist_prob = trade_metalabel(symbol, quantity, system, df_rank,
+                                         gspace, intraday)
+            tlist_base = trade_metalabel(symbol, quantity, system, df_rank,
+                                         gspace, intraday, use_probs=False)
         else:
             tlist_prob = trade_system(symbol, quantity, system, df_rank,
                                       gspace, intraday)

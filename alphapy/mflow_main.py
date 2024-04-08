@@ -41,6 +41,9 @@ import numpy as np
 import os
 import pandas as pd
 import shutil
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
 import sys
 import yaml
 
@@ -412,7 +415,21 @@ def set_targets_metalabel(model, df, system_specs):
     df_labels = get_bins(df_tbm, ds_close)
 
     # Evaluate the primary model.
-    pass
+
+    primary_forecast = pd.DataFrame(df_labels['bin'])
+    primary_forecast['pred'] = 1
+    primary_forecast.columns = ['actual', 'pred']
+
+    actual = primary_forecast['actual']
+    pred = primary_forecast['pred']
+
+    logger.info("Evaluating Primary Model")
+    logger.info("Classification Report:")
+    class_report = classification_report(y_true=actual, y_pred=pred, zero_division=0.0)
+    logger.info(f"\n{class_report}")
+    logger.info(f"Confusion Matrix:")
+    logger.info(f"\n{confusion_matrix(actual, pred)}")
+    logger.info(f"Accuracy: {accuracy_score(actual, pred)}")
 
     # Filter the dataframe with the events for the secondary model.
 
