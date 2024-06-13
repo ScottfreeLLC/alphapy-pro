@@ -1,33 +1,107 @@
-################################################################################
-#
-# Package   : AlphaPy
-# Module    : mflow_server
-# Created   : February 21, 2021
-#
-# Copyright 2022 ScottFree Analytics LLC
-# Mark Conway & Robert D. Scott II
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-################################################################################
+"""
+Package   : AlphaPy
+Module    : mflow_server
+Created   : June 2, 2024
 
+Copyright 2024 ScottFree Analytics LLC
+Mark Conway & Robert D. Scott II
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+HOW TO RUN:
+
+> export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
+> cd /Users/markconway/Projects/alphapy-pro/alphapy
+> python mflow_server.py
+
+"""
+
+import os
+import asyncio
+import requests
+import streamlit as st
+import pandas as pd  # Import pandas for data manipulation
+import websockets
+import json
+from datetime import datetime
+
+# Access the Polygon.io API key from the environment variable
+API_KEY = os.getenv('POLYGON_API_KEY')
+
+# Initialize data structures
+stock_data = {}
+
+# Function to get current daily volume from Polygon.io
+def get_current_volume(ticker):
+    today = datetime.now().strftime('%Y-%m-%d')
+    url = f'https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{today}/{today}?adjusted=true&apiKey={API_KEY}'
+    response = requests.get(url)
+    data = response.json()
+    if response.status_code == 200 and 'results' in data and len(data['results']) > 0:
+        return data['results'][0]['v']
+    else:
+        print(f"Failed to fetch current volume for {ticker}: {data.get('error', 'Unknown error')}")
+        return 0
+
+# Asynchronous function to handle WebSocket messages
+async def handle_websocket(uri):
+    async with websockets.connect(uri) as websocket:
+        # Authenticate
+        await websocket.send(json.dumps({
+            'action': 'auth',
+            'params': API_KEY
+        }))
+        # Subscribe to all trades
+        await websocket.send(json.dumps({
+            'action': 'subscribe',
+            'params': 'T.*'
+        }))
+        # Process incoming messages
+        while True:
+            message = await websocket.recv()
+            data = json.loads(message)
+            for trade in data:
+                if trade['ev'] == 'T':
+                    ticker = trade['sym']
+                    if ticker not in stock_data:
+                        stock_data[ticker] = {
+                            'trades': 0,
+                            'current_volume': get_current_volume(ticker)
+                        }
+                    stock_data[ticker]['trades'] += 1
 
 #
-# HOW TO RUN:
+# Function start_websocket_client
 #
-# export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
-# mflow
+
+async def start_websocket_client():
+    uri = "wss://socket.polygon.io/stocks"
+    await handle_websocket(uri)
+
 #
+# Function update_and_display_data
+#
+
+def update_and_display_data():
+    st.title("Real-Time Stock Trades")
+    st.write("This application shows real-time stock trades and volumes.")
+
+    if stock_data:
+        df = pd.DataFrame.from_dict(stock_data, orient='index')
+        st.dataframe(df)
+    else:
+        st.write("Waiting for data...")
 
 
 #projects = alphapy_request(alphapy_specs, 'projects', alphapy_specs)
@@ -387,6 +461,21 @@ def shutdown_event():
 #
 # Main Program
 #
+
+
+# Main async function for Streamlit to run WebSocket and update UI
+
+async def main():
+    websocket_task = asyncio.create_task(start_websocket_client())
+    
+    while True:
+        update_and_display_data()
+        await asyncio.sleep(5)
+        st.rerun()
+
+# Run the Streamlit app with asyncio
+if __name__ == "__main__":
+    asyncio.run(main())
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080)

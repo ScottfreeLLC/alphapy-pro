@@ -1,33 +1,31 @@
-################################################################################
-#
-# Package   : AlphaPy
-# Module    : ask_alpha
-# Created   : February 21, 2021
-#
-# Copyright 2021 ScottFree Analytics LLC
-# Mark Conway & Robert D. Scott II
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-################################################################################
+"""
+Package   : AlphaPy
+Module    : ask_alpha
+Created   : February 21, 2021
 
-#
-# HOW TO RUN:
-#
-# export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
-# cd /Users/markconway/Projects/alphapy-3.0.0/alphapy
-# streamlit run ask_alpha.py
-#
+Copyright 2024 ScottFree Analytics LLC
+Mark Conway & Robert D. Scott II
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+HOW TO RUN:
+
+> export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
+> cd /Users/markconway/Projects/alphapy-pro/alphapy
+> streamlit run ask_alpha.py
+
+"""
 
 
 #
@@ -37,6 +35,7 @@
 from datetime import datetime, timedelta
 import logging
 import openai
+from openai import OpenAI
 import os
 import pandas as pd
 from PIL import Image
@@ -120,6 +119,25 @@ hide_streamlit_style = """
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
+# Function to display the status message
+def display_status_message(col, message, message_type='info'):
+    if message_type == 'info':
+        col.info(message)
+    elif message_type == 'success':
+        col.success(message)
+    elif message_type == 'warning':
+        col.warning(message)
+    elif message_type == 'error':
+        col.error(message)
+
+# Function to handle dismissal
+def dismiss_message():
+    st.session_state.dismissed = True
+
+# Initialize the dismissed state if it doesn't exist
+if 'dismissed' not in st.session_state:
+    st.session_state.dismissed = False
+
 # Get the AlphaPy environment variable
 
 alphapy_root = os.environ.get('ALPHAPY_ROOT')
@@ -145,17 +163,35 @@ topic = col2.radio(
     label_visibility="hidden")
 
 # OpenAI API Key
- 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-if 'OPENAI_API_KEY' in st.secrets:
-    col3.success('OpenAI API key has been provided.', icon='✅')
-    openai.api_key = st.secrets['OPENAI_API_KEY']
-else:
-    openai.api_key = col3.text_input('Enter OpenAI API token:', type='password')
-    if not (openai.api_key.startswith('sk-') and len(openai.api_key)==51):
-        st.warning('Please enter your credentials!', icon='⚠️')
+
+col1, col2, col3 = st.columns((3, 2, 2))
+
+# Function to validate the API key format
+def is_valid_api_key(key):
+    return key.startswith('sk-') and len(key) == 51
+
+# Retrieve the API key from Streamlit secrets or environment variables
+api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    # Ask the user to input their API key if not already provided
+    api_key = col1.text_input('Enter OpenAI API token:', type='password')
+    
+    # Validate the entered API key
+    if not api_key:
+        st.warning('Please enter your OpenAI API key!', icon='⚠️')
+    elif not is_valid_api_key(api_key):
+        st.warning('Invalid API key format. Please check and enter again.', icon='⚠️')
     else:
-        st.success('Proceed to entering your prompt message!', icon='👉')
+        st.success('API key looks good! Proceed to entering your prompt message.', icon='✅')
+else:
+    # Display the message if it hasn't been dismissed
+    if not st.session_state.dismissed:
+        display_status_message(col1, "OpenAI API key has been provided ✅. Click the button to dismiss.", "info")
+        col2.button("Dismiss", on_click=dismiss_message)
+
+# Set the OpenAI API key for the client
+openai.api_key = api_key
 
 # Markets
 
@@ -186,14 +222,22 @@ if topic == sports_string:
 
 # Generative AI
 
-if prompt_text:
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
+client = OpenAI()
+
+def call_openai(prompt):
+    try:
+        response = client.completions.create(model='gpt-4',
         messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt_text},
-        ]
-    )
-    answer = response.choices[0].message.content
-    # Display response
-    st.text_area('Response:', answer, height=350)
+                {"role": "system", "content": "Hello"},
+                {"role": "user", "content": "When was GPT launched?"},
+            ])
+        return response.choices[0].text.strip()
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+if prompt_text:
+    if api_key and is_valid_api_key(api_key):
+        response = call_openai(prompt_text)
+        st.write(response)
+    else:
+        st.warning('Please provide a valid OpenAI API key.', icon='⚠️')
