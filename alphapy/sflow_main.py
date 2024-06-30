@@ -1100,6 +1100,17 @@ def update_live_results(model_specs, df_live):
     # Reset index and drop composite key before returning
     df_live.reset_index(drop=True, inplace=True)
 
+    # Remove any predictions where the lines are zero
+
+    if target == 'over':
+        df_live = df_live[df_live['over_line'] != 0]
+    elif target == 'won_on_points':
+        df_live = df_live[df_live['home_money_line'] != 0]
+    elif target == 'won_on_spread':
+        df_live = df_live[df_live['home_point_spread'] != 0]
+    else:
+        logger.error(f"Invalid Target {target} when updating live results")
+
     return df_live
 
 
