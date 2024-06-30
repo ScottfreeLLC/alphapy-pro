@@ -1742,6 +1742,100 @@ def streak(df, c, w):
 
 
 #
+# Function tdseqbuy
+#
+
+def tdseqbuy(df, c='close', high='high', low='low'):
+    r"""Calculate Tom DeMark's Sequential Buy indicator.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe containing the columns ``c``, ``high``, and ``low``.
+    c : str, optional
+        Name of the column in the dataframe ``df`` representing the close prices.
+    high : str, optional
+        Name of the column in the dataframe ``df`` representing the high prices.
+    low : str, optional
+        Name of the column in the dataframe ``df`` representing the low prices.
+
+    Returns
+    -------
+    tdbuy : pandas.Series
+        The array containing the Sequential Buy count.
+
+    References
+    ----------
+    *Tom DeMark's Sequential indicator is used to identify a potential reversal
+    of the current trend by comparing the closing price to previous closing
+    prices over a fixed period* [WIKI_TDSEQ]_.
+
+    .. [WIKI_TDSEQ] https://en.wikipedia.org/wiki/Tom_DeMark_Indicators#TD_Sequential
+
+    """
+
+    # Initialize columns
+    tdbuy = pd.Series(0, index=df.index)
+
+    # Calculate the TD Setup
+    for i in range(4, len(df)):
+        # Buy Setup: Close less than the close 4 bars earlier for 9 consecutive bars
+        if df[c].iloc[i] < df[c].iloc[i - 4]:
+            tdbuy.iloc[i] = tdbuy.iloc[i - 1] + 1 if tdbuy.iloc[i - 1] < 9 else 0
+        else:
+            tdbuy.iloc[i] = 0
+
+    return tdbuy
+
+
+#
+# Function tdseqsell
+#
+
+def tdseqsell(df, c='close', high='high', low='low'):
+    r"""Calculate Tom DeMark's Sequential Sell indicator.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe containing the columns ``c``, ``high``, and ``low``.
+    c : str, optional
+        Name of the column in the dataframe ``df`` representing the close prices.
+    high : str, optional
+        Name of the column in the dataframe ``df`` representing the high prices.
+    low : str, optional
+        Name of the column in the dataframe ``df`` representing the low prices.
+
+    Returns
+    -------
+    tdsell : pandas.Series
+        The array containing the Sequential Sell count.
+
+    References
+    ----------
+    *Tom DeMark's Sequential indicator is used to identify a potential reversal
+    of the current trend by comparing the closing price to previous closing
+    prices over a fixed period* [WIKI_TDSEQ]_.
+
+    .. [WIKI_TDSEQ] https://en.wikipedia.org/wiki/Tom_DeMark_Indicators#TD_Sequential
+
+    """
+
+    # Initialize columns
+    tdsell = pd.Series(0, index=df.index)
+
+    # Calculate the TD Setup
+    for i in range(4, len(df)):
+        # Sell Setup: Close greater than the close 4 bars earlier for 9 consecutive bars
+        if df[c].iloc[i] > df[c].iloc[i - 4]:
+            tdsell.iloc[i] = tdsell.iloc[i - 1] + 1 if tdsell.iloc[i - 1] < 9 else 0
+        else:
+            tdsell.iloc[i] = 0
+
+    return tdsell
+
+
+#
 # Function texplode
 #
 
