@@ -59,7 +59,7 @@ def get_vol_ema(ds_close, p=60):
         The array of volatilities.
 
     """
-    logger.info('Calculating volatility for dynamic thresholds')
+    logger.debug('Calculating volatility for dynamic thresholds')
 
     # Calculate returns
     returns = ds_close.pct_change().dropna()
@@ -90,7 +90,7 @@ def get_daily_dollar_vol(df, p=60):
 
     """
 
-    logger.info('Calculating daily dollar volume')
+    logger.debug('Calculating daily dollar volume')
 
     fractal_daily = '1D'
     ds_price_avg = df['close'].groupby(pd.Grouper(freq=fractal_daily)).mean().dropna()

@@ -46,7 +46,6 @@ from alphapy.globals import ModelType
 from alphapy.globals import Objective
 from alphapy.globals import Partition, datasets
 from alphapy.globals import PSEP, SSEP, USEP
-from alphapy.globals import SamplingMethod
 from alphapy.globals import Scalers
 from alphapy.utilities import most_recent_file
 
@@ -272,18 +271,6 @@ def get_model_config(directory='.'):
     specs['separator'] = data_section['separator']
     specs['shuffle'] = data_section['shuffle']
     specs['split'] = data_section['split']
-    # sampling
-    specs['sampling'] = data_section['sampling']['option']
-    # determine whether or not sampling method is valid
-    samplers = {x.name: x.value for x in SamplingMethod}
-    sampling_method = data_section['sampling']['method']
-    if sampling_method in samplers:
-        specs['sampling_method'] = SamplingMethod(samplers[sampling_method])
-    else:
-        raise ValueError("model.yml data:sampling:method %s unrecognized" %
-                         sampling_method)
-    # sampling ratio
-    specs['sampling_ratio'] = data_section['sampling']['ratio']
 
     # Section: features
 
@@ -491,9 +478,6 @@ def get_model_config(directory='.'):
     logger.info('rfe_step          = %d', specs['rfe_step'])
     logger.info('roc_curve         = %r', specs['roc_curve'])
     logger.info('rounding          = %d', specs['rounding'])
-    logger.info('sampling          = %r', specs['sampling'])
-    logger.info('sampling_method   = %r', specs['sampling_method'])
-    logger.info('sampling_ratio    = %f', specs['sampling_ratio'])
     logger.info('scaler_option     = %r', specs['scaler_option'])
     logger.info('scaler_type       = %r', specs['scaler_type'])
     logger.info('scipy             = %r', specs['scipy'])

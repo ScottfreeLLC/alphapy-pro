@@ -34,7 +34,6 @@ from alphapy.globals import ModelType
 from alphapy.globals import Partition
 from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import SSEP
-from alphapy.globals import SamplingMethod
 from alphapy.globals import WILDCARD
 from alphapy.space import Space
 from alphapy.transforms import dateparts
@@ -43,16 +42,6 @@ from alphapy.transforms import timeparts
 from datetime import datetime
 from iexfinance.stocks import get_historical_data
 from iexfinance.stocks import get_historical_intraday
-from imblearn.combine import SMOTEENN
-from imblearn.combine import SMOTETomek
-from imblearn.ensemble import EasyEnsembleClassifier
-from imblearn.over_sampling import RandomOverSampler
-from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import ClusterCentroids
-from imblearn.under_sampling import NearMiss
-from imblearn.under_sampling import NeighbourhoodCleaningRule
-from imblearn.under_sampling import RandomUnderSampler
-from imblearn.under_sampling import TomekLinks
 from io import BytesIO
 import logging
 import numpy as np
@@ -195,92 +184,6 @@ def shuffle_data(model):
         model.X_train = X_train
     else:
         logger.info("Skipping Shuffling")
-
-    return model
-
-
-#
-# Function sample_data
-#
-
-def sample_data(model):
-    r"""Sample the training data.
-
-    Sampling is configured in the ``model.yml`` file (data:sampling:method)
-    You can learn more about resampling techniques here [IMB]_.
-
-    Parameters
-    ----------
-    model : alphapy.Model
-        The model object describing the data.
-
-    Returns
-    -------
-    model : alphapy.Model
-        The model object with the sampled data.
-
-    """
-
-    logger.info("Sampling Data")
-
-    # Extract model parameters.
-
-    sampling_method = model.specs['sampling_method']
-    sampling_ratio = model.specs['sampling_ratio']
-    target = model.specs['target']
-
-    # Extract model data.
-
-    X_train = model.X_train
-    y_train = model.y_train
-
-    # Calculate the sampling ratio if one is not provided.
-
-    _, uc = np.unique(y_train, return_counts=True)
-    current_ratio = uc[1] / uc[0]
-    logger.info("Sampling Ratio for target %s [%r]: %.2f => %.2f",
-                target, uc[1], current_ratio, sampling_ratio)
-
-    # Choose the sampling method.
-
-    if sampling_method == SamplingMethod.under_random:
-        sampler = RandomUnderSampler(sampling_strategy=sampling_ratio)
-    elif sampling_method == SamplingMethod.under_tomek:
-        sampler = TomekLinks()
-    elif sampling_method == SamplingMethod.under_cluster:
-        sampler = ClusterCentroids()
-    elif sampling_method == SamplingMethod.under_nearmiss:
-        sampler = NearMiss(version=1)
-    elif sampling_method == SamplingMethod.under_ncr:
-        sampler = NeighbourhoodCleaningRule()
-    elif sampling_method == SamplingMethod.over_random:
-        sampler = RandomOverSampler(sampling_strategy=sampling_ratio)
-    elif sampling_method == SamplingMethod.over_smote:
-        sampler = SMOTE()
-    elif sampling_method == SamplingMethod.over_smoteb:
-        sampler = SMOTE(sampling_strategy=sampling_ratio, kind='borderline1')
-    elif sampling_method == SamplingMethod.over_smotesv:
-        sampler = SMOTE(sampling_strategy=sampling_ratio, kind='svm')
-    elif sampling_method == SamplingMethod.overunder_smote_tomek:
-        sampler = SMOTETomek(sampling_strategy=sampling_ratio)
-    elif sampling_method == SamplingMethod.overunder_smote_enn:
-        sampler = SMOTEENN(sampling_strategy=sampling_ratio)
-    elif sampling_method == SamplingMethod.ensemble_easy:
-        sampler = EasyEnsembleClassifier()
-    else:
-        raise ValueError("Unknown Sampling Method %s" % sampling_method)
-
-    # Get the newly sampled features.
-
-    X, y = sampler.fit_resample(X_train, y_train)
-
-    logger.info("Original Samples : %d", X_train.shape[0])
-    logger.info("New Samples      : %d", X.shape[0])
-
-    # Store the new features in the model.
-
-    model.X_train = X
-    model.y_train = y
 
     return model
 

@@ -207,36 +207,6 @@ class Partition(Enum):
 
 
 #
-# Sampling Methods
-#
-
-@unique
-class SamplingMethod(Enum):
-    """AlphaPy Sampling Methods.
-
-    These are the data sampling methods used in AlphaPy, as configured
-    in the ``model.yml`` file (data:sampling:method) You can learn more
-    about resampling techniques here [IMB]_.
-
-    .. [IMB] https://github.com/scikit-learn-contrib/imbalanced-learn
-
-    """
-    ensemble_bc = 1
-    ensemble_easy = 2
-    over_random = 3
-    over_smote = 4
-    over_smoteb = 5
-    over_smotesv = 6
-    overunder_smote_enn = 7
-    overunder_smote_tomek = 8
-    under_cluster = 9
-    under_ncr = 10
-    under_nearmiss = 11
-    under_random = 12
-    under_tomek = 13
-
-
-#
 # Scaler Types
 #
 

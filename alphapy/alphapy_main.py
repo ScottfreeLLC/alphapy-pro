@@ -48,7 +48,6 @@ import yaml
 
 from alphapy.alias import Alias
 from alphapy.data import get_data
-from alphapy.data import sample_data
 from alphapy.data import shuffle_data
 from alphapy.estimators import get_estimators
 from alphapy.estimators import scorers
@@ -261,7 +260,6 @@ def training_pipeline(alphapy_specs, model):
     grid_search = model.specs['grid_search']
     model_type = model.specs['model_type']
     rfe = model.specs['rfe']
-    sampling = model.specs['sampling']
     scorer = model.specs['scorer']
     seed = model.specs['seed']
     separator = model.specs['separator']
@@ -401,14 +399,6 @@ def training_pipeline(alphapy_specs, model):
 
     # Shuffle the data [if specified]
     model = shuffle_data(model)
-
-    # Oversampling or Undersampling [if specified]
-
-    if model_type == ModelType.classification:
-        if sampling:
-            model = sample_data(model)
-        else:
-            logger.info("Skipping Sampling")
 
     # Perform feature selection, independent of algorithm
 
