@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>alphapy &mdash; AlphaPy 2.5.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/dark_mode_css/general.css?v=c0a7eb24" />
+      <link rel="stylesheet" type="text/css" href="../_static/dark_mode_css/dark.css?v=70edf1c7" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=3c4615cf"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/dark_mode_js/default_dark.js?v=fd565c74"></script>
+        <script src="../_static/dark_mode_js/theme_switcher.js?v=358d3910"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="alphapy package" href="alphapy.html" />
+    <link rel="prev" title="SportFlow" href="../user_guide/sport_flow.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            AlphaPy
+          </a>
+              <div class="version">
+                2.5.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/command.html">Command Line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/support.html">Support</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/kaggle.html">Kaggle Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/market.html">Market Prediction Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/ncaab.html">NCAA Basketball Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/system.html">Trading System Tutorial</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../user_guide/pipelines.html">AlphaPy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../user_guide/project.html">Project Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../user_guide/market_flow.html">MarketFlow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../user_guide/sport_flow.html">SportFlow</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">alphapy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html">alphapy package</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">AlphaPy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">alphapy</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/modules.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="alphapy">
+<h1>alphapy<a class="headerlink" href="#alphapy" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="alphapy.html">alphapy package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#alphapy-main-module">alphapy.__main__ module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.alias">alphapy.alias module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.alias.Alias"><code class="docutils literal notranslate"><span class="pre">Alias</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.alias.Alias.aliases"><code class="docutils literal notranslate"><span class="pre">Alias.aliases</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.alias.get_alias"><code class="docutils literal notranslate"><span class="pre">get_alias()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#alphapy-analysis-module">alphapy.analysis module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.calendrical">alphapy.calendrical module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.biz_day_month"><code class="docutils literal notranslate"><span class="pre">biz_day_month()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.biz_day_week"><code class="docutils literal notranslate"><span class="pre">biz_day_week()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.christmas_day"><code class="docutils literal notranslate"><span class="pre">christmas_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.cinco_de_mayo"><code class="docutils literal notranslate"><span class="pre">cinco_de_mayo()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.day_of_week"><code class="docutils literal notranslate"><span class="pre">day_of_week()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.day_of_year"><code class="docutils literal notranslate"><span class="pre">day_of_year()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.days_left_in_year"><code class="docutils literal notranslate"><span class="pre">days_left_in_year()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.easter_day"><code class="docutils literal notranslate"><span class="pre">easter_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.expand_dates"><code class="docutils literal notranslate"><span class="pre">expand_dates()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.fathers_day"><code class="docutils literal notranslate"><span class="pre">fathers_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.first_kday"><code class="docutils literal notranslate"><span class="pre">first_kday()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.gdate_to_rdate"><code class="docutils literal notranslate"><span class="pre">gdate_to_rdate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.get_holiday_names"><code class="docutils literal notranslate"><span class="pre">get_holiday_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.get_nth_kday_of_month"><code class="docutils literal notranslate"><span class="pre">get_nth_kday_of_month()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.get_rdate"><code class="docutils literal notranslate"><span class="pre">get_rdate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.good_friday"><code class="docutils literal notranslate"><span class="pre">good_friday()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.halloween"><code class="docutils literal notranslate"><span class="pre">halloween()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.independence_day"><code class="docutils literal notranslate"><span class="pre">independence_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.kday_after"><code class="docutils literal notranslate"><span class="pre">kday_after()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.kday_before"><code class="docutils literal notranslate"><span class="pre">kday_before()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.kday_nearest"><code class="docutils literal notranslate"><span class="pre">kday_nearest()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.kday_on_after"><code class="docutils literal notranslate"><span class="pre">kday_on_after()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.kday_on_before"><code class="docutils literal notranslate"><span class="pre">kday_on_before()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.labor_day"><code class="docutils literal notranslate"><span class="pre">labor_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.last_kday"><code class="docutils literal notranslate"><span class="pre">last_kday()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.leap_year"><code class="docutils literal notranslate"><span class="pre">leap_year()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.memorial_day"><code class="docutils literal notranslate"><span class="pre">memorial_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.mlk_day"><code class="docutils literal notranslate"><span class="pre">mlk_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.mothers_day"><code class="docutils literal notranslate"><span class="pre">mothers_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.new_years_day"><code class="docutils literal notranslate"><span class="pre">new_years_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.next_event"><code class="docutils literal notranslate"><span class="pre">next_event()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.next_holiday"><code class="docutils literal notranslate"><span class="pre">next_holiday()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.nth_bizday"><code class="docutils literal notranslate"><span class="pre">nth_bizday()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.nth_kday"><code class="docutils literal notranslate"><span class="pre">nth_kday()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.presidents_day"><code class="docutils literal notranslate"><span class="pre">presidents_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.previous_event"><code class="docutils literal notranslate"><span class="pre">previous_event()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.previous_holiday"><code class="docutils literal notranslate"><span class="pre">previous_holiday()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.rdate_to_gdate"><code class="docutils literal notranslate"><span class="pre">rdate_to_gdate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.rdate_to_gyear"><code class="docutils literal notranslate"><span class="pre">rdate_to_gyear()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.saint_patricks_day"><code class="docutils literal notranslate"><span class="pre">saint_patricks_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.set_events"><code class="docutils literal notranslate"><span class="pre">set_events()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.set_holidays"><code class="docutils literal notranslate"><span class="pre">set_holidays()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.subtract_dates"><code class="docutils literal notranslate"><span class="pre">subtract_dates()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.thanksgiving_day"><code class="docutils literal notranslate"><span class="pre">thanksgiving_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.valentines_day"><code class="docutils literal notranslate"><span class="pre">valentines_day()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.calendrical.veterans_day"><code class="docutils literal notranslate"><span class="pre">veterans_day()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.data">alphapy.data module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.assign_global_data"><code class="docutils literal notranslate"><span class="pre">assign_global_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.convert_data"><code class="docutils literal notranslate"><span class="pre">convert_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.convert_offset"><code class="docutils literal notranslate"><span class="pre">convert_offset()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.get_data"><code class="docutils literal notranslate"><span class="pre">get_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.get_eodhd_data"><code class="docutils literal notranslate"><span class="pre">get_eodhd_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.get_google_data"><code class="docutils literal notranslate"><span class="pre">get_google_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.get_google_intraday_data"><code class="docutils literal notranslate"><span class="pre">get_google_intraday_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.get_iex_data"><code class="docutils literal notranslate"><span class="pre">get_iex_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.get_market_data"><code class="docutils literal notranslate"><span class="pre">get_market_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.get_pandas_data"><code class="docutils literal notranslate"><span class="pre">get_pandas_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.get_polygon_data"><code class="docutils literal notranslate"><span class="pre">get_polygon_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.get_yahoo_data"><code class="docutils literal notranslate"><span class="pre">get_yahoo_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.shuffle_data"><code class="docutils literal notranslate"><span class="pre">shuffle_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.data.standardize_data"><code class="docutils literal notranslate"><span class="pre">standardize_data()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.estimators">alphapy.estimators module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.estimators.Estimator"><code class="docutils literal notranslate"><span class="pre">Estimator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.estimators.find_optional_packages"><code class="docutils literal notranslate"><span class="pre">find_optional_packages()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.estimators.get_algos_config"><code class="docutils literal notranslate"><span class="pre">get_algos_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.estimators.get_estimators"><code class="docutils literal notranslate"><span class="pre">get_estimators()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.features">alphapy.features module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.apply_transform"><code class="docutils literal notranslate"><span class="pre">apply_transform()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.apply_transforms"><code class="docutils literal notranslate"><span class="pre">apply_transforms()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.create_clusters"><code class="docutils literal notranslate"><span class="pre">create_clusters()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.create_crosstabs"><code class="docutils literal notranslate"><span class="pre">create_crosstabs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.create_features"><code class="docutils literal notranslate"><span class="pre">create_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.create_interactions"><code class="docutils literal notranslate"><span class="pre">create_interactions()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.create_isomap_features"><code class="docutils literal notranslate"><span class="pre">create_isomap_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.create_numpy_features"><code class="docutils literal notranslate"><span class="pre">create_numpy_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.create_pca_features"><code class="docutils literal notranslate"><span class="pre">create_pca_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.create_scipy_features"><code class="docutils literal notranslate"><span class="pre">create_scipy_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.create_tsne_features"><code class="docutils literal notranslate"><span class="pre">create_tsne_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.drop_features"><code class="docutils literal notranslate"><span class="pre">drop_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.float_factor"><code class="docutils literal notranslate"><span class="pre">float_factor()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.get_factors"><code class="docutils literal notranslate"><span class="pre">get_factors()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.get_numerical_features"><code class="docutils literal notranslate"><span class="pre">get_numerical_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.get_polynomials"><code class="docutils literal notranslate"><span class="pre">get_polynomials()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.get_text_features"><code class="docutils literal notranslate"><span class="pre">get_text_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.impute_values"><code class="docutils literal notranslate"><span class="pre">impute_values()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.remove_lv_features"><code class="docutils literal notranslate"><span class="pre">remove_lv_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.save_features"><code class="docutils literal notranslate"><span class="pre">save_features()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.select_features_lofo"><code class="docutils literal notranslate"><span class="pre">select_features_lofo()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.features.select_features_univariate"><code class="docutils literal notranslate"><span class="pre">select_features_univariate()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.frame">alphapy.frame module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.frame.Frame"><code class="docutils literal notranslate"><span class="pre">Frame</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.frame.Frame.frames"><code class="docutils literal notranslate"><span class="pre">Frame.frames</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.frame.dump_frames"><code class="docutils literal notranslate"><span class="pre">dump_frames()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.frame.frame_name"><code class="docutils literal notranslate"><span class="pre">frame_name()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.frame.load_frames"><code class="docutils literal notranslate"><span class="pre">load_frames()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.frame.read_frame"><code class="docutils literal notranslate"><span class="pre">read_frame()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.frame.sequence_frame"><code class="docutils literal notranslate"><span class="pre">sequence_frame()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.frame.write_frame"><code class="docutils literal notranslate"><span class="pre">write_frame()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.globals">alphapy.globals module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.globals.BarType"><code class="docutils literal notranslate"><span class="pre">BarType</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.BarType.dollar"><code class="docutils literal notranslate"><span class="pre">BarType.dollar</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.BarType.heikinashi"><code class="docutils literal notranslate"><span class="pre">BarType.heikinashi</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.BarType.time"><code class="docutils literal notranslate"><span class="pre">BarType.time</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders"><code class="docutils literal notranslate"><span class="pre">Encoders</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.backdiff"><code class="docutils literal notranslate"><span class="pre">Encoders.backdiff</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.basen"><code class="docutils literal notranslate"><span class="pre">Encoders.basen</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.binary"><code class="docutils literal notranslate"><span class="pre">Encoders.binary</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.catboost"><code class="docutils literal notranslate"><span class="pre">Encoders.catboost</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.hashing"><code class="docutils literal notranslate"><span class="pre">Encoders.hashing</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.helmert"><code class="docutils literal notranslate"><span class="pre">Encoders.helmert</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.jstein"><code class="docutils literal notranslate"><span class="pre">Encoders.jstein</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.leaveone"><code class="docutils literal notranslate"><span class="pre">Encoders.leaveone</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.mestimate"><code class="docutils literal notranslate"><span class="pre">Encoders.mestimate</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.onehot"><code class="docutils literal notranslate"><span class="pre">Encoders.onehot</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.ordinal"><code class="docutils literal notranslate"><span class="pre">Encoders.ordinal</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.polynomial"><code class="docutils literal notranslate"><span class="pre">Encoders.polynomial</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.sum"><code class="docutils literal notranslate"><span class="pre">Encoders.sum</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.target"><code class="docutils literal notranslate"><span class="pre">Encoders.target</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Encoders.woe"><code class="docutils literal notranslate"><span class="pre">Encoders.woe</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.globals.ModelType"><code class="docutils literal notranslate"><span class="pre">ModelType</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.ModelType.classification"><code class="docutils literal notranslate"><span class="pre">ModelType.classification</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.ModelType.metalabel"><code class="docutils literal notranslate"><span class="pre">ModelType.metalabel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.ModelType.multiclass"><code class="docutils literal notranslate"><span class="pre">ModelType.multiclass</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.ModelType.ranking"><code class="docutils literal notranslate"><span class="pre">ModelType.ranking</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.ModelType.regression"><code class="docutils literal notranslate"><span class="pre">ModelType.regression</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.globals.Objective"><code class="docutils literal notranslate"><span class="pre">Objective</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Objective.maximize"><code class="docutils literal notranslate"><span class="pre">Objective.maximize</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Objective.minimize"><code class="docutils literal notranslate"><span class="pre">Objective.minimize</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.globals.Orders"><code class="docutils literal notranslate"><span class="pre">Orders</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Orders.le"><code class="docutils literal notranslate"><span class="pre">Orders.le</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Orders.lh"><code class="docutils literal notranslate"><span class="pre">Orders.lh</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Orders.lx"><code class="docutils literal notranslate"><span class="pre">Orders.lx</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Orders.se"><code class="docutils literal notranslate"><span class="pre">Orders.se</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Orders.sh"><code class="docutils literal notranslate"><span class="pre">Orders.sh</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Orders.sx"><code class="docutils literal notranslate"><span class="pre">Orders.sx</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.globals.Partition"><code class="docutils literal notranslate"><span class="pre">Partition</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Partition.test"><code class="docutils literal notranslate"><span class="pre">Partition.test</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Partition.train"><code class="docutils literal notranslate"><span class="pre">Partition.train</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.globals.Scalers"><code class="docutils literal notranslate"><span class="pre">Scalers</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Scalers.minmax"><code class="docutils literal notranslate"><span class="pre">Scalers.minmax</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.globals.Scalers.standard"><code class="docutils literal notranslate"><span class="pre">Scalers.standard</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.group">alphapy.group module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.group.Group"><code class="docutils literal notranslate"><span class="pre">Group</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.group.Group.add"><code class="docutils literal notranslate"><span class="pre">Group.add()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.group.Group.groups"><code class="docutils literal notranslate"><span class="pre">Group.groups</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.group.Group.member"><code class="docutils literal notranslate"><span class="pre">Group.member()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.group.Group.remove"><code class="docutils literal notranslate"><span class="pre">Group.remove()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#alphapy-market-flow-module">alphapy.market_flow module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.model">alphapy.model module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.Model"><code class="docutils literal notranslate"><span class="pre">Model</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.first_fit"><code class="docutils literal notranslate"><span class="pre">first_fit()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.generate_metrics"><code class="docutils literal notranslate"><span class="pre">generate_metrics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.get_model_config"><code class="docutils literal notranslate"><span class="pre">get_model_config()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.load_feature_map"><code class="docutils literal notranslate"><span class="pre">load_feature_map()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.load_predictor"><code class="docutils literal notranslate"><span class="pre">load_predictor()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.make_predictions"><code class="docutils literal notranslate"><span class="pre">make_predictions()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.predict_blend"><code class="docutils literal notranslate"><span class="pre">predict_blend()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.save_feature_map"><code class="docutils literal notranslate"><span class="pre">save_feature_map()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.save_metrics"><code class="docutils literal notranslate"><span class="pre">save_metrics()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.save_predictions"><code class="docutils literal notranslate"><span class="pre">save_predictions()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.save_predictor"><code class="docutils literal notranslate"><span class="pre">save_predictor()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.model.select_best_model"><code class="docutils literal notranslate"><span class="pre">select_best_model()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.optimize">alphapy.optimize module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.optimize.grid_report"><code class="docutils literal notranslate"><span class="pre">grid_report()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.optimize.hyper_grid_search"><code class="docutils literal notranslate"><span class="pre">hyper_grid_search()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.optimize.rfecv_search"><code class="docutils literal notranslate"><span class="pre">rfecv_search()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.plots">alphapy.plots module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.generate_plots"><code class="docutils literal notranslate"><span class="pre">generate_plots()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.get_partition_data"><code class="docutils literal notranslate"><span class="pre">get_partition_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.get_plot_directory"><code class="docutils literal notranslate"><span class="pre">get_plot_directory()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_boundary"><code class="docutils literal notranslate"><span class="pre">plot_boundary()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_box"><code class="docutils literal notranslate"><span class="pre">plot_box()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_calibration"><code class="docutils literal notranslate"><span class="pre">plot_calibration()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_candlestick"><code class="docutils literal notranslate"><span class="pre">plot_candlestick()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_confusion_matrix"><code class="docutils literal notranslate"><span class="pre">plot_confusion_matrix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_distribution"><code class="docutils literal notranslate"><span class="pre">plot_distribution()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_facet_grid"><code class="docutils literal notranslate"><span class="pre">plot_facet_grid()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_importances"><code class="docutils literal notranslate"><span class="pre">plot_importances()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_learning_curve"><code class="docutils literal notranslate"><span class="pre">plot_learning_curve()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_partial_dependence"><code class="docutils literal notranslate"><span class="pre">plot_partial_dependence()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_roc_curve"><code class="docutils literal notranslate"><span class="pre">plot_roc_curve()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_scatter"><code class="docutils literal notranslate"><span class="pre">plot_scatter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_swarm"><code class="docutils literal notranslate"><span class="pre">plot_swarm()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_time_series"><code class="docutils literal notranslate"><span class="pre">plot_time_series()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.plot_validation_curve"><code class="docutils literal notranslate"><span class="pre">plot_validation_curve()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.plots.write_plot"><code class="docutils literal notranslate"><span class="pre">write_plot()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.portfolio">alphapy.portfolio module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.Portfolio"><code class="docutils literal notranslate"><span class="pre">Portfolio</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.portfolio.Portfolio.portfolios"><code class="docutils literal notranslate"><span class="pre">Portfolio.portfolios</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.Position"><code class="docutils literal notranslate"><span class="pre">Position</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.Trade"><code class="docutils literal notranslate"><span class="pre">Trade</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.portfolio.Trade.states"><code class="docutils literal notranslate"><span class="pre">Trade.states</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.allocate_trade"><code class="docutils literal notranslate"><span class="pre">allocate_trade()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.balance"><code class="docutils literal notranslate"><span class="pre">balance()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.close_position"><code class="docutils literal notranslate"><span class="pre">close_position()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.create_portfolio"><code class="docutils literal notranslate"><span class="pre">create_portfolio()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.delete_portfolio"><code class="docutils literal notranslate"><span class="pre">delete_portfolio()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.deposit_portfolio"><code class="docutils literal notranslate"><span class="pre">deposit_portfolio()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.exec_trade"><code class="docutils literal notranslate"><span class="pre">exec_trade()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.gen_portfolios"><code class="docutils literal notranslate"><span class="pre">gen_portfolios()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.kick_out"><code class="docutils literal notranslate"><span class="pre">kick_out()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.portfolio_name"><code class="docutils literal notranslate"><span class="pre">portfolio_name()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.stop_loss"><code class="docutils literal notranslate"><span class="pre">stop_loss()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.update_portfolio"><code class="docutils literal notranslate"><span class="pre">update_portfolio()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.update_position"><code class="docutils literal notranslate"><span class="pre">update_position()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.valuate_portfolio"><code class="docutils literal notranslate"><span class="pre">valuate_portfolio()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.valuate_position"><code class="docutils literal notranslate"><span class="pre">valuate_position()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.portfolio.withdraw_portfolio"><code class="docutils literal notranslate"><span class="pre">withdraw_portfolio()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.space">alphapy.space module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.space.Space"><code class="docutils literal notranslate"><span class="pre">Space</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.space.space_name"><code class="docutils literal notranslate"><span class="pre">space_name()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#alphapy-sport-flow-module">alphapy.sport_flow module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.system">alphapy.system module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.system.System"><code class="docutils literal notranslate"><span class="pre">System</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.system.System.systems"><code class="docutils literal notranslate"><span class="pre">System.systems</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.system.SystemRank"><code class="docutils literal notranslate"><span class="pre">SystemRank</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.system.SystemRank.systems"><code class="docutils literal notranslate"><span class="pre">SystemRank.systems</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.system.run_system"><code class="docutils literal notranslate"><span class="pre">run_system()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.system.trade_metalabel"><code class="docutils literal notranslate"><span class="pre">trade_metalabel()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.system.trade_ranking"><code class="docutils literal notranslate"><span class="pre">trade_ranking()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.system.trade_system"><code class="docutils literal notranslate"><span class="pre">trade_system()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.transforms">alphapy.transforms module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.adx"><code class="docutils literal notranslate"><span class="pre">adx()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.bbands"><code class="docutils literal notranslate"><span class="pre">bbands()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.bblower"><code class="docutils literal notranslate"><span class="pre">bblower()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.bbupper"><code class="docutils literal notranslate"><span class="pre">bbupper()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.bizday"><code class="docutils literal notranslate"><span class="pre">bizday()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.c2max"><code class="docutils literal notranslate"><span class="pre">c2max()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.c2min"><code class="docutils literal notranslate"><span class="pre">c2min()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.dateparts"><code class="docutils literal notranslate"><span class="pre">dateparts()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.diff"><code class="docutils literal notranslate"><span class="pre">diff()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.diminus"><code class="docutils literal notranslate"><span class="pre">diminus()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.diplus"><code class="docutils literal notranslate"><span class="pre">diplus()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.dminus"><code class="docutils literal notranslate"><span class="pre">dminus()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.dmplus"><code class="docutils literal notranslate"><span class="pre">dmplus()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.ema"><code class="docutils literal notranslate"><span class="pre">ema()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.gap"><code class="docutils literal notranslate"><span class="pre">gap()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.gapbadown"><code class="docutils literal notranslate"><span class="pre">gapbadown()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.gapbaup"><code class="docutils literal notranslate"><span class="pre">gapbaup()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.gapdown"><code class="docutils literal notranslate"><span class="pre">gapdown()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.gapup"><code class="docutils literal notranslate"><span class="pre">gapup()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.gtval"><code class="docutils literal notranslate"><span class="pre">gtval()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.gtval0"><code class="docutils literal notranslate"><span class="pre">gtval0()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.haclose"><code class="docutils literal notranslate"><span class="pre">haclose()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.hahigh"><code class="docutils literal notranslate"><span class="pre">hahigh()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.halow"><code class="docutils literal notranslate"><span class="pre">halow()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.haopen"><code class="docutils literal notranslate"><span class="pre">haopen()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.higher"><code class="docutils literal notranslate"><span class="pre">higher()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.highest"><code class="docutils literal notranslate"><span class="pre">highest()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.hlrange"><code class="docutils literal notranslate"><span class="pre">hlrange()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.keltner"><code class="docutils literal notranslate"><span class="pre">keltner()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.keltnerlb"><code class="docutils literal notranslate"><span class="pre">keltnerlb()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.keltnerml"><code class="docutils literal notranslate"><span class="pre">keltnerml()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.keltnerub"><code class="docutils literal notranslate"><span class="pre">keltnerub()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.lower"><code class="docutils literal notranslate"><span class="pre">lower()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.lowest"><code class="docutils literal notranslate"><span class="pre">lowest()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.ma"><code class="docutils literal notranslate"><span class="pre">ma()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.maabove"><code class="docutils literal notranslate"><span class="pre">maabove()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.mabelow"><code class="docutils literal notranslate"><span class="pre">mabelow()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.maratio"><code class="docutils literal notranslate"><span class="pre">maratio()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.negval0"><code class="docutils literal notranslate"><span class="pre">negval0()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.negvals"><code class="docutils literal notranslate"><span class="pre">negvals()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.net"><code class="docutils literal notranslate"><span class="pre">net()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.netreturn"><code class="docutils literal notranslate"><span class="pre">netreturn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.pchange1"><code class="docutils literal notranslate"><span class="pre">pchange1()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.pchange2"><code class="docutils literal notranslate"><span class="pre">pchange2()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.pivot_high"><code class="docutils literal notranslate"><span class="pre">pivot_high()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.pivot_low"><code class="docutils literal notranslate"><span class="pre">pivot_low()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.posval0"><code class="docutils literal notranslate"><span class="pre">posval0()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.posvals"><code class="docutils literal notranslate"><span class="pre">posvals()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.rindex"><code class="docutils literal notranslate"><span class="pre">rindex()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.rsi"><code class="docutils literal notranslate"><span class="pre">rsi()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.rtotal"><code class="docutils literal notranslate"><span class="pre">rtotal()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.runs"><code class="docutils literal notranslate"><span class="pre">runs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.runstest"><code class="docutils literal notranslate"><span class="pre">runstest()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.split2letters"><code class="docutils literal notranslate"><span class="pre">split2letters()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.streak"><code class="docutils literal notranslate"><span class="pre">streak()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.tdseqbuy"><code class="docutils literal notranslate"><span class="pre">tdseqbuy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.tdseqsell"><code class="docutils literal notranslate"><span class="pre">tdseqsell()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.texplode"><code class="docutils literal notranslate"><span class="pre">texplode()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.timeparts"><code class="docutils literal notranslate"><span class="pre">timeparts()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.truehigh"><code class="docutils literal notranslate"><span class="pre">truehigh()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.truelow"><code class="docutils literal notranslate"><span class="pre">truelow()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.truerange"><code class="docutils literal notranslate"><span class="pre">truerange()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.ttmsqueeze"><code class="docutils literal notranslate"><span class="pre">ttmsqueeze()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.ttmsqueezelong"><code class="docutils literal notranslate"><span class="pre">ttmsqueezelong()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.ttmsqueezeoff"><code class="docutils literal notranslate"><span class="pre">ttmsqueezeoff()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.ttmsqueezeon"><code class="docutils literal notranslate"><span class="pre">ttmsqueezeon()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.ttmsqueezeshort"><code class="docutils literal notranslate"><span class="pre">ttmsqueezeshort()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.vwap"><code class="docutils literal notranslate"><span class="pre">vwap()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.xmadown"><code class="docutils literal notranslate"><span class="pre">xmadown()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.xmaup"><code class="docutils literal notranslate"><span class="pre">xmaup()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.transforms.zscore"><code class="docutils literal notranslate"><span class="pre">zscore()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.utilities">alphapy.utilities module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.datetime_stamp"><code class="docutils literal notranslate"><span class="pre">datetime_stamp()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.get_web_content"><code class="docutils literal notranslate"><span class="pre">get_web_content()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.most_recent_file"><code class="docutils literal notranslate"><span class="pre">most_recent_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.np_store_data"><code class="docutils literal notranslate"><span class="pre">np_store_data()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.remove_list_items"><code class="docutils literal notranslate"><span class="pre">remove_list_items()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.run_command"><code class="docutils literal notranslate"><span class="pre">run_command()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.split_duration"><code class="docutils literal notranslate"><span class="pre">split_duration()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.subtract_days"><code class="docutils literal notranslate"><span class="pre">subtract_days()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.valid_date"><code class="docutils literal notranslate"><span class="pre">valid_date()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.utilities.valid_name"><code class="docutils literal notranslate"><span class="pre">valid_name()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="alphapy.html#module-alphapy.variables">alphapy.variables module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.Variable"><code class="docutils literal notranslate"><span class="pre">Variable</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="alphapy.html#alphapy.variables.Variable.variables"><code class="docutils literal notranslate"><span class="pre">Variable.variables</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.allvars"><code class="docutils literal notranslate"><span class="pre">allvars()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.get_daily_dollar_vol"><code class="docutils literal notranslate"><span class="pre">get_daily_dollar_vol()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.map_bar_type"><code class="docutils literal notranslate"><span class="pre">map_bar_type()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.map_dollar_bars"><code class="docutils literal notranslate"><span class="pre">map_dollar_bars()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.vapply"><code class="docutils literal notranslate"><span class="pre">vapply()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.vexec"><code class="docutils literal notranslate"><span class="pre">vexec()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.vexpr"><code class="docutils literal notranslate"><span class="pre">vexpr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.vfunc"><code class="docutils literal notranslate"><span class="pre">vfunc()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.vparse"><code class="docutils literal notranslate"><span class="pre">vparse()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.vsub"><code class="docutils literal notranslate"><span class="pre">vsub()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="alphapy.html#alphapy.variables.vtree"><code class="docutils literal notranslate"><span class="pre">vtree()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../user_guide/sport_flow.html" class="btn btn-neutral float-left" title="SportFlow" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="alphapy.html" class="btn btn-neutral float-right" title="alphapy package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, ScottFree Analytics LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
