@@ -9,3 +9,4 @@ dist/
 *egg-info*/
 credentials.json
 token.json
+.DS_Store
