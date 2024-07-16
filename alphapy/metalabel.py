@@ -40,36 +40,6 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Function get_vol_ema
-#
-
-def get_vol_ema(ds_close, p=60):
-    """Calculate volatility for dynamic thresholds.
-
-    Parameters
-    ----------
-    ds_close : pandas.Series
-        Array of closing values, indexed by datetime.
-    p : int
-        The lookback period for computing volatility.
-
-    Returns
-    -------
-    ds_vol : pandas.Series (float)
-        The array of volatilities.
-
-    """
-    logger.debug('Calculating volatility for dynamic thresholds')
-
-    # Calculate returns
-    returns = ds_close.pct_change().dropna()
-
-    # Calculate volatility using exponentially weighted moving average (EWMA)
-    ds_vol = returns.ewm(span=p, min_periods=p).std()
-    return ds_vol
-
-
-#
 # Function get_daily_dollar_vol
 #
 
@@ -243,7 +213,7 @@ def apply_targets(ds_close, df_events, pt_sl):
 # Function get_events
 #
 
-def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_ret=0.01):
+def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_ret=0.0):
     r"""Get the dataframe of target events.
 
     Parameters
@@ -301,6 +271,7 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_re
     # Apply the Triple Barrier.
 
     df_tbm = apply_targets(ds_close, df_events, pt_sl_)
+    print(df_tbm)
     df_tbm_filtered = df_tbm[['t1', 'sl', 'pt']].copy()
     df_tbm_filtered['sl'] = pd.to_datetime(df_tbm_filtered['sl'], errors='coerce')
     df_tbm_filtered['pt'] = pd.to_datetime(df_tbm_filtered['pt'], errors='coerce')

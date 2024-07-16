@@ -60,7 +60,6 @@ from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.group import Group
 from alphapy.metalabel import add_vertical_barrier
 from alphapy.metalabel import get_bins
-from alphapy.metalabel import get_vol_ema
 from alphapy.metalabel import get_events
 from alphapy.metalabel import get_threshold_events
 from alphapy.model import get_model_config
@@ -387,15 +386,17 @@ def set_targets_metalabel(model, df, system_specs):
     # Lag the signal.
     df['side'] = df['side'].shift(1)
 
-    # Get daily volatility.
+    # Get the volatility for a given fractal.
 
-    close_col = USEP.join(['close', trade_fractal])
-    ds_close = df[close_col]
-    vol_ema = get_vol_ema(ds_close)
-    vol_mean = np.nanmean(vol_ema)
+    col_vol = USEP.join(['volatility_20', trade_fractal])
+    ds_vol = df[col_vol]
+    vol_mean = np.nanmean(ds_vol)
 
     # Get the CUSUM events.
-    cusum_events = get_threshold_events(ds_close, vol_mean)
+
+    col_close = USEP.join(['close', trade_fractal])
+    ds_close = df[col_close]
+    cusum_events = get_threshold_events(ds_close, 0)
 
     # Establish the vertical barriers.
     vertical_barriers = add_vertical_barrier(cusum_events, ds_close, forecast_period,
@@ -406,7 +407,7 @@ def set_targets_metalabel(model, df, system_specs):
     df_tbm = get_events(ds_close,
                         cusum_events,
                         [profit_factor, stoploss_factor],
-                        vol_ema,
+                        ds_vol,
                         vertical_barriers,
                         df['side'],
                         vol_mean)
@@ -618,8 +619,8 @@ def prepare_data(model, dfs, market_specs):
         train_frame.sort_index(inplace=True)
         write_frame(train_frame, directory, train_file, extension, separator,
                     index=True, index_label='date')
-        test_frame = test_frame.dropna(subset=[target])
         if not test_frame.empty:
+            test_frame = test_frame.dropna(subset=[target])
             test_frame.sort_index(inplace=True)
             write_frame(test_frame, directory, test_file, extension, separator,
                         index=True, index_label='date')
