@@ -25,117 +25,28 @@ HOW TO RUN:
 > cd /Users/markconway/Projects/alphapy-pro/alphapy
 > python mflow_server.py
 
+SERVER CHECK
+> lsof -i :8080
+
 """
 
-import os
+
 import asyncio
-import requests
-import streamlit as st
-import pandas as pd  # Import pandas for data manipulation
-import websockets
-import json
-from datetime import datetime
-
-# Access the Polygon.io API key from the environment variable
-API_KEY = os.getenv('POLYGON_API_KEY')
-
-# Initialize data structures
-stock_data = {}
-
-# Function to get current daily volume from Polygon.io
-def get_current_volume(ticker):
-    today = datetime.now().strftime('%Y-%m-%d')
-    url = f'https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{today}/{today}?adjusted=true&apiKey={API_KEY}'
-    response = requests.get(url)
-    data = response.json()
-    if response.status_code == 200 and 'results' in data and len(data['results']) > 0:
-        return data['results'][0]['v']
-    else:
-        print(f"Failed to fetch current volume for {ticker}: {data.get('error', 'Unknown error')}")
-        return 0
-
-# Asynchronous function to handle WebSocket messages
-async def handle_websocket(uri):
-    async with websockets.connect(uri) as websocket:
-        # Authenticate
-        await websocket.send(json.dumps({
-            'action': 'auth',
-            'params': API_KEY
-        }))
-        # Subscribe to all trades
-        await websocket.send(json.dumps({
-            'action': 'subscribe',
-            'params': 'T.*'
-        }))
-        # Process incoming messages
-        while True:
-            message = await websocket.recv()
-            data = json.loads(message)
-            for trade in data:
-                if trade['ev'] == 'T':
-                    ticker = trade['sym']
-                    if ticker not in stock_data:
-                        stock_data[ticker] = {
-                            'trades': 0,
-                            'current_volume': get_current_volume(ticker)
-                        }
-                    stock_data[ticker]['trades'] += 1
-
-#
-# Function start_websocket_client
-#
-
-async def start_websocket_client():
-    uri = "wss://socket.polygon.io/stocks"
-    await handle_websocket(uri)
-
-#
-# Function update_and_display_data
-#
-
-def update_and_display_data():
-    st.title("Real-Time Stock Trades")
-    st.write("This application shows real-time stock trades and volumes.")
-
-    if stock_data:
-        df = pd.DataFrame.from_dict(stock_data, orient='index')
-        st.dataframe(df)
-    else:
-        st.write("Waiting for data...")
-
-
-#projects = alphapy_request(alphapy_specs, 'projects', alphapy_specs)
-#projects = sorted(projects, key=str.casefold)
-#projects.insert(0, None)
-#project = st.sidebar.selectbox("Select Project", projects)
-
-#
-# Imports
-#
-
+from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException
 from finviz.portfolio import Portfolio
 from finviz.screener import Screener
 import finnhub
+import json
 import logging
 import os
 import pandas as pd
-from pathlib import Path
+import pandas_ta as ta
+import requests
 import sys
 import uvicorn
+import websockets
 import yaml
-
-from alphapy.globals import BarType
-from alphapy.globals import SSEP
-from alphapy.group import Group
-from alphapy.model import get_model_config
-
-
-#
-# Initialize FastAPI
-#
-
-app = FastAPI()
-
 
 #
 # Initialize logger
@@ -143,229 +54,251 @@ app = FastAPI()
 
 logger = logging.getLogger(__name__)
 
+#
+# Global Variables
+#
+
+BASE_URL = 'https://api.polygon.io'
+API_KEY = os.getenv('POLYGON_API_KEY')
+stock_data = {}
+config_mflow = None
+config_groups = None
+config_sources = None
 
 #
-# Function get_finviz_portfolios
+# Get the Market Flow Configurations
 #
 
-def get_finviz_portfolios():
-    finviz_specs = alphapy_specs['sources']['finviz']
+def get_config_files():
+    global config_mflow, config_groups, config_sources
+    with open('./mflow_server.yml', 'r') as file:
+        config_mflow = yaml.safe_load(file)
+    alphapy_root = os.getenv('ALPHAPY_ROOT') + '/config'
+    path_groups = alphapy_root + '/groups.yml'
+    with open(path_groups, 'r') as file:
+        config_groups = yaml.safe_load(file)
+    path_sources = alphapy_root + '/sources.yml'
+    with open(path_sources, 'r') as file:
+        config_sources = yaml.safe_load(file)
+
+#
+# Function to get all stock symbols
+#
+
+def get_all_stock_symbols(api_key):
+    logger.info("Getting All Stock Symbols")
+    url = f'{BASE_URL}/v3/reference/tickers'
+    tickers = []
+    params = {
+        'apiKey': api_key,
+        'limit': 1000,  # Adjust the limit to fetch more or fewer symbols per request
+        'market': 'stocks',
+        'active': 'true',  # Fetch only active stocks
+        'type': 'CS'  # Fetch only common stocks
+    }
+    while True:
+        response = requests.get(url, params=params)
+        data = response.json()
+        if response.status_code != 200:
+            logger.error(f"Error fetching data: {data.get('error', 'Unknown error')}")
+            break
+        # Extract tickers and add them to the list
+        tickers.extend([symbol['ticker'] for symbol in data['results']])
+        # Check if there's a next_url for pagination
+        if 'next_url' in data:
+            url = data['next_url']
+        else:
+            break
+    logger.info(f"Found {len(tickers)} Active Symbols")
+    return tickers
+
+#
+# Function get_finviz_symbols
+#
+
+def get_finviz_symbols(portfolio_name):
+    finviz_specs = config_sources['finviz']
     email = finviz_specs['email']
     api_key = finviz_specs['api_key']
-    portfolios = finviz_specs['portfolios']
-    print(portfolios)
-
-    groups = {}
-    for pf in portfolios:
-        portfolio = Portfolio(email, api_key, pf)
-        if portfolio:
-            df = pd.DataFrame(portfolio.data)
-            symbols = df['Ticker'].tolist()
-            groups[pf] = symbols
-        else:
-            error_message = f"Could not find FinViz Portfolio: {pf}"
-            st.text(error_message)
-    return groups
-
+    try:
+        portfolio = Portfolio(email, api_key, portfolio_name)
+        df = pd.DataFrame(portfolio.data)
+        symbols = df['Ticker'].tolist()
+    except:
+        error_message = f"Could not find FinViz Portfolio: {portfolio_name}"
+        logger.error(error_message)
+        symbols = []
+    return symbols
 
 #
-# Function get_market_index_groups
+# Function get_finnhub_symbols
 #
 
-def get_market_index_groups():
-    url = f"https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
+def get_finnhub_symbols(group_symbol):
+    """
+    Fetches symbols for the specified market index group from Finnhub.
+
+    Parameters:
+    - group_symbol: str, the symbol of the group (e.g., '^NDX').
+
+    Returns:
+    - list of str, symbols for the specified group.
+    """
+
+    # URL to the Google Sheet containing the group information
+    url = "https://docs.google.com/spreadsheets/d/1Syr2eLielHWsorxkDEZXyc55d6bNx1M3ZeI4vdn7Qzo/export?format=csv"
+    
+    # Read the CSV data into a DataFrame
     df = pd.read_csv(url)
-    df.loc[df['symbol'] == '^NDX', 'name'] = 'Nasdaq 100'
-    finnhub_client = finnhub.Client(api_key=alphapy_specs['sources']['finnhub']['api_key'])
-
-    groups = {}
-    for _, row in df.iterrows():
-        group_symbol = row['symbol']
-        group_name = row['name']
-        group_dict = finnhub_client.indices_const(symbol=group_symbol)
-        groups[group_name] = group_dict['constituents']
-    return groups
-
-
-#
-# Function get_market_inputs
-#
-
-def get_market_inputs(input_dict, select_dict):
-
-    # Define the market inputs map with input type and default values
-
-    inputs_map = {
-        'data_source' : [st.selectbox, select_dict['data_source']],
-        'data_directory' : [st.text_input],
-        'data_fractal' : [st.text_input, '5min'],
-        'data_history' : [st.number_input, 1, 10000],
-        'forecast_period' : [st.number_input, 1, 100],
-        'predict_history' : [st.number_input, 1, 200],
-        'subject' : [st.selectbox, select_dict['subject']],
-        'capital' : [st.number_input, 10000, 1000000],
-        'margin' : [st.number_input, 0.01, 1.0],
-        'cost_bps' : [st.number_input, 0.0, 100.0],
-        'algo' : [st.selectbox, select_dict['algo']],
-        'prob_min' : [st.number_input, 0.0, 1.0],
-        'prob_max' : [st.number_input, 0.0, 1.0],
-        'holdperiod' : [st.number_input],
-        'bar_type' : [st.selectbox, select_dict['bar_type']],
-        'fractals' : [st.selectbox, select_dict['fractals']],
-        'features' : [st.multiselect, select_dict['features']]
-        }
     
-    # Return the mapping information
-    return {k:v for k, v in inputs_map.items() if k in input_dict.keys()}
+    # Find the group name for the specified group symbol
+    group_row = df[df['symbol'] == group_symbol]
+    if group_row.empty:
+        logger.error(f"No group found for symbol {group_symbol}")
+        return []
 
-
-#
-# Function run_project
-#
-
-def run_project(project):
-
-    # Vet the model and market specifications
-
-    project_root = '/'.join([alphapy_specs['mflow']['project_root'], project])
-    model_specs, model_dict = alphapy_request(alphapy_specs, 'model_config', project_root)
-    market_specs, market_dict = alphapy_request(alphapy_specs, 'market_config', project_root)
-
-    # Determine the source of market groups
-
-    text_ap = 'Market Flow'
-    text_fp = 'Finviz Portfolio'
-    text_mi = 'Market Index'
-    screener = st.sidebar.radio("Group Source", (text_ap, text_fp, text_mi))
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    if screener == text_ap:
-        groups = alphapy_request(alphapy_specs, 'groups')
-    elif screener == text_fp:
-        groups = get_finviz_portfolios()
-    elif screener == text_mi:
-        groups = get_market_index_groups()
-
-    # Select the group to test
-
-    group_list = list(groups.keys())
-    if screener == text_ap:
-        group_default = market_specs['data']['target_group']
-        group_list.remove(group_default)
-        group_list.insert(0, group_default)
-    group_text = ' '.join(['Select', screener, 'Group'])
-    group = col1.selectbox(group_text, group_list)
-
-    # Select the date range (market:data_start_date and market:data_end_date)
-    # If the configuration variable market:data_history is set, then calculate the dates.
-
-    start_date_default = market_specs['data']['data_start_date']
-    end_date_default = market_specs['data']['data_end_date']
-    data_history_default = market_specs['data']['data_history']
-    today = datetime.now()
-    if data_history_default and start_date_default and end_date_default:
-        from_date = start_date_default
-        to_date = end_date_default
-    elif data_history_default and start_date_default and not end_date_default:
-        from_date = start_date_default
-        to_date = today
-    elif data_history_default and not start_date_default and end_date_default:
-        from_date = end_date_default - timedelta(days=data_history_default)
-        to_date = end_date_default
-    elif data_history_default and not start_date_default and not end_date_default:
-        from_date = today - timedelta(days=data_history_default)
-        to_date = today
-    elif not data_history_default and start_date_default and end_date_default:
-        from_date = start_date_default
-        to_date = end_date_default
-    elif not data_history_default and start_date_default and not end_date_default:
-        from_date = start_date_default
-        to_date = today
-    elif not data_history_default and not start_date_default and end_date_default:
-        from_date = end_date_default - timedelta(days=365)
-        to_date = end_date_default
-    elif not data_history_default and not start_date_default and not end_date_default:
-        from_date = today - timedelta(days=365)
-        to_date = today
-
-    col2.date_input('From', from_date)
-    col2.date_input('To', to_date)
-
-    # Select the symbols
-
-    group_container = col1.container()
-    select_all = col1.checkbox("Select all")
-    select_text = "Select one or more symbols:"
-    if screener == text_ap:
-        symbols = sorted(map(lambda x: x.upper(), groups[group].members))
-    else:
-        symbols = sorted(map(lambda x: x.upper(), groups[group]))
+    # Get the constituent symbols
+    finnhub_client = finnhub.Client(api_key=config_sources['finnhub']['api_key'])
+    group_data = finnhub_client.indices_const(symbol=group_symbol)
+    symbols = group_data.get('constituents', [])
     
-    if select_all:
-        selected_symbols = group_container.multiselect(select_text, symbols, symbols)
+    if not symbols:
+        logger.info(f"No symbols found for group {group_symbol}")
     else:
-        selected_symbols =  group_container.multiselect(select_text, symbols)
-
-    # Modify any settings
-
-    market_setting = col3.selectbox('Select Market Settings Group', market_specs.keys())
-    select_dict = {}
-    select_dict['data_source'] = alphapy_specs['sources'].keys()
-    select_dict['subject'] = apg.SUBJECTS
-    select_dict['algo'] = market_dict
-    select_dict['bar_type'] = market_dict
-    select_dict['fractals'] = market_dict
-    select_dict['features'] = market_dict
-    market_inputs = get_market_inputs(market_dict, select_dict)
-
-    market_text = ' '.join(['View', market_setting, 'Settings'])
-    with col3.expander(market_text):
-        st.write(market_text)
-
-    model_settings = col4.selectbox('Select Model Settings Group', model_specs.keys())
-    model_text = ' '.join(['View', model_settings, 'Settings'])
-    with col4.expander(model_text):
-        st.write(model_text)
-
-    # Run the selected action
-
-    run_model_text = ' '.join(['Run', 'Model', project])
-    run_system_text = ' '.join(['Run', 'System'])
-    get_model_text = ' '.join(['Model', project, 'Results'])
-    get_system_text = ' '.join(['System', 'Results'])
-    select_action = col2.selectbox("Choose Action",
-                        [None, run_model_text, run_system_text, get_model_text, get_system_text])
-
-    status_ph = st.empty()
-    status_ph.info("Status")
-
-    in_progress = 'In Progress:'
-    completed = 'Completed:'
-    if select_action == run_model_text:
-        status_text = ' '.join([in_progress, run_model_text])
-        status_ph.info(status_text)
-        with st.expander('View Log'):
-            result = run_command(['mflow'], project_root)
-        status_ph.info(' '.join([completed, select_action]))
-    elif select_action == run_system_text:
-        status_text = ' '.join([in_progress, run_system_text])
-        status_ph.info(status_text)
-        with st.expander('View Log'):
-            result = run_command(['mflow'], project_root)
-        status_ph.info(' '.join([completed, select_action]))
-    elif select_action == get_model_text:
-        st.info("Model Results Placeholder")
-    elif select_action == get_system_text:
-        st.info("System Results Placeholder")
-
+        logger.info(f"Found {len(symbols)} symbols for group {group_symbol}")
+    return symbols
 
 #
-# FastAPI Startup
+# Function to fetch historical data for a single ticker
 #
+
+def fetch_historical_data(ticker, start_date, end_date, api_key):
+    url = f"{BASE_URL}/v2/aggs/ticker/{ticker}/range/1/day/{start_date}/{end_date}"
+    params = {
+        'apiKey': api_key,
+        'adjusted': 'true'
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json().get('results', [])
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+        if not df.empty:
+            # Rename columns to lower case
+            df.columns = [col.lower() for col in df.columns]
+            # Convert 't' column to datetime and set as index
+            df['date'] = pd.to_datetime(df['t'], unit='ms')
+            df.set_index('date', inplace=True)
+            df.drop(columns=['t'], inplace=True)
+        return df
+    else:
+        return pd.DataFrame()
+
+#
+# Function to update a stock's snapshot from Polygon.io
+#
+
+def update_snapshot(ticker, api_key):
+    global stock_data
+    # Call the API
+    url = f"{BASE_URL}/v2/snapshot/locale/us/markets/stocks/tickers/{ticker}"
+    params = {'apiKey': api_key}
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        ticker_info = response.json().get('ticker', {})
+        day_info = ticker_info.get('day', {})
+        std = stock_data[ticker]
+        std['close'] = day_info.get('c', 0)
+        std['vw'] = day_info.get('vw', 0)
+        std['vw'] = round(std['vw'], 2)
+        std['vratio'] = day_info.get('v', 0) / std['avol']
+        std['vratio'] = round(std['vratio'], 2)
+        std['h20'] = std['close'] > std['hh']
+        std['l20'] = std['close'] < std['ll']
+        std['vwapd'] = std['vw'] - std['vwap']
+        std['pchg'] = ticker_info.get('todaysChangePerc', 0)
+        std['pchg'] = round(std['pchg'], 2)
+        logger.debug(f"TICKER: {ticker}")
+        logger.debug(stock_data[ticker])
+        # update statistics
+        pass
+    else:
+        logger.error(f"Failed to fetch snapshot for {ticker}")
+    return
+
+#
+# Asynchronous function to handle WebSocket messages
+#
+
+async def handle_websocket(uri, api_key):
+    global stock_data
+    try:
+        async with websockets.connect(uri) as websocket:
+            # Authenticate
+            await websocket.send(json.dumps({
+                'action': 'auth',
+                'params': api_key
+            }))
+            logger.info("Sent authentication request to WebSocket.")
+            
+            # Subscribe to all trades
+            await websocket.send(json.dumps({
+                'action': 'subscribe',
+                'params': 'T.*'
+            }))
+            logger.info("Subscribed to trade messages.")
+            
+            # Process incoming messages
+            while True:
+                try:
+                    message = await websocket.recv()
+                    data = json.loads(message)
+                    for trade in data:
+                        if trade['ev'] == 'T':
+                            ticker = trade['sym']
+                            if ticker in stock_data:
+                                update_snapshot(ticker, api_key)
+                                logger.debug(f"Symbol: {ticker} Data: {stock_data[ticker]}")
+                except websockets.ConnectionClosedOK:
+                    logger.info("WebSocket connection closed normally")
+                    break
+                except websockets.ConnectionClosedError as e:
+                    logger.error(f"WebSocket connection closed with error: {e}")
+                    break
+                except Exception as e:
+                    logger.error(f"Error in WebSocket handling: {e}")
+                    break
+    except Exception as e:
+        logger.error(f"WebSocket connection failed: {e}")
+
+#
+# Function start_websocket_client
+#
+
+async def start_websocket_client(api_key):
+    uri = "wss://socket.polygon.io/stocks"
+    while True:
+        try:
+            await handle_websocket(uri, api_key)
+        except websockets.ConnectionClosedOK:
+            logger.info("WebSocket closed, reconnecting...")
+            await asyncio.sleep(5)
+        except websockets.ConnectionClosedError as e:
+            logger.error(f"WebSocket error: {e}, retrying...")
+            await asyncio.sleep(5)
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}, retrying in 10 seconds...")
+            await asyncio.sleep(10)
+
+#
+# FastAPI Application
+#
+
+app = FastAPI()
 
 @app.on_event("startup")
 async def startup_event():
+    global stock_data, config_mflow, config_groups, config_sources
     # Initialize Logging
     logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
                         filename="mflow_server.log", filemode='a', level=logging.INFO,
@@ -384,71 +317,111 @@ async def startup_event():
     alphapy_root = os.environ.get('ALPHAPY_ROOT')
     if not alphapy_root:
         root_error_string = "ALPHAPY_ROOT environment variable must be set"
-        logger.info(root_error_string)
+        logger.error(root_error_string)
         sys.exit(root_error_string)
-    # Finish Startup
-    return
+    # Load the configuration files
+    get_config_files()
+    # Load the symbols
+    symbols = []
+    group_source = config_mflow['portfolio']['source']
+    if group_source == 'alphapy':
+        symbols = config_groups[config_mflow['portfolio']['name']]
+    elif group_source == 'finnhub':
+        symbols = get_finnhub_symbols(config_mflow['portfolio']['name'])
+    elif group_source == 'finviz':
+        symbols = get_finviz_symbols(config_mflow['portfolio']['name'])
+    elif group_source == 'polygon':
+        symbols = get_all_stock_symbols(API_KEY)
+    else:
+        logger.error(f'Unknown Group Source: {group_source}')
+    logger.info(f"Source {group_source}: {len(symbols)}")
+    # Fetch and store average volumes
+    n_days = config_mflow['data']['history']
+    end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+    start_date = (datetime.now() - timedelta(days=n_days)).strftime('%Y-%m-%d')
+    previous_first_letter = None
+    for sym in symbols:
+        symbol = sym.upper()
+        current_first_letter = symbol[0].upper()
+        if current_first_letter != previous_first_letter:
+            logger.info(f"Getting Historical Data for {current_first_letter} Symbols")
+            previous_first_letter = current_first_letter
+        # Get data for this ticker symbol
+        df = fetch_historical_data(symbol, start_date, end_date, API_KEY)
+        if not df.empty:
+            df.reset_index(inplace=True)
+            df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+            df.rename(columns={
+                'o'  : 'open',
+                'h'  : 'high',
+                'l'  : 'low',
+                'c'  : 'close',
+                'v'  : 'volume',
+                'vw' : 'vwap',
+                'n'  : 'ntrades'
+                }, inplace=True)
+            df = df[['date', 'open', 'high', 'low', 'close', 'volume', 'vwap', 'ntrades']]
+            # VWAP
+            df['vwap'] = df['vwap'].round(2)
+            # Historical Volatility Ratio
+            atr_length1 = 10
+            df['atr1'] = ta.atr(df['high'], df['low'], df['close'], length=atr_length1)
+            atr_length = 66
+            df['atr'] = ta.atr(df['high'], df['low'], df['close'], length=atr_length)
+            df['hv'] = df['atr1'] / df['atr']
+            df['hv'] = df['hv'].round(2)
+            # Average Volume
+            volume_length = 30
+            df['avol'] = ta.sma(df['volume'], length=volume_length).fillna(0).astype(int)
+            # N-Day Highs and Lows
+            window_length = 20
+            df['hh'] = df['high'].rolling(window=window_length).max()
+            df['ll'] = df['low'].rolling(window=window_length).min()
+            # Stochastics
+            fastk = 20
+            slowd = 3
+            stoch = ta.stoch(df['high'], df['low'], df['close'], k=fastk, d=slowd)
+            stoch.columns = ['fastk', 'slowd']
+            stoch['fastk'] = stoch['fastk'].fillna(0).round(1)
+            stoch['slowd'] = stoch['slowd'].fillna(0).round(1)
+            df = pd.concat([df, stoch], axis=1)
+            # Squeeze Indicator
+            bblength = 20
+            bbstd = 2.0
+            bollinger_bands = ta.bbands(df['close'], length=bblength, std=bbstd)
+            col_bbu = '_'.join(['BBU', str(bblength), str(bbstd)])
+            col_bbm = '_'.join(['BBM', str(bblength), str(bbstd)])
+            col_bbl = '_'.join(['BBL', str(bblength), str(bbstd)])
+            df['bb_upper'], df['bb_middle'], df['bb_lower'] = bollinger_bands[col_bbu], bollinger_bands[col_bbm], bollinger_bands[col_bbl]
+            kclength = 20
+            kcstd = 1.5
+            keltner_channels = ta.kc(df['high'], df['low'], df['close'], length=kclength, scalar=kcstd)
+            col_kcu = '_'.join(['KCUe', str(kclength), str(kcstd)])
+            col_kcb = '_'.join(['KCBe', str(kclength), str(kcstd)])
+            col_kcl = '_'.join(['KCLe', str(kclength), str(kcstd)])
+            df['kc_upper'], df['kc_middle'], df['kc_lower'] = keltner_channels[col_kcu], keltner_channels[col_kcb], keltner_channels[col_kcl]
+            df['squeeze'] = ((df['bb_lower'] > df['kc_lower']) & (df['bb_upper'] < df['kc_upper']))
+            # TD Sequential
+            td_seq_values = ta.td_seq(df['close'], asint=True)
+            td_seq_values.columns = ['sequp', 'seqdown']
+            df = pd.concat([df, td_seq_values], axis=1)
+            # Drop columns
+            cols_drop = ['open', 'high', 'low', 'close', 'volume', 'atr1',
+                         'bb_upper', 'bb_middle', 'bb_lower',
+                         'kc_upper', 'kc_middle', 'kc_lower']
+            df.drop(columns=cols_drop, inplace=True)
+            # Add the last row to the dictionary
+            last_row_dict = df.tail(1).to_dict(orient='records')[0]
+            stock_data[symbol] = last_row_dict
+    logger.info(f"Processed {len(stock_data)} Symbols")
+    # Start the Web socket
+    if config_mflow['data']['live']:
+        websocket_task = asyncio.create_task(start_websocket_client(API_KEY))
+        await websocket_task
 
-
-#
-# Get groups
-#
-
-@app.get("/groups")
-def request_groups():
-    return Group.groups
-
-
-#
-# Get market specifications
-#
-
-@app.get("/market_config")
-def request_market_config(project_root):
-    cfg, specs = get_market_config(project_root)
-    return cfg, specs
-
-
-#
-# Get model specifications
-#
-
-@app.get("/model_config")
-def request_model_config(project_root):
-    cfg, specs = get_model_config(project_root)
-    return cfg, specs
-
-
-#
-# Get paths
-#
-
-@app.get("/paths")
-def request_paths(alphapy_specs):
-    root_directory = alphapy_specs['mflow']['project_root']
-    paths = []
-    for path in Path(root_directory).rglob('market.yml'):
-        paths.append(path)
-    return paths
-
-
-#
-# Get projects
-#
-
-@app.get("/projects")
-def request_projects(alphapy_specs):
-    root_directory = alphapy_specs['mflow']['project_root']
-    projects = []
-    for path in Path(root_directory).rglob('market.yml'):
-        path_str = str(path).split('/')
-        projects.append(path_str[-3])
-    return projects
-
-
-#
-# Shut down the application
-#
+@app.get("/data")
+def get_data():
+    return stock_data
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -457,25 +430,5 @@ def shutdown_event():
     logger.info("Market Flow Server End")
     logger.info('*'*80)
 
-
-#
-# Main Program
-#
-
-
-# Main async function for Streamlit to run WebSocket and update UI
-
-async def main():
-    websocket_task = asyncio.create_task(start_websocket_client())
-    
-    while True:
-        update_and_display_data()
-        await asyncio.sleep(5)
-        st.rerun()
-
-# Run the Streamlit app with asyncio
 if __name__ == "__main__":
-    asyncio.run(main())
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
