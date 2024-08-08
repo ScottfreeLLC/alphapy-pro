@@ -37,7 +37,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import argparse
 import datetime
 import logging
-import numpy as np
 import os
 import pandas as pd
 import shutil
@@ -278,10 +277,10 @@ def get_market_config(directory='.'):
     logger.info('predict_history  = %d', specs['predict_history'])
     if ranking_present:
         specs['ranking']['forecast_period'] = specs['forecast_period']
-        logger.info('ranking          = %s', specs['ranking'])
+        logger.info('ranking      = %s', specs['ranking'])
     logger.info('subject          = %s', specs['subject'])
     if system_present:
-        logger.info('system           = %s', specs['system'])
+        logger.info('system       = %s', specs['system'])
     logger.info('target_group     = %s', specs['target_group'])
 
     # Market Specifications
@@ -386,12 +385,6 @@ def set_targets_metalabel(model, df, system_specs):
     # Lag the signal.
     df['side'] = df['side'].shift(1)
 
-    # Get the volatility for a given fractal.
-
-    col_vol = USEP.join(['volatility_20', trade_fractal])
-    ds_vol = df[col_vol]
-    vol_mean = np.nanmean(ds_vol)
-
     # Get the CUSUM events.
 
     col_close = USEP.join(['close', trade_fractal])
@@ -407,17 +400,15 @@ def set_targets_metalabel(model, df, system_specs):
     df_tbm = get_events(ds_close,
                         cusum_events,
                         [profit_factor, stoploss_factor],
-                        ds_vol,
                         vertical_barriers,
-                        df['side'],
-                        vol_mean)
+                        df['side'])
 
     # Assign labels based on returns.
     df_labels = get_bins(df_tbm, ds_close)
 
     # Evaluate the primary model.
 
-    primary_forecast = pd.DataFrame(df_labels['bin'])
+    primary_forecast = pd.DataFrame(df_labels['metalabel'])
     primary_forecast['pred'] = 1
     primary_forecast.columns = ['actual', 'pred']
 
@@ -519,7 +510,7 @@ def prepare_data(model, dfs, market_specs):
             if model_type == ModelType.ranking:
                 ranking_specs = market_specs['ranking']
                 df = set_targets_ranking(model, df, ranking_specs)
-            elif model_type == ModelType.metalabel:
+            elif model_type == ModelType.system:
                 system_specs = market_specs['system']
                 df = set_targets_metalabel(model, df, system_specs)
             elif model_type == ModelType.classification or model_type == ModelType.regression:
@@ -733,13 +724,11 @@ def market_pipeline(alphapy_specs, model, market_specs):
 
     if model_type == ModelType.ranking:
         ranking_specs = market_specs['ranking']
-        ranking_specs['system_name'] = 'ranking'
         ranking_specs['forecast_period'] = forecast_period
         ranking_specs['fractal'] = trade_fractal
         system_name = ranking_specs['system_name']
     else:
         system_specs = market_specs['system']
-        system_specs['system_name'] = target
         system_specs['predict_history'] = predict_history
         system_specs['forecast_period'] = forecast_period
         system_specs['fractal'] = trade_fractal
@@ -796,42 +785,42 @@ def market_pipeline(alphapy_specs, model, market_specs):
     # Run the AlphaPy model pipeline.
     model = main_pipeline(alphapy_specs, model)
 
-    # Run the system designated for that model type.
+    # Run a system or ranking model.
 
-    logger.info('*'*80)
-    logger.info("Running the System")
-    logger.info('*'*80)
-
-    if model_type == ModelType.ranking:
-        logger.info("System Name     : %s", ranking_specs['system_name'])
-        logger.info("Forecast Period : %s", forecast_period)
-        logger.info("Algorithm       : %s", ranking_specs['algo'])
-        logger.info("Long Rank       : %s", ranking_specs['long_rank'])
-        logger.info("Long Score      : %s", ranking_specs['long_score'])
-        logger.info("Short Rank      : %s", ranking_specs['short_rank'])
-        logger.info("Short Score     : %s", ranking_specs['short_score'])
-        logger.info("Trade Fractal   : %s", trade_fractal)
-        system = SystemRank(**ranking_specs)
-    else:
-        logger.info("System Name      : %s", system_specs['system_name'])
-        logger.info("Forecast Period  : %s", forecast_period)
-        logger.info("Predict History  : %s", predict_history)
-        logger.info("Profit Factor    : %s", system_specs['profit_factor'])
-        logger.info("Stop Loss Factor : %s", system_specs['stoploss_factor'])
-        logger.info("Algorithm        : %s", system_specs['algo'])
-        logger.info("Probability Min  : %s", system_specs['prob_min'])
-        logger.info("Probability Max  : %s", system_specs['prob_max'])
-        logger.info("Trade Fractal    : %s", trade_fractal)
-        system = System(**system_specs)
-
-    # Run the system and generate the portfolio.
-
-    df_trades_base, df_trades_prob = run_system(model, system, group, intraday)
-    if df_trades_base.empty:
-        logger.info("No trades to generate a portfolio")
-    else:
-        portfolio_specs = market_specs['portfolio']
-        gen_portfolios(model, system_name, portfolio_specs, group, df_trades_base, df_trades_prob)
+    if model_type == ModelType.ranking or model_type == ModelType.system:
+        logger.info('*'*80)
+        if model_type == ModelType.ranking:
+            logger.info("Running the Ranking System")
+            logger.info('*'*80)
+            logger.info("System Name     : %s", ranking_specs['system_name'])
+            logger.info("Forecast Period : %s", forecast_period)
+            logger.info("Algorithm       : %s", ranking_specs['algo'])
+            logger.info("Long Rank       : %s", ranking_specs['long_rank'])
+            logger.info("Long Score      : %s", ranking_specs['long_score'])
+            logger.info("Short Rank      : %s", ranking_specs['short_rank'])
+            logger.info("Short Score     : %s", ranking_specs['short_score'])
+            logger.info("Trade Fractal   : %s", trade_fractal)
+            system = SystemRank(**ranking_specs)
+        if model_type == ModelType.system:
+            logger.info("Running the Trading System")
+            logger.info('*'*80)
+            logger.info("System Name      : %s", system_specs['system_name'])
+            logger.info("Forecast Period  : %s", forecast_period)
+            logger.info("Predict History  : %s", predict_history)
+            logger.info("Profit Factor    : %s", system_specs['profit_factor'])
+            logger.info("Stop Loss Factor : %s", system_specs['stoploss_factor'])
+            logger.info("Algorithm        : %s", system_specs['algo'])
+            logger.info("Probability Min  : %s", system_specs['prob_min'])
+            logger.info("Probability Max  : %s", system_specs['prob_max'])
+            logger.info("Trade Fractal    : %s", trade_fractal)
+            system = System(**system_specs)
+        # Run the system and generate the portfolio.
+        df_trades_base, df_trades_prob = run_system(model, system, group, intraday)
+        if df_trades_base.empty:
+            logger.info("No trades to generate a portfolio")
+        else:
+            portfolio_specs = market_specs['portfolio']
+            gen_portfolios(model, system_name, portfolio_specs, group, df_trades_base, df_trades_prob)
 
     # Return the completed model.
     return model

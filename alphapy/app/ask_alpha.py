@@ -39,6 +39,7 @@ from openai import OpenAI
 import os
 import pandas as pd
 from PIL import Image
+import requests
 from simpleaichat import AIChat
 import streamlit as st
 from streamlit_extras.app_logo import add_logo
@@ -49,77 +50,70 @@ import alphapy.globals as apg
 
 
 #
-# Global Variables
-#
-
-dir_assets = './assets/'
-
-
-#
 # Initialize logger
 #
 
-logger = logging.getLogger(__name__)
+def create_logger(name, level='DEBUG', file=None):
+    logger = logging.getLogger(name)
+    logger.propagate = False
+    logger.setLevel(level)
+    # if no stream handler present, add one
+    if sum([isinstance(handler, logging.StreamHandler) for handler in logger.handlers]) == 0:
+        ch = logging.StreamHandler()
+        ch.setFormatter(logging.Formatter('%(asctime)s.%(msecs)03d-%(name)s-%(levelname)s>>>%(message)s', "%H:%M:%S"))
+        logger.addHandler(ch)
+    # if a file handler is requested, check for existence then add
+    if file is not None:
+        if sum([isinstance(handler, logging.FileHandler) for handler in logger.handlers]) == 0:
+            ch = logging.FileHandler(file, 'w')
+            ch.setFormatter(logging.Formatter('%(asctime)s.%(msecs)03d-%(name)s-%(levelname)s>>>%(message)s', "%H:%M:%S"))
+            logger.addHandler(ch)
+    return logger
 
-
-#
-# Main Program
-#
-
-
-# Initialize Logging
-
-if "logging" not in st.session_state:
-    logging.basicConfig(format="[%(asctime)s] %(levelname)s\t%(message)s",
-                        filename="streamlit_main.log", filemode='a', level=logging.INFO,
-                        datefmt='%m/%d/%y %H:%M:%S')
-    formatter = logging.Formatter("[%(asctime)s] %(levelname)s\t%(message)s",
-                                datefmt='%m/%d/%y %H:%M:%S')
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    console.setLevel(logging.INFO)
-    logging.getLogger().addHandler(console)
-    logger.info('*'*80)
-    logger.info("Streamlit Start")
-    logger.info('*'*80)
-    # Set the logging state variable
-    st.session_state["logging"] = True
-
-# Start Streamlit
+if 'logger' not in st.session_state:
+    st.session_state['logger'] = create_logger(name='app', level='INFO', file='ask_alpha.log')
+logger = st.session_state['logger']
 
 #
 # Application Configuration
 #
 
-path_logo = os.path.join(dir_assets, 'logo.jpg')
-im = Image.open(path_logo)
+def set_page_config():
+    im = Image.open('logo.jpg')
 
-st.set_page_config(
-    page_title="Scottfree Analytics",
-    page_icon=im,
-    layout="wide",
-)
+    st.set_page_config(
+        page_title="Scottfree Analytics",
+        page_icon=im,
+        layout="wide",
+    )
 
-st.markdown("""
-        <style>
-               .block-container {
-                    padding-top: 0rem;
-                    padding-bottom: 0rem;
-                    padding-left: 2rem;
-                    padding-right: 2rem;
-                }
-        </style>
-        """, unsafe_allow_html=True)
-
-hide_streamlit_style = """
+    st.markdown("""
             <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
+                .block-container {
+                        padding-top: 2rem;
+                        padding-bottom: 2rem;
+                        padding-left: 2rem;
+                        padding-right: 2rem;
+                    }
             </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
+    hide_streamlit_style = """
+                <style>
+                #MainMenu {visibility: hidden;}
+                footer {visibility: hidden;}
+                </style>
+                """
+    st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+    return True
+
+if 'page_config' not in st.session_state:
+    st.session_state.page_config = set_page_config()
+
+#
 # Function to display the status message
+#
+
 def display_status_message(col, message, message_type='info'):
     if message_type == 'info':
         col.info(message)
@@ -130,15 +124,19 @@ def display_status_message(col, message, message_type='info'):
     elif message_type == 'error':
         col.error(message)
 
+#
 # Function to handle dismissal
+#
+
 def dismiss_message():
     st.session_state.dismissed = True
 
-# Initialize the dismissed state if it doesn't exist
 if 'dismissed' not in st.session_state:
     st.session_state.dismissed = False
 
-# Get the AlphaPy environment variable
+#
+# Get the AlphaPy environment variables
+#
 
 alphapy_root = os.environ.get('ALPHAPY_ROOT')
 if not alphapy_root:
@@ -149,24 +147,26 @@ else:
     # Read the AlphaPy configuration file
     alphapy_specs = get_alphapy_config(alphapy_root)
 
-col1, col2, col3 = st.columns((2, 3, 2))
-
 # Ask Alpha Options
-col1.header(':red[α]sk :red[α]lph:red[α]')
+
+st.sidebar.title(':red[α]sk :red[α]lph:red[α]')
 
 market_string = "Markets 📈 💵 🐂 🐻 🏙 💱"
 sports_string = "Sports 🏀 ⚾ 🏈 ⚽ 🏒 🎾"
-topic = col2.radio(
+topic = st.sidebar.radio(
     "Select a topic",
     [market_string, sports_string],
     horizontal=True,
     label_visibility="hidden")
 
+st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
+
 # OpenAI API Key
 
-col1, col2, col3 = st.columns((3, 2, 2))
+col1, col2 = st.columns((2, 1))
 
 # Function to validate the API key format
+
 def is_valid_api_key(key):
     return key.startswith('sk-') and len(key) == 51
 
@@ -187,7 +187,7 @@ if not api_key:
 else:
     # Display the message if it hasn't been dismissed
     if not st.session_state.dismissed:
-        display_status_message(col1, "OpenAI API key has been provided ✅. Click the button to dismiss.", "info")
+        display_status_message(col1, "OpenAI API key has been provided ✅. &emsp; Click the Dismiss button to the right. &emsp; :arrow_right:", "info")
         col2.button("Dismiss", on_click=dismiss_message)
 
 # Set the OpenAI API key for the client
@@ -222,22 +222,48 @@ if topic == sports_string:
 
 # Generative AI
 
-client = OpenAI()
-
-def call_openai(prompt):
+def test_openai_api_key(prompt):
     try:
-        response = client.completions.create(model='gpt-4',
-        messages=[
-                {"role": "system", "content": "Hello"},
-                {"role": "user", "content": "When was GPT launched?"},
-            ])
-        return response.choices[0].text.strip()
+        # Make a simple API request to the OpenAI API
+        response = openai.chat.completions.create(model="gpt-4o",
+            messages=[
+                    {"role": "system", "content": "Hello"},
+                    {"role": "user", "content": prompt},
+                ])
+        # Print the response
+        response_content = response.choices[0].message.content
+        st.write(response_content)
+    except openai.AuthenticationError:
+        print("Invalid API key. Please check your API key and try again.")
     except Exception as e:
-        st.error(f"Error: {e}")
+        print(f"An error occurred: {e}")
+
+# Run the test function
 
 if prompt_text:
-    if api_key and is_valid_api_key(api_key):
-        response = call_openai(prompt_text)
-        st.write(response)
+    test_openai_api_key(prompt_text)
+
+# Function to fetch data from FastAPI server
+def fetch_data():
+    try:
+        api_url = "http://0.0.0.0:8080/data"
+        response = requests.get(api_url)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching data: {e}")
+        return {}
+
+# Add a button to fetch data
+if st.button('Get Stock Data'):
+    stock_data = fetch_data()
+    if stock_data:
+        df = pd.DataFrame.from_dict(stock_data, orient='index')
+        cols_df = ['close', 'pchg', 'vratio', 'vwapd', 'h20', 'l20',
+                   'fastk', 'slowd', 'sequp', 'seqdown', 'hv', 'squeeze']
+        df = df[cols_df]
+        st.dataframe(df)
     else:
-        st.warning('Please provide a valid OpenAI API key.', icon='⚠️')
+        st.warning("No data available.")
+else:
+    st.info("Click the button to fetch stock data.")

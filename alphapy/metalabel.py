@@ -40,6 +40,36 @@ logger = logging.getLogger(__name__)
 
 
 #
+# Function get_vol_ema
+#
+
+def get_vol_ema(ds_close, p=60):
+    """Calculate volatility for dynamic thresholds.
+
+    Parameters
+    ----------
+    ds_close : pandas.Series
+        Array of closing values, indexed by datetime.
+    p : int
+        The lookback period for computing volatility.
+
+    Returns
+    -------
+    ds_vol : pandas.Series (float)
+        The array of volatilities.
+
+    """
+    logger.debug('Calculating volatility for dynamic thresholds')
+
+    # Calculate returns
+    returns = ds_close.pct_change().dropna()
+
+    # Calculate volatility using exponentially weighted moving average (EWMA)
+    ds_vol = returns.ewm(span=p, min_periods=p).std()
+    return ds_vol
+
+
+#
 # Function get_daily_dollar_vol
 #
 
@@ -213,7 +243,7 @@ def apply_targets(ds_close, df_events, pt_sl):
 # Function get_events
 #
 
-def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_ret=0.0):
+def get_events(ds_close, ds_dt, pt_sl, ds_vb=False, ds_side=None):
     r"""Get the dataframe of target events.
 
     Parameters
@@ -224,14 +254,10 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_re
         Series of events based on the CUSUM Filter
     pt_sl : list[2]
         The profit-taking and stop-loss percentage levels, with 0 disabling the respective level.
-    ds_vol : pandas.Series (float)
-        The array of volatilities used in conjunction with ``pt_sl``.
     ds_vb : pandas.Series (datetime)
         The vector of timestamps for the vertical barriers.
     ds_side : pandas.Series (datetime)
         Side of the bet (long/short) as decided by the primary model
-    min_ret : float
-        The minimum target return required for running a triple barrier search.
 
     Returns
     -------
@@ -248,8 +274,8 @@ def get_events(ds_close, ds_dt, pt_sl, ds_vol, ds_vb=False, ds_side=None, min_re
 
     # Get the target based on volatility.
 
+    ds_vol = get_vol_ema(ds_close)
     ds_vol = ds_vol.loc[ds_vol.index.intersection(ds_dt)]
-    ds_vol = ds_vol[ds_vol >= min_ret]
 
     # Get the vertical barrier with maximum holding period.
 
@@ -318,7 +344,7 @@ def barrier_touched(df_meta):
             # Vertical barrier reached
             store.append(0)
 
-    df_meta['bin'] = store
+    df_meta['metalabel'] = store
     return df_meta
 
 
@@ -379,7 +405,7 @@ def get_bins(df_events, ds_close):
     # Meta Labeling: Label incorrect events with label 0.
 
     if 'side' in df_events_:
-        df_meta.loc[df_meta['ret'] <= 0, 'bin'] = 0
+        df_meta.loc[df_meta['ret'] <= 0, 'metalabel'] = 0
 
     # Transform the log returns back to normal returns.
     df_meta['ret'] = np.exp(df_meta['ret']) - 1

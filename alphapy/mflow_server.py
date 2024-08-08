@@ -48,11 +48,13 @@ import uvicorn
 import websockets
 import yaml
 
+
 #
 # Initialize logger
 #
 
 logger = logging.getLogger(__name__)
+
 
 #
 # Global Variables
@@ -64,6 +66,7 @@ stock_data = {}
 config_mflow = None
 config_groups = None
 config_sources = None
+
 
 #
 # Get the Market Flow Configurations
@@ -80,6 +83,7 @@ def get_config_files():
     path_sources = alphapy_root + '/sources.yml'
     with open(path_sources, 'r') as file:
         config_sources = yaml.safe_load(file)
+
 
 #
 # Function to get all stock symbols
@@ -112,6 +116,7 @@ def get_all_stock_symbols(api_key):
     logger.info(f"Found {len(tickers)} Active Symbols")
     return tickers
 
+
 #
 # Function get_finviz_symbols
 #
@@ -129,6 +134,7 @@ def get_finviz_symbols(portfolio_name):
         logger.error(error_message)
         symbols = []
     return symbols
+
 
 #
 # Function get_finnhub_symbols
@@ -168,6 +174,7 @@ def get_finnhub_symbols(group_symbol):
         logger.info(f"Found {len(symbols)} symbols for group {group_symbol}")
     return symbols
 
+
 #
 # Function to fetch historical data for a single ticker
 #
@@ -193,6 +200,7 @@ def fetch_historical_data(ticker, start_date, end_date, api_key):
         return df
     else:
         return pd.DataFrame()
+
 
 #
 # Function to update a stock's snapshot from Polygon.io
@@ -225,6 +233,7 @@ def update_snapshot(ticker, api_key):
     else:
         logger.error(f"Failed to fetch snapshot for {ticker}")
     return
+
 
 #
 # Asynchronous function to handle WebSocket messages
@@ -271,6 +280,7 @@ async def handle_websocket(uri, api_key):
     except Exception as e:
         logger.error(f"WebSocket connection failed: {e}")
 
+
 #
 # Function start_websocket_client
 #
@@ -290,11 +300,17 @@ async def start_websocket_client(api_key):
             logger.error(f"Unexpected error: {e}, retrying in 10 seconds...")
             await asyncio.sleep(10)
 
+
 #
 # FastAPI Application
 #
 
 app = FastAPI()
+
+
+#
+# FastAPI Startup Event
+#
 
 @app.on_event("startup")
 async def startup_event():
@@ -416,12 +432,34 @@ async def startup_event():
     logger.info(f"Processed {len(stock_data)} Symbols")
     # Start the Web socket
     if config_mflow['data']['live']:
+        logger.info("Server Mode: Live Data")
         websocket_task = asyncio.create_task(start_websocket_client(API_KEY))
         await websocket_task
+    else:
+        logger.info("Server Mode: Historical")
+
+
+#
+# FastAPI / Route
+#
+
+@app.get("/")
+def get_default_status():
+    return "Market Flow Server"
+
+
+#
+# FastAPI /data Route
+#
 
 @app.get("/data")
 def get_data():
     return stock_data
+
+
+#
+# FastAPI Shutdown Event
+#
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -429,6 +467,11 @@ def shutdown_event():
     logger.info('*'*80)
     logger.info("Market Flow Server End")
     logger.info('*'*80)
+
+
+#
+# Main Program
+#
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)
