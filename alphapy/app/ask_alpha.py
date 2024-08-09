@@ -78,12 +78,14 @@ logger = st.session_state['logger']
 # Application Configuration
 #
 
-def set_page_config():
+def load_image():
     im = Image.open('logo.jpg')
+    return im
 
+def set_page_config():
     st.set_page_config(
         page_title="Scottfree Analytics",
-        page_icon=im,
+        page_icon=st.session_state.load_image,
         layout="wide",
     )
 
@@ -107,8 +109,9 @@ def set_page_config():
     st.markdown(hide_streamlit_style, unsafe_allow_html=True)
     return True
 
-if 'page_config' not in st.session_state:
-    st.session_state.page_config = set_page_config()
+if 'load_image' not in st.session_state:
+    st.session_state.load_image = load_image()
+set_page_config()
 
 #
 # Function to display the status message
@@ -161,7 +164,42 @@ topic = st.sidebar.radio(
 
 st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 
+# Market Options
+
+if topic == market_string:
+    market_options = st.sidebar.radio(
+        "Choose Market Option",
+        ["Portfolio", "Systems", "Patterns", "Screener"],
+    )
+    if market_options == "Portfolio":
+        st.write("You selected Portfolio")
+    elif market_options == "Systems":
+        st.write("You selected Systems")
+    elif market_options == "Patterns":
+        st.write("You selected Patterns")
+    elif market_options == "Screener":
+        st.write("You selected Screener")
+elif topic == sports_string:
+    league_options = ["MLB", "NBA", "NCAAB", "NCAAF", "NFL", "NHL"]
+    league_selected = st.sidebar.selectbox('Select League', league_options)
+    sports_options = st.sidebar.radio(
+        league_selected,
+        ["Lines", "Results", "Predictions", "Summary", "Systems"],
+    )
+    if sports_options == "Lines":
+        st.write("You selected Lines")
+    elif sports_options == "Results":
+        st.write("You selected Results")
+    elif sports_options == "Predictions":
+        st.write("You selected Predictions")
+    elif sports_options == "Summary":
+        st.write("You selected Summary")
+    elif sports_options == "Systems":
+        st.write("You selected Systems")
+
 # OpenAI API Key
+
+st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 
 col1, col2 = st.columns((2, 1))
 
@@ -243,7 +281,10 @@ def test_openai_api_key(prompt):
 if prompt_text:
     test_openai_api_key(prompt_text)
 
+#
 # Function to fetch data from FastAPI server
+#
+
 def fetch_data():
     try:
         api_url = "http://0.0.0.0:8080/data"
@@ -254,7 +295,10 @@ def fetch_data():
         st.error(f"Error fetching data: {e}")
         return {}
 
+#
 # Add a button to fetch data
+#
+
 if st.button('Get Stock Data'):
     stock_data = fetch_data()
     if stock_data:
