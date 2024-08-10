@@ -47,6 +47,17 @@ import sys
 
 from alphapy.alphapy_main import get_alphapy_config
 import alphapy.globals as apg
+from ask_alpha_pages import get_market_ask_alpha
+from ask_alpha_pages import get_market_portfolio
+from ask_alpha_pages import get_market_systems
+from ask_alpha_pages import get_market_patterns
+from ask_alpha_pages import get_market_screener
+from ask_alpha_pages import get_sports_ask_alpha
+from ask_alpha_pages import get_sports_lines
+from ask_alpha_pages import get_sports_results
+from ask_alpha_pages import get_sports_predictions
+from ask_alpha_pages import get_sports_summary
+from ask_alpha_pages import get_sports_systems
 
 
 #
@@ -128,16 +139,6 @@ def display_status_message(col, message, message_type='info'):
         col.error(message)
 
 #
-# Function to handle dismissal
-#
-
-def dismiss_message():
-    st.session_state.dismissed = True
-
-if 'dismissed' not in st.session_state:
-    st.session_state.dismissed = False
-
-#
 # Get the AlphaPy environment variables
 #
 
@@ -149,8 +150,6 @@ if not alphapy_root:
 else:
     # Read the AlphaPy configuration file
     alphapy_specs = get_alphapy_config(alphapy_root)
-
-# Ask Alpha Options
 
 st.sidebar.title(':red[α]sk :red[α]lph:red[α]')
 
@@ -164,101 +163,60 @@ topic = st.sidebar.radio(
 
 st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 
-# Market Options
+#
+# Market and Sports Options
+#
+
+market_option = None
+sports_option = None
 
 if topic == market_string:
-    market_options = st.sidebar.radio(
+    market_option = st.sidebar.radio(
         "Choose Market Option",
-        ["Portfolio", "Systems", "Patterns", "Screener"],
+        ["Ask Alpha", "Portfolio", "Systems", "Patterns", "Screener"],
     )
-    if market_options == "Portfolio":
-        st.write("You selected Portfolio")
-    elif market_options == "Systems":
-        st.write("You selected Systems")
-    elif market_options == "Patterns":
-        st.write("You selected Patterns")
-    elif market_options == "Screener":
-        st.write("You selected Screener")
+    if market_option == "Ask Alpha":
+        get_market_ask_alpha()
+    elif market_option == "Portfolio":
+        get_market_portfolio()
+    elif market_option == "Systems":
+        get_market_systems()
+    elif market_option == "Patterns":
+        get_market_patterns()
+    elif market_option == "Screener":
+        get_market_screener()
+    
 elif topic == sports_string:
     league_options = ["MLB", "NBA", "NCAAB", "NCAAF", "NFL", "NHL"]
     league_selected = st.sidebar.selectbox('Select League', league_options)
-    sports_options = st.sidebar.radio(
+    sports_option = st.sidebar.radio(
         league_selected,
-        ["Lines", "Results", "Predictions", "Summary", "Systems"],
+        ["Ask Alpha", "Lines", "Results", "Predictions", "Summary", "Systems"],
     )
-    if sports_options == "Lines":
-        st.write("You selected Lines")
-    elif sports_options == "Results":
-        st.write("You selected Results")
-    elif sports_options == "Predictions":
-        st.write("You selected Predictions")
-    elif sports_options == "Summary":
-        st.write("You selected Summary")
-    elif sports_options == "Systems":
-        st.write("You selected Systems")
-
-# OpenAI API Key
+    if sports_option == "Ask Alpha":
+        get_sports_ask_alpha()
+    elif sports_option == "Lines":
+        get_sports_lines()
+    elif sports_option == "Results":
+        get_sports_results()
+    elif sports_option == "Predictions":
+        get_sports_predictions()
+    elif sports_option == "Summary":
+        get_sports_summary()
+    elif sports_option == "Systems":
+        get_sports_systems()
 
 st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 
-col1, col2 = st.columns((2, 1))
+#
+# Generative AI
+#
 
-# Function to validate the API key format
+if 'api_key' not in st.session_state:
+    st.session_state['api_key'] = False
 
 def is_valid_api_key(key):
-    return key.startswith('sk-') and len(key) == 51
-
-# Retrieve the API key from Streamlit secrets or environment variables
-api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
-
-if not api_key:
-    # Ask the user to input their API key if not already provided
-    api_key = col1.text_input('Enter OpenAI API token:', type='password')
-    
-    # Validate the entered API key
-    if not api_key:
-        st.warning('Please enter your OpenAI API key!', icon='⚠️')
-    elif not is_valid_api_key(api_key):
-        st.warning('Invalid API key format. Please check and enter again.', icon='⚠️')
-    else:
-        st.success('API key looks good! Proceed to entering your prompt message.', icon='✅')
-else:
-    # Display the message if it hasn't been dismissed
-    if not st.session_state.dismissed:
-        display_status_message(col1, "OpenAI API key has been provided ✅. &emsp; Click the Dismiss button to the right. &emsp; :arrow_right:", "info")
-        col2.button("Dismiss", on_click=dismiss_message)
-
-# Set the OpenAI API key for the client
-openai.api_key = api_key
-
-# Markets
-
-if topic == market_string:
-    col201, col202 = st.columns((1, 3))
-    common_queries = ["Latest Prices"]
-    market_queries = col201.selectbox('Get', common_queries)
-    prompt_text = col202.text_input('Ask AI')
-
-# Sports
-
-if topic == sports_string:
-    col201, col202 = st.columns((1, 3))
-    common_queries = ["Latest Lines"]
-    sports_queries = col201.selectbox('Get', common_queries)
-    prompt_text = col202.text_input('Ask AI')
-    # Set the number of columns
-    col21, col22, col23, col24, col25, col26 = st.columns(6)
-    # Define the options for the league dropdown
-    options = ["NFL", "NBA", "MLB", "NHL", "NCAAF", "NCAAB"]
-    # Create a select dropdown with the options
-    league_selected = col21.selectbox('Select League', options)
-    # Define the options for the model dropdown
-    options = ["Spread", "Moneyline", "Over/Under"]
-    # Create a select dropdown with the options
-    model_selected = col22.selectbox('Select Model', options)
-
-
-# Generative AI
+    return key.startswith('sk-')
 
 def test_openai_api_key(prompt):
     try:
@@ -276,38 +234,27 @@ def test_openai_api_key(prompt):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-# Run the test function
-
-if prompt_text:
-    test_openai_api_key(prompt_text)
-
-#
-# Function to fetch data from FastAPI server
-#
-
-def fetch_data():
-    try:
-        api_url = "http://0.0.0.0:8080/data"
-        response = requests.get(api_url)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching data: {e}")
-        return {}
-
-#
-# Add a button to fetch data
-#
-
-if st.button('Get Stock Data'):
-    stock_data = fetch_data()
-    if stock_data:
-        df = pd.DataFrame.from_dict(stock_data, orient='index')
-        cols_df = ['close', 'pchg', 'vratio', 'vwapd', 'h20', 'l20',
-                   'fastk', 'slowd', 'sequp', 'seqdown', 'hv', 'squeeze']
-        df = df[cols_df]
-        st.dataframe(df)
+if market_option == "Ask Alpha" or sports_option == "Ask Alpha":
+    if not st.session_state['api_key']:
+        api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            api_key = st.text_input('Enter OpenAI API token:', type='password')
+        if not is_valid_api_key(api_key):
+            st.warning('Invalid API key format. Please check and enter again.', icon='⚠️')
+        else:
+            st.success('API key looks good! Proceed to entering your prompt message.', icon='✅')
+            openai.api_key = api_key
+            prompt_text = st.text_input('Ask Alpha')
+            test_openai_api_key(prompt_text)
+            st.session_state['api_key'] = True
     else:
-        st.warning("No data available.")
-else:
-    st.info("Click the button to fetch stock data.")
+        prompt_text = st.text_input('Ask Alpha')
+        response = openai.chat.completions.create(model="gpt-4o",
+            messages=[
+                    {"role": "system", "content": "Hello"},
+                    {"role": "user", "content": prompt_text},
+                ])
+        # Print the response
+        response_content = response.choices[0].message.content
+        st.write(response_content)
+
