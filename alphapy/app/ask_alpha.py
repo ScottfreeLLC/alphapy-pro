@@ -212,6 +212,9 @@ st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 # Generative AI
 #
 
+if "messages" not in st.session_state:
+    st.session_state["messages"] = [{"role": "assistant", "content": "Ask Alpha"}]
+
 if 'api_key' not in st.session_state:
     st.session_state['api_key'] = False
 
@@ -226,9 +229,6 @@ def test_openai_api_key(prompt):
                     {"role": "system", "content": "Hello"},
                     {"role": "user", "content": prompt},
                 ])
-        # Print the response
-        response_content = response.choices[0].message.content
-        st.write(response_content)
     except openai.AuthenticationError:
         print("Invalid API key. Please check your API key and try again.")
     except Exception as e:
@@ -242,19 +242,20 @@ if market_option == "Ask Alpha" or sports_option == "Ask Alpha":
         if not is_valid_api_key(api_key):
             st.warning('Invalid API key format. Please check and enter again.', icon='⚠️')
         else:
-            st.success('API key looks good! Proceed to entering your prompt message.', icon='✅')
+            st.success('API key looks good! Go ahead and Ask Alpha.', icon='✅')
             openai.api_key = api_key
-            prompt_text = st.text_input('Ask Alpha')
-            test_openai_api_key(prompt_text)
+            test_openai_api_key('Test Text')
             st.session_state['api_key'] = True
-    else:
-        prompt_text = st.text_input('Ask Alpha')
+    for msg in st.session_state.messages:
+        st.chat_message(msg["role"]).write(msg["content"])
+    if prompt_text := st.chat_input():
+        st.session_state.messages.append({"role": "user", "content": prompt_text})
+        st.chat_message("user").write(prompt_text)
         response = openai.chat.completions.create(model="gpt-4o",
             messages=[
                     {"role": "system", "content": "Hello"},
                     {"role": "user", "content": prompt_text},
                 ])
-        # Print the response
-        response_content = response.choices[0].message.content
-        st.write(response_content)
-
+        msg = response.choices[0].message.content
+        st.session_state.messages.append({"role": "assistant", "content": msg})
+        st.chat_message("assistant").write(msg)
