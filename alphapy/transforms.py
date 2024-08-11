@@ -1280,10 +1280,10 @@ def netreturn(df, c, o=1):
 
 
 #
-# Function pchange1
+# Function pchange
 #
 
-def pchange1(df, c, o=1):
+def pchange(df, c, o=1):
     r"""Calculate the percentage change within the same variable.
 
     Parameters
@@ -1332,10 +1332,10 @@ def pchange2(df, c1, c2):
 
 
 #
-# Function pivot_high
+# Function pivothigh
 #
 
-def pivot_high(df, c, p=20):
+def pivothigh(df, c, p=20):
     r"""Find the pivot high values in the series.
 
     Parameters
@@ -1375,10 +1375,10 @@ def pivot_high(df, c, p=20):
 
 
 #
-# Function pivot_low
+# Function pivotlow
 #
 
-def pivot_low(df, c, p=20):
+def pivotlow(df, c, p=20):
     r"""Find the pivot low values in the series.
 
     Parameters

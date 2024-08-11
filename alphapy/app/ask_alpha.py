@@ -212,8 +212,11 @@ st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 # Generative AI
 #
 
-if "messages" not in st.session_state:
-    st.session_state["messages"] = [{"role": "assistant", "content": "Ask Alpha"}]
+if "markets" not in st.session_state:
+    st.session_state["markets"] = [{"role": "assistant", "content": "Ask Alpha about Markets"}]
+
+if "sports" not in st.session_state:
+    st.session_state["sports"] = [{"role": "assistant", "content": "Ask Alpha about Sports"}]
 
 if 'api_key' not in st.session_state:
     st.session_state['api_key'] = False
@@ -246,16 +249,31 @@ if market_option == "Ask Alpha" or sports_option == "Ask Alpha":
             openai.api_key = api_key
             test_openai_api_key('Test Text')
             st.session_state['api_key'] = True
-    for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
-    if prompt_text := st.chat_input():
-        st.session_state.messages.append({"role": "user", "content": prompt_text})
-        st.chat_message("user").write(prompt_text)
-        response = openai.chat.completions.create(model="gpt-4o",
-            messages=[
-                    {"role": "system", "content": "Hello"},
-                    {"role": "user", "content": prompt_text},
-                ])
-        msg = response.choices[0].message.content
-        st.session_state.messages.append({"role": "assistant", "content": msg})
-        st.chat_message("assistant").write(msg)
+    if topic == market_string:
+        for msg in st.session_state.markets:
+            st.chat_message(msg["role"]).write(msg["content"])
+        if prompt_text := st.chat_input():
+            st.session_state.markets.append({"role": "user", "content": prompt_text})
+            st.chat_message("user").write(prompt_text)
+            response = openai.chat.completions.create(model="gpt-4o",
+                messages=[
+                        {"role": "system", "content": "Hello"},
+                        {"role": "user", "content": prompt_text},
+                    ])
+            msg = response.choices[0].message.content
+            st.session_state.markets.append({"role": "assistant", "content": msg})
+            st.chat_message("assistant").write(msg)
+    elif topic == sports_string:
+        for msg in st.session_state.sports:
+            st.chat_message(msg["role"]).write(msg["content"])
+        if prompt_text := st.chat_input():
+            st.session_state.sports.append({"role": "user", "content": prompt_text})
+            st.chat_message("user").write(prompt_text)
+            response = openai.chat.completions.create(model="gpt-4o",
+                messages=[
+                        {"role": "system", "content": "Hello"},
+                        {"role": "user", "content": prompt_text},
+                    ])
+            msg = response.choices[0].message.content
+            st.session_state.sports.append({"role": "assistant", "content": msg})
+            st.chat_message("assistant").write(msg)
