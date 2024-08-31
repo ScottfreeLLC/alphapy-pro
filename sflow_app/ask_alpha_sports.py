@@ -1,6 +1,6 @@
 """
 Package   : AlphaPy
-Module    : ask_alpha
+Module    : ask_alpha_sports
 Created   : February 21, 2021
 
 Copyright 2024 ScottFree Analytics LLC
@@ -23,7 +23,7 @@ HOW TO RUN:
 
 > export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
 > cd /Users/markconway/Projects/alphapy-pro/alphapy
-> streamlit run ask_alpha.py
+> streamlit run ask_alpha_sports.py
 
 """
 
@@ -47,17 +47,6 @@ import sys
 
 from alphapy.alphapy_main import get_alphapy_config
 import alphapy.globals as apg
-from ask_alpha_pages import get_market_ask_alpha
-from ask_alpha_pages import get_market_portfolio
-from ask_alpha_pages import get_market_systems
-from ask_alpha_pages import get_market_patterns
-from ask_alpha_pages import get_market_screener
-from ask_alpha_pages import get_sports_ask_alpha
-from ask_alpha_pages import get_sports_lines
-from ask_alpha_pages import get_sports_results
-from ask_alpha_pages import get_sports_predictions
-from ask_alpha_pages import get_sports_summary
-from ask_alpha_pages import get_sports_systems
 
 
 #
@@ -82,7 +71,7 @@ def create_logger(name, level='DEBUG', file=None):
     return logger
 
 if 'logger' not in st.session_state:
-    st.session_state['logger'] = create_logger(name='app', level='INFO', file='ask_alpha.log')
+    st.session_state['logger'] = create_logger(name='app', level='INFO', file='ask_alpha_sports.log')
 logger = st.session_state['logger']
 
 #
@@ -122,6 +111,7 @@ def set_page_config():
 
 if 'load_image' not in st.session_state:
     st.session_state.load_image = load_image()
+
 set_page_config()
 
 #
@@ -152,14 +142,7 @@ else:
     alphapy_specs = get_alphapy_config(alphapy_root)
 
 st.sidebar.title(':red[α]sk :red[α]lph:red[α]')
-
-market_string = "Markets 📈 💵 🐂 🐻 🏙 💱"
-sports_string = "Sports 🏀 ⚾ 🏈 ⚽ 🏒 🎾"
-topic = st.sidebar.radio(
-    "Select a topic",
-    [market_string, sports_string],
-    horizontal=True,
-    label_visibility="hidden")
+st.sidebar.title('🏀 ⚾ 🏈 ⚽ 🏒 🎾')
 
 st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 
@@ -167,53 +150,32 @@ st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 # Market and Sports Options
 #
 
-market_option = None
-sports_option = None
+league_options = ["MLB", "NBA", "NCAAB", "NCAAF", "NFL", "NHL"]
+league_selected = st.sidebar.selectbox('Select League', league_options)
 
-if topic == market_string:
-    market_option = st.sidebar.radio(
-        "Choose Market Option",
-        ["Ask Alpha", "Portfolio", "Systems", "Patterns", "Screener"],
-    )
-    if market_option == "Ask Alpha":
-        get_market_ask_alpha()
-    elif market_option == "Portfolio":
-        get_market_portfolio()
-    elif market_option == "Systems":
-        get_market_systems()
-    elif market_option == "Patterns":
-        get_market_patterns()
-    elif market_option == "Screener":
-        get_market_screener()
-    
-elif topic == sports_string:
-    league_options = ["MLB", "NBA", "NCAAB", "NCAAF", "NFL", "NHL"]
-    league_selected = st.sidebar.selectbox('Select League', league_options)
-    sports_option = st.sidebar.radio(
-        league_selected,
-        ["Ask Alpha", "Lines", "Results", "Predictions", "Summary", "Systems"],
-    )
-    if sports_option == "Ask Alpha":
-        get_sports_ask_alpha()
-    elif sports_option == "Lines":
-        get_sports_lines()
-    elif sports_option == "Results":
-        get_sports_results()
-    elif sports_option == "Predictions":
-        get_sports_predictions()
-    elif sports_option == "Summary":
-        get_sports_summary()
-    elif sports_option == "Systems":
-        get_sports_systems()
+sports_option = None
+sports_option = st.sidebar.radio(
+    league_selected,
+    ["Ask Alpha", "Lines", "Results", "Predictions", "Summary", "Systems"],
+)
+if sports_option == "Ask Alpha":
+    print(sports_option)
+elif sports_option == "Lines":
+    print(sports_option)
+elif sports_option == "Results":
+    print(sports_option)
+elif sports_option == "Predictions":
+    print(sports_option)
+elif sports_option == "Summary":
+    print(sports_option)
+elif sports_option == "Systems":
+    print(sports_option)
 
 st.sidebar.markdown("<hr style='margin: 1rem 0;'>", unsafe_allow_html=True)
 
 #
 # Generative AI
 #
-
-if "markets" not in st.session_state:
-    st.session_state["markets"] = [{"role": "assistant", "content": "Ask Alpha about Markets"}]
 
 if "sports" not in st.session_state:
     st.session_state["sports"] = [{"role": "assistant", "content": "Ask Alpha about Sports"}]
@@ -237,7 +199,7 @@ def test_openai_api_key(prompt):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-if market_option == "Ask Alpha" or sports_option == "Ask Alpha":
+if sports_option == "Ask Alpha":
     if not st.session_state['api_key']:
         api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -249,31 +211,16 @@ if market_option == "Ask Alpha" or sports_option == "Ask Alpha":
             openai.api_key = api_key
             test_openai_api_key('Test Text')
             st.session_state['api_key'] = True
-    if topic == market_string:
-        for msg in st.session_state.markets:
-            st.chat_message(msg["role"]).write(msg["content"])
-        if prompt_text := st.chat_input():
-            st.session_state.markets.append({"role": "user", "content": prompt_text})
-            st.chat_message("user").write(prompt_text)
-            response = openai.chat.completions.create(model="gpt-4o",
-                messages=[
-                        {"role": "system", "content": "Hello"},
-                        {"role": "user", "content": prompt_text},
-                    ])
-            msg = response.choices[0].message.content
-            st.session_state.markets.append({"role": "assistant", "content": msg})
-            st.chat_message("assistant").write(msg)
-    elif topic == sports_string:
-        for msg in st.session_state.sports:
-            st.chat_message(msg["role"]).write(msg["content"])
-        if prompt_text := st.chat_input():
-            st.session_state.sports.append({"role": "user", "content": prompt_text})
-            st.chat_message("user").write(prompt_text)
-            response = openai.chat.completions.create(model="gpt-4o",
-                messages=[
-                        {"role": "system", "content": "Hello"},
-                        {"role": "user", "content": prompt_text},
-                    ])
-            msg = response.choices[0].message.content
-            st.session_state.sports.append({"role": "assistant", "content": msg})
-            st.chat_message("assistant").write(msg)
+    for msg in st.session_state.sports:
+        st.chat_message(msg["role"]).write(msg["content"])
+    if prompt_text := st.chat_input():
+        st.session_state.sports.append({"role": "user", "content": prompt_text})
+        st.chat_message("user").write(prompt_text)
+        response = openai.chat.completions.create(model="gpt-4o",
+            messages=[
+                    {"role": "system", "content": "Hello"},
+                    {"role": "user", "content": prompt_text},
+                ])
+        msg = response.choices[0].message.content
+        st.session_state.sports.append({"role": "assistant", "content": msg})
+        st.chat_message("assistant").write(msg)

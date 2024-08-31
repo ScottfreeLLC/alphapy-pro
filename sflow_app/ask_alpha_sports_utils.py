@@ -42,59 +42,6 @@ import sys
 from alphapy.alphapy_main import get_alphapy_config
 import alphapy.globals as apg
 
-#
-# Function to fetch data from FastAPI server
-#
-
-def fetch_data():
-    try:
-        api_url = "http://0.0.0.0:8080/data"
-        response = requests.get(api_url)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching data: {e}")
-        return {}
-    return
-
-# Function
-
-def get_market_ask_alpha():
-    return
-
-# Function
-
-def get_market_portfolio():
-    if st.button('Get Stock Data'):
-        stock_data = fetch_data()
-        if stock_data:
-            df = pd.DataFrame.from_dict(stock_data, orient='index')
-            cols_df = ['close', 'pchg', 'vratio', 'vwapd', 'h20', 'l20',
-                    'fastk', 'slowd', 'sequp', 'seqdown', 'hv', 'squeeze']
-            df = df[cols_df]
-            st.dataframe(df)
-        else:
-            st.warning("No data available.")
-    else:
-        st.info("Click the button to fetch stock data.")
-        return
-
-
-# Function
-
-def get_market_systems():
-    return
-
-# Function
-
-def get_market_patterns():
-    return
-
-# Function
-
-def get_market_screener():
-    return
-
 
 # Function
 

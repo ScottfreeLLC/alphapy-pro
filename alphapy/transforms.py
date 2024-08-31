@@ -1335,7 +1335,7 @@ def pchange2(df, c1, c2):
 # Function pivothigh
 #
 
-def pivothigh(df, c, p=20):
+def pivothigh(df, c='close', p=20):
     r"""Find the pivot high values in the series.
 
     Parameters
@@ -1356,7 +1356,7 @@ def pivothigh(df, c, p=20):
 
     def get_pivot_high(ds, max_len):
         ds_len = min(len(ds), max_len)
-        pivot = 1
+        pivot = 0
         if ds_len == 1:
             return pivot
         else:
@@ -1371,6 +1371,7 @@ def pivothigh(df, c, p=20):
 
     ds = df[c]
     ds_pivot_highs = ds.expanding().apply(get_pivot_high, args=(p,))
+    ds_pivot_highs = ds_pivot_highs.astype(int)
     return ds_pivot_highs
 
 
@@ -1378,7 +1379,7 @@ def pivothigh(df, c, p=20):
 # Function pivotlow
 #
 
-def pivotlow(df, c, p=20):
+def pivotlow(df, c='close', p=20):
     r"""Find the pivot low values in the series.
 
     Parameters
@@ -1399,7 +1400,7 @@ def pivotlow(df, c, p=20):
 
     def get_pivot_low(ds, max_len):
         ds_len = min(len(ds), max_len)
-        pivot = 1
+        pivot = 0
         if ds_len == 1:
             return pivot
         else:
@@ -1414,6 +1415,7 @@ def pivotlow(df, c, p=20):
 
     ds = df[c]
     ds_pivot_lows = ds.expanding().apply(get_pivot_low, args=(p,))
+    ds_pivot_lows = ds_pivot_lows.astype(int)
     return ds_pivot_lows
 
 
@@ -1546,10 +1548,57 @@ def rsi(df, p=14):
 
 
 #
-# Function rtotal
+# Function runs
 #
 
-def rtotal(df, c, w):
+def runs(df, c='close', w=20):
+    r"""Calculate the total number of runs.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``df``.
+    w : int
+        The rolling period.
+
+    Returns
+    -------
+    runs_value : int
+        The total number of distinct runs in the rolling window.
+
+    Example
+    -------
+
+    >>> runs(df, c, 20)
+
+    """
+
+    # Calculate the difference between the current and previous value
+    ds = df[c]
+    change = ds.diff()
+
+    # Define a function to calculate the number of distinct runs in a window
+    def calculate_runs(window):
+        # Create a list of changes
+        changes = [1 if x > 0 else -1 if x < 0 else 0 for x in window]
+        # Group by direction of change and count the number of groups
+        runs = len(list(itertools.groupby(changes)))
+        # Exclude groups where change is 0 (no change in direction)
+        return runs if changes[0] != 0 else runs - 1
+
+    # Apply the function to calculate the number of runs over a rolling window
+    runs_value = change.rolling(window=w).apply(calculate_runs, raw=True)
+
+    return runs_value.fillna(0).astype(int)
+
+
+#
+# Function runtotal
+#
+
+def runtotal(df, c='close', w=50):
     r"""Calculate the running total.
 
     Parameters
@@ -1569,20 +1618,36 @@ def rtotal(df, c, w):
     Example
     -------
 
-    >>> rtotal(df, c, 20))
+    >>> runtotal(df, c, 50))
 
     """
+
+    # Calculate the difference between the current and previous value
     ds = df[c]
-    running_total = ds.rolling(window=w).apply(np.count_nonzero)
-    return running_total.fillna(0).astype(int)
+    change = ds.diff()
+
+    # Initialize running total Series with zeros
+    running_total = pd.Series(np.zeros(len(ds)), index=ds.index)
+
+    # Calculate running totals over the rolling window
+    for i in range(1, len(change)):
+        if i < w:
+            # Calculate the running total from the start up to the current index
+            running_total[i] = running_total[i - 1] + (1 if change[i] > 0 else (-1 if change[i] < 0 else 0))
+        else:
+            # Calculate the running total within the rolling window
+            window_total = sum(1 if change[j] > 0 else (-1 if change[j] < 0 else 0) for j in range(i - w + 1, i + 1))
+            running_total[i] = window_total
+
+    return running_total.astype(int)
 
 
 #
-# Function runs
+# Function runstest
 #
 
-def runs(df, c, w):
-    r"""Calculate the total number of runs.
+def runstest(df, c='close', w=20, wfuncs='all'):
+    r"""Perform a runs test on binary series.
 
     Parameters
     ----------
@@ -1592,36 +1657,6 @@ def runs(df, c, w):
         Name of the column in the dataframe ``df``.
     w : int
         The rolling period.
-
-    Returns
-    -------
-    runs_value : int
-        The total number of runs.
-
-    Example
-    -------
-
-    >>> runs(df, c, 20)
-
-    """
-    ds = df[c]
-    runs_value = ds.rolling(window=w).apply(lambda x: len(list(itertools.groupby(x))))
-    return runs_value.fillna(0).astype(int)
-
-
-#
-# Function runstest
-#
-
-def runstest(df, c, wfuncs, w):
-    r"""Perform a runs test on binary series.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Dataframe containing the column ``c``.
-    c : str
-        Name of the column in the dataframe ``df``.
     wfuncs : list
         The set of runs test functions to apply to the column:
 
@@ -1635,8 +1670,6 @@ def runstest(df, c, wfuncs, w):
             The length of the latest streak.
         ``'zscore'``:
             The Z-Score over the ``window`` period.
-    w : int
-        The rolling period.
 
     Returns
     -------
@@ -1652,10 +1685,10 @@ def runstest(df, c, wfuncs, w):
 
     """
 
-    all_funcs = {'runs'   : runs,
-                 'streak' : streak,
-                 'rtotal' : rtotal,
-                 'zscore' : zscore}
+    all_funcs = {'runs'     : runs,
+                 'streak'   : streak,
+                 'runtotal' : runtotal,
+                 'zscore'   : zscore}
     # use all functions
     if 'all' in wfuncs:
         wfuncs = list(all_funcs.keys())
@@ -1713,7 +1746,7 @@ def split2letters(df, c):
 # Function streak
 #
 
-def streak(df, c, w):
+def streak(df, c='close', w=20):
     r"""Determine the length of the latest streak.
 
     Parameters
@@ -1736,9 +1769,24 @@ def streak(df, c, w):
     >>> streak(df, c, 20)
 
     """
+
+    # Calculate the difference between the current and previous value
     ds = df[c]
-    latest_streak = ds.rolling(window=w).apply(lambda x: [len(list(g)) for k, g in itertools.groupby(x)][-1])
-    return latest_streak.fillna(0).astype(int)
+    change = ds.diff()
+
+    # Initialize streak Series with zeros
+    latest_streak = pd.Series(np.zeros(len(ds)), index=ds.index)
+
+    # Calculate streaks
+    for i in range(1, len(change)):
+        if change[i] > 0:
+            latest_streak[i] = latest_streak[i-1] + 1 if latest_streak[i-1] >= 0 else 1
+        elif change[i] < 0:
+            latest_streak[i] = latest_streak[i-1] - 1 if latest_streak[i-1] <= 0 else -1
+        else:
+            latest_streak[i] = 0
+
+    return latest_streak.astype(int)
 
 
 #
@@ -2331,7 +2379,7 @@ def xmaup(df, c='close', pfast=20, pslow=50):
 # Function zscore
 #
 
-def zscore(df, c, w):
+def zscore(df, c='close', w=20):
     r"""Calculate the Z-Score.
 
     Parameters

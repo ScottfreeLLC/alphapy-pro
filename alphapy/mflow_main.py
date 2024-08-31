@@ -537,7 +537,7 @@ def prepare_data(model, dfs, market_specs):
                     logger.info("%s Prediction Frame has zero rows. Check prediction date.", symbol)
             else:
                 # split data into train and test
-                new_train = df.loc[(df.index >= train_date) & (df.index < predict_date)].copy()
+                new_train = df.loc[(df.index >= first_date) & (df.index < predict_date)].copy()
                 if not new_train.empty:
                     # check if target column has NaN values
                     nan_count = new_train[target].isnull().sum()
