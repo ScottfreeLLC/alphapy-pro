@@ -34,6 +34,7 @@ from alphapy.calendrical import biz_day_week
 from alphapy.calendrical import get_rdate
 from alphapy.globals import NULLTEXT
 from alphapy.globals import BSEP, USEP
+from alphapy.globals import PivotType
 from alphapy.variables import vexec
 
 
@@ -1356,7 +1357,7 @@ def pivothigh(df, c='close', p=20):
 
     def get_pivot_high(ds, max_len):
         ds_len = min(len(ds), max_len)
-        pivot = 0
+        pivot = 1
         if ds_len == 1:
             return pivot
         else:
@@ -1400,7 +1401,7 @@ def pivotlow(df, c='close', p=20):
 
     def get_pivot_low(ds, max_len):
         ds_len = min(len(ds), max_len)
-        pivot = 0
+        pivot = 1
         if ds_len == 1:
             return pivot
         else:
@@ -1417,6 +1418,65 @@ def pivotlow(df, c='close', p=20):
     ds_pivot_lows = ds.expanding().apply(get_pivot_low, args=(p,))
     ds_pivot_lows = ds_pivot_lows.astype(int)
     return ds_pivot_lows
+
+
+#
+# Function pivotmap
+#
+
+def pivotmap(df, window=100, min_strength=5):
+    """
+    Find the pivots in a given window and calculate their strength.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing the price data with 'high' and 'low' columns.
+    window : int
+        The number of bars to consider in the window.
+    min_strength : int
+        The minimum pivot strength in the window.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing the identified pivots and their properties.
+    """
+
+    # Initialize the pivot map list
+    pm = []
+    df_pivot = pd.DataFrame()
+
+    # Ensure there is enough data to form a window
+    if window >= 3 and min_strength >= 1 and len(df) >= window:
+        # Loop through each bar in the window from end to start
+        for ib in range(len(df) - window, len(df)):
+            high_strength = 1
+            low_strength = 1
+
+            # Check for Pivot High
+            for offset in range(1, min(window, ib + 1)):
+                if df['high'].iloc[ib] > df['high'].iloc[ib - offset]:
+                    high_strength += 1
+                else:
+                    break  # stop counting when a higher high is not found
+
+            # Check for Pivot Low
+            for offset in range(1, min(window, ib + 1)):
+                if df['low'].iloc[ib] < df['low'].iloc[ib - offset]:
+                    low_strength += 1
+                else:
+                    break  # stop counting when a lower low is not found
+
+            # Determine pivot type and add to the pivot map
+            if high_strength >= min_strength:
+                pm.append([len(df) - 1 - ib, PivotType.PivotHigh, high_strength])
+            elif low_strength >= min_strength:
+                pm.append([len(df) - 1 - ib, PivotType.PivotLow, low_strength])
+
+    # Convert pivot map to DataFrame
+    df_pivot = pd.DataFrame(pm, columns=['bar_index', 'pivot_type', 'pivot_strength'])
+    return df_pivot
 
 
 #

@@ -33,6 +33,7 @@ from enum import Enum, unique
 # Global Variables
 #
 
+
 #
 # Delimiters
 #
@@ -48,6 +49,7 @@ ROFF = ']'
 CARET = '^'
 ATSIGN = '@'
 
+
 #
 # Numerical Constants
 #
@@ -56,6 +58,7 @@ Q1 = 0.25
 Q2 = 0.50
 Q3 = 0.75
 
+
 #
 # String Constants
 #
@@ -63,11 +66,13 @@ Q3 = 0.75
 NULLTEXT = 'NULLTEXT'
 WILDCARD = '*'
 
+
 #
 # Dictionaries
 #
 
 SUBJECTS = ['crypto', 'etf', 'forex', 'future', 'index', 'option', 'stock']
+
 
 #
 # Pandas Time Offset Aliases
@@ -75,6 +80,7 @@ SUBJECTS = ['crypto', 'etf', 'forex', 'future', 'index', 'option', 'stock']
 
 PD_INTRADAY_OFFSETS = ['H', 'T', 'min', 'S', 'L', 'ms', 'U', 'us', 'N']
 PD_DAILY_OFFSETS = ['D', 'W', 'M', 'Q', 'A']
+
 
 #
 # Encoder Types
@@ -207,6 +213,27 @@ class Partition(Enum):
 
 
 #
+# Datasets
+#
+
+datasets = {Partition.train    : 'train',
+            Partition.test     : 'test'}
+
+
+#
+# Pivot Types
+#
+
+@unique
+class PivotType(Enum):
+    """Pivot Types.
+
+    """
+    PivotHigh = "High"
+    PivotLow = "Low"
+
+
+#
 # Scaler Types
 #
 
@@ -223,11 +250,3 @@ class Scalers(Enum):
     """
     minmax = 1
     standard = 2
-
-
-#
-# Datasets
-#
-
-datasets = {Partition.train    : 'train',
-            Partition.test     : 'test'}
