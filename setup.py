@@ -1,4 +1,9 @@
- #!/usr/bin/env python
+#!/usr/bin/env python
+
+# cd alphapy-pro
+# python setup.py sdist bdist_wheel
+# pip install -e .
+
 from setuptools import find_packages
 from setuptools import setup
 
