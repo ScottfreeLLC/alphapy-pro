@@ -62,11 +62,11 @@ from alphapy.frame import read_frame
 from alphapy.frame import write_frame
 from alphapy.globals import Partition, datasets
 from alphapy.globals import SSEP, USEP
-from alphapy.google_utils import authenticate_google
-from alphapy.google_utils import authenticate_google_drive
-from alphapy.google_utils import gsheet_format
-from alphapy.google_utils import gdrive_dict
-from alphapy.google_utils import upload_to_drive
+from google_utils import authenticate_google
+from google_utils import authenticate_google_drive
+from google_utils import gsheet_format
+from google_utils import gdrive_dict
+from google_utils import upload_to_drive
 from alphapy.model import get_model_config
 from alphapy.model import Model
 from alphapy.space import Space

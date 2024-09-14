@@ -20,8 +20,9 @@ VERSION = "3.0.0"
 classifiers = ['Development Status :: 4 - Beta',
                'Programming Language :: Python',
                'Programming Language :: Python :: 3',
-               'Programming Language :: Python :: 3.8',
                'Programming Language :: Python :: 3.9',
+               'Programming Language :: Python :: 3.10',
+               'Programming Language :: Python :: 3.11',
                'License :: OSI Approved :: Apache Software License',
                'Intended Audience :: Science/Research',
                'Topic :: Scientific/Engineering',
@@ -66,7 +67,6 @@ if __name__ == "__main__":
             'console_scripts': [
                 'alphapy = alphapy.alphapy_main:main',
                 'mflow = alphapy.mflow_main:main',
-                'sflow = alphapy.sflow_main:main',
             ],
         }
     )
