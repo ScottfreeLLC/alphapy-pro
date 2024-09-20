@@ -34,7 +34,7 @@ from googleapiclient.errors import HttpError
 import json
 import logging
 import os
-import pandas as pd
+import time
 
 
 #
@@ -991,9 +991,9 @@ def gsheet_format(creds, drive_service, csv_file_id, df, format_dict):
 # Function upload_to_drive
 #
 
-def upload_to_drive(drive_service, file_path, folder_id=None):
-    """Uploads a file to Google Drive."""
-
+def upload_to_drive(drive_service, file_path, folder_id=None, retries=3, delay=5):
+    """Uploads a file to Google Drive with retry logic."""
+    
     file_metadata = {
         'name': os.path.basename(file_path)
     }
@@ -1003,12 +1003,22 @@ def upload_to_drive(drive_service, file_path, folder_id=None):
     file_id = get_gfile_id(drive_service, file_metadata['name'], folder_id)
     media = MediaFileUpload(file_path)
 
-    if file_id:
-        verb = 'replaced'
-        drive_service.files().update(fileId=file_id, media_body=media).execute()
-    else:
-        verb = 'created'
-        drive_service.files().create(body=file_metadata, media_body=media).execute()
+    for attempt in range(retries):
+        try:
+            if file_id:
+                verb = 'replaced'
+                drive_service.files().update(fileId=file_id, media_body=media).execute()
+            else:
+                verb = 'created'
+                drive_service.files().create(body=file_metadata, media_body=media).execute()
 
-    logger.info(f"{file_path} has been {verb} successfully on Google Drive.")
-    return file_id
+            logger.info(f"{file_path} has been {verb} successfully on Google Drive.")
+            return file_id
+        
+        except HttpError as error:
+            if attempt < retries - 1 and error.resp.status in [502, 503, 504]:
+                logger.warning(f"Attempt {attempt+1} failed with error {error.resp.status}. Retrying in {delay} seconds...")
+                time.sleep(delay)
+            else:
+                logger.error(f"Upload failed after {retries} attempts due to: {error}")
+                raise
