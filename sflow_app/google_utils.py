@@ -1004,6 +1004,7 @@ def upload_to_drive(drive_service, file_path, folder_id=None, retries=3, delay=5
     media = MediaFileUpload(file_path)
 
     for attempt in range(retries):
+        time.sleep(delay)
         try:
             if file_id:
                 verb = 'replaced'
@@ -1018,7 +1019,6 @@ def upload_to_drive(drive_service, file_path, folder_id=None, retries=3, delay=5
         except HttpError as error:
             if attempt < retries - 1 and error.resp.status in [502, 503, 504]:
                 logger.warning(f"Attempt {attempt+1} failed with error {error.resp.status}. Retrying in {delay} seconds...")
-                time.sleep(delay)
             else:
                 logger.error(f"Upload failed after {retries} attempts due to: {error}")
                 raise
