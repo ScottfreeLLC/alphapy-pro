@@ -75,85 +75,15 @@ from alphapy.utilities import datetime_stamp
 from alphapy.utilities import most_recent_file
 from alphapy.utilities import valid_date
 
+from sflow_globals import feature_dict
+from sflow_globals import game_dict
+
 
 #
 # Initialize logger
 #
 
 logger = logging.getLogger(__name__)
-
-
-#
-# Sports Fields
-#
-# The following fields are repeated for:
-#     1. 'home'
-#     2. 'away'
-#     3. 'delta'
-#
-# Note that [Target]s will not be merged into the Game table;
-# these targets will be predictors in the Game table that are
-# generated after each game result. All of the fields below
-# are predictors and are generated a priori, i.e., we calculate
-# deltas from the last previously played game for each team and
-# these data go into the row for the next game to be played.
-#
-
-sports_dict = {'wins' : int,
-               'losses' : int,
-               'ties' : int,
-               'days_since_first_game' : int,
-               'days_since_previous_game' : int,
-               'won_on_points' : bool,
-               'lost_on_points' : bool,
-               'won_on_spread' : bool,
-               'lost_on_spread' : bool,
-               'point_win_streak' : int,
-               'point_loss_streak' : int,
-               'point_margin_game' : int,
-               'point_margin_season' : int,
-               'point_margin_season_avg' : float,
-               'point_margin_streak' : int,
-               'point_margin_streak_avg' : float,
-               'point_margin_ngames' : int,
-               'point_margin_ngames_avg' : float,
-               'cover_win_streak' : int,
-               'cover_loss_streak' : int,
-               'cover_margin_game' : float,
-               'cover_margin_season' : float, 
-               'cover_margin_season_avg' : float,
-               'cover_margin_streak' : float,
-               'cover_margin_streak_avg' : float,
-               'cover_margin_ngames' : float,
-               'cover_margin_ngames_avg' : float,
-               'total_points' : int,
-               'overunder_margin' : float,
-               'over' : bool,
-               'under' : bool,
-               'over_streak' : int,
-               'under_streak' : int,
-               'overunder_season' : float,
-               'overunder_season_avg' : float,
-               'overunder_streak' : float,
-               'overunder_streak_avg' : float,
-               'overunder_ngames' : float,
-               'overunder_ngames_avg' : float}
-
-
-#
-# These are the leaders. Generally, we try to predict one of these
-# variables as the target and lag the remaining ones.
-#
-
-game_dict = {'point_margin_game' : int,
-             'won_on_points' : bool,
-             'lost_on_points' : bool,
-             'cover_margin_game' : float,
-             'won_on_spread' : bool,
-             'lost_on_spread' : bool,
-             'overunder_margin' : float,
-             'over' : bool,
-             'under' : bool}
 
 
 #
@@ -373,6 +303,7 @@ def get_series_diff(series):
         The differenced series.
 
     """
+
     new_series = pd.Series(len(series))
     new_series = series.diff()
     new_series[0] = 0
@@ -401,6 +332,7 @@ def get_streak(series, start_index, window):
         The count value for the current streak.
 
     """
+
     if window <= 0:
         window = len(series)
     i = start_index
@@ -435,6 +367,7 @@ def add_features(frame, fdict, flen, prefix=''):
         The dataframe with the added features.
 
     """
+
     # generate sequences
     seqint = [0] * flen
     seqfloat = [0.0] * flen
@@ -481,8 +414,9 @@ def generate_team_frame(team, tf, home_team, away_team, window):
         The completed team frame.
 
     """
+
     # Initialize new features
-    tf = add_features(tf, sports_dict, len(tf))
+    tf = add_features(tf, feature_dict, len(tf))
     # Daily Offsets
     tf['days_since_first_game'] = get_day_offset(tf['date'])
     tf['days_since_previous_game'] = get_series_diff(tf['days_since_first_game'])
@@ -659,6 +593,207 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
         key2 = USEP.join([prefix2, key])
         frame[newkey] = frame[key1] - frame[key2]
     return frame
+
+
+#
+# Function extract_features
+#
+
+def extract_features(sport_specs, model_specs):
+    """
+    Function to process game data, generate features and final model frames.
+
+    Parameters
+    ----------
+    sport_specs : dict
+        The sports-specific configuration specifications.
+    model_specs : dict
+        The model specifications for paths, extension, and other params.
+
+    Returns
+    -------
+    pd.DataFrame
+        The final processed DataFrame containing all features and calculations.
+    """
+
+    # Extract the fields from sport.yml
+
+    data_directory = sport_specs['data_directory']
+    league = sport_specs['league']
+    points_max = sport_specs['points_max']
+    points_min = sport_specs['points_min']
+    random_scoring = sport_specs['random_scoring']
+    seasons = sport_specs['seasons']
+    window = sport_specs['rolling_window']   
+
+    # Create the game scores space
+    space = Space('game', 'scores', '1g')
+
+    #
+    # Derived Variables
+    #
+
+    series = space.source
+    team1_prefix = 'home'
+    team2_prefix = 'away'
+    home_team = USEP.join([team1_prefix, 'team'])
+    away_team = USEP.join([team2_prefix, 'team'])
+
+    #
+    # Read in the game frame. This is the feature generation phase.
+    #
+
+    logger.info("Reading Game Data")
+
+    file_base = USEP.join([league, space.subject, space.source, space.fractal])
+    df = read_frame(data_directory, file_base, model_specs['extension'], model_specs['separator'])
+    logger.info("Total Game Records: %d", df.shape[0])
+
+    #
+    # Get date information
+    #
+
+    df = pd.concat([df, dateparts(df, 'date')], axis=1)
+
+    #
+    # Make all team names lower case
+    #
+
+    df['home_team'] = df['home_team'].str.lower()
+    df['away_team'] = df['away_team'].str.lower()
+
+    #
+    # Run the game pipeline on a seasonal loop
+    #
+
+    if not seasons:
+        # run model on all seasons
+        seasons = df['season'].unique().tolist()
+    df['season'] = df['season'].astype(str)
+
+    #
+    # Initialize the final frame
+    #
+
+    ff = pd.DataFrame()
+
+    #
+    # Iterate through each season of the game frame
+    #
+
+    for season in seasons:
+
+        # Generate a frame for each season
+
+        gf = df[df['season'] == season].copy()
+        gf = gf.reset_index()
+
+        # Generate derived variables for the game frame
+
+        total_games = gf.shape[0]
+        if random_scoring:
+            gf['home_score'] = np.random.randint(points_min, points_max, total_games)
+            gf['away_score'] = np.random.randint(points_min, points_max, total_games)
+        gf['total_points'] = gf['home_score'] + gf['away_score']
+
+        # gf['line_delta'] = gf['line'] - gf['line_open']
+        # gf['over_under_delta'] = gf['over_under'] - gf['over_under_open']
+
+        gf = add_features(gf, game_dict, gf.shape[0])
+        for index, row in gf.iterrows():
+            if not np.isnan(row['home_score']):
+                gf['point_margin_game'].at[index] = get_point_margin(row, 'home_score', 'away_score')
+                gf['won_on_points'].at[index] = True if gf['point_margin_game'].at[index] > 0 else False
+                gf['lost_on_points'].at[index] = True if gf['point_margin_game'].at[index] < 0 else False
+                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['home_point_spread']
+                gf['won_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] > 0 else False
+                gf['lost_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] <= 0 else False
+                gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under']
+                gf['over'].at[index] = True if gf['overunder_margin'].at[index] > 0 else False
+                gf['under'].at[index] = True if gf['overunder_margin'].at[index] < 0 else False
+            else:
+                gf['point_margin_game'].at[index] = None
+                gf['won_on_points'].at[index] = None
+                gf['lost_on_points'].at[index] = None
+                gf['cover_margin_game'].at[index] = None
+                gf['won_on_spread'].at[index] = None
+                gf['lost_on_spread'].at[index] = None
+                gf['overunder_margin'].at[index] = None
+                gf['over'].at[index] = None
+                gf['under'].at[index] = None
+
+        # Generate each team frame
+
+        team_frames = {}
+        teams = gf.groupby([home_team])
+        for team, _ in teams:
+            team_name = team[0]
+            team_frame = USEP.join([league, team_name.lower(), series, str(season)])
+            logger.info("Generating team frame: %s", team_frame)
+            tf = get_team_frame(gf, team_name, home_team, away_team)
+            tf = tf.reset_index()
+            tf = generate_team_frame(team_name, tf, home_team, away_team, window)
+            team_frames[team_frame] = tf
+
+        # Create the model frame, initializing the home and away frames
+
+        mdict = {k:v for (k,v) in list(feature_dict.items()) if v != bool}
+        team1_frame = pd.DataFrame()
+        team1_frame = add_features(team1_frame, mdict, gf.shape[0], prefix=team1_prefix)
+        team2_frame = pd.DataFrame()
+        team2_frame = add_features(team2_frame, mdict, gf.shape[0], prefix=team2_prefix)
+        frames = [gf, team1_frame, team2_frame]
+        mf = pd.concat(frames, axis=1)
+
+        # Loop through each team frame, inserting data into the model frame row
+        for team, _ in teams:
+            team_name = team[0]
+            team_frame = USEP.join([league, team_name.lower(), series, str(season)])
+            logger.info("Merging team frame %s into model frame", team_frame)
+            tf = team_frames[team_frame]
+            for index in range(0, tf.shape[0]-1):
+                gindex = index + 1
+                model_row = tf.iloc[gindex]
+                key_date = model_row['date']
+                at_home = False
+                if team_name == model_row[home_team]:
+                    at_home = True
+                    key_team = model_row[home_team]
+                elif team_name == model_row[away_team]:
+                    key_team = model_row[away_team]
+                else:
+                    raise KeyError("Team %s not found in Team Frame" % team)            
+                try:
+                    if at_home:
+                        mpos = np.where((mf[home_team] == key_team) & (mf['date'] == key_date))[0][0]
+                    else:
+                        mpos = np.where((mf[away_team] == key_team) & (mf['date'] == key_date))[0][0]
+                except:
+                    raise IndexError("Team/Date Key not found in Model Frame")
+                # insert team data into model row
+                mf = insert_model_data(mf, mpos, mdict, tf, index, team1_prefix if at_home else team2_prefix)
+
+        # Compute delta data 'home' - 'away'
+        mf = generate_delta_data(mf, mdict, team1_prefix, team2_prefix)
+
+        # Append this to final frame
+        frames = [ff, mf]
+        ff = pd.concat(frames)
+        
+    # Grouped Betting Results
+
+    for col_key in ['won_on_points', 'won_on_spread', 'over']:
+        ff_means = ff.groupby('date')[col_key].mean().shift(-1)
+        ds_name = USEP.join([col_key, 'daily_mean_lag1'])
+        ff_means.rename(ds_name, inplace=True)
+        ff = ff.merge(ff_means, how='left', on='date')
+        
+    # Convert Boolean Features
+    
+    for bf in features_bool:
+        ff[bf] = ff[bf].astype(float)
+    
+    return ff
 
 
 #
@@ -842,7 +977,7 @@ def extract_datasets(model_specs, df, league, creds):
 
     for col in prob_cols:
         df[col] = df[col].round(3)
-    
+
     # Get date calculations for results and predictions.
 
     df['date'] = pd.to_datetime(df['date'])
@@ -1245,7 +1380,6 @@ def main(args=None):
     model_specs['alphapy_root'] = alphapy_root
     
     # Extract model fields
-    
     live_results = model_specs['live_results']
 
     # Add command line arguments to model specifications
@@ -1311,190 +1445,11 @@ def main(args=None):
         logger.info("Prediction Date: %s", predict_date)
 
     # Read game configuration file
-
     sport_specs = get_sport_config()
+    league = sport_specs['league'].lower()
 
-    # Section: game
-
-    data_directory = sport_specs['data_directory']
-    league = sport_specs['league']
-    points_max = sport_specs['points_max']
-    points_min = sport_specs['points_min']
-    random_scoring = sport_specs['random_scoring']
-    seasons = sport_specs['seasons']
-    window = sport_specs['rolling_window']   
-
-    # Create the game scores space
-    space = Space('game', 'scores', '1g')
-
-    #
-    # Derived Variables
-    #
-
-    series = space.source
-    team1_prefix = 'home'
-    team2_prefix = 'away'
-    home_team = USEP.join([team1_prefix, 'team'])
-    away_team = USEP.join([team2_prefix, 'team'])
-
-    #
-    # Read in the game frame. This is the feature generation phase.
-    #
-
-    logger.info("Reading Game Data")
-
-    file_base = USEP.join([league, space.subject, space.source, space.fractal])
-    df = read_frame(data_directory, file_base, model_specs['extension'], model_specs['separator'])
-    logger.info("Total Game Records: %d", df.shape[0])
-
-    #
-    # Get date information
-    #
-
-    df = pd.concat([df, dateparts(df, 'date')], axis=1)
-
-    #
-    # Make all team names lower case
-    #
-
-    df['home_team'] = df['home_team'].str.lower()
-    df['away_team'] = df['away_team'].str.lower()
-
-    #
-    # Run the game pipeline on a seasonal loop
-    #
-
-    if not seasons:
-        # run model on all seasons
-        seasons = df['season'].unique().tolist()
-    df['season'] = df['season'].astype(str)
-
-    #
-    # Initialize the final frame
-    #
-
-    ff = pd.DataFrame()
-
-    #
-    # Iterate through each season of the game frame
-    #
-
-    for season in seasons:
-
-        # Generate a frame for each season
-
-        gf = df[df['season'] == season].copy()
-        gf = gf.reset_index()
-
-        # Generate derived variables for the game frame
-
-        total_games = gf.shape[0]
-        if random_scoring:
-            gf['home_score'] = np.random.randint(points_min, points_max, total_games)
-            gf['away_score'] = np.random.randint(points_min, points_max, total_games)
-        gf['total_points'] = gf['home_score'] + gf['away_score']
-
-        # gf['line_delta'] = gf['line'] - gf['line_open']
-        # gf['over_under_delta'] = gf['over_under'] - gf['over_under_open']
-
-        gf = add_features(gf, game_dict, gf.shape[0])
-        for index, row in gf.iterrows():
-            if not np.isnan(row['home_score']):
-                gf['point_margin_game'].at[index] = get_point_margin(row, 'home_score', 'away_score')
-                gf['won_on_points'].at[index] = True if gf['point_margin_game'].at[index] > 0 else False
-                gf['lost_on_points'].at[index] = True if gf['point_margin_game'].at[index] < 0 else False
-                gf['cover_margin_game'].at[index] = gf['point_margin_game'].at[index] + row['home_point_spread']
-                gf['won_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] > 0 else False
-                gf['lost_on_spread'].at[index] = True if gf['cover_margin_game'].at[index] <= 0 else False
-                gf['overunder_margin'].at[index] = gf['total_points'].at[index] - row['over_under']
-                gf['over'].at[index] = True if gf['overunder_margin'].at[index] > 0 else False
-                gf['under'].at[index] = True if gf['overunder_margin'].at[index] < 0 else False
-            else:
-                gf['point_margin_game'].at[index] = None
-                gf['won_on_points'].at[index] = None
-                gf['lost_on_points'].at[index] = None
-                gf['cover_margin_game'].at[index] = None
-                gf['won_on_spread'].at[index] = None
-                gf['lost_on_spread'].at[index] = None
-                gf['overunder_margin'].at[index] = None
-                gf['over'].at[index] = None
-                gf['under'].at[index] = None
-
-        # Generate each team frame
-
-        team_frames = {}
-        teams = gf.groupby([home_team])
-        for team, _ in teams:
-            team_name = team[0]
-            team_frame = USEP.join([league, team_name.lower(), series, str(season)])
-            logger.info("Generating team frame: %s", team_frame)
-            tf = get_team_frame(gf, team_name, home_team, away_team)
-            tf = tf.reset_index()
-            tf = generate_team_frame(team_name, tf, home_team, away_team, window)
-            team_frames[team_frame] = tf
-
-        # Create the model frame, initializing the home and away frames
-
-        mdict = {k:v for (k,v) in list(sports_dict.items()) if v != bool}
-        team1_frame = pd.DataFrame()
-        team1_frame = add_features(team1_frame, mdict, gf.shape[0], prefix=team1_prefix)
-        team2_frame = pd.DataFrame()
-        team2_frame = add_features(team2_frame, mdict, gf.shape[0], prefix=team2_prefix)
-        frames = [gf, team1_frame, team2_frame]
-        mf = pd.concat(frames, axis=1)
-
-        # Loop through each team frame, inserting data into the model frame row
-        #     get index+1 [if valid]
-        #     determine if team is home or away to get prefix
-        #     try: np.where((gf[home_team] == 'PHI') & (gf['date'] == '09/07/14'))[0][0]
-        #     Assign team frame fields to respective model frame fields: set gf.at(pos, field)
-
-        for team, _ in teams:
-            team_name = team[0]
-            team_frame = USEP.join([league, team_name.lower(), series, str(season)])
-            logger.info("Merging team frame %s into model frame", team_frame)
-            tf = team_frames[team_frame]
-            for index in range(0, tf.shape[0]-1):
-                gindex = index + 1
-                model_row = tf.iloc[gindex]
-                key_date = model_row['date']
-                at_home = False
-                if team_name == model_row[home_team]:
-                    at_home = True
-                    key_team = model_row[home_team]
-                elif team_name == model_row[away_team]:
-                    key_team = model_row[away_team]
-                else:
-                    raise KeyError("Team %s not found in Team Frame" % team)            
-                try:
-                    if at_home:
-                        mpos = np.where((mf[home_team] == key_team) & (mf['date'] == key_date))[0][0]
-                    else:
-                        mpos = np.where((mf[away_team] == key_team) & (mf['date'] == key_date))[0][0]
-                except:
-                    raise IndexError("Team/Date Key not found in Model Frame")
-                # insert team data into model row
-                mf = insert_model_data(mf, mpos, mdict, tf, index, team1_prefix if at_home else team2_prefix)
-
-        # Compute delta data 'home' - 'away'
-        mf = generate_delta_data(mf, mdict, team1_prefix, team2_prefix)
-
-        # Append this to final frame
-        frames = [ff, mf]
-        ff = pd.concat(frames)
-        
-    # Grouped Betting Results
-
-    for col_key in ['won_on_points', 'won_on_spread', 'over']:
-        ff_means = ff.groupby('date')[col_key].mean().shift(-1)
-        ds_name = USEP.join([col_key, 'daily_mean_lag1'])
-        ff_means.rename(ds_name, inplace=True)
-        ff = ff.merge(ff_means, how='left', on='date')
-        
-    # Convert Boolean Features
-    
-    for bf in features_bool:
-        ff[bf] = ff[bf].astype(float)
+    # Extract the features
+    ff = extract_features(sport_specs, model_specs) 
 
     # Write out dataframes
 
