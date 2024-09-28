@@ -599,16 +599,18 @@ def generate_delta_data(frame, fdict, prefix1, prefix2):
 # Function extract_features
 #
 
-def extract_features(sport_specs, model_specs):
+def extract_features(df, sport_specs, space):
     """
     Function to process game data, generate features and final model frames.
 
     Parameters
     ----------
+    df : pd.DataFrame
+        The input dataframe containing the basic data.
     sport_specs : dict
         The sports-specific configuration specifications.
-    model_specs : dict
-        The model specifications for paths, extension, and other params.
+    space : alphapy.Space
+        The data dimension for game data.
 
     Returns
     -------
@@ -618,16 +620,12 @@ def extract_features(sport_specs, model_specs):
 
     # Extract the fields from sport.yml
 
-    data_directory = sport_specs['data_directory']
     league = sport_specs['league']
     points_max = sport_specs['points_max']
     points_min = sport_specs['points_min']
     random_scoring = sport_specs['random_scoring']
     seasons = sport_specs['seasons']
     window = sport_specs['rolling_window']   
-
-    # Create the game scores space
-    space = Space('game', 'scores', '1g')
 
     #
     # Derived Variables
@@ -638,16 +636,6 @@ def extract_features(sport_specs, model_specs):
     team2_prefix = 'away'
     home_team = USEP.join([team1_prefix, 'team'])
     away_team = USEP.join([team2_prefix, 'team'])
-
-    #
-    # Read in the game frame. This is the feature generation phase.
-    #
-
-    logger.info("Reading Game Data")
-
-    file_base = USEP.join([league, space.subject, space.source, space.fractal])
-    df = read_frame(data_directory, file_base, model_specs['extension'], model_specs['separator'])
-    logger.info("Total Game Records: %d", df.shape[0])
 
     #
     # Get date information
@@ -1448,8 +1436,22 @@ def main(args=None):
     sport_specs = get_sport_config()
     league = sport_specs['league'].lower()
 
+    # Read in the game frame. This is the feature generation phase.
+
+    logger.info("Reading Game Data")
+
+    # Create the game scores space
+    space = Space('game', 'scores', '1g')
+
+    file_base = USEP.join([league, space.subject, space.source, space.fractal])
+    df = read_frame(sport_specs['data_directory'],
+                    file_base,
+                    model_specs['extension'],
+                    model_specs['separator'])
+    logger.info("Total Game Records: %d", df.shape[0])
+
     # Extract the features
-    ff = extract_features(sport_specs, model_specs) 
+    ff = extract_features(df, sport_specs, space) 
 
     # Write out dataframes
 
