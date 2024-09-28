@@ -34,6 +34,7 @@ from googleapiclient.errors import HttpError
 import json
 import logging
 import os
+import random
 import time
 
 
@@ -215,6 +216,31 @@ def get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name):
 
 
 #
+# Function execute_request
+#
+
+def execute_request(request, max_retries=5):
+    """
+    Execute a Google Sheets request with retries.
+
+    :param request: The Google Sheets request to run.
+    :param max_retries: The number of retries.
+    """
+
+    for i in range(max_retries):
+        try:
+            return request.execute()
+        except HttpError as e:
+            if e.resp.status in [502, 503, 504, 429]:
+                sleep_time = (2 ** i) + random.random()
+                print(f"Temporary error encountered (status {e.resp.status}). Retrying in {sleep_time:.2f} seconds...")
+                time.sleep(sleep_time)
+            else:
+                raise
+    raise Exception("Max retries exceeded")
+
+
+#
 # Function format_header_row
 #
 
@@ -270,12 +296,17 @@ def format_header_row(sheets_service, spreadsheet_id, sheet_name):
     body = {
         'requests': requests
     }
-    response = sheets_service.spreadsheets().batchUpdate(
+    request = sheets_service.spreadsheets().batchUpdate(
         spreadsheetId=spreadsheet_id,
         body=body
-    ).execute()
-
-    logger.info(f"Formatted and froze header row for Sheet ID: {sheet_id} in '{sheet_name}'")
+    )
+    try:
+        response = execute_request(request)
+        logger.info(f"Formatted and froze header row for Sheet ID: {sheet_id} in '{sheet_name}'")
+        return response
+    except Exception as e:
+        logging.error(f"Failed to format header row: {e}")
+        raise
 
 
 #
@@ -391,11 +422,17 @@ def format_cells(sheets_service, spreadsheet_id, sheet_name, format_dict,
         body = {
             'requests': requests
         }
-        response = sheets_service.spreadsheets().batchUpdate(
+        request = sheets_service.spreadsheets().batchUpdate(
             spreadsheetId=spreadsheet_id,
             body=body
-        ).execute()
-        logger.info(f"Formatted percentage cells to Sheet ID: {sheet_id}")
+        )
+        try:
+            response = execute_request(request)
+            logger.info(f"Formatted percentage cells for Sheet ID: {sheet_id} in '{sheet_name}'")
+            return response
+        except Exception as e:
+            logging.error(f"Failed to format percentage cells: {e}")
+            raise
 
 
 #
@@ -439,16 +476,17 @@ def apply_alternating_row_colors(sheets_service, spreadsheet_id, sheet_name, sta
 
     # Send the batchUpdate request
     body = {'requests': requests}
-
+    request = sheets_service.spreadsheets().batchUpdate(
+        spreadsheetId=spreadsheet_id,
+        body=body
+    )
     try:
-        response = sheets_service.spreadsheets().batchUpdate(
-            spreadsheetId=spreadsheet_id,
-            body=body
-        ).execute()
-        logger.info(f"Applied alternating row colors to '{sheet_name}' in the spreadsheet.")
-    except HttpError as error:
-        logger.info(f"Alternating row colors already applied: {error}")
-        return    
+        response = execute_request(request)
+        logger.info(f"Applied alternating row colors for Sheet ID: {sheet_id} in '{sheet_name}'")
+        return response
+    except Exception as e:
+        logging.error(f"Failed to apply alternating row colors: {e}")
+        raise
 
 
 #
@@ -470,35 +508,38 @@ def remove_banding(sheets_service, spreadsheet_id, sheet_name):
         logger.info(f"No sheet found with the name '{sheet_name}'")
         return
 
-    try:
-        # Retrieve the spreadsheet to find all banded ranges
-        sheet_metadata = sheets_service.spreadsheets().get(
-            spreadsheetId=spreadsheet_id,
-            fields='sheets(properties(sheetId,title),bandedRanges(bandedRangeId))'
-        ).execute()
+    # Retrieve the spreadsheet to find all banded ranges
+    sheet_metadata = sheets_service.spreadsheets().get(
+        spreadsheetId=spreadsheet_id,
+        fields='sheets(properties(sheetId,title),bandedRanges(bandedRangeId))'
+    ).execute()
 
-        # Find the banded ranges for the given sheet
-        for sheet in sheet_metadata.get('sheets', []):
-            if sheet['properties']['sheetId'] == sheet_id:
-                banded_ranges = sheet.get('bandedRanges', [])
-                for banded_range in banded_ranges:
-                    banded_range_id = banded_range.get('bandedRangeId')
-                    # If a bandedRangeId is found, remove the banding
-                    if banded_range_id:
-                        requests = [{
-                            "deleteBanding": {
-                                "bandedRangeId": banded_range_id
-                            }
-                        }]
-                        # Send the request to remove the banding
-                        body = {'requests': requests}
-                        response = sheets_service.spreadsheets().batchUpdate(
-                            spreadsheetId=spreadsheet_id,
-                            body=body
-                        ).execute()
+    # Find the banded ranges for the given sheet
+    for sheet in sheet_metadata.get('sheets', []):
+        if sheet['properties']['sheetId'] == sheet_id:
+            banded_ranges = sheet.get('bandedRanges', [])
+            for banded_range in banded_ranges:
+                banded_range_id = banded_range.get('bandedRangeId')
+                # If a bandedRangeId is found, remove the banding
+                if banded_range_id:
+                    requests = [{
+                        "deleteBanding": {
+                            "bandedRangeId": banded_range_id
+                        }
+                    }]
+                    # Send the request to remove the banding
+                    body = {'requests': requests}
+                    request = sheets_service.spreadsheets().batchUpdate(
+                        spreadsheetId=spreadsheet_id,
+                        body=body
+                    )
+                    try:
+                        response = execute_request(request)
                         logger.info(f"Removed banding with ID {banded_range_id} from '{sheet_name}'.")
-    except HttpError as error:
-        logger.error(f"Failed to remove banding from '{sheet_name}': {error}")
+                        return response
+                    except Exception as e:
+                        logging.error(f"Failed to remove banding: {e}")
+                        raise
 
 
 #
@@ -515,6 +556,7 @@ def widen_columns(sheets_service, spreadsheet_id, sheet_name, column_indexes, wi
     :param column_indexes: A list of column indexes to widen.
     :param width: The new width to set for these columns.
     """
+
     # Find the ID of the sheet based on its name
     sheet_id = get_sheet_id_by_name(sheets_service, spreadsheet_id, sheet_name)
     if sheet_id is None:
@@ -539,8 +581,17 @@ def widen_columns(sheets_service, spreadsheet_id, sheet_name, column_indexes, wi
         })
 
     body = {"requests": requests}
-    sheets_service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
-    logger.info(f"Widened columns at indexes {column_indexes} to width {width} in sheet '{sheet_name}'")
+    request = sheets_service.spreadsheets().batchUpdate(
+        spreadsheetId=spreadsheet_id,
+        body=body
+    )
+    try:
+        response = execute_request(request)
+        logger.info(f"Widened columns at indexes {column_indexes} to width {width} in sheet '{sheet_name}'")
+        return response
+    except Exception as e:
+        logging.error(f"Failed to widen columns: {e}")
+        raise
 
 
 #
@@ -581,10 +632,17 @@ def clear_conditional_formatting(sheets_service, spreadsheet_id, sheet_name):
     # Execute batchUpdate to clear all rules
     if requests:
         body = {'requests': requests}
-        sheets_service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
-        logger.info(f"Cleared all conditional formatting from sheet ID {sheet_id}.")
-    else:
-        logger.info(f"No conditional formatting rules found in sheet ID {sheet_id}.")
+        request = sheets_service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body=body
+        )
+        try:
+            response = execute_request(request)
+            logger.info(f"Cleared all conditional formatting from sheet ID {sheet_id}.")
+            return response
+        except Exception as e:
+            logging.error(f"Failed to clear all conditional formatting: {e}")
+            raise
 
 
 #
@@ -842,12 +900,17 @@ def apply_conditional_formatting(sheets_service, spreadsheet_id, sheet_name, for
     body = {
         'requests': requests
     }
-    response = sheets_service.spreadsheets().batchUpdate(
+    request = sheets_service.spreadsheets().batchUpdate(
         spreadsheetId=spreadsheet_id,
         body=body
-    ).execute()
-    
-    logger.info(f"Applied conditional formatting to Sheet ID: {sheet_id}")
+    )
+    try:
+        response = execute_request(request)
+        logger.info(f"Applied conditional formatting to Sheet ID: {sheet_id}")
+        return response
+    except Exception as e:
+        logging.error(f"Failed to apply conditional formatting: {e}")
+        raise
 
 
 #
@@ -893,12 +956,17 @@ def highlight_differences(sheets_service, sheet_id, range_to_check, range_to_hig
 
     # Send the batchUpdate request
     body = {'requests': requests}
-    response = sheets_service.spreadsheets().batchUpdate(
+    request = sheets_service.spreadsheets().batchUpdate(
         spreadsheetId=sheet_id,
         body=body
-    ).execute()
-
-    logger.info(f"Conditional formatting applied to highlight differences in Sheet ID: {sheet_id}")
+    )
+    try:
+        response = execute_request(request)
+        logger.info(f"Highlighted differences for Sheet ID: {sheet_id}")
+        return response
+    except Exception as e:
+        logging.error(f"Failed to highlight differences: {e}")
+        raise
 
 
 #
@@ -950,12 +1018,18 @@ def gsheet_format(creds, drive_service, csv_file_id, df, format_dict):
     body = {'values': values}
 
     # Write the new data to the Google Sheet
-    sheets_service.spreadsheets().values().update(
+    request = sheets_service.spreadsheets().values().update(
         spreadsheetId=sheet_id,
         range=range_all,
         valueInputOption='USER_ENTERED',
         body=body
-    ).execute()
+    )
+    try:
+        response = execute_request(request)
+        logger.info(f"Wrote the new data to Sheet ID: {sheet_id}")
+    except Exception as e:
+        logging.error(f"Failed to write the new sheet values: {e}")
+        raise
 
     # Set the start and end rows for formatting
     start_row = 1
