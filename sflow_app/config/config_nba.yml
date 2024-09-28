@@ -1,0 +1,8 @@
+league          : NBA
+seasons         :
+data_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/NBA/data
+prod_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/Products/NBA
+random_scoring  : False
+points_max      : 120
+points_min      : 75
+rolling_window  : 3

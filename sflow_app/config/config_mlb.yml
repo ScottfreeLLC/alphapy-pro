@@ -1,0 +1,8 @@
+league          : MLB
+seasons         :
+data_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/MLB/data
+prod_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/Products/MLB
+random_scoring  : False
+points_max      : 12
+points_min      : 0
+rolling_window  : 3

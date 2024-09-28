@@ -1,0 +1,8 @@
+league          : NCAAF
+seasons         :
+data_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/NCAAF/data
+prod_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/Products/NCAAF
+points_max      : 72
+points_min      : 0
+random_scoring  : False
+rolling_window  : 3

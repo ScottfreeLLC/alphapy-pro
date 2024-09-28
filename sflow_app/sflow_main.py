@@ -26,6 +26,7 @@
 # HOW TO RUN:
 #
 # export ALPHAPY_ROOT=/Users/markconway/Projects/alphapy-root
+# pip install -e .
 # sflow --tdate 2020-01-01 --pdate 2021-11-24
 #
 
@@ -656,7 +657,7 @@ def extract_features(df, sport_specs, space):
 
     if not seasons:
         # run model on all seasons
-        seasons = df['season'].unique().tolist()
+        seasons = df['season'].astype(str).unique().tolist()
     df['season'] = df['season'].astype(str)
 
     #
@@ -775,11 +776,20 @@ def extract_features(df, sport_specs, space):
         ds_name = USEP.join([col_key, 'daily_mean_lag1'])
         ff_means.rename(ds_name, inplace=True)
         ff = ff.merge(ff_means, how='left', on='date')
-        
-    # Convert Boolean Features
-    
-    for bf in features_bool:
-        ff[bf] = ff[bf].astype(float)
+
+    # Loop through the feature_dict and convert each column to the correct type
+
+    for column, dtype in feature_dict.items():
+        if column in ff.columns:
+            if dtype == int:
+                # Convert to numeric (int), setting invalid values to NaN
+                ff[column] = pd.to_numeric(ff[column], errors='coerce').astype('Int64')
+            elif dtype == float:
+                # Convert to numeric (float), setting invalid values to NaN
+                ff[column] = pd.to_numeric(ff[column], errors='coerce').astype(float)
+            elif dtype == bool:
+                # Fill NA with False (or True as appropriate) and cast to boolean
+                ff[column] = pd.to_numeric(ff[column], errors='coerce').astype('Int64')
     
     return ff
 
@@ -1258,7 +1268,7 @@ def record_live_results(model_specs):
 
     # Extract model fields
     directory = model_specs['directory']
-    
+
     # Read the Live Results File.
 
     logger.info("Reading Live Results")
