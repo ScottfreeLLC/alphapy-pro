@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MarketFlow &mdash; AlphaPy 2.5.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/dark_mode_css/general.css?v=c0a7eb24" />
+      <link rel="stylesheet" type="text/css" href="../_static/dark_mode_css/dark.css?v=70edf1c7" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=3c4615cf"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="../_static/dark_mode_js/default_dark.js?v=fd565c74"></script>
+        <script src="../_static/dark_mode_js/theme_switcher.js?v=358d3910"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="SportFlow" href="sport_flow.html" />
+    <link rel="prev" title="Project Structure" href="project.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            AlphaPy
+          </a>
+              <div class="version">
+                2.5.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/quickstart.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/command.html">Command Line</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/support.html">Support</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/kaggle.html">Kaggle Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/market.html">Market Prediction Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/ncaab.html">NCAA Basketball Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/system.html">Trading System Tutorial</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="pipelines.html">AlphaPy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project.html">Project Structure</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MarketFlow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#data-sources">Data Sources</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#domain-configuration">Domain Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#group-analysis">Group Analysis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#variables-and-aliases">Variables and Aliases</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#trading-systems">Trading Systems</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model-configuration">Model Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-the-model">Creating the Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-the-model">Running the Model</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sport_flow.html">SportFlow</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../source/modules.html">alphapy</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">AlphaPy</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">MarketFlow</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/user_guide/market_flow.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="marketflow">
+<h1>MarketFlow<a class="headerlink" href="#marketflow" title="Link to this heading"></a></h1>
+<p><strong>MarketFlow</strong> transforms financial market data into machine learning
+models for making market predictions. The platform gets stock price
+data from Yahoo Finance (end-of-day) and Google Finance (intraday),
+transforming the data into canonical form for training and testing.
+MarketFlow is powerful because you can easily apply new features
+to groups of stocks simultaneously using our <em>Variable Definition
+Language</em> (VDL). All of the dataframes are aggregated and split
+into training and testing files for input into <em>AlphaPy</em>.</p>
+<a class="reference internal image-reference" href="../_images/market_pipeline.png"><img alt="Market Pipeline" class="align-center" src="../_images/market_pipeline.png" style="width: 100%;" /></a>
+<section id="data-sources">
+<h2>Data Sources<a class="headerlink" href="#data-sources" title="Link to this heading"></a></h2>
+<p>MarketFlow gets daily stock prices from Yahoo Finance and intraday
+stock prices from Google Finance. Both data sources have the standard
+primitives: <code class="docutils literal notranslate"><span class="pre">Open</span></code>, <code class="docutils literal notranslate"><span class="pre">High</span></code>, <code class="docutils literal notranslate"><span class="pre">Low</span></code>, <code class="docutils literal notranslate"><span class="pre">Close</span></code>, and <code class="docutils literal notranslate"><span class="pre">Volume</span></code>.
+For daily data, there is a <code class="docutils literal notranslate"><span class="pre">Date</span></code> timestamp and for intraday data,
+there is a <code class="docutils literal notranslate"><span class="pre">Datetime</span></code> timestamp. We augment the intraday data with
+a <code class="docutils literal notranslate"><span class="pre">bar_number</span></code> field to mark the end of the trading day. All trading
+days do not end at 4:00 pm EST, as there are holiday trading days
+that are shortened.</p>
+<table class="docutils align-default" id="id1">
+<caption><span class="caption-text">Amazon Daily Stock Prices (Source: Yahoo)</span><a class="headerlink" href="#id1" title="Link to this table"></a></caption>
+<tbody>
+<tr class="row-odd"><td><p>Date</p></td>
+<td><p>Open</p></td>
+<td><p>High</p></td>
+<td><p>Low</p></td>
+<td><p>Close</p></td>
+<td><p>Volume</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-01</p></td>
+<td><p>853.05</p></td>
+<td><p>854.83</p></td>
+<td><p>849.01</p></td>
+<td><p>853.08</p></td>
+<td><p>2752000</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-02</p></td>
+<td><p>853.08</p></td>
+<td><p>854.82</p></td>
+<td><p>847.28</p></td>
+<td><p>848.91</p></td>
+<td><p>2129200</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-03</p></td>
+<td><p>847.20</p></td>
+<td><p>851.99</p></td>
+<td><p>846.27</p></td>
+<td><p>849.88</p></td>
+<td><p>1941100</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-06</p></td>
+<td><p>845.23</p></td>
+<td><p>848.49</p></td>
+<td><p>841.12</p></td>
+<td><p>846.61</p></td>
+<td><p>2598400</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-07</p></td>
+<td><p>845.48</p></td>
+<td><p>848.46</p></td>
+<td><p>843.75</p></td>
+<td><p>846.02</p></td>
+<td><p>2217800</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-08</p></td>
+<td><p>848.00</p></td>
+<td><p>853.07</p></td>
+<td><p>846.79</p></td>
+<td><p>850.50</p></td>
+<td><p>2286500</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-09</p></td>
+<td><p>851.00</p></td>
+<td><p>856.40</p></td>
+<td><p>850.31</p></td>
+<td><p>853.00</p></td>
+<td><p>2040600</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-10</p></td>
+<td><p>857.00</p></td>
+<td><p>857.35</p></td>
+<td><p>851.72</p></td>
+<td><p>852.46</p></td>
+<td><p>2422000</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-13</p></td>
+<td><p>851.77</p></td>
+<td><p>855.69</p></td>
+<td><p>851.71</p></td>
+<td><p>854.59</p></td>
+<td><p>1906100</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-14</p></td>
+<td><p>853.55</p></td>
+<td><p>853.75</p></td>
+<td><p>847.55</p></td>
+<td><p>852.53</p></td>
+<td><p>2128700</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-15</p></td>
+<td><p>854.33</p></td>
+<td><p>854.45</p></td>
+<td><p>847.11</p></td>
+<td><p>852.97</p></td>
+<td><p>2556700</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-16</p></td>
+<td><p>855.30</p></td>
+<td><p>855.50</p></td>
+<td><p>850.51</p></td>
+<td><p>853.42</p></td>
+<td><p>1832600</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-17</p></td>
+<td><p>853.49</p></td>
+<td><p>853.83</p></td>
+<td><p>850.64</p></td>
+<td><p>852.31</p></td>
+<td><p>3380700</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-20</p></td>
+<td><p>851.51</p></td>
+<td><p>857.80</p></td>
+<td><p>851.01</p></td>
+<td><p>856.97</p></td>
+<td><p>2223300</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-21</p></td>
+<td><p>858.84</p></td>
+<td><p>862.80</p></td>
+<td><p>841.31</p></td>
+<td><p>843.20</p></td>
+<td><p>4349100</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-22</p></td>
+<td><p>840.43</p></td>
+<td><p>849.37</p></td>
+<td><p>839.05</p></td>
+<td><p>848.06</p></td>
+<td><p>2636200</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-23</p></td>
+<td><p>848.20</p></td>
+<td><p>850.89</p></td>
+<td><p>844.80</p></td>
+<td><p>847.38</p></td>
+<td><p>1945700</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-24</p></td>
+<td><p>851.68</p></td>
+<td><p>851.80</p></td>
+<td><p>843.53</p></td>
+<td><p>845.61</p></td>
+<td><p>2118300</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-27</p></td>
+<td><p>838.07</p></td>
+<td><p>850.30</p></td>
+<td><p>833.50</p></td>
+<td><p>846.82</p></td>
+<td><p>2754200</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-28</p></td>
+<td><p>851.75</p></td>
+<td><p>858.46</p></td>
+<td><p>850.10</p></td>
+<td><p>856.00</p></td>
+<td><p>3033000</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-29</p></td>
+<td><p>859.05</p></td>
+<td><p>876.44</p></td>
+<td><p>859.02</p></td>
+<td><p>874.32</p></td>
+<td><p>4464400</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-30</p></td>
+<td><p>874.95</p></td>
+<td><p>877.06</p></td>
+<td><p>871.66</p></td>
+<td><p>876.34</p></td>
+<td><p>2745800</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31</p></td>
+<td><p>877.00</p></td>
+<td><p>890.35</p></td>
+<td><p>876.65</p></td>
+<td><p>886.54</p></td>
+<td><p>3910700</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Normal market hours are 9:30 am to 4:00 pm EST. Here, we
+retrieved the data from the CST time zone, one hour ahead.</p>
+</div>
+<table class="docutils align-default" id="id2">
+<caption><span class="caption-text">Amazon Intraday Stock Prices (Source: Google)</span><a class="headerlink" href="#id2" title="Link to this table"></a></caption>
+<tbody>
+<tr class="row-odd"><td><p>datetime</p></td>
+<td><p>open</p></td>
+<td><p>high</p></td>
+<td><p>low</p></td>
+<td><p>close</p></td>
+<td><p>volume</p></td>
+<td><p>bar_number</p></td>
+<td><p>end_of_day</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 08:30:00</p></td>
+<td><p>877.00</p></td>
+<td><p>877.06</p></td>
+<td><p>876.66</p></td>
+<td><p>877.06</p></td>
+<td><p>43910</p></td>
+<td><p>0</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 08:40:00</p></td>
+<td><p>877.00</p></td>
+<td><p>881.74</p></td>
+<td><p>876.65</p></td>
+<td><p>880.66</p></td>
+<td><p>192152</p></td>
+<td><p>1</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 08:50:00</p></td>
+<td><p>881.00</p></td>
+<td><p>886.01</p></td>
+<td><p>880.45</p></td>
+<td><p>884.67</p></td>
+<td><p>249892</p></td>
+<td><p>2</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 09:00:00</p></td>
+<td><p>884.83</p></td>
+<td><p>886.08</p></td>
+<td><p>883.50</p></td>
+<td><p>883.90</p></td>
+<td><p>148034</p></td>
+<td><p>3</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 09:10:00</p></td>
+<td><p>883.90</p></td>
+<td><p>886.44</p></td>
+<td><p>883.84</p></td>
+<td><p>885.72</p></td>
+<td><p>118518</p></td>
+<td><p>4</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 09:20:00</p></td>
+<td><p>885.82</p></td>
+<td><p>886.39</p></td>
+<td><p>884.68</p></td>
+<td><p>886.30</p></td>
+<td><p>76880</p></td>
+<td><p>5</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 09:30:00</p></td>
+<td><p>886.14</p></td>
+<td><p>886.74</p></td>
+<td><p>885.07</p></td>
+<td><p>885.73</p></td>
+<td><p>74180</p></td>
+<td><p>6</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 09:40:00</p></td>
+<td><p>885.80</p></td>
+<td><p>886.20</p></td>
+<td><p>885.13</p></td>
+<td><p>886.20</p></td>
+<td><p>77154</p></td>
+<td><p>7</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 09:50:00</p></td>
+<td><p>886.21</p></td>
+<td><p>887.61</p></td>
+<td><p>885.77</p></td>
+<td><p>887.51</p></td>
+<td><p>86971</p></td>
+<td><p>8</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 10:00:00</p></td>
+<td><p>887.59</p></td>
+<td><p>888.35</p></td>
+<td><p>886.83</p></td>
+<td><p>887.81</p></td>
+<td><p>111998</p></td>
+<td><p>9</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 10:10:00</p></td>
+<td><p>887.80</p></td>
+<td><p>888.72</p></td>
+<td><p>887.59</p></td>
+<td><p>888.60</p></td>
+<td><p>64497</p></td>
+<td><p>10</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 10:20:00</p></td>
+<td><p>888.62</p></td>
+<td><p>890.35</p></td>
+<td><p>888.44</p></td>
+<td><p>889.82</p></td>
+<td><p>101562</p></td>
+<td><p>11</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 10:30:00</p></td>
+<td><p>889.81</p></td>
+<td><p>889.96</p></td>
+<td><p>888.83</p></td>
+<td><p>889.83</p></td>
+<td><p>42580</p></td>
+<td><p>12</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 10:40:00</p></td>
+<td><p>889.70</p></td>
+<td><p>889.92</p></td>
+<td><p>887.32</p></td>
+<td><p>887.61</p></td>
+<td><p>88559</p></td>
+<td><p>13</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 10:50:00</p></td>
+<td><p>887.68</p></td>
+<td><p>889.58</p></td>
+<td><p>887.66</p></td>
+<td><p>889.01</p></td>
+<td><p>45492</p></td>
+<td><p>14</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 11:00:00</p></td>
+<td><p>889.12</p></td>
+<td><p>889.26</p></td>
+<td><p>887.25</p></td>
+<td><p>888.34</p></td>
+<td><p>39841</p></td>
+<td><p>15</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 11:10:00</p></td>
+<td><p>888.52</p></td>
+<td><p>889.00</p></td>
+<td><p>887.66</p></td>
+<td><p>887.66</p></td>
+<td><p>24525</p></td>
+<td><p>16</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 11:20:00</p></td>
+<td><p>887.83</p></td>
+<td><p>888.74</p></td>
+<td><p>887.67</p></td>
+<td><p>888.14</p></td>
+<td><p>35031</p></td>
+<td><p>17</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 11:30:00</p></td>
+<td><p>888.14</p></td>
+<td><p>888.87</p></td>
+<td><p>888.10</p></td>
+<td><p>888.87</p></td>
+<td><p>24460</p></td>
+<td><p>18</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 11:40:00</p></td>
+<td><p>888.91</p></td>
+<td><p>889.47</p></td>
+<td><p>888.76</p></td>
+<td><p>888.96</p></td>
+<td><p>38921</p></td>
+<td><p>19</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 11:50:00</p></td>
+<td><p>888.87</p></td>
+<td><p>889.06</p></td>
+<td><p>888.47</p></td>
+<td><p>888.89</p></td>
+<td><p>35439</p></td>
+<td><p>20</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 12:00:00</p></td>
+<td><p>888.86</p></td>
+<td><p>889.50</p></td>
+<td><p>888.82</p></td>
+<td><p>889.40</p></td>
+<td><p>25933</p></td>
+<td><p>21</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 12:10:00</p></td>
+<td><p>889.40</p></td>
+<td><p>889.94</p></td>
+<td><p>889.35</p></td>
+<td><p>889.86</p></td>
+<td><p>35120</p></td>
+<td><p>22</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 12:20:00</p></td>
+<td><p>889.90</p></td>
+<td><p>890.25</p></td>
+<td><p>889.51</p></td>
+<td><p>889.57</p></td>
+<td><p>38429</p></td>
+<td><p>23</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 12:30:00</p></td>
+<td><p>889.70</p></td>
+<td><p>889.79</p></td>
+<td><p>889.20</p></td>
+<td><p>889.79</p></td>
+<td><p>18435</p></td>
+<td><p>24</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 12:40:00</p></td>
+<td><p>889.80</p></td>
+<td><p>889.93</p></td>
+<td><p>889.28</p></td>
+<td><p>889.50</p></td>
+<td><p>25481</p></td>
+<td><p>25</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 12:50:00</p></td>
+<td><p>889.60</p></td>
+<td><p>889.99</p></td>
+<td><p>889.50</p></td>
+<td><p>889.77</p></td>
+<td><p>26536</p></td>
+<td><p>26</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 13:00:00</p></td>
+<td><p>889.70</p></td>
+<td><p>889.73</p></td>
+<td><p>888.33</p></td>
+<td><p>888.49</p></td>
+<td><p>35556</p></td>
+<td><p>27</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 13:10:00</p></td>
+<td><p>888.31</p></td>
+<td><p>888.64</p></td>
+<td><p>887.80</p></td>
+<td><p>888.45</p></td>
+<td><p>39215</p></td>
+<td><p>28</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 13:20:00</p></td>
+<td><p>888.58</p></td>
+<td><p>888.58</p></td>
+<td><p>887.09</p></td>
+<td><p>887.15</p></td>
+<td><p>43771</p></td>
+<td><p>29</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 13:30:00</p></td>
+<td><p>887.18</p></td>
+<td><p>888.40</p></td>
+<td><p>887.05</p></td>
+<td><p>888.13</p></td>
+<td><p>36830</p></td>
+<td><p>30</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 13:40:00</p></td>
+<td><p>888.22</p></td>
+<td><p>888.99</p></td>
+<td><p>887.68</p></td>
+<td><p>888.78</p></td>
+<td><p>29510</p></td>
+<td><p>31</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 13:50:00</p></td>
+<td><p>888.79</p></td>
+<td><p>888.99</p></td>
+<td><p>888.35</p></td>
+<td><p>888.58</p></td>
+<td><p>30370</p></td>
+<td><p>32</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 14:00:00</p></td>
+<td><p>888.66</p></td>
+<td><p>888.82</p></td>
+<td><p>887.02</p></td>
+<td><p>887.02</p></td>
+<td><p>48011</p></td>
+<td><p>33</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 14:10:00</p></td>
+<td><p>887.02</p></td>
+<td><p>888.30</p></td>
+<td><p>886.80</p></td>
+<td><p>888.15</p></td>
+<td><p>41046</p></td>
+<td><p>34</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 14:20:00</p></td>
+<td><p>888.14</p></td>
+<td><p>889.00</p></td>
+<td><p>888.06</p></td>
+<td><p>888.55</p></td>
+<td><p>38660</p></td>
+<td><p>35</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 14:30:00</p></td>
+<td><p>888.58</p></td>
+<td><p>888.83</p></td>
+<td><p>888.30</p></td>
+<td><p>888.40</p></td>
+<td><p>39304</p></td>
+<td><p>36</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 14:40:00</p></td>
+<td><p>888.40</p></td>
+<td><p>888.60</p></td>
+<td><p>888.01</p></td>
+<td><p>888.45</p></td>
+<td><p>57289</p></td>
+<td><p>37</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-even"><td><p>2017-03-31 14:50:00</p></td>
+<td><p>888.39</p></td>
+<td><p>889.32</p></td>
+<td><p>888.16</p></td>
+<td><p>888.17</p></td>
+<td><p>105594</p></td>
+<td><p>38</p></td>
+<td><p>False</p></td>
+</tr>
+<tr class="row-odd"><td><p>2017-03-31 15:00:00</p></td>
+<td><p>888.43</p></td>
+<td><p>888.54</p></td>
+<td><p>886.54</p></td>
+<td><p>886.94</p></td>
+<td><p>518134</p></td>
+<td><p>39</p></td>
+<td><p>True</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You can get Google intraday data going back a maximum of
+50 days. If you want to build your own historical record, then
+we recommend that you save the data on an ongoing basis for a
+a larger backtesting window.</p>
+</div>
+</section>
+<section id="domain-configuration">
+<h2>Domain Configuration<a class="headerlink" href="#domain-configuration" title="Link to this heading"></a></h2>
+<p>The market configuration file (<code class="docutils literal notranslate"><span class="pre">market.yml</span></code>) is written in YAML
+and is divided into logical sections reflecting different parts
+of <strong>MarketFlow</strong>. This file is stored in the <code class="docutils literal notranslate"><span class="pre">config</span></code> directory
+of your project, along with the <code class="docutils literal notranslate"><span class="pre">model.yml</span></code> and <code class="docutils literal notranslate"><span class="pre">algos.yml</span></code> files.
+The <code class="docutils literal notranslate"><span class="pre">market</span></code> section has the following parameters:</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">data_history</span></code>:</dt><dd><p>Number of periods of historical data to retrieve.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">forecast_period</span></code>:</dt><dd><p>Number of periods to forecast for the target variable.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">fractal</span></code>:</dt><dd><p>The time quantum for the data feed, represented by an integer
+followed by a character code. The string “1d” is one day, and
+“5m” is five minutes.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">leaders</span></code>:</dt><dd><p>A list of features that are coincident with the target variable.
+For example, with daily stock market data, the <code class="docutils literal notranslate"><span class="pre">Open</span></code> is
+considered to be a leader because it is recorded at the market
+open. In contrast, the daily <code class="docutils literal notranslate"><span class="pre">High</span></code> or <code class="docutils literal notranslate"><span class="pre">Low</span></code> cannot be
+known until the the market close.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">predict_history</span></code>:</dt><dd><p>This is the minimum number of periods required to derive all
+of the features in prediction mode on a given date. If you use
+a rolling mean of 50 days, then the <code class="docutils literal notranslate"><span class="pre">predict_history</span></code> should
+be set to at least 50 to have a valid value on the prediction
+date.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">schema</span></code>:</dt><dd><p>This string uniquely identifies the subject matter of the data.
+A schema could be <code class="docutils literal notranslate"><span class="pre">prices</span></code> for identifying market data.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">target_group</span></code>:</dt><dd><p>The name of the group selected from the <code class="docutils literal notranslate"><span class="pre">groups</span></code> section,
+e.g., a set of stock symbols.</p>
+</dd>
+</dl>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text"><strong>market.yml</strong></span><a class="headerlink" href="#id3" title="Link to this code"></a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">market</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">data_history    </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2000</span>
+<span class="w">    </span><span class="nt">forecast_period </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">fractal         </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1d</span>
+<span class="w">    </span><span class="nt">leaders         </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;gap&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapbadown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapbaup&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapdown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapup&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">predict_history </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">    </span><span class="nt">schema          </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prices</span>
+<span class="w">    </span><span class="nt">target_group    </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test</span>
+
+<span class="nt">groups</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">all  </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;aaoi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;aapl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;acia&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;adbe&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;adi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;adp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;agn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;aig&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;akam&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;algn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;alk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;alxn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amat&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amba&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amgn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amzn&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;antm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;arch&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;asml&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;athn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;atvi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;auph&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;avgo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;axp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ayx&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;azo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ba&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;baba&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bac&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bby&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bidu&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;biib&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;brcd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bvsn&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;bwld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;c&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cacc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cara&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;casy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cat&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cde&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;celg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cern&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;chkp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;chtr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;clvs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cme&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cmg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cof&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cohr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;comm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cost&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;cpk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;crm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;crus&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;csco&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ctsh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ctxs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;csx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cvs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cybr&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;data&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ddd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;deck&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dgaz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dia&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dis&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dish&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dnkn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dpz&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;drys&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dust&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ea&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ebay&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;edc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;edz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;eem&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;elli&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;eog&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;esrx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;etrm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ewh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ewt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;expe&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fang&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fas&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;faz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fb&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;fcx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fdx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ffiv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fit&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;five&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fnsr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fslr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ftnt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gddy&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;gdx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gdxj&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ge&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gild&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;glw&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;googl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gpro&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;grub&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gwph&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hal&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;has&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hdp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hlf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hog&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hum&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;ibb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ibm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ice&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;idxx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ilmn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ilmn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;incy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;intc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;intu&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;ip&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;isrg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ivv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jack&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jcp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jdst&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jnj&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;jnpr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jnug&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jpm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;kite&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;klac&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ko&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;kss&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;labd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;labu&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;len&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lite&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lmt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lnkd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lrcx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lulu&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lvs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mbly&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mcd&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;mchp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mdy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;meoh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mnst&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;momo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mon&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mrk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ms&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;msft&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;mtb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mu&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nflx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nfx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nke&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ntap&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ntes&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ntnx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nugt&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;nvda&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nxpi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nxst&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;oii&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;oled&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;orcl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;orly&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;p&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;panw&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;pcln&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pnra&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;prgo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pxd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pypl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;qcom&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;qqq&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;qrvo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rht&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sam&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sbux&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sds&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sgen&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;shld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;shop&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sig&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;sina&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;siri&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;skx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;slb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;slv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;smh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;snap&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sncr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;soda&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;splk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;spy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;stld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;stmp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;stx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;svxy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;swks&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;symc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;t&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;tbt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;teva&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tgt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tho&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tlt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tmo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tna&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tqqq&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;trip&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;tsla&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ttwo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tvix&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;twlo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;twtr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tza&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uaa&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ugaz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uhs&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;ulta&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ulti&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;unh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;unp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;upro&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uri&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ups&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uri&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uthr&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;utx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uvxy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;v&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;veev&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;viav&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vlo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vmc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vrsn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vrtx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vrx&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;vwo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vxx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wday&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wdc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wfc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wfm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wmt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wynn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;x&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;xbi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xhb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xiv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xle&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlnx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xom&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlu&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;xlv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xme&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xom&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wix&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;yelp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;z&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">etf  </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;dia&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dust&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;edc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;edz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;eem&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ewh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ewt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fas&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;faz&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;gld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hyg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ivv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jnk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mdy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nugt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;qqq&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;sds&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;smh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;spy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tbt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tlt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tna&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tvix&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tza&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;upro&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;uvxy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vwo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vxx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xhb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xiv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xle&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlp&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;xlu&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xme&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">tech </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;aapl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;adbe&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amat&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amgn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amzn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;avgo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;baba&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bidu&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;brcd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;csco&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ddd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;emc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;expe&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fit&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fslr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;goog&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;intc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;isrg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lnkd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;msft&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nflx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nvda&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pcln&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;qcom&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;qqq&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tsla&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;twtr&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">test </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;aapl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amzn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;goog&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nvda&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tsla&#39;</span><span class="p p-Indicator">]</span>
+
+<span class="nt">features</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;abovema_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;abovema_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;abovema_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;abovema_20&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;abovema_50&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;adx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;atr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bigdown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bigup&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;diminus&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;diplus&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;doji&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;gap&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapbadown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapbaup&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapdown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapup&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;hc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ho&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ll&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hookdown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hookup&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;inside&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;outside&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_10&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;madelta_12&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_15&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_18&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_20&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;net&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;netdown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;netup&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_4&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_8&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;nr_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_18&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_2&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_4&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_10&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;roi_20&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_1_4&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_1_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_1_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_2_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_2_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_2_10&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;rr_3_8&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_3_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_4_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_4_20&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_5_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_5_20&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;rr_5_30&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_6_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_6_25&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_7_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_7_35&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_8_22&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;rrhigh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rrlow&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rrover&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rrunder&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_4&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_5&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;rsi_6&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_8&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_3_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_5_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_8_8&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;sep_10_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_14_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_21_21&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_30_30&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_40_40&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;sephigh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;seplow&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;trend&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vma&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vmover&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vmratio&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vmunder&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;volatility_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;volatility_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;volatility&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;volatility_20&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;wr_2&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_6&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_10&#39;</span><span class="p p-Indicator">]</span>
+
+<span class="nt">aliases</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">atr        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_truerange&#39;</span>
+<span class="w">    </span><span class="nt">aver       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_hlrange&#39;</span>
+<span class="w">    </span><span class="nt">cma        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_close&#39;</span>
+<span class="w">    </span><span class="nt">cmax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_close&#39;</span>
+<span class="w">    </span><span class="nt">cmin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_close&#39;</span>
+<span class="w">    </span><span class="nt">hc         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;higher_close&#39;</span>
+<span class="w">    </span><span class="nt">hh         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;higher_high&#39;</span>
+<span class="w">    </span><span class="nt">hl         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;higher_low&#39;</span>
+<span class="w">    </span><span class="nt">ho         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;higher_open&#39;</span>
+<span class="w">    </span><span class="nt">hmax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_high&#39;</span>
+<span class="w">    </span><span class="nt">hmin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_high&#39;</span>
+<span class="w">    </span><span class="nt">lc         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lower_close&#39;</span>
+<span class="w">    </span><span class="nt">lh         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lower_high&#39;</span>
+<span class="w">    </span><span class="nt">ll         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lower_low&#39;</span>
+<span class="w">    </span><span class="nt">lo         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lower_open&#39;</span>
+<span class="w">    </span><span class="nt">lmax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_low&#39;</span>
+<span class="w">    </span><span class="nt">lmin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_low&#39;</span>
+<span class="w">    </span><span class="nt">net        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;net_close&#39;</span>
+<span class="w">    </span><span class="nt">netdown    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;down_net&#39;</span>
+<span class="w">    </span><span class="nt">netup      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;up_net&#39;</span>
+<span class="w">    </span><span class="nt">omax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_open&#39;</span>
+<span class="w">    </span><span class="nt">omin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_open&#39;</span>
+<span class="w">    </span><span class="nt">rmax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_hlrange&#39;</span>
+<span class="w">    </span><span class="nt">rmin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_hlrange&#39;</span>
+<span class="w">    </span><span class="nt">rr         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;maratio_hlrange&#39;</span>
+<span class="w">    </span><span class="nt">rixc       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rindex_close_high_low&#39;</span>
+<span class="w">    </span><span class="nt">rixo       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rindex_open_high_low&#39;</span>
+<span class="w">    </span><span class="nt">roi        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;netreturn_close&#39;</span>
+<span class="w">    </span><span class="nt">rsi        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rsi_close&#39;</span>
+<span class="w">    </span><span class="nt">sepma      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_sep&#39;</span>
+<span class="w">    </span><span class="nt">vma        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_volume&#39;</span>
+<span class="w">    </span><span class="nt">vmratio    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;maratio_volume&#39;</span>
+<span class="w">    </span><span class="nt">upmove     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;net_high&#39;</span>
+
+<span class="nt">variables</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">abovema    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;close</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">cma_50&#39;</span>
+<span class="w">    </span><span class="nt">belowma    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;close</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">cma_50&#39;</span>
+<span class="w">    </span><span class="nt">bigup      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rrover</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">sephigh</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">netup&#39;</span>
+<span class="w">    </span><span class="nt">bigdown    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rrover</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">sephigh</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">netdown&#39;</span>
+<span class="w">    </span><span class="nt">doji       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;sepdoji</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">rrunder&#39;</span>
+<span class="w">    </span><span class="nt">hookdown   </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;open</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">high[1]</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">close</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">close[1]&#39;</span>
+<span class="w">    </span><span class="nt">hookup     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;open</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">low[1]</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">close</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">close[1]&#39;</span>
+<span class="w">    </span><span class="nt">inside     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;low</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">low[1]</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">high</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">high[1]&#39;</span>
+<span class="w">    </span><span class="nt">madelta    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;(close</span><span class="nv"> </span><span class="s">-</span><span class="nv"> </span><span class="s">cma_50)</span><span class="nv"> </span><span class="s">/</span><span class="nv"> </span><span class="s">atr_10&#39;</span>
+<span class="w">    </span><span class="nt">nr         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;hlrange</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">rmin_4&#39;</span>
+<span class="w">    </span><span class="nt">outside    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;low</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">low[1]</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">high</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">high[1]&#39;</span>
+<span class="w">    </span><span class="nt">roihigh    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;roi_5</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">5&#39;</span>
+<span class="w">    </span><span class="nt">roilow     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;roi_5</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">-5&#39;</span>
+<span class="w">    </span><span class="nt">roiminus   </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;roi_5</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">0&#39;</span>
+<span class="w">    </span><span class="nt">roiplus    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;roi_5</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">0&#39;</span>
+<span class="w">    </span><span class="nt">rrhigh     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rr_1_10</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">1.2&#39;</span>
+<span class="w">    </span><span class="nt">rrlow      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rr_1_10</span><span class="nv"> </span><span class="s">&lt;=</span><span class="nv"> </span><span class="s">0.8&#39;</span>
+<span class="w">    </span><span class="nt">rrover     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rr_1_10</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">1.0&#39;</span>
+<span class="w">    </span><span class="nt">rrunder    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rr_1_10</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">1.0&#39;</span>
+<span class="w">    </span><span class="nt">sep        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rixc_1</span><span class="nv"> </span><span class="s">-</span><span class="nv"> </span><span class="s">rixo_1&#39;</span>
+<span class="w">    </span><span class="nt">sepdoji    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;abs(sep)</span><span class="nv"> </span><span class="s">&lt;=</span><span class="nv"> </span><span class="s">15&#39;</span>
+<span class="w">    </span><span class="nt">sephigh    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;abs(sep_1_1)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">70&#39;</span>
+<span class="w">    </span><span class="nt">seplow     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;abs(sep_1_1)</span><span class="nv"> </span><span class="s">&lt;=</span><span class="nv"> </span><span class="s">30&#39;</span>
+<span class="w">    </span><span class="nt">trend      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rrover</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">sephigh&#39;</span>
+<span class="w">    </span><span class="nt">vmover     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;vmratio</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">1&#39;</span>
+<span class="w">    </span><span class="nt">vmunder    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;vmratio</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">1&#39;</span>
+<span class="w">    </span><span class="nt">volatility </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;atr_10</span><span class="nv"> </span><span class="s">/</span><span class="nv"> </span><span class="s">close&#39;</span>
+<span class="w">    </span><span class="nt">wr         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;hlrange</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">rmax_4&#39;</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="group-analysis">
+<h2>Group Analysis<a class="headerlink" href="#group-analysis" title="Link to this heading"></a></h2>
+<p>The cornerstone of MarketFlow is the <em>Analysis</em>. You can create
+models and forecasts for different groups of stocks. The purpose
+of the analysis object is to gather data for all of the group
+members and then consolidate the data into train and test files.
+Further, some features and the target variable have to be adjusted
+(lagged) to avoid data leakage.</p>
+<p>A group is simply a collection of symbols for analysis. In this
+example, we create different groups for technology stocks, ETFs,
+and a smaller group for testing. To create a model for a given
+group, simply set the <code class="docutils literal notranslate"><span class="pre">target_group</span></code> in the <code class="docutils literal notranslate"><span class="pre">market</span></code> section
+of the market.yml file and run <code class="docutils literal notranslate"><span class="pre">mflow</span></code>.</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text"><strong>market.yml</strong></span><a class="headerlink" href="#id4" title="Link to this code"></a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">groups</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">all  </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;aaoi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;aapl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;acia&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;adbe&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;adi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;adp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;agn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;aig&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;akam&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;algn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;alk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;alxn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amat&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amba&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amgn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amzn&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;antm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;arch&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;asml&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;athn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;atvi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;auph&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;avgo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;axp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ayx&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;azo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ba&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;baba&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bac&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bby&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bidu&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;biib&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;brcd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bvsn&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;bwld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;c&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cacc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cara&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;casy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cat&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cde&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;celg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cern&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;chkp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;chtr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;clvs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cme&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cmg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cof&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cohr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;comm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cost&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;cpk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;crm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;crus&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;csco&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ctsh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ctxs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;csx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cvs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;cybr&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;data&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ddd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;deck&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dgaz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dia&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dis&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dish&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dnkn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dpz&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;drys&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dust&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ea&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ebay&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;edc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;edz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;eem&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;elli&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;eog&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;esrx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;etrm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ewh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ewt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;expe&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fang&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fas&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;faz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fb&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;fcx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fdx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ffiv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fit&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;five&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fnsr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fslr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ftnt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gddy&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;gdx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gdxj&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ge&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gild&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;glw&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;googl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gpro&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;grub&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gwph&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hal&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;has&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hdp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hlf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hog&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hum&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;ibb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ibm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ice&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;idxx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ilmn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ilmn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;incy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;intc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;intu&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;ip&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;isrg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ivv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jack&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jcp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jdst&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jnj&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;jnpr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jnug&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jpm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;kite&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;klac&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ko&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;kss&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;labd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;labu&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;len&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lite&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lmt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lnkd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lrcx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lulu&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lvs&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mbly&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mcd&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;mchp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mdy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;meoh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mnst&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;momo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mon&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mrk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ms&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;msft&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;mtb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mu&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nflx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nfx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nke&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ntap&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ntes&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ntnx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nugt&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;nvda&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nxpi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nxst&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;oii&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;oled&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;orcl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;orly&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;p&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;panw&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;pcln&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pnra&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;prgo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pxd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pypl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;qcom&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;qqq&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;qrvo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rht&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sam&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sbux&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sds&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sgen&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;shld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;shop&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sig&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;sina&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;siri&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;skx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;slb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;slv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;smh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;snap&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sncr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;soda&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;splk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;spy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;stld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;stmp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;stx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;svxy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;swks&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;symc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;t&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;tbt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;teva&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tgt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tho&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tlt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tmo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tna&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tqqq&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;trip&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;tsla&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ttwo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tvix&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;twlo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;twtr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tza&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uaa&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ugaz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uhs&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;ulta&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ulti&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;unh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;unp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;upro&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uri&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ups&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uri&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uthr&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;utx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;uvxy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;v&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;veev&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;viav&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vlo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vmc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vrsn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vrtx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vrx&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;vwo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vxx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wday&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wdc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wfc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wfm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wmt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wynn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;x&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;xbi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xhb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xiv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xle&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlnx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xom&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlu&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;xlv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xme&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xom&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wix&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;yelp&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;z&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">etf  </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;dia&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;dust&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;edc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;edz&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;eem&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ewh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ewt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fas&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;faz&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;gld&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hyg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwm&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ivv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;iwf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;jnk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mdy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nugt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;qqq&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;sds&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;smh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;spy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tbt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tlt&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tna&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tvix&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tza&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;upro&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;uvxy&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vwo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vxx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xhb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xiv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xle&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlf&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlk&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlp&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;xlu&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xlv&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;xme&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">tech </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;aapl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;adbe&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amat&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amgn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amzn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;avgo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;baba&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bidu&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;brcd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;csco&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ddd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;emc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;expe&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fit&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fslr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;goog&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;intc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;isrg&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lnkd&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;msft&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nflx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nvda&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;pcln&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;qcom&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">            </span><span class="s">&#39;qqq&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tsla&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;twtr&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">test </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;aapl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amzn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;goog&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;fb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nvda&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;tsla&#39;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="variables-and-aliases">
+<h2>Variables and Aliases<a class="headerlink" href="#variables-and-aliases" title="Link to this heading"></a></h2>
+<p>Because market analysis encompasses a wide array of technical indicators,
+you can define features using the <em>Variable Definition Language</em> (VDL).
+The concept is simple: flatten out a function call and its parameters
+into a string, and that string represents the variable name. You can
+use the technical analysis functions in AlphaPy, or define your own.</p>
+<p>Let’s define a feature that indicates whether or not a stock is above
+its 50-day closing moving average. The <em>alphapy.market_variables</em>
+module has a function <code class="docutils literal notranslate"><span class="pre">ma</span></code> to calculate a rolling mean. It has two
+parameters: the name of the dataframe’s column and the period over
+which to calculate the mean. So, the corresponding variable name is
+<code class="docutils literal notranslate"><span class="pre">ma_close_50</span></code>.</p>
+<p>Typically, a moving average is calculated with the closing price,
+so we can define an alias <code class="docutils literal notranslate"><span class="pre">cma</span></code> which represents the closing
+moving average. An alias is simply a substitution mechanism for
+replacing one string with an abbreviation. Instead of <code class="docutils literal notranslate"><span class="pre">ma_close_50</span></code>,
+we can now refer to <code class="docutils literal notranslate"><span class="pre">cma_50</span></code> using an alias.</p>
+<p>Finally, we can define the variable <code class="docutils literal notranslate"><span class="pre">abovema</span></code> with a relational
+expression. Note that numeric values in the expression can be
+substituted when defining features, e.g., <code class="docutils literal notranslate"><span class="pre">abovema_20</span></code>.</p>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text"><strong>market.yml</strong></span><a class="headerlink" href="#id5" title="Link to this code"></a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">features</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;abovema_50&#39;</span><span class="p p-Indicator">]</span>
+
+<span class="nt">aliases</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">cma        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_close&#39;</span>
+
+<span class="nt">variables</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">abovema    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;close</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">cma_50&#39;</span>
+</pre></div>
+</div>
+</div>
+<p>Here are more examples of aliases.</p>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text"><strong>market.yml</strong></span><a class="headerlink" href="#id6" title="Link to this code"></a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">aliases</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">atr        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_truerange&#39;</span>
+<span class="w">    </span><span class="nt">aver       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_hlrange&#39;</span>
+<span class="w">    </span><span class="nt">cma        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_close&#39;</span>
+<span class="w">    </span><span class="nt">cmax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_close&#39;</span>
+<span class="w">    </span><span class="nt">cmin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_close&#39;</span>
+<span class="w">    </span><span class="nt">hc         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;higher_close&#39;</span>
+<span class="w">    </span><span class="nt">hh         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;higher_high&#39;</span>
+<span class="w">    </span><span class="nt">hl         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;higher_low&#39;</span>
+<span class="w">    </span><span class="nt">ho         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;higher_open&#39;</span>
+<span class="w">    </span><span class="nt">hmax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_high&#39;</span>
+<span class="w">    </span><span class="nt">hmin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_high&#39;</span>
+<span class="w">    </span><span class="nt">lc         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lower_close&#39;</span>
+<span class="w">    </span><span class="nt">lh         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lower_high&#39;</span>
+<span class="w">    </span><span class="nt">ll         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lower_low&#39;</span>
+<span class="w">    </span><span class="nt">lo         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lower_open&#39;</span>
+<span class="w">    </span><span class="nt">lmax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_low&#39;</span>
+<span class="w">    </span><span class="nt">lmin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_low&#39;</span>
+<span class="w">    </span><span class="nt">net        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;net_close&#39;</span>
+<span class="w">    </span><span class="nt">netdown    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;down_net&#39;</span>
+<span class="w">    </span><span class="nt">netup      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;up_net&#39;</span>
+<span class="w">    </span><span class="nt">omax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_open&#39;</span>
+<span class="w">    </span><span class="nt">omin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_open&#39;</span>
+<span class="w">    </span><span class="nt">rmax       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;highest_hlrange&#39;</span>
+<span class="w">    </span><span class="nt">rmin       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lowest_hlrange&#39;</span>
+<span class="w">    </span><span class="nt">rr         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;maratio_hlrange&#39;</span>
+<span class="w">    </span><span class="nt">rixc       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rindex_close_high_low&#39;</span>
+<span class="w">    </span><span class="nt">rixo       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rindex_open_high_low&#39;</span>
+<span class="w">    </span><span class="nt">roi        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;netreturn_close&#39;</span>
+<span class="w">    </span><span class="nt">rsi        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rsi_close&#39;</span>
+<span class="w">    </span><span class="nt">sepma      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_sep&#39;</span>
+<span class="w">    </span><span class="nt">vma        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;ma_volume&#39;</span>
+<span class="w">    </span><span class="nt">vmratio    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;maratio_volume&#39;</span>
+<span class="w">    </span><span class="nt">upmove     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;net_high&#39;</span>
+</pre></div>
+</div>
+</div>
+<p>Variable expressions are valid Python expressions, with the addition
+of offsets to reference previous values.</p>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text"><strong>market.yml</strong></span><a class="headerlink" href="#id7" title="Link to this code"></a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">variables</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">abovema    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;close</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">cma_50&#39;</span>
+<span class="w">    </span><span class="nt">belowma    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;close</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">cma_50&#39;</span>
+<span class="w">    </span><span class="nt">bigup      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rrover</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">sephigh</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">netup&#39;</span>
+<span class="w">    </span><span class="nt">bigdown    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rrover</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">sephigh</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">netdown&#39;</span>
+<span class="w">    </span><span class="nt">doji       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;sepdoji</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">rrunder&#39;</span>
+<span class="w">    </span><span class="nt">hookdown   </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;open</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">high[1]</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">close</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">close[1]&#39;</span>
+<span class="w">    </span><span class="nt">hookup     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;open</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">low[1]</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">close</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">close[1]&#39;</span>
+<span class="w">    </span><span class="nt">inside     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;low</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">low[1]</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">high</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">high[1]&#39;</span>
+<span class="w">    </span><span class="nt">madelta    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;(close</span><span class="nv"> </span><span class="s">-</span><span class="nv"> </span><span class="s">cma_50)</span><span class="nv"> </span><span class="s">/</span><span class="nv"> </span><span class="s">atr_10&#39;</span>
+<span class="w">    </span><span class="nt">nr         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;hlrange</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">rmin_4&#39;</span>
+<span class="w">    </span><span class="nt">outside    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;low</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">low[1]</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">high</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">high[1]&#39;</span>
+<span class="w">    </span><span class="nt">roihigh    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;roi_5</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">5&#39;</span>
+<span class="w">    </span><span class="nt">roilow     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;roi_5</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">-5&#39;</span>
+<span class="w">    </span><span class="nt">roiminus   </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;roi_5</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">0&#39;</span>
+<span class="w">    </span><span class="nt">roiplus    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;roi_5</span><span class="nv"> </span><span class="s">&gt;</span><span class="nv"> </span><span class="s">0&#39;</span>
+<span class="w">    </span><span class="nt">rrhigh     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rr_1_10</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">1.2&#39;</span>
+<span class="w">    </span><span class="nt">rrlow      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rr_1_10</span><span class="nv"> </span><span class="s">&lt;=</span><span class="nv"> </span><span class="s">0.8&#39;</span>
+<span class="w">    </span><span class="nt">rrover     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rr_1_10</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">1.0&#39;</span>
+<span class="w">    </span><span class="nt">rrunder    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rr_1_10</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">1.0&#39;</span>
+<span class="w">    </span><span class="nt">sep        </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rixc_1</span><span class="nv"> </span><span class="s">-</span><span class="nv"> </span><span class="s">rixo_1&#39;</span>
+<span class="w">    </span><span class="nt">sepdoji    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;abs(sep)</span><span class="nv"> </span><span class="s">&lt;=</span><span class="nv"> </span><span class="s">15&#39;</span>
+<span class="w">    </span><span class="nt">sephigh    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;abs(sep_1_1)</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">70&#39;</span>
+<span class="w">    </span><span class="nt">seplow     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;abs(sep_1_1)</span><span class="nv"> </span><span class="s">&lt;=</span><span class="nv"> </span><span class="s">30&#39;</span>
+<span class="w">    </span><span class="nt">trend      </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;rrover</span><span class="nv"> </span><span class="s">&amp;</span><span class="nv"> </span><span class="s">sephigh&#39;</span>
+<span class="w">    </span><span class="nt">vmover     </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;vmratio</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">1&#39;</span>
+<span class="w">    </span><span class="nt">vmunder    </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;vmratio</span><span class="nv"> </span><span class="s">&lt;</span><span class="nv"> </span><span class="s">1&#39;</span>
+<span class="w">    </span><span class="nt">volatility </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;atr_10</span><span class="nv"> </span><span class="s">/</span><span class="nv"> </span><span class="s">close&#39;</span>
+<span class="w">    </span><span class="nt">wr         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;hlrange</span><span class="nv"> </span><span class="s">==</span><span class="nv"> </span><span class="s">rmax_4&#39;</span>
+</pre></div>
+</div>
+</div>
+<p>Once the aliases and variables are defined, a foundation is established
+for defining all of the features that you want to test.</p>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text"><strong>market.yml</strong></span><a class="headerlink" href="#id8" title="Link to this code"></a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">features</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;abovema_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;abovema_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;abovema_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;abovema_20&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;abovema_50&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;adx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;atr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bigdown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;bigup&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;diminus&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;diplus&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;doji&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;gap&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapbadown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapbaup&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapdown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;gapup&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;hc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ho&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;ll&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lo&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hookdown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;hookup&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;inside&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;outside&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_10&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;madelta_12&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_15&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_18&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta_20&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;madelta&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;net&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;netdown&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;netup&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_4&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_8&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;nr_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nr_18&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_2&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_4&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;roi_10&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;roi_20&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_1_4&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_1_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_1_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_2_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_2_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_2_10&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;rr_3_8&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_3_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_4_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_4_20&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_5_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_5_20&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;rr_5_30&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_6_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_6_25&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_7_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_7_35&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rr_8_22&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;rrhigh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rrlow&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rrover&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rrunder&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_4&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_5&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;rsi_6&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_8&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;rsi_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_3_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_5_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_8_8&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;sep_10_10&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_14_14&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_21_21&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_30_30&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;sep_40_40&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;sephigh&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;seplow&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;trend&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vma&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vmover&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vmratio&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;vmunder&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;volatility_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;volatility_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;volatility&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;volatility_20&#39;</span><span class="p p-Indicator">,</span>
+<span class="w">           </span><span class="s">&#39;wr_2&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_3&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_5&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_6&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_7&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;wr_10&#39;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+</div>
+</section>
+<section id="trading-systems">
+<h2>Trading Systems<a class="headerlink" href="#trading-systems" title="Link to this heading"></a></h2>
+<a class="reference internal image-reference" href="../_images/system_pipeline.png"><img alt="Market Pipeline" class="align-center" src="../_images/system_pipeline.png" style="width: 100%;" /></a>
+<p>MarketFlow provides two out-of-the-box trading systems. The first is
+a long/short system that you define using the system features in the
+configuration file <code class="docutils literal notranslate"><span class="pre">market.yml</span></code>. When MarketFlow detects a system
+in the file, it knows to execute that particular long/short strategy.</p>
+<div class="literal-block-wrapper docutils container" id="id9">
+<div class="code-block-caption"><span class="caption-text"><strong>market.yml</strong></span><a class="headerlink" href="#id9" title="Link to this code"></a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">market</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">data_history    </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<span class="w">    </span><span class="nt">forecast_period </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">fractal         </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1d</span>
+<span class="w">    </span><span class="nt">leaders         </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<span class="w">    </span><span class="nt">predict_history </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span>
+<span class="w">    </span><span class="nt">schema          </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prices</span>
+<span class="w">    </span><span class="nt">target_group    </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">faang</span>
+
+<span class="nt">system</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name       </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;closer&#39;</span>
+<span class="w">    </span><span class="nt">holdperiod </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">    </span><span class="nt">longentry  </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hc</span>
+<span class="w">    </span><span class="nt">longexit   </span><span class="p">:</span>
+<span class="w">    </span><span class="nt">shortentry </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">lc</span>
+<span class="w">    </span><span class="nt">shortexit  </span><span class="p">:</span>
+<span class="w">    </span><span class="nt">scale      </span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">False</span>
+
+<span class="nt">groups</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">faang      </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;fb&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;aapl&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;amzn&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;nflx&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;googl&#39;</span><span class="p p-Indicator">]</span>
+
+<span class="nt">features       </span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;hc&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;lc&#39;</span><span class="p p-Indicator">]</span>
+
+<span class="nt">aliases</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">hc         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;higher_close&#39;</span>
+<span class="w">    </span><span class="nt">lc         </span><span class="p">:</span><span class="w"> </span><span class="s">&#39;lower_close&#39;</span>
+</pre></div>
+</div>
+</div>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">name</span></code>:</dt><dd><p>Unique identifier for the trading system.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">holdperiod</span></code>:</dt><dd><p>Number of periods to hold an open position.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">longentry</span></code>:</dt><dd><p>A conditional feature to establish when to open a long position.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">longexit</span></code>:</dt><dd><p>A conditional feature to establish when to close a long position.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">shortentry</span></code>:</dt><dd><p>A conditional feature to establish when to open a short position.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">shortexit</span></code>:</dt><dd><p>A conditional feature to establish when to close a short position.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">scale</span></code>:</dt><dd><p>When <code class="docutils literal notranslate"><span class="pre">True</span></code>, add to a position in the same direction. The default
+action is not to scale positions.</p>
+</dd>
+</dl>
+<p>The second system is an <em>open range breakout</em> strategy. The premise
+of the system is to wait for an established high-low range in the
+first n minutes (e.g., 30) and then wait for a breakout of either
+the high or the low, especially when the range is relatively
+narrow. Typically, a stop-loss is set at the other side of the
+breakout range.</p>
+<p>After a system runs, four output files are stored in the <code class="docutils literal notranslate"><span class="pre">system</span></code>
+directory; the first three are formatted for analysis by Quantopian’s
+<strong>pyfolio</strong> package. The last file is the list of trades generated
+by MarketFlow based on the system specifications.</p>
+<ul class="simple">
+<li><p>[group]_[system]_transactions_[fractal].csv</p></li>
+<li><p>[group]_[system]_positions_[fractal].csv</p></li>
+<li><p>[group]_[system]_returns_[fractal].csv</p></li>
+<li><p>[group]_[system]_trades_[fractal].csv</p></li>
+</ul>
+<p>If we developed a moving average crossover system on daily data for
+technology stocks, then the trades file could be named:</p>
+<blockquote>
+<div><p>tech_xma_trades_1d.csv</p>
+</div></blockquote>
+<p>The important point here is to reserve a namespace for different
+combinations of groups, systems, and fractals to compare performance
+over space and time.</p>
+</section>
+<section id="model-configuration">
+<h2>Model Configuration<a class="headerlink" href="#model-configuration" title="Link to this heading"></a></h2>
+<p>MarketFlow runs on top of AlphaPy, so the <code class="docutils literal notranslate"><span class="pre">model.yml</span></code> file has
+the same format. In the following example, note the use of treatments
+to calculate runs for a set of features.</p>
+<div class="literal-block-wrapper docutils container" id="id10">
+<div class="code-block-caption"><span class="caption-text"><strong>model.yml</strong></span><a class="headerlink" href="#id10" title="Link to this code"></a></div>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>project:
+    directory         : .
+    file_extension    : csv
+    submission_file   :
+    submit_probas     : False
+
+data:
+    drop              : [&#39;date&#39;, &#39;tag&#39;, &#39;open&#39;, &#39;high&#39;, &#39;low&#39;, &#39;close&#39;, &#39;volume&#39;, &#39;adjclose&#39;,
+                         &#39;low[1]&#39;, &#39;high[1]&#39;, &#39;net&#39;, &#39;close[1]&#39;, &#39;rmin_3&#39;, &#39;rmin_4&#39;, &#39;rmin_5&#39;,
+                         &#39;rmin_7&#39;, &#39;rmin_8&#39;, &#39;rmin_10&#39;, &#39;rmin_18&#39;, &#39;pval&#39;, &#39;mval&#39;, &#39;vma&#39;,
+                         &#39;rmax_2&#39;, &#39;rmax_3&#39;, &#39;rmax_4&#39;, &#39;rmax_5&#39;, &#39;rmax_6&#39;, &#39;rmax_7&#39;, &#39;rmax_10&#39;]
+    features          : &#39;*&#39;
+    sampling          :
+        option        : True
+        method        : under_random
+        ratio         : 0.5
+    sentinel          : -1
+    separator         : &#39;,&#39;
+    shuffle           : True
+    split             : 0.4
+    target            : rrover
+    target_value      : True
+
+model:
+    algorithms        : [&#39;RF&#39;]
+    balance_classes   : True
+    calibration       :
+        option        : False
+        type          : isotonic
+    cv_folds          : 3
+    estimators        : 501
+    feature_selection :
+        option        : True
+        percentage    : 50
+        uni_grid      : [5, 10, 15, 20, 25]
+        score_func    : f_classif
+    grid_search       :
+        option        : False
+        iterations    : 100
+        random        : True
+        subsample     : True
+        sampling_pct  : 0.25
+    pvalue_level      : 0.01
+    rfe               :
+        option        : True
+        step          : 10
+    scoring_function  : &#39;roc_auc&#39;
+    type              : classification
+
+features:
+    clustering        :
+        option        : False
+        increment     : 3
+        maximum       : 30
+        minimum       : 3
+    counts            :
+        option        : False
+    encoding          :
+        rounding      : 3
+        type          : factorize
+    factors           : []
+    interactions      :
+        option        : True
+        poly_degree   : 2
+        sampling_pct  : 5
+    isomap            :
+        option        : False
+        components    : 2
+        neighbors     : 5
+    logtransform      :
+        option        : False
+    numpy             :
+        option        : False
+    pca               :
+        option        : False
+        increment     : 3
+        maximum       : 15
+        minimum       : 3
+        whiten        : False
+    scaling           :
+        option        : True
+        type          : standard
+    scipy             :
+        option        : False
+    text              :
+        ngrams        : 1
+        vectorize     : False
+    tsne              :
+        option        : False
+        components    : 2
+        learning_rate : 1000.0
+        perplexity    : 30.0
+    variance          :
+        option        : True
+        threshold     : 0.1
+
+treatments:
+    doji              : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    hc                : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    hh                : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    hl                : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    ho                : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    rrhigh            : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    rrlow             : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    rrover            : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    rrunder           : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    sephigh           : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    seplow            : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+    trend             : [&#39;alphapy.features&#39;, &#39;runs_test&#39;, [&#39;all&#39;], 18]
+
+pipeline:
+    number_jobs       : -1
+    seed              : 10231
+    verbosity         : 0
+
+plots:
+    calibration       : True
+    confusion_matrix  : True
+    importances       : True
+    learning_curve    : True
+    roc_curve         : True
+
+xgboost:
+    stopping_rounds   : 20
+</pre></div>
+</div>
+</div>
+</section>
+<section id="creating-the-model">
+<h2>Creating the Model<a class="headerlink" href="#creating-the-model" title="Link to this heading"></a></h2>
+<p>First, change the directory to your project location,
+where you have already followed the <a class="reference internal" href="project.html"><span class="doc">Project Structure</span></a>
+specifications:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">project</span>
+</pre></div>
+</div>
+<p>Run this command to train a model:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mflow</span>
+</pre></div>
+</div>
+<p>Usage:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mflow</span> <span class="p">[</span><span class="o">--</span><span class="n">train</span> <span class="o">|</span> <span class="o">--</span><span class="n">predict</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">tdate</span> <span class="n">yyyy</span><span class="o">-</span><span class="n">mm</span><span class="o">-</span><span class="n">dd</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">pdate</span> <span class="n">yyyy</span><span class="o">-</span><span class="n">mm</span><span class="o">-</span><span class="n">dd</span><span class="p">]</span>
+</pre></div>
+</div>
+<dl class="option-list">
+<dt><kbd><span class="option">--train</span></kbd></dt>
+<dd><p>Train a new model and make predictions (Default)</p>
+</dd>
+<dt><kbd><span class="option">--predict</span></kbd></dt>
+<dd><p>Make predictions from a saved model</p>
+</dd>
+<dt><kbd><span class="option">--tdate</span></kbd></dt>
+<dd><p>The training date in format YYYY-MM-DD (Default: Earliest Date in the Data)</p>
+</dd>
+<dt><kbd><span class="option">--pdate</span></kbd></dt>
+<dd><p>The prediction date in format YYYY-MM-DD (Default: Today’s Date)</p>
+</dd>
+</dl>
+</section>
+<section id="running-the-model">
+<h2>Running the Model<a class="headerlink" href="#running-the-model" title="Link to this heading"></a></h2>
+<p>In the project location, run <code class="docutils literal notranslate"><span class="pre">mflow</span></code> with the <code class="docutils literal notranslate"><span class="pre">predict</span></code> flag.
+MarketFlow will automatically create the <code class="docutils literal notranslate"><span class="pre">predict.csv</span></code> file using
+the <code class="docutils literal notranslate"><span class="pre">pdate</span></code> option:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mflow</span> <span class="o">--</span><span class="n">predict</span> <span class="p">[</span><span class="o">--</span><span class="n">pdate</span> <span class="n">yyyy</span><span class="o">-</span><span class="n">mm</span><span class="o">-</span><span class="n">dd</span><span class="p">]</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="project.html" class="btn btn-neutral float-left" title="Project Structure" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sport_flow.html" class="btn btn-neutral float-right" title="SportFlow" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, ScottFree Analytics LLC.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
