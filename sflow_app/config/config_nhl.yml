@@ -1,8 +1,0 @@
-league          : NHL
-seasons         :
-data_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/NHL/data
-prod_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/Products/NHL
-random_scoring  : False
-points_max      : 10
-points_min      : 0
-rolling_window  : 3

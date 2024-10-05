@@ -1,8 +1,0 @@
-league          : NFL
-seasons         :
-data_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/NFL/data
-prod_directory  : /Users/markconway/Projects/alphapy-root/alphapy-sports/Products/NFL
-points_max      : 45
-points_min      : 3
-random_scoring  : False
-rolling_window  : 3
