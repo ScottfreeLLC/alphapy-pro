@@ -1,0 +1,91 @@
+#
+# AlphaPy Groups
+#
+
+btc        : ['BTC-USD.CC']
+
+crypto     : ['aave-usd', 'ada-usd', 'algo-usd', 'amp1-usd', 'ankr-usd', 'ar-usd', 'arrr-usd',
+              'atom1-usd', 'avax-usd', 'bat-usd', 'bch-usd', 'bnb-usd', 'bnt-usd', 'bsv-usd',
+              'btc-usd', 'btg-usd', 'btt1-usd', 'ccxx-usd', 'cel-usd', 'celo-usd', 'chz-usd',
+              'comp-usd', 'coti-usd', 'cro-usd', 'crv-usd', 'ctc1-usd', 'dash-usd', 'dgb-usd',
+              'dcr-usd', 'dfi-usd', 'doge-usd', 'dot1-usd', 'egld-usd', 'enj-usd', 'eos-usd',
+              'erg-usd', 'etc-usd', 'eth-usd', 'fet-usd', 'fil-usd', 'glm-usd', 'grt2-usd',
+              'hbar-usd', 'hex-usd', 'hnt1-usd', 'hot1-usd', 'icp1-usd', 'icx-usd', 'iost-usd',
+              'iotx-usd', 'kava-usd', 'ksm-usd', 'link-usd', 'lrc-usd', 'ltc-usd', 'luna1-usd',
+              'mana-usd', 'matic-usd', 'miota-usd', 'mkr-usd', 'nano-usd', 'neo-usd', 'omg-usd',
+              'one2-usd', 'ont-usd', 'qnt-usd', 'qtum-usd', 'rune-usd', 'rvn-usd', 'sand-usd',
+              'sc-usd', 'shib-usd', 'snx-usd', 'sol1-usd', 'srm-usd', 'stx1-usd', 'sushi-usd',
+              'tfuel-usd', 'theta-usd', 'trx-usd', 'tusd-usd', 'uma-usd', 'uni3-usd', 'usdt-usd',
+              'vet-usd', 'vgx-usd', 'waves-usd', 'waxp-usd', 'xdc-usd', 'xem-usd', 'xlm-usd',
+              'xmr-usd', 'xrp-usd', 'xtz-usd', 'xwc-usd', 'yfi-usd', 'zec-usd', 'zen-usd',
+              'zil-usd', 'zrx-usd']
+
+etf        : ['aieq', 'arkk', 'betz', 'bito', 'buzz', 'dia', 'drv', 'dust',
+              'edc', 'edz', 'eem', 'efa', 'ewh', 'ewt', 'ewz', 'fas', 'faz', 'fxi',
+              'gdx', 'gld', 'govt', 'hyg', 'icln', 'iefa', 'ipo', 'iwm', 'ivv', 'iwf',
+              'jdst', 'jets', 'jnug', 'jnk', 'kold', 'kweb', 'labd', 'labu', 'lqd',
+              'mdy', 'nugt', 'psq', 'qqq', 'sds', 'sh', 'slv', 'smh', 'soxl', 'soxs',
+              'spxl', 'spxs', 'spxu', 'spy', 'sqqq', 'sso', 'svxy', 'tan', 'tbt', 'tlt',
+              'tmf', 'tna', 'tqqq', 'tsll', 'tsls', 'tza', 'upro', 'uvxy', 'vwo', 'vxx',
+              'xbi', 'xhb', 'xlc', 'xle', 'xlf', 'xlk', 'xlp', 'xlu', 'xlv', 'xme']
+
+faang      : ['fb', 'aapl', 'amzn', 'nflx', 'googl']
+
+indices    : ['dji', 'ndx', 'spx', 'tyx', 'vix']
+
+meta       : ['meta']
+
+qqq        : ['qqq']
+
+stocks     : ['aaoi', 'aapl', 'abnb', 'adbe', 'adi', 'adp', 'afrm', 'aieq', 'aig', 'akam',
+              'algn', 'alk', 'amat', 'amba', 'amc', 'amd', 'amgn', 'amt', 'amzn', 'ape',
+              'arch', 'arkk', 'asan', 'asml', 'atvi', 'auph', 'avgo', 'axp', 'ayx',
+              'azo', 'ba', 'baba', 'bac', 'bby', 'bbby', 'betz', 'bidu', 'biib', 'bito', 'bmy', 'btbt',
+              'buzz', 'bynd', 'c', 'cacc', 'car', 'cara', 'casy', 'cat', 'cde', 'cgc',
+              'chkp', 'chtr', 'clov', 'clvs', 'cme', 'cmg', 'cof', 'coin', 'comm', 'cost',
+              'cpk', 'crm', 'crus', 'crwd', 'csco', 'ctsh', 'ctxs', 'csx', 'cvs', 'cwh', 'cybr',
+              'dash', 'dbb', 'ddd', 'ddog', 'deck', 'dia', 'dis', 'dish', 'dkng', 'dpz', 'drv',
+              'dust', 'dwac', 'ea', 'ebay', 'edc', 'edz', 'eem', 'elv', 'eog', 'etsy', 'ewh', 'ewt',
+              'expe', 'expi', 'f', 'fang', 'fas', 'faz', 'fcx', 'fdx', 'ffiv', 'fis',
+              'five', 'fslr', 'fsly', 'fsr', 'ftnt', 'futu', 'gddy', 'gdx', 'gdxj', 'ge', 'gild',
+              'gld', 'glw', 'gm', 'gme', 'googl', 'gpro', 'gs', 'gtlb', 'hal', 'has', 'hcp',
+              'hd', 'hlf', 'hog', 'hood', 'hum', 'htz', 'hyg', 'hyln', 'ibb',
+              'ibm', 'ice', 'idxx', 'ilmn', 'ilmn', 'incy', 'intc', 'intu', 'ip', 'ipo', 'isrg',
+              'iwm', 'ivv', 'iwf', 'iwm', 'jack', 'jdst', 'jets', 'jnj', 'jnpr', 'jnug', 'jpm',
+              'klac', 'ko', 'kss', 'labd', 'labu', 'lcid', 'len', 'lite', 'lrcx', 'lulu', 'lvs',
+              'lyft', 'mara', 'mcd', 'mchp', 'mdy', 'meta', 'meoh', 'mnst', 'mo', 'momo', 'mon',
+              'mrk', 'mrna', 'ms', 'msft', 'mstr',  'mtb', 'mtch', 'mu', 'nerd', 'net',
+              'nflx', 'nio', 'nke', 'nkla', 'ntap', 'ntes', 'ntnx', 'nugt', 'nvax', 'nvda',
+              'nxpi', 'nxst', 'oii', 'oled', 'open', 'orcl', 'orly', 'panw', 'pdd', 'penn',
+              'pg', 'pins', 'plnt', 'pltr', 'plug', 'pton', 'pm', 'prgo', 'pxd', 'pypl', 'qcom',
+              'qs', 'qqq', 'qrvo', 'rblx', 'ride', 'riot', 'rivn', 'roku', 'sam', 'sark', 'sbux',
+              'sco', 'sds', 'se', 'sgen', 'shld', 'shop', 'sig', 'siri', 'skx', 'slb', 'slv',
+              'smh', 'snap', 'sncr', 'snow', 'sofi', 'spce', 'splk', 'spot', 'sq', 'spxl', 'spxs',
+              'spxu', 'spy', 'sqqq', 'sso', 'stla', 'stld', 'stx', 'svxy', 'swav', 'swks', 't',
+              'tan', 'tbt', 'tcehy', 'tsco', 'tdoc', 'teva', 'tgt', 'tho', 'tjx', 'tlry', 'tlt',
+              'tmo', 'tna', 'tqqq', 'trip', 'tsla', 'ttd', 'ttwo', 'tvix', 'twlo', 'tza',
+              'u', 'uaa', 'uber', 'udmy', 'ugaz', 'uhs', 'ulta', 'unh', 'unp', 'upro', 'upst',
+              'uri', 'ups', 'upst', 'uri', 'uthr', 'uvxy', 'v', 'veev', 'viav', 'vlkaf', 'vlo',
+              'vmc', 'vrsk', 'vrsn', 'vrtx', 'vwo', 'vxrt', 'vxx', 'vz', 'w', 'wday', 'wdc', 'we',
+              'wfc', 'wkhs', 'wmt', 'wynn', 'x', 'xbi', 'xhb', 'xle', 'xlf', 'xlk', 'xom', 'xlp',
+              'xlu', 'xlv', 'xme', 'xom', 'wix', 'yelp', 'z', 'zbra', 'zm']
+
+tech       : ['aapl', 'adbe', 'afrm', 'amat', 'amc', 'amgn', 'amzn', 'avgo',
+              'baba', 'bidu', 'crwd', 'csco', 'ddd', 'expe', 'fslr',
+              'gme', 'googl', 'intc', 'isrg', 'meta', 'mrna', 'msft',
+              'nflx', 'nvda', 'qcom', 'qqq', 'tsla']
+
+test       : ['aapl', 'amzn', 'googl', 'meta', 'nflx', 'nvda', 'tsla']
+
+tsla       : ['tsla']
+
+twosigma   : ['aapl', 'abnb', 'afrm', 'ai', 'amat', 'amc', 'amd', 'amzn', 'arkk', 'avgo',
+              'ba', 'baba', 'bmy', 'cat', 'cmg', 'coin', 'crm', 'crwd', 'csco', 'dash',
+              'ddog', 'dia', 'dis', 'eem',  'elv', 'enph', 'etsy', 'fas', 'faz', 'gme', 'googl',
+              'hyg', 'ibm', 'intc', 'iwm', 'jnug', 'labd', 'labu', 'meta', 'mrna', 'msft',
+              'mstr', 'mtch', 'mu', 'net', 'nflx', 'nvda', 'pdd', 'penn', 'pypl', 'qcom',
+              'qqq', 'roku', 'shop', 'smh', 'snow', 'soxl', 'soxs', 'spot', 'spy', 'sq',
+              'sqqq', 'swav', 'svxy', 'tbt', 'tdoc', 'tgt', 'tlt', 'tqqq', 'tsla', 'tza',
+              'upst', 'uvxy', 'v', 'w', 'wmt', 'zm']
+
+yindices   : ['^dji',  '^gspc', '^ndx', '^tyx', '^vix']

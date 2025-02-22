@@ -1,0 +1,7 @@
+#
+# AlphaPy Systems
+#
+
+closer:
+    signal_long  : hc
+    signal_short : lc

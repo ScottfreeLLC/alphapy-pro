@@ -1,0 +1,122 @@
+project:
+    directory         : .
+    file_extension    : csv
+    live_results      : False
+    submission_file   : 'gender_submission'
+    submit_probas     : False
+
+model:
+    algorithms        : ['CATB', 'LGB', 'LOGR', 'RF', 'XGB']
+    balance_classes   : True
+    calibration       :
+        option        : False
+        type          : sigmoid
+    cv_folds          : 3
+    estimators        : 51
+    grid_search       :
+        option        : True
+        iterations    : 20
+        random        : True
+        subsample     : False
+        sampling_pct  : 0.2
+    ranking           :
+        group_id      : 
+        group_size    : 
+    pvalue_level      : 0.01
+    rfe               :
+        option        : False
+        step          : 3
+    scoring_function  : roc_auc
+    target            : Survived
+    time_series       :
+        option        : False
+        date_index    : date
+        forecast      : 1
+        n_lags        : 0
+        group_id      : unique_id
+        leaders       : []
+    type              : classification
+
+data:
+    allow_na_targets  : True
+    drop              : ['PassengerId']
+    features          : '*'
+    leaders           : []
+    sampling          :
+        option        : False
+        method        : over_random
+        ratio         : 1.0
+    sentinel          : -1
+    separator         : ','
+    shuffle           : False
+    split             : 0.4
+
+features:
+    clustering        :
+        option        : True
+        increment     : 3
+        maximum       : 30
+        minimum       : 3
+    counts            :
+        option        : True
+    encoding          :
+        rounding      : 2
+        type          : target
+    factors           : ['Embarked']
+    interactions      :
+        option        : False
+        poly_degree   : 2
+        sampling_pct  : 10
+    isomap            :
+        option        : False
+        components    : 2
+        neighbors     : 5
+    lofo              :
+        option        : True
+    log_transform     :
+        option        : False
+        pvalue_level  : 0.01
+    numpy             :
+        option        : True
+    pca               :
+        option        : False
+        increment     : 1
+        maximum       : 10
+        minimum       : 2
+        whiten        : False
+    scaling           :
+        option        : True
+        type          : standard
+    scipy             :
+        option        : False
+    text              :
+        ngrams        : 2
+        vectorize     : False
+    tsne              :
+        option        : False
+        components    : 2
+        learning_rate : 1000.0
+        perplexity    : 30.0
+    univariate        :
+        option        : True
+        percentage    : 100
+        uni_grid      : [5, 10, 15, 20, 25]
+        score_func    : f_classif
+    variance          :
+        option        : False
+        threshold     : 0.1
+
+pipeline:
+    number_jobs       : -1
+    seed              : 42
+    verbosity         : 0
+
+plots:
+    calibration       : True
+    confusion_matrix  : True
+    importances       : True
+    learning_curve    : True
+    roc_curve         : True
+
+xgboost:
+    stopping_rounds   : 20

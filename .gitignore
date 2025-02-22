@@ -1,3 +1,5 @@
+runs
+catboost_info
 *.pyc
 *.log
 *.whl
@@ -9,7 +11,6 @@ dist/
 *egg-info*/
 credentials.json
 token.json
-.DS_Store
 .history
 .DS_Store
 .DS_Store

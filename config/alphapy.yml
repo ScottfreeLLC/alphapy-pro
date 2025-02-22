@@ -1,0 +1,19 @@
+#
+# AlphaPy Main Configuration File
+#
+
+use_server: False
+
+data_dir: /Users/markconway/Projects/alphapy-root/alphapy-markets/data
+
+aflow:
+    project_root: /Users/markconway/Projects/alphapy-root/alphapy-projects
+    server_url: 'http://localhost:8000/'
+
+mflow:
+    project_root: /Users/markconway/Projects/alphapy-root/alphapy-markets/Projects
+    server_url: 'http://localhost:8000/'
+
+sflow:
+    project_root: /Users/markconway/Projects/alphapy-root/alphapy-sports/Projects
+    server_url: 'http://localhost:8000/'

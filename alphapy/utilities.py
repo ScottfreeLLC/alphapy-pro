@@ -66,6 +66,15 @@ def datetime_stamp():
 
 
 #
+# Function ensure_dir
+#
+
+def ensure_dir(directory_path):
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+
+
+#
 # Function get_web_content
 #
 
