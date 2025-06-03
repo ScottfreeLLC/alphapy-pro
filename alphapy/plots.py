@@ -73,6 +73,7 @@ from sklearn.model_selection import learning_curve
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
+import warnings
 
 from alphapy.estimators import get_estimators
 from alphapy.globals import BSEP, SSEP, USEP

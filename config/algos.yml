@@ -72,7 +72,14 @@ LGB:
     params     : {"n_estimators" : n_estimators,
                   "random_state" : seed,
                   "n_jobs" : n_jobs,
-                  "verbose" : -1}
+                  "verbosity" : -1,
+                  "min_child_samples" : 1,
+                  "min_split_gain" : 0.0,
+                  "min_data_per_group" : 1,
+                  "cat_smooth" : 1,
+                  "cat_l2" : 0.0,
+                  "force_row_wise" : True,
+                  "force_col_wise" : False}
     grid       : {}
 
 LGBR:
@@ -81,7 +88,14 @@ LGBR:
     params     : {"n_estimators" : n_estimators,
                   "random_state" : seed,
                   "n_jobs" : n_jobs,
-                  "verbose" : -1}
+                  "verbosity" : -1,
+                  "min_child_samples" : 1,
+                  "min_split_gain" : 0.0,
+                  "min_data_per_group" : 1,
+                  "cat_smooth" : 1,
+                  "cat_l2" : 0.0,
+                  "force_row_wise" : True,
+                  "force_col_wise" : False}
     grid       : {}
 
 LOGR:
