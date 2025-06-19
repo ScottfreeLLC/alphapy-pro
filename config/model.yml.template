@@ -1,0 +1,197 @@
+#
+# AlphaPy Model Configuration Template
+#
+# INSTRUCTIONS:
+# 1. Copy this file to your project's config directory as 'model.yml'
+# 2. Adjust settings based on your specific project needs
+# 3. This file controls the ML pipeline behavior for your project
+#
+
+# Project settings
+project:
+    directory         : .                    # Working directory (usually current)
+    file_extension    : csv                  # Input file format (csv, pkl, etc.)
+    live_results      : False                # Real-time results updating
+    submission_file   : 'submission'         # Kaggle submission filename (if applicable)
+    submit_probas     : False                # Submit probabilities vs. class predictions
+
+# Model configuration
+model:
+    # List of algorithms to use (see algos.yml for available options)
+    algorithms        : ['LOGR', 'RF', 'XGB']
+    
+    # Class balancing for imbalanced datasets
+    balance_classes   : False
+    
+    # Probability calibration
+    calibration       :
+        option        : False                # Enable calibration
+        type          : sigmoid              # sigmoid or isotonic
+    
+    # Cross-validation settings
+    cv_folds          : 5                    # Number of CV folds
+    
+    # Number of estimators for ensemble methods
+    estimators        : 100
+    
+    # Hyperparameter optimization
+    grid_search       :
+        option        : True                 # Enable grid search
+        iterations    : 20                   # Number of iterations
+        random        : True                 # Random vs. grid search
+        subsample     : False                # Subsample for faster search
+        sampling_pct  : 0.2                  # Percentage to subsample
+    
+    # Ranking/LTR settings (for ranking problems)
+    ranking           :
+        group_id      :                      # Column for grouping
+        group_size    :                      # Size of ranking groups
+    
+    # Feature selection p-value threshold
+    pvalue_level      : 0.05
+    
+    # Recursive Feature Elimination
+    rfe               :
+        option        : False                # Enable RFE
+        step          : 1                    # Features to remove at each step
+    
+    # Scoring metric (accuracy, roc_auc, f1, etc.)
+    scoring_function  : accuracy
+    
+    # Target variable name
+    target            : target
+    
+    # Time series specific settings
+    time_series       :
+        option        : False                # Enable time series mode
+        date_index    : date                 # Date column name
+        forecast      : 1                    # Forecast horizon
+        n_lags        : 0                    # Number of lags to create
+        group_id      :                      # Group by column (for multiple series)
+        leaders       : []                   # Leading indicator columns
+    
+    # Model type: classification, regression, or ranking
+    type              : classification
+
+# Data settings
+data:
+    allow_na_targets  : False                # Allow missing target values
+    drop              : []                   # Columns to drop
+    features          : '*'                  # Features to use (* for all)
+    leaders           : []                   # Leading features (time series)
+    
+    # Data sampling (for imbalanced datasets)
+    sampling          :
+        option        : False                # Enable sampling
+        method        : over_random          # over_random, under_random, smote
+        ratio         : 1.0                  # Target ratio
+    
+    sentinel          : -1                   # Missing value indicator
+    separator         : ','                  # CSV separator
+    shuffle           : True                 # Shuffle data
+    split             : 0.2                  # Test split percentage
+
+# Feature engineering
+features:
+    # Clustering features
+    clustering        :
+        option        : False                # Enable clustering
+        increment     : 5                    # Step size
+        maximum       : 50                   # Max clusters
+        minimum       : 5                    # Min clusters
+    
+    # Count-based features
+    counts            :
+        option        : False                # Enable count features
+    
+    # Categorical encoding
+    encoding          :
+        rounding      : 3                    # Decimal places
+        type          : target               # target, label, onehot
+    
+    # Categorical columns
+    factors           : []                   # List categorical columns
+    
+    # Feature interactions
+    interactions      :
+        option        : False                # Enable interactions
+        poly_degree   : 2                    # Polynomial degree
+        sampling_pct  : 10                   # Sampling percentage
+    
+    # Isomap dimensionality reduction
+    isomap            :
+        option        : False                # Enable Isomap
+        components    : 2                    # Number of components
+        neighbors     : 5                    # Number of neighbors
+    
+    # Leave-one-feature-out importance
+    lofo              :
+        option        : False                # Enable LOFO
+    
+    # Log transformation
+    log_transform     :
+        option        : False                # Enable log transform
+        pvalue_level  : 0.05                 # Significance level
+    
+    # NumPy mathematical transforms
+    numpy             :
+        option        : False                # Enable NumPy transforms
+    
+    # Principal Component Analysis
+    pca               :
+        option        : False                # Enable PCA
+        increment     : 1                    # Step size
+        maximum       : 10                   # Max components
+        minimum       : 2                    # Min components
+        whiten        : False                # Whiten components
+    
+    # Feature scaling
+    scaling           :
+        option        : True                 # Enable scaling
+        type          : standard             # standard, minmax, robust
+    
+    # SciPy statistical transforms
+    scipy             :
+        option        : False                # Enable SciPy transforms
+    
+    # Text processing
+    text              :
+        ngrams        : 1                    # N-gram size
+        vectorize     : False                # Enable text vectorization
+    
+    # t-SNE dimensionality reduction
+    tsne              :
+        option        : False                # Enable t-SNE
+        components    : 2                    # Number of components
+        learning_rate : 200.0                # Learning rate
+        perplexity    : 30.0                 # Perplexity parameter
+    
+    # Univariate feature selection
+    univariate        :
+        option        : False                # Enable univariate selection
+        percentage    : 50                   # Percentage to keep
+        uni_grid      : [10, 20, 30, 40, 50]  # Grid for optimization
+        score_func    : f_classif            # Scoring function
+    
+    # Variance threshold
+    variance          :
+        option        : False                # Enable variance filter
+        threshold     : 0.0                  # Minimum variance
+
+# Pipeline settings
+pipeline:
+    number_jobs       : -1                   # Parallel jobs (-1 for all cores)
+    seed              : 42                   # Random seed
+    verbosity         : 1                    # Logging verbosity
+
+# Plot generation
+plots:
+    calibration       : False                # Calibration plots
+    confusion_matrix  : True                 # Confusion matrix
+    importances       : True                 # Feature importances
+    learning_curve    : False                # Learning curves
+    roc_curve         : True                 # ROC curves (classification only)
+
+# XGBoost specific settings
+xgboost:
+    stopping_rounds   : 10                   # Early stopping rounds

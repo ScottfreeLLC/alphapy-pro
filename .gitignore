@@ -4,11 +4,45 @@ catboost_info
 *.log
 *.whl
 *.gz
-*.DS_Store
 *.__pycache__
 build/
 dist/
 *egg-info*/
 credentials.json
 token.json
+config/sources.yml
+config/alphapy.yml
 .history
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Environment files
+.env
+.env.local
+venv/
+env/
+ENV/
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Documentation builds
+docs/_build/
+docs/_static/
+docs/_templates/

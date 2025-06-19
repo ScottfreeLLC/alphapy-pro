@@ -1,0 +1,42 @@
+#
+# AlphaPy Trading Systems Template
+#
+# INSTRUCTIONS:
+# 1. Define trading systems as signal combinations
+# 2. Each system has entry/exit signals for long and short positions
+# 3. Signals reference variables from variables.yml
+#
+
+# Example: Breakout System
+# Enters long when price breaks above high, exits at close
+# Enters short when price breaks below low, exits at close
+breakout:
+    signal_long  : high       # Long entry signal
+    signal_short : low        # Short entry signal
+    exit_long    : close      # Long exit signal (optional)
+    exit_short   : close      # Short exit signal (optional)
+
+# Example: Mean Reversion System
+# Uses moving average crossovers
+ma_cross:
+    signal_long  : ma_20      # Fast MA above slow MA
+    signal_short : ma_50      # Fast MA below slow MA
+    
+# Example: Momentum System
+# Based on RSI extremes
+momentum:
+    signal_long  : rsi_30     # RSI < 30 (oversold)
+    signal_short : rsi_70     # RSI > 70 (overbought)
+
+# Example: Channel System
+# Trade the range
+channel:
+    signal_long  : hc         # High of close
+    signal_short : lc         # Low of close
+
+# Your custom systems here:
+# system_name:
+#     signal_long  : your_long_signal
+#     signal_short : your_short_signal
+#     exit_long    : your_long_exit     # Optional
+#     exit_short   : your_short_exit    # Optional
