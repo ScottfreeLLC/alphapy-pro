@@ -1,298 +1,282 @@
-AlphaPy
-=======
+AlphaPy Pro Pipeline
+====================
 
 .. image:: model_pipeline.png
-   :alt: AlphaPy Model Pipeline
+   :alt: AlphaPy Pro Model Pipeline
    :width: 100%
    :align: center
 
-Model Object Creation
+Overview
+--------
+
+The AlphaPy Pro pipeline is a comprehensive machine learning framework that automates
+the entire workflow from data ingestion to model deployment. The pipeline is designed
+to be flexible, supporting various algorithms and techniques while maintaining
+consistency and reproducibility.
+
+Pipeline Architecture
 ---------------------
 
-**AlphaPy** first reads the ``model.yml`` file and then displays
-the model parameters as confirmation that the file was read
-successfully. As shown in the example below, the Random Forest
-(RF) and XGBoost (XGB) algorithms are used to build the model.
-From the model specifications, a ``Model`` object will be
-created.
+The AlphaPy Pro pipeline consists of several key stages:
 
-All of the model parameters are listed in alphabetical order.
-At a minimum, scan for ``algorithms``, ``features``, ``model_type``,
-and ``target`` to verify their accuracy, i.e., that you are
-running the right model. The ``verbosity`` parameter will control
-the degree of output that you see when running the pipeline.
+1. **Configuration Loading** - Read model parameters from YAML files
+2. **Data Ingestion** - Load training and testing data
+3. **Feature Engineering** - Transform and create features
+4. **Feature Selection** - Select the most informative features
+5. **Model Training** - Train multiple algorithms with hyperparameter tuning
+6. **Model Evaluation** - Assess model performance with various metrics
+7. **Ensemble Creation** - Blend predictions from multiple models
+8. **Visualization** - Generate plots for model interpretation
+9. **Output Generation** - Save models, predictions, and artifacts
 
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 1-84
+Model Configuration
+-------------------
 
-Data Ingestion
---------------
+AlphaPy Pro uses YAML configuration files to control every aspect of the pipeline.
+The configuration is hierarchical and includes sections for:
 
-Data are loaded from both the training file and the test file.
-Any features that you wish to remove from the data are then
-dropped. Statistics about the shape of the data and the target
-variable proportions are logged.
+* **Project Settings** - Directory paths, file formats, submission options
+* **Model Parameters** - Algorithms, cross-validation, scoring metrics
+* **Data Processing** - Feature selection, sampling, transformations
+* **Feature Engineering** - Encoding, interactions, clustering, dimensionality reduction
+* **Pipeline Settings** - Parallelization, random seeds, verbosity
 
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 85-103
+Example configuration snippet::
 
-Feature Processing
-------------------
+    model:
+        algorithms: ['CATB', 'LGB', 'XGB', 'RF', 'LOGR']
+        cv_folds: 5
+        grid_search:
+            option: True
+            iterations: 50
+            random: True
+        scoring_function: roc_auc
+        type: classification
 
-There are two stages to feature processing. First, you may want
-to transform a column of a dataframe into a different format
-or break up a feature into its respective components. This is
-known as a *treatment*, and it is a one-to-many transformation.
-For example, a date feature can be extracted into day, month,
-and year.
+Supported Algorithms
+--------------------
 
-The next stage is feature type determination, which applies
-to all features, regardless of whether or not a treatment has
-been previously applied. The unique number of a feature's values
-dictates whether or not that feature is a factor. If the
-given feature is a factor, then a specific type of encoding
-is applied. Otherwise, the feature is generally either text
-or a number.
+**Classification Algorithms:**
 
-.. image:: features.png
-   :alt: Feature Flowchart
-   :width: 100%
-   :align: center
+* **CatBoost (CATB)** - Gradient boosting with categorical feature support
+* **LightGBM (LGB)** - Fast gradient boosting framework
+* **XGBoost (XGB)** - Extreme gradient boosting
+* **Random Forest (RF)** - Ensemble of decision trees
+* **Logistic Regression (LOGR)** - Linear classification model
+* **Extra Trees (EXT)** - Extremely randomized trees
+* **Support Vector Machine (SVM)** - Maximum margin classifier
+* **K-Nearest Neighbors (KNN)** - Instance-based learning
 
-In the example below, each feature's type is identified along
-with the unique number of values. For factors, a specific type
-of encoding is selected, as specified in the ``model.yml``
-file. For text, you can choose either count vectorization and
-TF-IDF or just plain factorization. Numerical features have
-both imputation and log-transformation options.
+**Regression Algorithms:**
 
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 104-172
+* **CatBoost Regressor** - Gradient boosting for regression
+* **LightGBM Regressor** - Light gradient boosting regressor
+* **XGBoost Regressor** - XGBoost for continuous targets
+* **Random Forest Regressor** - Ensemble regression
+* **Linear Regression** - Standard linear model
+* **Ridge/Lasso** - Regularized linear models
 
-As AlphaPy runs, you can see the number of new features that are
-generated along the way, depending on which features you selected
-in the ``features`` section of the ``model.yml`` file. For
-interactions, you specify the polynomial degree and the percentage
-of the interactions that you would like to retain in the model.
-Be careful of the polynomial degree, as the number of interaction
-terms is exponential.
+Feature Engineering
+-------------------
 
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 173-185
+AlphaPy Pro provides extensive feature engineering capabilities:
+
+**Automatic Feature Generation:**
+
+* **Clustering Features** - K-means clustering with configurable clusters
+* **Interaction Features** - Polynomial feature interactions
+* **Count Features** - Value counts and frequency encoding
+* **Date/Time Features** - Extract temporal components
+* **Text Features** - TF-IDF and count vectorization
+* **Statistical Features** - NumPy/SciPy transformations
+
+**Encoding Options:**
+
+* **Target Encoding** - Mean target encoding with smoothing
+* **One-Hot Encoding** - Binary columns for categories
+* **Ordinal Encoding** - Integer encoding for ordinal data
+* **Binary Encoding** - Efficient binary representation
+
+**Dimensionality Reduction:**
+
+* **PCA** - Principal Component Analysis
+* **ISOMAP** - Isometric mapping
+* **t-SNE** - t-distributed Stochastic Neighbor Embedding
 
 Feature Selection
 -----------------
 
-There are two types of feature selection:
+Multiple feature selection methods are available:
 
-* Univariate Selection
-* Recursive Feature Elimination (RFE)
+**Univariate Selection:**
+    Statistical tests to select features based on univariate metrics
+    (f_classif, mutual_info_classif, chi2, etc.)
 
-Univariate selection finds the informative features based on
-a percentile of the highest scores, using a scoring function
-such as ANOVA F-Scores or Chi-squared statistics. There are
-scoring functions for both classification and regression.
+**LOFO Importance:**
+    Leave One Feature Out importance analysis to identify
+    features that contribute most to model performance
 
-RFE is more time-consuming, but has cross-validation with a
-configurable scoring function and step size. We also recommend
-using a seed for reproducible results, as the resulting
-support vector (a ranking of the features) can vary dramatically
-across runs.
+**Recursive Feature Elimination (RFE):**
+    Iteratively remove features based on model coefficients
 
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 195-198
+**Variance Threshold:**
+    Remove low-variance features
 
-Model Estimation
-----------------
+Model Training
+--------------
 
-A classification model is highly dependent on the class proportions.
-If you’re trying to predict a rare pattern with high accuracy,
-then training for accuracy will be useless because a dumb classifier
-could just predict the majority class and be right most of the time.
-As a result, **AlphaPy** gives data scientists the ability to
-undersample majority classes or oversample minority classes. There
-are even techniques that combine the two, e.g., SMOTE or ensemble
-sampling.
+The training process includes:
 
-Before estimation, we need to apply sampling and possibly
-shuffling to improve cross-validation. For example, time series
-data is ordered, and you may want to eliminate that dependency.
+1. **Data Splitting** - Stratified train/validation splits
+2. **Cross-Validation** - K-fold CV with configurable folds
+3. **Hyperparameter Tuning** - Grid search or random search
+4. **Model Fitting** - Parallel training of multiple algorithms
+5. **Calibration** - Probability calibration (Platt/Isotonic)
 
-At the beginning of the estimation phase, we read in all of the
-algorithms from the ``algos.yml`` file and then select those
-algorithms used in this particular model. The process is
-iterative for each algorithm: initial fit, feature selection,
-grid search, and final fit.
+Example training output::
 
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 186-233
-
-Grid Search
------------
-
-There are two types of grid search for model hyperparameters:
-
-* Full Grid Search
-* Randomized Grid Search
-
-A full grid search is exhaustive and can be the most time-consuming
-task of the pipeline. We recommend that you save the full grid search
-until the end of your model development, and in the interim use a
-randomized grid search with a fixed number of iterations. The
-results of the top 3 grid searches are ranked by mean validation
-score, and the best estimator is saved for making predictions.
-
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 199-210
+    [2025/06/18 20:45:45] INFO Training CATB
+    [2025/06/18 20:45:46] INFO CV Score: 0.9158 [+/- 0.0234]
+    [2025/06/18 20:45:47] INFO Training LGB
+    [2025/06/18 20:45:48] INFO CV Score: 0.9944 [+/- 0.0012]
+    [2025/06/18 20:45:49] INFO Training XGB
+    [2025/06/18 20:45:50] INFO CV Score: 0.8171 [+/- 0.0156]
 
 Model Evaluation
 ----------------
 
-Each model is evaluated using all of the metrics_ available in
-*scikit-learn* to give you a sense of how other scoring functions
-compare. Metrics are calculated on the training data for every
-algorithm. If test labels are present, then metrics are also
-calculated for the test data.
+Comprehensive evaluation metrics for different problem types:
 
-.. _metrics: http://scikit-learn.org/stable/modules/model_evaluation.html#common-cases-predefined-values
+**Classification Metrics:**
 
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 237-276
+* Accuracy, Precision, Recall, F1-Score
+* ROC-AUC, Average Precision
+* Matthews Correlation Coefficient
+* Cohen's Kappa
+* Log Loss, Brier Score
 
-Model Selection
----------------
+**Regression Metrics:**
 
-Blended Model
-~~~~~~~~~~~~~
+* Mean Absolute Error (MAE)
+* Mean Squared Error (MSE)
+* Root Mean Squared Error (RMSE)
+* R-squared (R²)
+* Mean Absolute Percentage Error (MAPE)
 
-.. image:: model_blend.png
-   :alt: Blended Model Creation
-   :width: 100%
-   :align: center
+Ensemble Methods
+----------------
 
-.. _ridge: http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html
+AlphaPy Pro automatically creates ensemble models:
 
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 234-236
+**Blending:**
+    Combines predictions from multiple models using a meta-learner
+    (Logistic Regression for classification, Ridge for regression)
 
-Best Model
-~~~~~~~~~~
+**Voting:**
+    Simple or weighted voting across models
 
-The best model is selected from the score of:
+**Stacking:**
+    Multi-level stacking with cross-validated predictions
 
-* a model for each algorithm, and
-* a *blended* model
+Visualization
+-------------
 
-Depending on the scoring function, best model selection is
-based on whether the score must be minimized or maximized.
-For example, the Area Under the Curve (AUC) must be
-maximized, and negative log loss must be minimized.
+The pipeline generates various plots for model interpretation:
 
-.. image:: model_best.png
-   :alt: Best Model Selection
-   :width: 100%
-   :align: center
-
-When more than one algorithm is scored in the estimation stage,
-the final step is to combine the predictions of each one and
-create the blended model, i.e., the predictions from the
-independent models are used as training features. For
-classification, AlphaPy uses logistic regression, and for
-regression, we use ridge_ regression.
-
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 276-285
-
-Plot Generation
----------------
-
-The user has the option of generating the following plots:
-
-* Calibration Plot
-* Confusion Matrix
-* Feature Importances
-* Learning Curve
-* ROC Curve
-
-All plots are saved to the ``plots`` directory of your project.
-
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 285-339
-
-Calibration Plot
-~~~~~~~~~~~~~~~~
+**Calibration Plot**
+    Shows reliability of predicted probabilities
 
 .. image:: plot_calibration.png
    :alt: Calibration Plot
-   :width: 100%
+   :width: 80%
    :align: center
 
-Confusion Matrix
-~~~~~~~~~~~~~~~~
+**Confusion Matrix**
+    Visualizes classification errors by class
 
 .. image:: plot_confusion_matrix.png
    :alt: Confusion Matrix
-   :width: 100%
+   :width: 80%
    :align: center
 
-Feature Importances
-~~~~~~~~~~~~~~~~~~~
+**Feature Importance Plot**
+    Shows relative importance of features
 
 .. image:: plot_feature_importances.png
    :alt: Feature Importances
-   :width: 100%
+   :width: 80%
    :align: center
 
-Learning Curve
-~~~~~~~~~~~~~~
+**Learning Curve**
+    Displays training/validation scores vs. sample size
 
 .. image:: plot_learning_curve.png
    :alt: Learning Curve
-   :width: 100%
+   :width: 80%
    :align: center
 
-ROC Curve
-~~~~~~~~~
+**ROC Curve**
+    Receiver Operating Characteristic curve for binary classification
 
 .. image:: plot_roc_curve.png
    :alt: ROC Curve
-   :width: 100%
+   :width: 80%
    :align: center
 
-Final Results
--------------
+**LOFO Importance Plot**
+    Leave One Feature Out importance analysis
 
-* The model object is stored in Pickle (.pkl) format in the ``models``
-  directory of the project. The model is loaded later in prediction mode.
-* The feature map is stored in Pickle (.pkl) format in the ``models``
-  directory. The feature map is restored for prediction mode.
-* Predictions are stored in the project's ``output`` directory.
-* Sorted rankings of predictions are stored in ``output``.
-* Any submission files are stored in ``output``.
+Output Structure
+----------------
 
-.. literalinclude:: alphapy.log
-   :language: text
-   :caption: **alphapy.log**
-   :lines: 340-351
+All outputs are saved in timestamped run directories::
+
+    runs/run_YYYYMMDD_HHMMSS/
+    ├── config/
+    │   └── model.yml          # Configuration snapshot
+    ├── input/
+    │   ├── train.csv          # Training data snapshot
+    │   └── test.csv           # Test data snapshot
+    ├── model/
+    │   ├── model.pkl          # Trained model ensemble
+    │   ├── feature_map.pkl    # Feature transformation pipeline
+    │   └── model_metrics.csv  # Performance metrics
+    ├── output/
+    │   ├── predictions.csv    # Raw predictions
+    │   ├── ranked_*.csv       # Ranked predictions
+    │   └── submission.csv     # Competition submission file
+    └── plots/
+        ├── *.png              # All generated plots
+        └── ...
+
+Advanced Features
+-----------------
+
+**Meta-Labeling:**
+    Triple Barrier Method for financial ML applications
+
+**Time Series Support:**
+    Lag features, rolling statistics, and proper CV splits
+
+**GPU Acceleration:**
+    Automatic GPU usage for XGBoost, LightGBM, and CatBoost
+
+**Distributed Training:**
+    Support for distributed training on clusters
+
+**AutoML Integration:**
+    Automated feature engineering and model selection
+
+Best Practices
+--------------
+
+1. **Start Simple** - Begin with a few algorithms and basic features
+2. **Iterate Quickly** - Use small grid search iterations initially
+3. **Monitor Overfitting** - Watch train/validation score gaps
+4. **Feature Engineering** - Spend time on domain-specific features
+5. **Ensemble Wisely** - Combine diverse models for best results
+6. **Track Experiments** - Use the timestamped runs for comparison
+
+For specific domain applications, see:
+
+* :doc:`market_flow` - Financial market analysis and trading strategies

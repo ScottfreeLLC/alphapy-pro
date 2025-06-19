@@ -1,5 +1,5 @@
-AlphaPy Documentation
-=====================
+AlphaPy Pro Documentation
+=========================
 
 .. toctree::
    :maxdepth: 2

@@ -1,276 +1,370 @@
 MarketFlow
 ==========
 
-**MarketFlow** transforms financial market data into machine learning
-models for making market predictions. The platform gets stock price
-data from Yahoo Finance (end-of-day) and Google Finance (intraday),
-transforming the data into canonical form for training and testing.
-MarketFlow is powerful because you can easily apply new features
-to groups of stocks simultaneously using our *Variable Definition
-Language* (VDL). All of the dataframes are aggregated and split
-into training and testing files for input into *AlphaPy*.
+**MarketFlow** (``mflow``) is AlphaPy Pro's specialized pipeline for financial market
+analysis and algorithmic trading. It transforms raw market data into machine learning
+models for market predictions, portfolio optimization, and systematic trading strategies.
 
 .. image:: market_pipeline.png
-   :alt: Market Pipeline
+   :alt: MarketFlow Pipeline
    :width: 100%
    :align: center
 
-Data Sources
-------------
+Overview
+--------
 
-MarketFlow gets daily stock prices from Yahoo Finance and intraday
-stock prices from Google Finance. Both data sources have the standard
-primitives: ``Open``, ``High``, ``Low``, ``Close``, and ``Volume``.
-For daily data, there is a ``Date`` timestamp and for intraday data,
-there is a ``Datetime`` timestamp. We augment the intraday data with
-a ``bar_number`` field to mark the end of the trading day. All trading
-days do not end at 4:00 pm EST, as there are holiday trading days
-that are shortened.
+MarketFlow provides a complete workflow for quantitative finance:
 
-.. csv-table:: Amazon Daily Stock Prices (Source: Yahoo)
-   :file: amzn_daily.csv
+1. **Data Acquisition** - Fetch market data from multiple sources
+2. **Feature Engineering** - Create technical indicators and market features
+3. **Signal Generation** - Build predictive models for market movements
+4. **Portfolio Construction** - Optimize position sizing and risk management
+5. **Backtesting** - Evaluate strategy performance with realistic assumptions
 
-.. note:: Normal market hours are 9:30 am to 4:00 pm EST. Here, we
-   retrieved the data from the CST time zone, one hour ahead.
-
-.. csv-table:: Amazon Intraday Stock Prices (Source: Google)
-   :file: amzn_intraday.csv
-
-.. note:: You can get Google intraday data going back a maximum of
-   50 days. If you want to build your own historical record, then
-   we recommend that you save the data on an ongoing basis for a
-   a larger backtesting window.
-
-Domain Configuration
---------------------
-
-The market configuration file (``market.yml``) is written in YAML
-and is divided into logical sections reflecting different parts
-of **MarketFlow**. This file is stored in the ``config`` directory
-of your project, along with the ``model.yml`` and ``algos.yml`` files.
-The ``market`` section has the following parameters:
-
-``data_history``:  
-    Number of periods of historical data to retrieve.
-
-``forecast_period``:
-    Number of periods to forecast for the target variable.
-
-``fractal``: 
-    The time quantum for the data feed, represented by an integer
-    followed by a character code. The string "1d" is one day, and
-    "5m" is five minutes.
-
-``leaders``: 
-    A list of features that are coincident with the target variable.
-    For example, with daily stock market data, the ``Open`` is
-    considered to be a leader because it is recorded at the market
-    open. In contrast, the daily ``High`` or ``Low`` cannot be
-    known until the the market close.
-
-``predict_history``: 
-    This is the minimum number of periods required to derive all
-    of the features in prediction mode on a given date. If you use
-    a rolling mean of 50 days, then the ``predict_history`` should
-    be set to at least 50 to have a valid value on the prediction
-    date.
-
-``schema``: 
-    This string uniquely identifies the subject matter of the data.
-    A schema could be ``prices`` for identifying market data.
-
-``target_group``:  
-    The name of the group selected from the ``groups`` section,
-    e.g., a set of stock symbols.
-
-.. literalinclude:: market.yml
-   :language: yaml
-   :caption: **market.yml**
-
-Group Analysis
---------------
-
-The cornerstone of MarketFlow is the *Analysis*. You can create
-models and forecasts for different groups of stocks. The purpose
-of the analysis object is to gather data for all of the group
-members and then consolidate the data into train and test files.
-Further, some features and the target variable have to be adjusted
-(lagged) to avoid data leakage.
-
-A group is simply a collection of symbols for analysis. In this
-example, we create different groups for technology stocks, ETFs,
-and a smaller group for testing. To create a model for a given
-group, simply set the ``target_group`` in the ``market`` section
-of the market.yml file and run ``mflow``.
-
-.. literalinclude:: market.yml
-   :language: yaml
-   :caption: **market.yml**
-   :lines: 10-51
-
-Variables and Aliases
----------------------
-
-Because market analysis encompasses a wide array of technical indicators,
-you can define features using the *Variable Definition Language* (VDL).
-The concept is simple: flatten out a function call and its parameters
-into a string, and that string represents the variable name. You can
-use the technical analysis functions in AlphaPy, or define your own.
-
-Let's define a feature that indicates whether or not a stock is above
-its 50-day closing moving average. The *alphapy.market_variables*
-module has a function ``ma`` to calculate a rolling mean. It has two
-parameters: the name of the dataframe's column and the period over
-which to calculate the mean. So, the corresponding variable name is
-``ma_close_50``.
-
-Typically, a moving average is calculated with the closing price,
-so we can define an alias ``cma`` which represents the closing
-moving average. An alias is simply a substitution mechanism for
-replacing one string with an abbreviation. Instead of ``ma_close_50``,
-we can now refer to ``cma_50`` using an alias.
-
-Finally, we can define the variable ``abovema`` with a relational
-expression. Note that numeric values in the expression can be
-substituted when defining features, e.g., ``abovema_20``.
-
-.. code-block:: yaml
-   :caption: **market.yml**
-
-   features: ['abovema_50']
-
-   aliases:
-       cma        : 'ma_close'
-
-   variables:
-       abovema    : 'close > cma_50'
-
-Here are more examples of aliases.
-
-.. literalinclude:: market.yml
-   :language: yaml
-   :caption: **market.yml**
-   :lines: 71-104
-
-Variable expressions are valid Python expressions, with the addition
-of offsets to reference previous values.
-
-.. literalinclude:: market.yml
-   :language: yaml
-   :caption: **market.yml**
-   :lines: 106-134
-
-Once the aliases and variables are defined, a foundation is established
-for defining all of the features that you want to test. 
-
-.. literalinclude:: market.yml
-   :language: yaml
-   :caption: **market.yml**
-   :lines: 53-69
-
-Trading Systems
----------------
-
-.. image:: system_pipeline.png
-   :alt: Market Pipeline
-   :width: 100%
-   :align: center
-
-MarketFlow provides two out-of-the-box trading systems. The first is
-a long/short system that you define using the system features in the
-configuration file ``market.yml``. When MarketFlow detects a system
-in the file, it knows to execute that particular long/short strategy.
-
-.. literalinclude:: system.yml
-   :language: yaml
-   :caption: **market.yml**
-
-``name``:  
-    Unique identifier for the trading system.
-
-``holdperiod``:
-    Number of periods to hold an open position.
-
-``longentry``: 
-    A conditional feature to establish when to open a long position.
-
-``longexit``: 
-    A conditional feature to establish when to close a long position.
-
-``shortentry``: 
-    A conditional feature to establish when to open a short position.
-
-``shortexit``: 
-    A conditional feature to establish when to close a short position.
-
-``scale``:  
-    When ``True``, add to a position in the same direction. The default
-    action is not to scale positions.
-
-The second system is an *open range breakout* strategy. The premise
-of the system is to wait for an established high-low range in the
-first n minutes (e.g., 30) and then wait for a breakout of either
-the high or the low, especially when the range is relatively
-narrow. Typically, a stop-loss is set at the other side of the
-breakout range.
-
-After a system runs, four output files are stored in the ``system``
-directory; the first three are formatted for analysis by Quantopian's
-**pyfolio** package. The last file is the list of trades generated
-by MarketFlow based on the system specifications.
-
-* [group]_[system]_transactions_[fractal].csv
-* [group]_[system]_positions_[fractal].csv
-* [group]_[system]_returns_[fractal].csv
-* [group]_[system]_trades_[fractal].csv
-
-If we developed a moving average crossover system on daily data for
-technology stocks, then the trades file could be named:
-
-    tech_xma_trades_1d.csv
-
-The important point here is to reserve a namespace for different
-combinations of groups, systems, and fractals to compare performance
-over space and time.
-
-Model Configuration
+Modern Data Sources
 -------------------
 
-MarketFlow runs on top of AlphaPy, so the ``model.yml`` file has
-the same format. In the following example, note the use of treatments
-to calculate runs for a set of features.
+AlphaPy Pro MarketFlow supports multiple professional-grade data providers:
 
-.. literalinclude:: market_model.yml
-   :language: text
-   :caption: **model.yml**
+**Primary Data Sources:**
 
-Creating the Model
-------------------
+* **EODHD (End of Day Historical Data)** - Daily and intraday market data
+* **Yahoo Finance** - Free daily stock data via yfinance
+* **Polygon** - Professional real-time and historical market data
+* **IEX Cloud** - Financial data API with extensive coverage
 
-First, change the directory to your project location,
-where you have already followed the :doc:`../user_guide/project`
-specifications::
+**Legacy Support:**
 
-    cd path/to/project
+* **Google Finance** - Deprecated (API discontinued in 2017)
+* **Quandl** - Limited free tier available
 
-Run this command to train a model::
+.. note:: Google Finance intraday data is no longer available. Modern applications
+   should use EODHD or Polygon for intraday data requirements.
 
-    mflow
+Data Format and Structure
+-------------------------
 
-Usage::
+MarketFlow standardizes all market data into a consistent format:
 
-    mflow [--train | --predict] [--tdate yyyy-mm-dd] [--pdate yyyy-mm-dd]
+**Daily Market Data (OHLCV):**
 
---train     Train a new model and make predictions (Default)
---predict   Make predictions from a saved model
---tdate     The training date in format YYYY-MM-DD (Default: Earliest Date in the Data)
---pdate     The prediction date in format YYYY-MM-DD (Default: Today's Date)
+.. code-block:: csv
 
-Running the Model
+    Date,Open,High,Low,Close,Volume,Symbol
+    2024-01-02,185.64,186.89,183.86,185.64,52844800,AAPL
+    2024-01-03,184.97,185.89,182.73,184.25,58414800,AAPL
+
+**Intraday Market Data:**
+
+.. code-block:: csv
+
+    Datetime,Open,High,Low,Close,Volume,Symbol,bar_number
+    2024-01-02 09:30:00,185.64,185.89,185.30,185.50,125400,AAPL,1
+    2024-01-02 09:31:00,185.50,185.75,185.25,185.60,98300,AAPL,2
+
+Configuration
+-------------
+
+MarketFlow uses a hierarchical configuration system combining multiple YAML files:
+
+**market.yml** - Market-specific configuration:
+
+.. code-block:: yaml
+
+    market:
+        data_history      : 252              # Trading days of history
+        forecast_period   : 1                # Days to forecast
+        fractal          : '1d'              # Time frame (1d, 1h, 5m)
+        leaders          : ['open']          # Features available at market open
+        predict_history  : 100               # Min periods for prediction
+        schema           : 'prices'          # Data schema identifier
+        target_group     : 'tech'            # Symbol group to analyze
+
+    groups:
+        tech:
+            - AAPL
+            - MSFT
+            - GOOGL
+            - META
+            - TSLA
+        
+        crypto:
+            - BTC-USD
+            - ETH-USD
+            - ADA-USD
+        
+        etf:
+            - SPY
+            - QQQ
+            - IWM
+
+**Data Source Configuration:**
+
+.. code-block:: yaml
+
+    data_sources:
+        primary: 'eodhd'                    # Primary data source
+        fallback: 'yahoo'                   # Fallback source
+        
+        eodhd:
+            api_key: 'your_api_key'
+            base_url: 'https://eodhistoricaldata.com/api/'
+            
+        polygon:
+            api_key: 'your_polygon_key'
+            base_url: 'https://api.polygon.io/'
+
+Variable Definition Language (VDL)
+----------------------------------
+
+MarketFlow includes a powerful Variable Definition Language for creating
+technical indicators and custom features:
+
+**Basic Technical Indicators:**
+
+.. code-block:: yaml
+
+    variables:
+        # Moving averages
+        sma_20: 'mean(close, 20)'           # Simple moving average
+        ema_12: 'ewm(close, 12)'            # Exponential moving average
+        
+        # Momentum indicators  
+        rsi_14: 'rsi(close, 14)'            # Relative Strength Index
+        macd: 'macd(close, 12, 26, 9)'      # MACD
+        
+        # Volatility indicators
+        bb_upper: 'bollinger_upper(close, 20, 2)'  # Bollinger Bands
+        atr_14: 'atr(high, low, close, 14)'        # Average True Range
+        
+        # Volume indicators
+        obv: 'on_balance_volume(close, volume)'     # On Balance Volume
+        vwap: 'volume_weighted_average_price(high, low, close, volume)'
+
+**Custom Expressions:**
+
+.. code-block:: yaml
+
+    variables:
+        # Price relationships
+        above_sma: 'close > sma_20'         # Boolean: price above SMA
+        price_momentum: 'close / sma_50'    # Price relative to trend
+        
+        # Volatility measures
+        daily_return: 'pct_change(close, 1)'
+        volatility: 'std(daily_return, 20)'
+        
+        # Multi-timeframe
+        weekly_high: 'resample(high, "W", "max")'
+
+**Aliases for Convenience:**
+
+.. code-block:: yaml
+
+    aliases:
+        cma: 'sma_close'                    # Closing moving average
+        vol: 'volume'                       # Volume shorthand
+        ret: 'pct_change(close, 1)'         # Daily returns
+
+Advanced Features
 -----------------
 
-In the project location, run ``mflow`` with the ``predict`` flag.
-MarketFlow will automatically create the ``predict.csv`` file using
-the ``pdate`` option::
+**Meta-Labeling:**
 
-    mflow --predict [--pdate yyyy-mm-dd]
+MarketFlow implements the Triple Barrier Method for advanced financial ML:
+
+.. code-block:: yaml
+
+    model:
+        meta_labeling:
+            option: True
+            profit_target: 0.02             # 2% profit target
+            stop_loss: 0.01                 # 1% stop loss
+            max_holding: 5                  # Max holding period (days)
+            volatility_window: 20           # Volatility calculation window
+
+**Time Series Cross-Validation:**
+
+Proper time series validation that respects temporal order:
+
+.. code-block:: yaml
+
+    model:
+        time_series:
+            option: True
+            cv_method: 'time_series_split'   # Time-aware CV
+            test_size: 0.2                   # Recent 20% for testing
+            gap: 1                           # Gap between train/test
+
+**Portfolio Optimization:**
+
+.. code-block:: yaml
+
+    portfolio:
+        optimization: 'mean_variance'        # Optimization method
+        max_weight: 0.1                     # Max position size
+        rebalance_freq: 'monthly'           # Rebalancing frequency
+        transaction_cost: 0.001             # 10 bps transaction cost
+
+Running MarketFlow
+------------------
+
+**Basic Usage:**
+
+.. code-block:: bash
+
+    # Train models for default group
+    mflow
+    
+    # Train with specific date range
+    mflow --tdate 2020-01-01 --pdate 2023-12-31
+    
+    # Generate predictions only
+    mflow --predict
+
+**Configuration Options:**
+
+.. code-block:: bash
+
+    # Use different data source
+    mflow --source eodhd
+    
+    # Extended history
+    mflow --history 500
+    
+    # Different time frame
+    mflow --fractal 1h
+
+Output Structure
+----------------
+
+MarketFlow generates comprehensive output for analysis:
+
+.. code-block:: text
+
+    runs/run_YYYYMMDD_HHMMSS/
+    ├── config/
+    │   ├── market.yml
+    │   └── model.yml
+    ├── data/
+    │   ├── features/              # Engineered features
+    │   ├── prices/                # Raw price data
+    │   └── indicators/            # Technical indicators
+    ├── models/
+    │   ├── signal_model.pkl       # Trained prediction model
+    │   └── portfolio_model.pkl    # Portfolio optimization
+    ├── predictions/
+    │   ├── signals.csv            # Model predictions
+    │   └── positions.csv          # Portfolio positions
+    └── analysis/
+        ├── backtest_results.html  # Performance report
+        ├── factor_analysis.csv    # Factor attribution
+        └── risk_metrics.csv       # Risk analytics
+
+Trading Systems Integration
+---------------------------
+
+MarketFlow can generate trading signals for various execution platforms:
+
+**Signal Generation:**
+
+.. code-block:: yaml
+
+    systems:
+        long_short:
+            signal_long: 'prediction > 0.6'     # Long threshold
+            signal_short: 'prediction < 0.4'    # Short threshold
+            max_positions: 20                   # Position limit
+            
+        momentum:
+            signal_long: 'close > sma_20 and rsi_14 < 70'
+            signal_exit: 'close < sma_20 or rsi_14 > 80'
+
+**Risk Management:**
+
+.. code-block:: yaml
+
+    risk:
+        max_portfolio_vol: 0.15             # 15% max portfolio volatility
+        max_individual_weight: 0.05         # 5% max individual position
+        stop_loss: 0.02                     # 2% stop loss
+        profit_target: 0.04                 # 4% profit target
+
+Example Applications
+--------------------
+
+**1. Momentum Strategy:**
+
+.. code-block:: yaml
+
+    target: 'future_return_5d > 0.02'       # 2% return in 5 days
+    features:
+        - 'rsi_14'
+        - 'macd_signal'
+        - 'volume_ratio_20'
+        - 'price_momentum_50'
+
+**2. Mean Reversion:**
+
+.. code-block:: yaml
+
+    target: 'future_return_1d'
+    features:
+        - 'zscore_close_20'                  # Z-score of price
+        - 'rsi_oversold'                     # RSI < 30
+        - 'bollinger_position'              # Position in Bollinger Bands
+
+**3. Multi-Asset Strategy:**
+
+.. code-block:: yaml
+
+    groups:
+        universe:
+            - SPY    # S&P 500
+            - TLT    # 20+ Year Treasury
+            - GLD    # Gold
+            - VIX    # Volatility
+    
+    features:
+        - 'correlation_spy_20'
+        - 'relative_strength'
+        - 'regime_indicator'
+
+Performance Analytics
+---------------------
+
+MarketFlow provides comprehensive performance analysis:
+
+**Returns Analysis:**
+* Total return and CAGR
+* Sharpe ratio and Sortino ratio  
+* Maximum drawdown
+* Win rate and profit factor
+
+**Risk Metrics:**
+* Value at Risk (VaR)
+* Conditional VaR (CVaR)
+* Beta and correlation analysis
+* Factor exposure analysis
+
+**Trading Metrics:**
+* Transaction costs
+* Turnover and capacity
+* Implementation shortfall
+* Market impact analysis
+
+Best Practices
+--------------
+
+1. **Data Quality** - Validate data sources and handle corporate actions
+2. **Feature Engineering** - Focus on regime-aware features
+3. **Walk-Forward Analysis** - Use time-series cross-validation
+4. **Risk Management** - Implement proper position sizing
+5. **Transaction Costs** - Account for realistic trading costs
+6. **Out-of-Sample Testing** - Reserve recent data for final validation
+
+For detailed examples, see the ``projects/`` directory which includes:
+
+* Shannon's Demon trading strategy
+* Time series momentum models  
+* Triple barrier method implementations

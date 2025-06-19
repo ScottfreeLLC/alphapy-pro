@@ -1,26 +1,26 @@
 Introduction
 ============
 
-**AlphaPy** is a machine learning framework for both speculators and
-data scientists. It is written in Python with the ``scikit-learn``
-and ``pandas`` libraries, as well as many other helpful libraries
-for feature engineering and visualization. Here are just some of the
-things you can do with AlphaPy:
+**AlphaPy Pro** is an advanced machine learning framework for data scientists
+and quantitative traders. Built on top of ``scikit-learn``, ``pandas``, and
+modern ML libraries, it provides a comprehensive toolkit for feature engineering,
+model development, and systematic trading. Here are just some of the things you
+can do with AlphaPy Pro:
 
-* Run machine learning models using ``scikit-learn`` and ``xgboost``.
-* Create models for analyzing the markets with *MarketFlow*.
-* Predict sporting events with *SportFlow*.
-* Develop trading systems and analyze portfolios using *MarketFlow*
-  and Quantopian's ``pyfolio``.
+* Build and optimize ML models using ``scikit-learn``, ``XGBoost``, ``LightGBM``, and ``CatBoost``.
+* Analyze financial markets with *MarketFlow* using multiple data providers.
+* Implement advanced trading strategies with meta-labeling and the Triple Barrier Method.
+* Develop and backtest trading systems with portfolio analysis.
+* Implement custom domain-specific pipelines for specialized applications.
 
-The ``alphapy`` package is the base platform. The *domain* pipelines
-MarketFlow (``mflow``) and SportFlow (``sflow``) run on top of
-``alphapy``. As shown in the diagram below, we separate the domain
-pipeline from the model pipeline. The main job of a domain pipeline
-is to transform the raw application data into canonical form, i.e.,
-a training set and a testing set. The model pipeline is flexible
-enough to handle any project and evolved over many Kaggle
-competitions.
+The ``alphapy`` package is the core platform providing the ML pipeline.
+The *domain* pipeline MarketFlow (``mflow``) runs on top of ``alphapy``
+for financial market analysis. As shown in the diagram below, we separate
+the domain pipeline from the model pipeline. The domain pipeline transforms
+raw application data into canonical form—training and testing sets—while
+the model pipeline handles feature engineering, model training, and evaluation.
+This architecture has been refined through numerous Kaggle competitions and
+real-world trading applications.
 
 .. image:: alphapy_pipeline.png
    :alt: AlphaPy Model Pipeline
@@ -77,35 +77,55 @@ problem.
 
 Classification Algorithms:
 
-* AdaBoost
-* Extra Trees
-* Gradient Boosting
-* K-Nearest Neighbors
-* Logistic Regression
-* Support Vector Machine (including Linear)
-* Naive Bayes (including Multinomial)
-* Radial Basis Functions
-* Random Forests
-* XGBoost Binary and Multiclass
+* CatBoost (CATB)
+* LightGBM (LGB)
+* XGBoost (XGB) Binary and Multiclass
+* Random Forests (RF)
+* Extra Trees (EXT)
+* Gradient Boosting (GB)
+* Logistic Regression (LOGR)
+* K-Nearest Neighbors (KNN)
+* Support Vector Machine (SVM)
+* Naive Bayes (NB)
+* AdaBoost (ADA)
 
 Regression Algorithms:
 
-* Extra Trees
-* Gradient Boosting
-* K-Nearest Neighbor
+* CatBoost Regressor
+* LightGBM Regressor
+* XGBoost Regressor
+* Random Forest Regressor
+* Extra Trees Regressor
+* Gradient Boosting Regressor
 * Linear Regression
-* Random Forests
-* XGBoost
+* Ridge Regression
+* Lasso Regression
+* K-Nearest Neighbors Regressor
+
+Key Features
+------------
+
+**AlphaPy Pro** includes several advanced features for modern ML workflows:
+
+* **Meta-Labeling**: Triple Barrier Method for advanced financial ML
+* **Feature Engineering**: Automated feature generation with clustering, interactions, and transformations
+* **Feature Selection**: LOFO (Leave One Feature Out) importance and univariate selection
+* **Model Calibration**: Probability calibration with sigmoid and isotonic methods
+* **Advanced Visualization**: Learning curves, ROC curves, confusion matrices, and feature importance plots
+* **Multiple Data Sources**: EODHD, Yahoo Finance, Polygon, IEX Cloud, and more
+* **Grid Search**: Randomized and systematic hyperparameter optimization
+* **Ensemble Methods**: Model blending and stacking
 
 External Packages
 -----------------
 
-**AlphaPy** relies on a number of key packages in both its model and
-domain pipelines. Although most packages are included in the Anaconda
-Python platform, most of the following packages are not, so please
-refer to the Web or Github site for further information.
+**AlphaPy Pro** leverages cutting-edge ML and data science packages:
 
-* categorical-encoding: https://github.com/scikit-learn-contrib/categorical-encoding
-* imbalanced-learn: https://github.com/scikit-learn-contrib/imbalanced-learn
-* pyfolio: https://github.com/quantopian/pyfolio
-* XGBoost: https://github.com/dmlc/xgboost
+* **Gradient Boosting**: XGBoost, LightGBM, CatBoost
+* **Feature Engineering**: category_encoders, lofo-importance
+* **Imbalanced Learning**: imbalanced-learn (SMOTE, ADASYN, etc.)
+* **Calibration**: venn-abers for probability calibration
+* **Market Data**: yfinance, polygon-api-client, pandas-datareader
+* **Portfolio Analysis**: pyfolio (legacy), custom portfolio analytics
+* **Visualization**: matplotlib, seaborn, plotly
+* **Time Series**: statsmodels, arch

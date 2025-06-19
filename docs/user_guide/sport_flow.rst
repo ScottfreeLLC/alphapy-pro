@@ -1,114 +1,146 @@
-SportFlow
-=========
+SportFlow (Deprecated)
+=====================
 
-.. image:: sports_pipeline.png
-   :alt: Sports Pipeline
-   :width: 100%
-   :align: center
+.. warning::
+   SportFlow is no longer available in AlphaPy Pro. This functionality has been
+   removed from the current version of the framework.
 
-SportFlow applies machine learning algorithms to predict game
-outcomes for matches in any team sport. We created binary features
-(for classification) to determine whether or not a team will
-win the game or even more importantly, cover the spread. We
-also try to predict whether or not a game's total points will
-exceed the *over/under*.
+Migration Guide
+---------------
 
-Of course, there are practical matters to predicting a game's
-outcome. The strength of supervised learning is to improve
-an algorithm's performance with lots of data. While major-league
-baseball has a total of 2,430 games per year, pro football has
-only 256 games per year. College football and basketball are
-somewhere in the middle of this range.
+If you were using SportFlow for sports prediction, consider these alternatives:
 
-The other complication is determining whether or not a model
-for one sport can be used for another. The advantage is that
-combining sports gives us more data. The disadvantage is that
-each sport has unique characteristics that could make a unified
-model infeasible. Still, we can combine the game data to test
-an overall model.
+**Option 1: Use Core AlphaPy Pro Pipeline**
 
-Data Sources
-------------
+You can still build sports prediction models using the core AlphaPy Pro pipeline:
 
-SportFlow starts with minimal game data (lines and scores) and
-expands these data into temporal features such as runs and
-streaks for all of the features. Currently, we do not incorporate
-player data or other external factors, but there are some
-excellent open-source packages such as BurntSushi's *nflgame*
-Python code. For its initial version, SportFlow game data
-must be in the format below:
+1. **Prepare your sports data** in CSV format with features and target variables
+2. **Create a standard project structure**::
 
-.. csv-table:: NCAA Basketball Data
-   :file: ncaa.csv
+    sports_project/
+    ├── config/
+    │   └── model.yml
+    └── data/
+        ├── train.csv
+        └── test.csv
 
-The SportFlow logic is split-apply-combine, as the data are first
-split along team lines, then team statistics are calculated and
-applied, and finally the team data are inserted into the overall
-model frame.
+3. **Configure your model** for classification or regression
+4. **Run the pipeline** using ``alphapy``
 
-Domain Configuration
---------------------
+**Option 2: Create a Custom Domain Pipeline**
 
-The SportFlow configuration file is minimal. You can simulate random
-scoring to compare with a real model. Further, you can experiment
-with the rolling window for run and streak calculations.
+Following the MarketFlow pattern, you can create a custom sports pipeline:
 
-.. literalinclude:: sport.yml
-   :language: yaml
-   :caption: **sport.yml**
+1. **Study the MarketFlow implementation** in ``alphapy/mflow_main.py``
+2. **Create your own sports data processor** that:
+   - Fetches sports data from APIs
+   - Engineers sport-specific features
+   - Prepares data for the core ML pipeline
+3. **Register your pipeline** as a new entry point
 
-``points_max``:
-    Maximum number of simulated points to assign to any single team.
+Example Sports Model Configuration
+----------------------------------
 
-``points_min``: 
-    Minimum number of simulated points to assign to any single team.
+Here's how you might configure a sports prediction model using core AlphaPy Pro:
 
-``random_scoring``: 
-    If ``True``, assign random point values to games [Default: ``False``].
+.. code-block:: yaml
 
-``seasons``: 
-    The yearly list of seasons to evaluate.
+    project:
+        directory: .
+        file_extension: csv
+        submission_file: 'predictions'
 
-``rolling_window``: 
-    The period over which streaks are calculated.
+    model:
+        algorithms: ['CATB', 'LGB', 'XGB', 'RF']
+        type: classification
+        target: 'team_wins'           # Target: 1 if team wins, 0 if loses
+        cv_folds: 5
+        scoring_function: roc_auc
 
-Model Configuration
--------------------
+    data:
+        features: '*'
+        drop: ['game_id', 'date', 'team_name', 'opponent']
+        split: 0.2
 
-SportFlow runs on top of AlphaPy, so the ``model.yml`` file has
-the same format.
+    features:
+        clustering:
+            option: True
+        encoding:
+            type: target               # Good for categorical team/venue data
+        interactions:
+            option: True
+            poly_degree: 2
+        scaling:
+            option: True
+            type: standard
 
-.. literalinclude:: sport_model.yml
-   :language: text
-   :caption: **model.yml**
+Sample Sports Features
+----------------------
 
-Creating the Model
-------------------
+Common features for sports prediction models:
 
-First, change the directory to your project location,
-where you have already followed the :doc:`../user_guide/project`
-specifications::
+**Team Performance Metrics:**
+- Win/loss streaks
+- Points scored vs. points allowed averages
+- Home/away performance splits
+- Rest days between games
 
-    cd path/to/project
+**Matchup Features:**
+- Head-to-head historical records
+- Style matchups (offense vs. defense rankings)
+- Venue factors
+- Weather conditions (for outdoor sports)
 
-Run this command to train a model::
+**Advanced Metrics:**
+- Team efficiency ratings
+- Strength of schedule
+- Recent form indicators
+- Injury reports impact
 
-    sflow
+**Example Feature Engineering:**
 
-Usage::
+.. code-block:: python
 
-    sflow [--train | --predict] [--tdate yyyy-mm-dd] [--pdate yyyy-mm-dd]
+    # Example of creating sports features manually
+    import pandas as pd
+    
+    def create_sports_features(df):
+        # Win streak feature
+        df['win_streak'] = df.groupby('team')['win'].transform(
+            lambda x: x.rolling(window=10).sum()
+        )
+        
+        # Average points in last N games
+        df['avg_points_last_5'] = df.groupby('team')['points'].transform(
+            lambda x: x.rolling(window=5).mean()
+        )
+        
+        # Home field advantage
+        df['home_advantage'] = df['venue'] == 'home'
+        
+        return df
 
---train     Train a new model and make predictions (Default)
---predict   Make predictions from a saved model
---tdate     The training date in format YYYY-MM-DD (Default: Earliest Date in the Data)
---pdate     The prediction date in format YYYY-MM-DD (Default: Today's Date)
+Resources for Sports Analytics
+------------------------------
 
-Running the Model
------------------
+If you're interested in sports analytics, consider these resources:
 
-In the project location, run ``sflow`` with the ``predict`` flag.
-SportFlow will automatically create the ``predict.csv`` file using
-the ``pdate`` option::
+**Data Sources:**
+- Sports Reference APIs
+- ESPN APIs
+- Custom web scraping solutions
 
-    sflow --predict [--pdate yyyy-mm-dd]
+**Python Libraries:**
+- ``sportsreference`` - College and professional sports data
+- ``nba_api`` - NBA data
+- ``nfl_data_py`` - NFL data
+- ``hockey_scraper`` - NHL data
+
+**Alternative Frameworks:**
+- Custom pandas-based pipelines
+- Specialized sports analytics platforms
+- R-based sports modeling packages
+
+For questions about migrating SportFlow functionality or implementing sports
+prediction models, please refer to the core AlphaPy Pro documentation or
+create custom domain pipelines following the MarketFlow example.
