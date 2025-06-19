@@ -731,8 +731,24 @@ def first_fit(model, algo, est):
                                           random_state=seed, shuffle=shuffle_flag)
         eval_set = [(X1, y1), (X2, y2)]
         eval_metric = xgb_score_map[scorer]
-        est.fit(X1, y1.values.ravel(), eval_set=eval_set, eval_metric=eval_metric,
-                early_stopping_rounds=esr)
+        # For newer XGBoost versions, set eval_metric in estimator if possible
+        if hasattr(est, 'set_params'):
+            est.set_params(eval_metric=eval_metric)
+        
+        # Handle early stopping for different XGBoost versions
+        try:
+            # Try newer XGBoost callback approach
+            import xgboost as xgb
+            callback = xgb.callback.EarlyStopping(rounds=esr)
+            est.fit(X1, y1.values.ravel(), eval_set=eval_set, callbacks=[callback])
+        except (AttributeError, TypeError):
+            # Fallback to older approach
+            try:
+                est.fit(X1, y1.values.ravel(), eval_set=eval_set,
+                        early_stopping_rounds=esr)
+            except TypeError:
+                # If both fail, fit without early stopping
+                est.fit(X1, y1.values.ravel(), eval_set=eval_set)
     else:
         est.fit(X_train, y_train.values.ravel())
 

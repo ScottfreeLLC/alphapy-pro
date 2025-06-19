@@ -414,7 +414,7 @@ def vexpr(f, v):
         logger.debug("Found variable root %s: ", root)
         expr = Variable.variables[root].expr
         expr_sub = vsub(vxlag, expr)
-        expr_split = re.split('(\W)', expr_sub)
+        expr_split = re.split(r'(\W)', expr_sub)
         expr_new = ''.join([''.join(['`', e, '`']) if e in f.columns else e for e in expr_split])
         logger.debug("Expression: %s", expr_new)
     else:

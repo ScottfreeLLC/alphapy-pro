@@ -103,12 +103,12 @@ LOGR:
     model_type : classification
     params     : {"max_iter" : 500,
                   "random_state" : seed,
-                  "n_jobs" : n_jobs,
                   "verbose" : verbosity}
     grid       : {"penalty" : ['l2'],
                   "C" : [0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000],
                   "fit_intercept" : [True, False],
-                  "solver" : ['newton-cg', 'lbfgs', 'liblinear', 'sag']}
+                  "solver" : ['newton-cg', 'lbfgs', 'sag'],
+                  "n_jobs" : [1, n_jobs]}
 
 LR:
     # Linear Regression

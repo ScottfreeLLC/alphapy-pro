@@ -437,7 +437,7 @@ def get_google_intraday_data(symbol, lookback_period, fractal):
     # Initialize data frame
     df = pd.DataFrame()
     # Convert fractal to interval
-    interval = 60 * int(re.findall('\d+', fractal)[0])
+    interval = 60 * int(re.findall(r'\d+', fractal)[0])
     # Google has a 50-day limit
     max_days = 50
     if lookback_period > max_days:

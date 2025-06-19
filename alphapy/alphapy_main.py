@@ -365,7 +365,7 @@ def training_pipeline(alphapy_specs, model):
 
     data_dir = SSEP.join([run_dir, 'input'])
     # train data
-    df_train = X_all.iloc[:split_point, :]
+    df_train = X_all.iloc[:split_point, :].copy()
     df_train[target] = y_train
     write_frame(df_train, data_dir, model.train_file, extension, separator, index=False)
     # test data
