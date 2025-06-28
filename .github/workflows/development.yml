@@ -4,10 +4,23 @@ on:
   pull_request:
     branches: [ develop ]
     types: [ opened, synchronize, reopened, ready_for_review ]
+  workflow_dispatch:
+    inputs:
+      skip-validation:
+        description: 'Skip branch name validation'
+        required: false
+        type: boolean
+        default: false
+      test-only:
+        description: 'Run only quick tests (skip other checks)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   validate-branch:
     runs-on: ubuntu-latest
+    if: github.event.inputs.skip-validation != 'true'
     steps:
     - uses: actions/checkout@v4
     
@@ -27,7 +40,7 @@ jobs:
 
   quick-tests:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false || github.event.inputs.test-only == 'true'
     strategy:
       matrix:
         python-version: ["3.12"]  # Quick test on latest supported version
@@ -56,7 +69,7 @@ jobs:
 
   label-pr:
     runs-on: ubuntu-latest
-    if: github.event.action == 'opened'
+    if: github.event.action == 'opened' && github.event.inputs.test-only != 'true'
     steps:
     - name: Label PR based on branch name
       uses: actions/github-script@v6
@@ -86,7 +99,7 @@ jobs:
 
   check-changelog:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false && github.event.inputs.test-only != 'true'
     steps:
     - uses: actions/checkout@v4
       with:

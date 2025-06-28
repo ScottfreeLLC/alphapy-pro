@@ -1,0 +1,80 @@
+name: Manual Workflow Trigger
+
+on:
+  workflow_dispatch:
+    inputs:
+      workflow:
+        description: 'Which workflow to trigger'
+        required: true
+        type: choice
+        options:
+          - 'tests'
+          - 'pre-commit'
+          - 'development'
+          - 'all'
+        default: 'tests'
+      message:
+        description: 'Optional message for the run'
+        required: false
+        type: string
+        default: 'Manually triggered workflow'
+
+jobs:
+  trigger-workflows:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Display trigger information
+      run: |
+        echo "🚀 Manual workflow trigger initiated"
+        echo "Selected workflow: ${{ github.event.inputs.workflow }}"
+        echo "Message: ${{ github.event.inputs.message }}"
+        echo "Triggered by: ${{ github.actor }}"
+        echo "Branch: ${{ github.ref_name }}"
+    
+    - name: Trigger Tests Workflow
+      if: github.event.inputs.workflow == 'tests' || github.event.inputs.workflow == 'all'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'tests.yml',
+            ref: context.ref
+          });
+          console.log('✅ Tests workflow triggered');
+    
+    - name: Trigger Pre-commit Workflow
+      if: github.event.inputs.workflow == 'pre-commit' || github.event.inputs.workflow == 'all'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'pre-commit.yml',
+            ref: context.ref
+          });
+          console.log('✅ Pre-commit workflow triggered');
+    
+    - name: Trigger Development Workflow
+      if: github.event.inputs.workflow == 'development' || github.event.inputs.workflow == 'all'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'development.yml',
+            ref: context.ref,
+            inputs: {
+              'skip-validation': 'true',
+              'test-only': 'true'
+            }
+          });
+          console.log('✅ Development workflow triggered');
+    
+    - name: Summary
+      run: |
+        echo "🎉 Workflow trigger completed!"
+        echo "Check the Actions tab to see the triggered workflows."

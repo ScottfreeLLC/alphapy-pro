@@ -5,13 +5,30 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: 'Python version to test (optional, defaults to all)'
+        required: false
+        type: choice
+        options:
+          - 'all'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+        default: 'all'
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ${{ 
+          github.event.inputs.python-version == '3.10' && ['3.10'] ||
+          github.event.inputs.python-version == '3.11' && ['3.11'] ||
+          github.event.inputs.python-version == '3.12' && ['3.12'] ||
+          fromJSON('["3.10", "3.11", "3.12"]')
+        }}
 
     steps:
     - uses: actions/checkout@v4

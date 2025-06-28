@@ -10,6 +10,13 @@ on:
   # Disable on push for now to avoid fixing all legacy files
   # push:
   #   branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      target-paths:
+        description: 'Paths to run pre-commit on (space-separated)'
+        required: false
+        default: 'tests/ scripts/ docs/ .github/'
+        type: string
 
 jobs:
   pre-commit:
@@ -22,8 +29,10 @@ jobs:
       with:
         python-version: '3.12'
     
-    - name: Run pre-commit on changed files only
+    - name: Run pre-commit on specified paths
       run: |
         pip install pre-commit
-        # Only run on new/modified files in specific directories
-        pre-commit run --files tests/* scripts/* docs/*.md .github/* || true
+        # Use custom paths if provided via workflow_dispatch, otherwise use default paths
+        TARGET_PATHS="${{ github.event.inputs.target-paths || 'tests/ scripts/ docs/ .github/' }}"
+        echo "Running pre-commit on: $TARGET_PATHS"
+        pre-commit run --files $TARGET_PATHS || true
