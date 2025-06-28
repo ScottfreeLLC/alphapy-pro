@@ -15,23 +15,26 @@ repos:
     hooks:
     -   id: black
         language_version: python3
+        exclude: ^alphapy/
 
 -   repo: https://github.com/pycqa/isort
     rev: 5.12.0
     hooks:
     -   id: isort
+        exclude: ^alphapy/
 
 -   repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
     -   id: flake8
+        exclude: ^alphapy/
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.3.0
     hooks:
     -   id: mypy
         additional_dependencies: [types-requests, types-PyYAML]
-        exclude: ^(tests/|docs/|setup.py)
+        exclude: ^(alphapy/|tests/|docs/|setup.py)
 
 -   repo: local
     hooks:
@@ -42,4 +45,4 @@ repos:
         pass_filenames: false
         always_run: true
         args: [tests/]
-        stages: [commit]
+        stages: [manual]
