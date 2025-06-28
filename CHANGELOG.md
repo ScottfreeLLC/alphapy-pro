@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrated from setup.py to pyproject.toml for packaging
 - Updated documentation for modern Python packaging standards
 - Enhanced security by removing API keys from repository history
+- Updated Python version support to 3.10, 3.11, 3.12 (dropped 3.9)
 
 ### Security
 - Removed sensitive API keys and credentials from git history
