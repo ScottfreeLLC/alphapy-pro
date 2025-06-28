@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://alphapy.readthedocs.io/
+    about: Check the official documentation for guides and API reference
+  - name: 💬 Discussions
+    url: https://github.com/ScottFreeLLC/AlphaPy/discussions
+    about: Ask questions and discuss AlphaPy with the community
+  - name: 🔒 Security Issues
+    url: https://github.com/ScottFreeLLC/AlphaPy/security/advisories/new
+    about: Report security vulnerabilities privately

@@ -6,6 +6,18 @@
 
 from setuptools import find_packages
 from setuptools import setup
+import re
+import os
+
+# Read version from package init
+def get_version():
+    init_path = os.path.join('alphapy', '__init__.py')
+    with open(init_path, 'r') as f:
+        content = f.read()
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", content, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
 
 DISTNAME = 'alphapy'
 DESCRIPTION = "AlphaPy: A Machine Learning Pipeline for Speculators"
@@ -15,7 +27,7 @@ MAINTAINER = 'ScottFree LLC [Robert D. Scott II, Mark Conway]'
 MAINTAINER_EMAIL = 'scottfree.analytics@scottfreellc.com'
 URL = "https://github.com/ScottFreeLLC/AlphaPy"
 LICENSE = "Apache License, Version 2"
-VERSION = "3.0.0"
+VERSION = get_version()
 
 classifiers = ['Development Status :: 4 - Beta',
                'Programming Language :: Python',

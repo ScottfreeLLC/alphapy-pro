@@ -38,21 +38,30 @@ Written in Python with `scikit-learn`, `pandas`, and many other powerful librari
 
 ### Installation
 
+#### From PyPI (Recommended)
+```bash
+# Install the latest stable version
+pip install alphapy
+
+# Install with optional dependencies
+pip install alphapy[dev,docs]
+```
+
 #### Development Installation
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/alphapy-pro.git
-cd alphapy-pro
+git clone https://github.com/ScottFreeLLC/AlphaPy.git
+cd AlphaPy
 
-# Install in development mode
-pip install -e .
+# Install in development mode with dev dependencies
+pip install -e .[dev]
 ```
 
 #### From Source
 ```bash
-# Build and install
-python setup.py sdist bdist_wheel
-pip install dist/alphapy_pro-*.whl
+# Build and install using modern packaging
+python -m build
+pip install dist/alphapy-*.whl
 ```
 
 ### Configuration Setup
@@ -189,20 +198,30 @@ make html
 
 ### Testing
 ```bash
-# Run your test suite here
-# The framework doesn't assume a specific testing approach
-# Check your project for testing commands
+# Run tests with pytest
+pytest
+
+# Run tests with coverage
+pytest --cov=alphapy --cov-report=html
+
+# Run specific test files
+pytest tests/test_version.py -v
 ```
 
 ## Requirements
 
-- **Python 3.7+**
+- **Python 3.9+** (3.9, 3.10, 3.11 supported)
 - **pandas**: Data manipulation and analysis
 - **scikit-learn**: Machine learning algorithms
-- **XGBoost**: Gradient boosting framework
-- **LightGBM**: Fast gradient boosting
-- **CatBoost**: Categorical feature gradient boosting
+- **NumPy**: Numerical computing
 - **PyYAML**: Configuration file parsing
+- **matplotlib**: Plotting and visualization
+- **seaborn**: Statistical data visualization
+
+### Optional Dependencies
+- **pytest**: For running tests (install with `pip install alphapy[test]`)
+- **black, isort, flake8**: Code quality tools (install with `pip install alphapy[dev]`)
+- **sphinx**: Documentation building (install with `pip install alphapy[docs]`)
 
 ## Contributing
 
@@ -218,11 +237,14 @@ We welcome contributions to AlphaPy Pro! Here's how you can help:
 
 ```bash
 # Clone your fork
-git clone https://github.com/your-username/alphapy-pro.git
-cd alphapy-pro
+git clone https://github.com/ScottFreeLLC/AlphaPy.git
+cd AlphaPy
 
-# Install in development mode
-pip install -e .
+# Install in development mode with all dev dependencies
+pip install -e .[dev]
+
+# Install pre-commit hooks
+pre-commit install
 
 # Set up configuration
 cd config
@@ -231,11 +253,34 @@ cp sources.yml.template sources.yml
 # Edit with your settings
 ```
 
+### Code Quality
+
+This project uses several tools to maintain code quality:
+
+```bash
+# Format code with black
+black .
+
+# Sort imports with isort
+isort .
+
+# Check code style with flake8
+flake8 .
+
+# Run type checking with mypy
+mypy alphapy/
+
+# Run all pre-commit hooks
+pre-commit run --all-files
+```
+
 ### Code Guidelines
 
-- Follow PEP 8 style guidelines
+- Follow PEP 8 style guidelines (enforced by flake8)
+- Use black for code formatting
 - Add docstrings to new functions and classes
 - Include type hints where appropriate
+- Write tests for new functionality
 - Update CLAUDE.md if adding new development commands
 
 ## License

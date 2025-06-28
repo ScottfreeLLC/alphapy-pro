@@ -1,0 +1,92 @@
+name: ❓ Question
+description: Ask a question about AlphaPy
+title: "[Question]: "
+labels: ["type: question", "status: needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your question! Please check the [documentation](https://alphapy.readthedocs.io/) first to see if your question is already answered.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What would you like to know about AlphaPy?
+      placeholder: How do I...?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Question Category
+      description: What category does your question fall into?
+      options:
+        - "Installation & Setup"
+        - "Usage & How-to"
+        - "Configuration"
+        - "Data Processing"
+        - "Machine Learning"
+        - "Feature Engineering"
+        - "Model Evaluation"
+        - "Troubleshooting"
+        - "Performance"
+        - "API Reference"
+        - "Examples"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Provide any additional context that might help us understand your question better.
+      placeholder: |
+        - What are you trying to accomplish?
+        - What have you tried so far?
+        - Any relevant code snippets?
+
+  - type: textarea
+    id: code-sample
+    attributes:
+      label: Code Sample (if applicable)
+      description: If your question involves code, please provide a minimal example.
+      render: python
+      placeholder: |
+        # Your code here
+        import alphapy
+        
+        # What you're trying to do...
+
+  - type: input
+    id: alphapy-version
+    attributes:
+      label: AlphaPy Version
+      description: What version of AlphaPy are you using?
+      placeholder: e.g., 3.0.0
+
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Additional Information
+      description: Any other information that might be helpful.
+      placeholder: |
+        - Operating system
+        - Python version
+        - Error messages (if any)
+        - Links to relevant documentation
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: By submitting this issue, you agree to the following
+      options:
+        - label: I have searched existing issues and discussions
+          required: true
+        - label: I have checked the documentation
+          required: true

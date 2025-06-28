@@ -1,0 +1,108 @@
+name: Development Workflow
+
+on:
+  pull_request:
+    branches: [ develop ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
+
+jobs:
+  validate-branch:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Validate branch name
+      run: |
+        branch_name="${{ github.head_ref }}"
+        echo "Branch name: $branch_name"
+        
+        # Check if branch follows naming convention
+        if [[ $branch_name =~ ^(feature|bugfix|hotfix)/[a-z0-9-]+ ]]; then
+          echo "✅ Branch name follows convention"
+        else
+          echo "❌ Branch name does not follow convention"
+          echo "Expected format: feature/issue-123-description, bugfix/issue-456-description, or hotfix/description"
+          exit 1
+        fi
+
+  quick-tests:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    strategy:
+      matrix:
+        python-version: ["3.11"]  # Quick test on latest supported version
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .[dev,test]
+    
+    - name: Quick lint check
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    
+    - name: Quick test
+      run: |
+        pytest tests/test_version.py tests/test_imports.py -v
+
+  label-pr:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+    - name: Label PR based on branch name
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const branchName = context.payload.pull_request.head.ref;
+          const prNumber = context.payload.pull_request.number;
+          
+          let labels = [];
+          
+          if (branchName.startsWith('feature/')) {
+            labels.push('type: enhancement');
+          } else if (branchName.startsWith('bugfix/')) {
+            labels.push('type: bug');
+          } else if (branchName.startsWith('hotfix/')) {
+            labels.push('type: bug', 'priority: high');
+          }
+          
+          if (labels.length > 0) {
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: labels
+            });
+          }
+
+  check-changelog:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Check if CHANGELOG.md was updated
+      run: |
+        # Check if this is a feature or bugfix that should update changelog
+        branch_name="${{ github.head_ref }}"
+        
+        if [[ $branch_name =~ ^(feature|bugfix)/ ]]; then
+          if git diff --name-only origin/develop...HEAD | grep -q "CHANGELOG.md"; then
+            echo "✅ CHANGELOG.md was updated"
+          else
+            echo "⚠️ Consider updating CHANGELOG.md for this change"
+            echo "This is not required but recommended for features and bug fixes"
+          fi
+        else
+          echo "ℹ️ CHANGELOG.md update not required for this type of change"
+        fi

@@ -1,3 +1,5 @@
+__version__ = "3.0.0"
+
 # Suppress common warnings for cleaner output
 import warnings
 warnings.filterwarnings('ignore', message='X does not have valid feature names')
