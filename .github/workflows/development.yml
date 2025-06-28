@@ -30,7 +30,7 @@ jobs:
     if: github.event.pull_request.draft == false
     strategy:
       matrix:
-        python-version: ["3.11"]  # Quick test on latest supported version
+        python-version: ["3.12"]  # Quick test on latest supported version
     
     steps:
     - uses: actions/checkout@v4

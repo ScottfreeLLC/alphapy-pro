@@ -210,7 +210,7 @@ pytest tests/test_version.py -v
 
 ## Requirements
 
-- **Python 3.9+** (3.9, 3.10, 3.11 supported)
+- **Python 3.10+** (3.10, 3.11, 3.12 supported)
 - **pandas**: Data manipulation and analysis
 - **scikit-learn**: Machine learning algorithms
 - **NumPy**: Numerical computing
