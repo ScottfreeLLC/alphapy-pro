@@ -193,7 +193,7 @@ make html
 
 ### Clean Up Old Runs
 ```bash
-./cleanup_runs.sh
+./utils/cleanup_runs.sh
 ```
 
 ### Testing

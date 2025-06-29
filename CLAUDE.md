@@ -46,7 +46,7 @@ make clean
 ### Cleanup Utilities
 ```bash
 # Remove old run directories (keeps most recent)
-./cleanup_runs.sh
+./utils/cleanup_runs.sh
 ```
 
 ## Architecture
