@@ -1,12 +1,12 @@
-# Contributing to AlphaPy
+# Contributing to AlphaPy Pro
 
-Thank you for your interest in contributing to AlphaPy! This guide will help you get started with development.
+Thank you for your interest in contributing to AlphaPy Pro! This guide will help you get started with development.
 
 ## Development Setup
 
 ### Prerequisites
 
-- Python 3.9+ (3.9, 3.10, or 3.11)
+- Python 3.10+ (3.10, 3.11, or 3.12)
 - Git
 - pip
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing to AlphaPy! This guide will help you
 
 1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/your-username/AlphaPy.git
-   cd AlphaPy
+   git clone https://github.com/your-username/alphapy-pro.git
+   cd alphapy-pro
    ```
 
 2. **Install in development mode**:

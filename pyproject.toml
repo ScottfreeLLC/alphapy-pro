@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "alphapy"
+name = "alphapy-pro"
 dynamic = ["version"]
-description = "AlphaPy: A Machine Learning Pipeline for Speculators"
+description = "AlphaPy Pro: A Machine Learning Pipeline for Speculators"
 readme = "README.md"
 license = "Apache-2.0"
 authors = [
@@ -75,10 +75,10 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ScottFreeLLC/AlphaPy"
-Documentation = "https://alphapy.readthedocs.io/"
-Repository = "https://github.com/ScottFreeLLC/AlphaPy.git"
-"Bug Tracker" = "https://github.com/ScottFreeLLC/AlphaPy/issues"
+Homepage = "https://github.com/ScottFreeLLC/alphapy-pro"
+Documentation = "https://alphapy-pro.readthedocs.io/"
+Repository = "https://github.com/ScottFreeLLC/alphapy-pro.git"
+"Bug Tracker" = "https://github.com/ScottFreeLLC/alphapy-pro/issues"
 
 [project.scripts]
 alphapy = "alphapy.alphapy_main:main"

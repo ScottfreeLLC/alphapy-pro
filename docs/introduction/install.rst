@@ -1,7 +1,7 @@
 Installation
 ============
 
-AlphaPy Pro requires Python 3.9 or higher. You can install it directly
+AlphaPy Pro requires Python 3.10 or higher. You can install it directly
 from the source repository or via pip after it's published.
 
 Development Installation

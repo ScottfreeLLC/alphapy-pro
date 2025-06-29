@@ -1,6 +1,6 @@
 # GitHub Repository Setup Guide
 
-This guide will help you configure GitHub settings for the AlphaPy project with proper branch protection and workflow management.
+This guide will help you configure GitHub settings for the AlphaPy Pro project with proper branch protection and workflow management.
 
 ## Branch Protection Rules
 

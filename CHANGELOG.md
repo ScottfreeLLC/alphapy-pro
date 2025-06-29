@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0] - 2024-XX-XX
 
 ### Added
-- AlphaPy machine learning framework for speculators and data scientists
+- AlphaPy Pro machine learning framework for speculators and data scientists
 - MarketFlow pipeline for financial market analysis
 - SportFlow pipeline for sports prediction
 - Flexible ML pipeline built on scikit-learn and pandas

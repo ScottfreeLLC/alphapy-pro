@@ -1,10 +1,10 @@
 # Publishing to PyPI
 
-This document explains how AlphaPy is published to PyPI using modern packaging and trusted publishing.
+This document explains how AlphaPy Pro is published to PyPI using modern packaging and trusted publishing.
 
 ## Overview
 
-AlphaPy uses:
+AlphaPy Pro uses:
 - Modern Python packaging with `pyproject.toml`
 - GitHub Actions for automated CI/CD
 - PyPA's trusted publishing for secure PyPI releases

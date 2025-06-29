@@ -50,8 +50,8 @@ pip install alphapy[dev,docs]
 #### Development Installation
 ```bash
 # Clone the repository
-git clone https://github.com/ScottFreeLLC/AlphaPy.git
-cd AlphaPy
+git clone https://github.com/ScottFreeLLC/alphapy-pro.git
+cd alphapy-pro
 
 # Install in development mode with dev dependencies
 pip install -e .[dev]
@@ -61,7 +61,7 @@ pip install -e .[dev]
 ```bash
 # Build and install using modern packaging
 python -m build
-pip install dist/alphapy-*.whl
+pip install dist/alphapy_pro-*.whl
 ```
 
 ### Configuration Setup
@@ -237,8 +237,8 @@ We welcome contributions to AlphaPy Pro! Here's how you can help:
 
 ```bash
 # Clone your fork
-git clone https://github.com/ScottFreeLLC/AlphaPy.git
-cd AlphaPy
+git clone https://github.com/ScottFreeLLC/alphapy-pro.git
+cd alphapy-pro
 
 # Install in development mode with all dev dependencies
 pip install -e .[dev]

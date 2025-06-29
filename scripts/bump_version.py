@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Version bumping script for AlphaPy.
+Version bumping script for AlphaPy Pro.
 
 Usage:
     python scripts/bump_version.py [major|minor|patch]

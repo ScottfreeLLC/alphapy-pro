@@ -1,10 +1,10 @@
-# Git Workflow Guide for AlphaPy
+# Git Workflow Guide for AlphaPy Pro
 
-This document outlines the Git workflow process for contributing to AlphaPy, including branching strategy, pull request process, and release management.
+This document outlines the Git workflow process for contributing to AlphaPy Pro, including branching strategy, pull request process, and release management.
 
 ## Branch Strategy
 
-AlphaPy uses a **GitFlow-inspired** branching model with the following structure:
+AlphaPy Pro uses a **GitFlow-inspired** branching model with the following structure:
 
 ### Main Branches
 
