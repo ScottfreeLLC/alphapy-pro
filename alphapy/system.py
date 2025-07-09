@@ -236,7 +236,7 @@ class SystemRank(object):
         self.short_score = short_score
         self.fractal = fractal
         # add system to systems list
-        System.systems[system_name] = self
+        SystemRank.systems[system_name] = self
 
     # __str__
 
@@ -387,7 +387,7 @@ def trade_ranking(symbol, quantity, system, space, intraday, df_rank):
                     # short active, so exit short
                     tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
                     inshort = False
-                hold = psize =0
+                hold = psize = 0
     return tradelist
 
 
@@ -594,7 +594,7 @@ def trade_metalabel(symbol, quantity, system, space, intraday, df_rank):
                     # short active, so exit short
                     tradelist.append((dt, [symbol, Orders.sx, -psize, c]))
                     inshort = False
-                hold = psize =0
+                hold = psize = 0
     return tradelist
 
 
@@ -691,19 +691,6 @@ def trade_system(symbol, quantity, system, space, intraday):
                 tradelist.append((dt, [symbol, Orders.se, -q, c]))
                 inshort = True
                 p = p - q
-        # check exit conditions
-        if inlong and hold > 0:
-            # long active, so exit long
-            tradelist.append((dt, [symbol, Orders.lx, -p, c]))
-            inlong = False
-            hold = 0
-            p = 0
-        if inshort and hold > 0:
-            # short active, so exit short
-            tradelist.append((dt, [symbol, Orders.sx, -p, c]))
-            inshort = False
-            hold = 0
-            p = 0
         # if a holding period was given, then check for exit
         if forecast_period and hold >= forecast_period:
             if inlong:
@@ -810,7 +797,7 @@ def run_system(model,
         elif model_type == ModelType.ranking:
             tlist_base = trade_ranking(symbol, quantity, system, gspace, intraday, df_rank)
         else:
-            logger.error(f'Unsupport Model Type: {model_type}')
+            logger.error(f'Unsupported Model Type: {model_type}')
         if tlist_base:
             for item in tlist_base:
                 gtlist_base.append(item)
