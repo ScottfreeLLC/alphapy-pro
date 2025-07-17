@@ -1,0 +1,128 @@
+#
+# AlphaPy Configuration for Shannon's Demon Trading Strategy
+#
+
+project:
+    directory         : .
+    file_extension    : csv
+    live_results      : False
+    submission_file   :
+    submit_probas     : False
+
+model:
+    algorithms        : ['AB', 'GB', 'RF', 'XGB']
+    balance_classes   : True
+    calibration       :
+        option        : False
+        type          : sigmoid
+    cv_folds          : 3
+    estimators        : 51
+    grid_search       :
+        option        : False
+        iterations    : 10
+        random        : True
+        subsample     : False
+        sampling_pct  : 0.3
+    ranking           :
+        group_id      :
+        group_size    :
+    pvalue_level      : 0.01
+    rfe               :
+        option        : False
+        step          : 3
+    scoring_function  : f1
+    target            : rebalancesignal_1D
+    time_series       :
+        option        : True
+        date_index    : date
+        forecast      : 1
+        n_lags        : 5
+        group_id      :
+        leaders       : ['open_1D', 'high_1D', 'low_1D', 'volume_1D', 'volatility_20d_1D', 'rsi_14_1D']
+    type              : classification
+
+data:
+    allow_na_targets  : False
+    drop              : []
+    features          : '*'
+    sampling          :
+        option        : True
+        method        : over_random
+        ratio         : 1.0
+    sentinel          : -1
+    separator         : ','
+    shuffle           : False
+    split             : 0.7
+
+features:
+    clustering        :
+        option        : False
+        increment     : 3
+        maximum       : 30
+        minimum       : 3
+    counts            :
+        option        : False
+    encoding          :
+        rounding      : 2
+        type          : target
+    factors           : []
+    interactions      :
+        option        : False
+        poly_degree   : 2
+        sampling_pct  : 10
+    isomap            :
+        option        : False
+        components    : 2
+        neighbors     : 5
+    lofo              :
+        option        : False
+    log_transform     :
+        option        : False
+        pvalue_level  : 0.01
+    numpy             :
+        option        : False
+    pca               :
+        option        : False
+        increment     : 1
+        maximum       : 10
+        minimum       : 2
+        whiten        : False
+    scaling           :
+        option        : True
+        type          : standard
+    scipy             :
+        option        : False
+    text              :
+        ngrams        : 2
+        vectorize     : False
+    tsne              :
+        option        : False
+        components    : 2
+        learning_rate : 1000.0
+        perplexity    : 30.0
+    univariate        :
+        option        : False
+        percentage    : 60
+        uni_grid      : [10, 15, 20, 25, 30]
+        score_func    : f_classif
+    variance          :
+        option        : False
+        threshold     : 0.1
+
+transforms:
+    date              : ['alphapy.transforms', 'dateparts']
+
+pipeline:
+    number_jobs       : -1
+    seed              : 42
+    verbosity         : 1
+
+plots:
+    calibration       : True
+    confusion_matrix  : True
+    importances       : True
+    learning_curve    : True
+    roc_curve         : True
+
+xgboost:
+    stopping_rounds   : 20

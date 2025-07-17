@@ -9,7 +9,7 @@ AB:
                   "random_state" : seed}
     grid       : {"n_estimators" : [10, 50, 100, 150, 200],
                   "learning_rate" : [0.2, 0.5, 0.7, 1.0, 1.5, 2.0],
-                  "algorithm" : ['SAMME', 'SAMME.R']}
+                  "algorithm" : ['SAMME']}
 
 CATB:
     # CatBoost Binary

@@ -2326,3 +2326,157 @@ def zscore(df, c='close', w=20):
     s = r.std(ddof=0).shift(1)
     zscore = (ds - m) / s
     return zscore
+
+
+#
+# Shannon's Demon Functions
+#
+
+
+def wdev(df):
+    r"""Calculate weight deviation based on price movements.
+    
+    Simulates portfolio weight deviation by tracking price changes
+    from a 50/50 rebalanced portfolio assumption.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe with OHLCV data.
+        
+    Returns
+    -------
+    new_column : pandas.Series (float)
+        The simulated weight deviation values.
+    """
+    # Calculate returns and cumulative effect on portfolio weights
+    returns = df['close'].pct_change()
+    # Simulate portfolio drift from 50/50 allocation
+    # This is a simplified version - actual weight deviation from equal allocation
+    cumulative_return = (1 + returns).cumprod()
+    # Weight deviation from 50/50 (0.5 target)
+    current_weight = cumulative_return / (1 + cumulative_return)
+    weight_deviation = current_weight - 0.5
+    return weight_deviation
+
+
+def wdevhigh(df):
+    r"""Determine if weight deviation is high (>= 0.2).
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe with weight_deviation column.
+        
+    Returns
+    -------
+    new_column : pandas.Series (bool)
+        True when absolute weight deviation >= 0.2.
+    """
+    # Ensure wdev column exists
+    if 'wdev' not in df.columns:
+        df['wdev'] = wdev(df)
+    return abs(df['wdev']) >= 0.2
+
+
+def wdevlow(df):
+    r"""Determine if weight deviation is low (<= 0.05).
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe with weight_deviation column.
+        
+    Returns
+    -------
+    new_column : pandas.Series (bool)
+        True when absolute weight deviation <= 0.05.
+    """
+    # Ensure wdev column exists
+    if 'wdev' not in df.columns:
+        df['wdev'] = wdev(df)
+    return abs(df['wdev']) <= 0.05
+
+
+def shannlong(df):
+    r"""Shannon's Demon long signal.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe with weight_deviation column.
+        
+    Returns
+    -------
+    new_column : pandas.Series (bool)
+        True when high weight deviation and positive weight deviation.
+    """
+    # Ensure required columns exist
+    if 'wdev' not in df.columns:
+        df['wdev'] = wdev(df)
+    if 'wdevhigh' not in df.columns:
+        df['wdevhigh'] = wdevhigh(df)
+    return df['wdevhigh'] & (df['wdev'] > 0)
+
+
+def shannshort(df):
+    r"""Shannon's Demon short signal.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe with weight_deviation column.
+        
+    Returns
+    -------
+    new_column : pandas.Series (bool)
+        True when high weight deviation and negative weight deviation.
+    """
+    # Ensure required columns exist
+    if 'wdev' not in df.columns:
+        df['wdev'] = wdev(df)
+    if 'wdevhigh' not in df.columns:
+        df['wdevhigh'] = wdevhigh(df)
+    return df['wdevhigh'] & (df['wdev'] < 0)
+
+
+def shannhold(df):
+    r"""Shannon's Demon hold signal.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe with weight_deviation column.
+        
+    Returns
+    -------
+    new_column : pandas.Series (bool)
+        True when weight deviation is low.
+    """
+    # Ensure required columns exist
+    if 'wdevlow' not in df.columns:
+        df['wdevlow'] = wdevlow(df)
+    return df['wdevlow']
+
+
+def rebalancesignal(df):
+    r"""Shannon's Demon rebalance signal for ML target.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe with Shannon signal columns.
+        
+    Returns
+    -------
+    new_column : pandas.Series (int)
+        1 for rebalancing periods, 0 for hold periods.
+    """
+    # Ensure required columns exist
+    if 'shannlong' not in df.columns:
+        df['shannlong'] = shannlong(df)
+    if 'shannshort' not in df.columns:
+        df['shannshort'] = shannshort(df)
+    
+    # Create binary target: 1 for rebalance (long or short), 0 for hold
+    return (df['shannlong'] | df['shannshort']).astype(int)

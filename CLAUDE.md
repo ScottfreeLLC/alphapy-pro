@@ -86,3 +86,7 @@ Projects are organized under `projects/` with each containing:
 - Entry points are defined in setup.py: `alphapy` and `mflow`
 - The project uses Apache License 2.0
 - Warning suppression is in place for pandas and sklearn deprecations
+
+## Development Environment
+
+- Python Environment: Uses py312 environment located at `/Users/markconway/miniconda3/envs/py312/bin/python`

@@ -110,6 +110,14 @@ dictionary:
     xmadown    : 'MA Crossover Down over Period [F]'
     xmaup      : 'MA Crossover Up over Period[F]'
     zscore     : 'Z-Score over Period [F]'
+    # Shannon's Demon Variables
+    wdev       : 'Portfolio Weight Deviation from Target [F]'
+    rbalprof   : 'Rebalancing Profit Potential [F]'
+    volregime  : 'Volatility Regime Classification [F]'
+    corrshift  : 'Correlation Regime Change [F]'
+    txcost     : 'Transaction Cost Ratio [F]'
+    rebaltime  : 'Time Since Last Rebalance [F]'
+    profitsig  : 'Profitable Rebalancing Signal [F]'
 
 aliases:
     adv        : 'ma_volume'
@@ -149,6 +157,14 @@ aliases:
     vwapm      : 'vwap_close_month'
     vwapq      : 'vwap_close_quarter'
     vwapw      : 'vwap_close_week'
+    # Shannon's Demon Aliases
+    wdev       : 'weight_deviation'
+    rbalprof   : 'rebalance_profit_potential'
+    volregime  : 'volatility_regime'
+    corrshift  : 'correlation_shift'
+    txcost     : 'transaction_cost_ratio'
+    rebaltime  : 'time_since_rebalance'
+    profitsig  : 'profitable_signal'
 
 variables:
     adxhigh    : 'adx >= 35'
@@ -207,3 +223,11 @@ variables:
     vwapshort  : 'vwapd < close'
     volatility : 'atr_20 / close'
     wr         : 'hlrange == rmax_4'
+    # Shannon's Demon Variables (implemented as functions in transforms.py)
+    # wdev, wdevhigh, wdevlow, shannlong, shannshort, shannhold
+    volhigh    : 'volatility >= volatility.quantile(0.75)'
+    vollow     : 'volatility <= volatility.quantile(0.25)'
+    volregime  : 'volhigh * 2 + vollow * (-1)'
+    corrshift  : 'abs(corrshift) >= 0.3'
+    txcost     : '0.001'
+    rebaltime  : 'time_since_rebalance'

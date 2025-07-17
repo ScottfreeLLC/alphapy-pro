@@ -5,3 +5,19 @@
 closer:
     signal_long  : hc
     signal_short : lc
+
+# Shannon's Demon Trading Systems
+shannon_basic:
+    signal_long  : shannlong
+    signal_short : shannshort
+    signal_hold  : shannhold
+
+shannon_profit:
+    signal_long  : profitsig & shannlong
+    signal_short : profitsig & shannshort
+    signal_hold  : ~profitsig
+
+shannon_regime:
+    signal_long  : volhigh & shannlong
+    signal_short : volhigh & shannshort
+    signal_hold  : vollow | shannhold
