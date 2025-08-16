@@ -1,9 +1,9 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
-name = "alphapy-pro"
+name = "alphapy"
 dynamic = ["version"]
 description = "AlphaPy Pro: A Machine Learning Pipeline for Speculators"
 readme = "README.md"
@@ -28,7 +28,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "arrow>=0.13",
     "bokeh>=1.3",
@@ -84,14 +84,17 @@ Repository = "https://github.com/ScottFreeLLC/alphapy-pro.git"
 alphapy = "alphapy.alphapy_main:main"
 mflow = "alphapy.mflow_main:main"
 
-[tool.setuptools]
-packages = {find = {}}
+[tool.hatch.version]
+path = "alphapy/__init__.py"
 
-[tool.setuptools.dynamic]
-version = {attr = "alphapy.__version__"}
+[tool.hatch.build.targets.wheel]
+packages = ["alphapy"]
 
-[tool.setuptools.package-data]
-alphapy = ["*.yml", "*.yaml"]
+[tool.uv]
+dev-dependencies = [
+    "pytest>=6.0",
+    "ruff>=0.1.0",
+]
 
 [tool.black]
 line-length = 88

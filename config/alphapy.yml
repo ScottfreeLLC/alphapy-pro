@@ -1,19 +1,36 @@
 #
-# AlphaPy Main Configuration File
+# AlphaPy Main Configuration File Template
+#
+# INSTRUCTIONS:
+# 1. Copy this file to 'alphapy.yml' (remove the .template extension)
+# 2. Replace all placeholder paths with your actual directory paths
+# 3. The 'alphapy.yml' file is gitignored and will not be committed
 #
 
+# Whether to use the AlphaPy server (usually False for local development)
 use_server: False
 
-data_dir: /Users/markconway/Projects/alphapy-root/alphapy-markets/data
+# Main data directory for storing market data and other datasets
+# Replace with your actual data directory path
+data_dir: /Users/markconway/Projects/alphapy-pro/data
 
+# AlphaPy Flow (main pipeline) configuration
 aflow:
-    project_root: /Users/markconway/Projects/alphapy-root/alphapy-projects
+    # Root directory for AlphaPy projects
+    project_root: /Users/markconway/Projects/alphapy-pro/projects
+    # Server URL (only used if use_server is True)
     server_url: 'http://localhost:8000/'
 
+# Market Flow configuration
 mflow:
-    project_root: /Users/markconway/Projects/alphapy-root/alphapy-markets/Projects
+    # Root directory for market analysis projects
+    project_root: /Users/markconway/Projects/alphapy-pro/projects
+    # Server URL (only used if use_server is True)
     server_url: 'http://localhost:8000/'
 
+# Sport Flow configuration
 sflow:
-    project_root: /Users/markconway/Projects/alphapy-root/alphapy-sports/Projects
+    # Root directory for sports prediction projects
+    project_root: /Users/markconway/Projects/alphapy-pro/projects
+    # Server URL (only used if use_server is True)
     server_url: 'http://localhost:8000/'
