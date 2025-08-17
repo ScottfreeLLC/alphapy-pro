@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system sphinx sphinx-rtd-theme sphinx-autodoc-typehints myst-parser
-          uv pip install --system -e .[docs]
+          uv pip install --system -e .
           
       - name: Setup Pages
         uses: actions/configure-pages@v4
