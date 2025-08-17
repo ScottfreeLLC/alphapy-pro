@@ -17,7 +17,6 @@ AlphaPy Pro Documentation
 
    tutorials/kaggle
    tutorials/market
-   tutorials/ncaab
    tutorials/system
 
 .. toctree::
@@ -27,7 +26,6 @@ AlphaPy Pro Documentation
    user_guide/pipelines
    user_guide/project
    user_guide/market_flow
-   user_guide/sport_flow
 
 .. toctree::
    :maxdepth: 2

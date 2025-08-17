@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "alphapy"
+name = "alphapy-pro"
 dynamic = ["version"]
 description = "AlphaPy Pro: A Machine Learning Pipeline for Speculators"
 readme = "README.md"
@@ -49,6 +49,7 @@ dependencies = [
     "setuptools>=61.0",
     "statsmodels>=0.13.0,<0.15.0",
     "venn-abers>=1.4.1",
+    "xgboost>=3.0.4",
     "yfinance>=0.1.59",
 ]
 
@@ -76,7 +77,7 @@ test = [
 
 [project.urls]
 Homepage = "https://github.com/ScottFreeLLC/alphapy-pro"
-Documentation = "https://alphapy-pro.readthedocs.io/"
+Documentation = "https://scottfreellc.github.io/alphapy-pro/"
 Repository = "https://github.com/ScottFreeLLC/alphapy-pro.git"
 "Bug Tracker" = "https://github.com/ScottFreeLLC/alphapy-pro/issues"
 

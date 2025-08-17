@@ -21,6 +21,7 @@ config/alphapy.yml
 *.swo
 *~
 *.code-workspace
+code
 
 # OS files
 .DS_Store

@@ -1,5 +1,5 @@
-AlphaPy Documentation
-=====================
+AlphaPy Pro Documentation
+=========================
 
 .. toctree::
    :maxdepth: 2
@@ -17,7 +17,6 @@ AlphaPy Documentation
 
    tutorials/kaggle
    tutorials/market
-   tutorials/ncaab
    tutorials/system
 
 .. toctree::
@@ -27,7 +26,6 @@ AlphaPy Documentation
    user_guide/pipelines
    user_guide/project
    user_guide/market_flow
-   user_guide/sport_flow
 
 .. toctree::
    :maxdepth: 2

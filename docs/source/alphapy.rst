@@ -4,14 +4,6 @@ alphapy package
 Submodules
 ----------
 
-alphapy.__main__ module
------------------------
-
-.. automodule:: alphapy.__main__
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 alphapy.alias module
 --------------------
 
@@ -20,10 +12,10 @@ alphapy.alias module
     :undoc-members:
     :show-inheritance:
 
-alphapy.analysis module
------------------------
+alphapy.alphapy_main module
+---------------------------
 
-.. automodule:: alphapy.analysis
+.. automodule:: alphapy.alphapy_main
     :members:
     :undoc-members:
     :show-inheritance:
@@ -84,10 +76,18 @@ alphapy.group module
     :undoc-members:
     :show-inheritance:
 
-alphapy.market_flow module
---------------------------
+alphapy.metalabel module
+------------------------
 
-.. automodule:: alphapy.market_flow
+.. automodule:: alphapy.metalabel
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+alphapy.mflow_main module
+-------------------------
+
+.. automodule:: alphapy.mflow_main
     :members:
     :undoc-members:
     :show-inheritance:
@@ -96,6 +96,14 @@ alphapy.model module
 --------------------
 
 .. automodule:: alphapy.model
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+alphapy.nlp module
+------------------
+
+.. automodule:: alphapy.nlp
     :members:
     :undoc-members:
     :show-inheritance:
@@ -132,14 +140,6 @@ alphapy.space module
     :undoc-members:
     :show-inheritance:
 
-alphapy.sport_flow module
--------------------------
-
-.. automodule:: alphapy.sport_flow
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 alphapy.system module
 ---------------------
 
@@ -168,6 +168,14 @@ alphapy.variables module
 ------------------------
 
 .. automodule:: alphapy.variables
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: alphapy
     :members:
     :undoc-members:
     :show-inheritance:

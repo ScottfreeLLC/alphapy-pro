@@ -1,406 +1,292 @@
 Project Structure
 =================
 
-Setup
------
+Overview
+--------
 
-Your initial configuration must have the following directories and files.
-The directories ``config``, ``data``, and ``input`` store input, and
-the directories ``model``, ``output``, and ``plots`` store output::
+AlphaPy Pro organizes machine learning projects into a standardized directory structure.
+This structure ensures consistency, reproducibility, and easy management of experiments.
 
-    project
-    ├── config
-        ├── model.yml
-        ├── algos.yml
-    └── data
-    └── input
-        ├── train.csv
-        ├── test.csv
-    └── model
-    └── output
-    └── plots
+Basic Project Layout
+--------------------
 
-The top-level directory is the main project directory with a
-unique name. There are six required subdirectories:
+Every AlphaPy Pro project follows this structure::
 
-``config``:
-    This directory contains all of the YAML files. At a minimum, it must
-    contain ``model.yml`` and ``algos.yml``.
+    my_project/
+    ├── config/
+    │   └── model.yml           # Required: model configuration
+    ├── data/
+    │   ├── train.csv          # Training data
+    │   └── test.csv           # Testing data (optional)
+    └── runs/                  # Auto-created: experiment outputs
+        └── run_YYYYMMDD_HHMMSS/
+            ├── config/        # Configuration snapshot
+            ├── input/         # Data snapshots
+            ├── model/         # Trained models
+            ├── output/        # Predictions
+            └── plots/         # Visualizations
 
-``data``: 
-    If required, any data for the domain pipeline is stored here. Data
-    from this directory will be transformed into ``train.csv`` and
-    ``test.csv`` in the ``input`` directory.
+Creating a New Project
+----------------------
 
-``input``: 
-    The training file ``train.csv`` and the testing file ``test.csv``
-    are stored here. Note that these file names can be named anything
-    as configured in the ``model.yml`` file.
+1. **Create the project directory**::
 
-``model``:  
-    The final model is dumped here as a pickle file in the format
-    ``model_[yyyymmdd].pkl``.
+    mkdir -p projects/my_project/{config,data}
+    cd projects/my_project
 
-``output``: 
-    This directory contains predictions, probabilities, rankings,
-    and any submission files:
+2. **Create a model configuration**::
 
-    * ``predictions_[yyyymmdd].csv``
-    * ``probabilities_[yyyymmdd].csv``
-    * ``rankings_[yyyymmdd].csv``
-    * ``submission_[yyyymmdd].csv``
+    # Copy from an example project
+    cp ../kaggle/config/model.yml config/
+    
+    # Or use a minimal template (see below)
 
-``plots``: 
-    All generated plots are stored here. The file name has the
-    following elements:
+3. **Add your data files**::
 
-    * plot name
-    * 'train' or 'test'
-    * algorithm abbreviation
-    * format suffix
+    # Copy your training and test data
+    cp /path/to/train.csv data/
+    cp /path/to/test.csv data/
 
-    For example, a calibration plot for the testing data for all
-    algorithms will be named ``calibration_test.png``. The file
-    name for a confusion matrix for XGBoost training data will be
-    ``confusion_train_XGB.png``.
+4. **Run the pipeline**::
 
-Model Configuration
--------------------
+    alphapy
 
-Here is an example of a model configuration file. It is written in
-YAML and is divided into logical sections reflecting the stages of
-the pipeline. Within each section, you can control different aspects
-for experimenting with model results. Please refer to the following
-sections for more detail.
+Directory Details
+-----------------
 
-.. literalinclude:: titanic.yml
-   :language: yaml
-   :caption: **model.yml**
+**config/**
+    Contains YAML configuration files:
+    
+    * ``model.yml`` - Model pipeline configuration (required)
+    * ``algos.yml`` - Algorithm hyperparameters (optional, uses defaults)
+    * Additional domain-specific configs
 
-Project Section
-~~~~~~~~~~~~~~~
+**data/**
+    Raw input data files:
+    
+    * Training data (required)
+    * Testing data (optional for prediction)
+    * Any supplementary data files
+    * Supports CSV, TSV, and other delimited formats
 
-The ``project`` section has the following keys:
+**runs/**
+    Auto-generated output directories:
+    
+    * Each run creates a timestamped subdirectory
+    * Contains complete experiment artifacts
+    * Preserves reproducibility
 
-``directory``:
-    The full specification of the project location
-``file_extension``:
-    The extension is usually ``csv`` but could also be ``tsv`` or other
-    types using different delimiters between values
-``submission_file``:
-    The file name of the submission template, which is usually provided
-    in Kaggle competitions
-``submit_probas``:
-    Set the value to ``True`` if submitting probabilities, or set to
-    ``False`` if the predictions are the actual labels or real values.
+Model Configuration (model.yml)
+-------------------------------
 
-.. literalinclude:: titanic.yml
-   :language: yaml
-   :caption: **model.yml**
-   :lines: 1-5
-
-.. warning:: If you do not supply a value on the right-hand side of
-   the colon [:], then Python will interpret that key as having
-   a ``None`` value, which is correct. Do not spell out *None*;
-   otherwise, the value will be interpreted as the string 'None'.
-
-Data Section
-~~~~~~~~~~~~
-
-The ``data`` section has the following keys:
-
-``drop``:
-    A list of features to be dropped from the data frame
-``features``:
-    A list of features for training. ``'*'`` means all features
-    will be used in training.
-``sampling``:
-    Resample imbalanced classes with one of the sampling methods
-    in :py:data:`alphapy.data.SamplingMethod`
-``sentinel``:
-    The designated value to replace any missing values
-``separator``:
-    The delimiter separating values in the training and test files
-``shuffle``:
-    If ``True``, randomly shuffle the data.
-``split``:
-    The proportion of data to include in training, which is a fraction
-    between 0 and 1
-``target``:
-    The name of the feature that designates the label to predict
-``target_value``:
-    The value of the target label to predict
-
-.. literalinclude:: titanic.yml
-   :language: yaml
-   :caption: **model.yml**
-   :lines: 7-19
-
-Model Section
-~~~~~~~~~~~~~
-
-The ``model`` section has the following keys:
-
-``algorithms``:
-    The list of algorithms to test for model selection. Refer to
-    :ref:`algo-config` for the abbreviation codes.
-``balance_classes``:
-    If ``True``, calculate sample weights to offset the majority
-    class when training a model.
-``calibration``:
-    Calibrate final probabilities for a classification. Refer to
-    the scikit-learn documentation for Calibration_.
-``cv_folds``:
-    The number of folds for cross-validation
-``estimators``:
-    The number of estimators to be used in the machine learning algorithm,
-    e.g., the number of trees in a random forest
-``feature_selection``:
-    Perform univariate feature selection based on percentile. Refer to
-    the scikit-learn documentation for FeatureSelection_.
-``grid_search``:
-    The grid search is either random with a fixed number of iterations, or
-    it is a full grid search. Refer to the scikit-learn documentation
-    for GridSearch_.
-``pvalue_level``:
-    The p-value threshold to determine whether or not a numerical feature is
-    normally distributed.
-``rfe``:
-    Perform Recursive Feature Elimination (RFE). Refer to the scikit-learn
-    documentation for RecursiveFeatureElimination_.
-``scoring_function``:
-    The scoring function is an objective function for model evaluation. Use one
-    of the values in ScoringFunction_.
-``type``:
-    The model type is either ``classification`` or ``regression``.
-
-.. _Calibration: http://scikit-learn.org/stable/modules/calibration.html#calibration
-
-.. _FeatureSelection: http://scikit-learn.org/stable/modules/feature_selection.html#univariate-feature-selection
-
-.. _GridSearch: http://scikit-learn.org/stable/modules/grid_search.html#grid-search
-
-.. _RecursiveFeatureElimination: http://scikit-learn.org/stable/modules/feature_selection.html#rfe
-
-.. _ScoringFunction: http://scikit-learn.org/stable/modules/model_evaluation.html#common-cases-predefined-values
-
-.. literalinclude:: titanic.yml
-   :language: yaml
-   :caption: **model.yml**
-   :lines: 21-45
-
-Features Section
-~~~~~~~~~~~~~~~~
-
-The ``features`` section has the following keys:
-
-``clustering``:
-    For clustering, specify the minimum and maximum number of clusters
-    and the increment from min-to-max.
-``counts``:
-    Create features that record counts of the NA values, zero values,
-    and the digits 1-9 in each row.
-``encoding``:
-    Encode factors from features, selecting an encoding type and any
-    rounding if necessary. Refer to :py:data:`alphapy.features.Encoders`
-    for the encoding type.
-``factors``:
-    The list of features that are factors.
-``interactions``:
-    Calculate polynomical interactions of a given degree, and select
-    the percentage of interactions included in the feature set.
-``isomap``:
-    Use isomap embedding. Refer to isomap_.
-``logtransform``:
-    For numerical features that do not fit a normal distribution, perform
-    a log transformation.
-``numpy``:
-    Calculate the total, mean, standard deviation, and variance of
-    each row.
-``pca``:
-    For Principal Component Analysis, specify the minimum and maximum
-    number of components, the increment from min-to-max, and whether or
-    not whitening is applied.
-``scaling``:
-    To scale features, specify ``standard`` or ``minmax``.
-``scipy``:
-    Calculate skew and kurtosis for row distributions.
-``text``:
-    If there are text features, then apply vectorization and TF-IDF. If
-    vectorization does not work, then apply factorization.
-``tsne``:
-    Perform t-distributed Stochastic Neighbor Embedding (TSNE), which
-    can be very memory-intensive. Refer to TSNE_.
-``variance``:
-    Remove low-variance features using a specified threshold. Refer to VAR_.
-
-.. _isomap: http://scikit-learn.org/stable/modules/generated/sklearn.manifold.Isomap.html#examples-using-sklearn-manifold-isomap
-
-.. _TSNE: http://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html
-
-.. _VAR: http://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.VarianceThreshold.html
-
-.. literalinclude:: titanic.yml
-   :language: yaml
-   :caption: **model.yml**
-   :lines: 47-92
-
-Treatments Section
-~~~~~~~~~~~~~~~~~~
-
-Treatments are special functions for feature extraction. In the
-``treatments`` section below, we are applying treatments to two
-features *doji* and *hc*. Within the Python list, we are calling
-the ``runs_test`` function of the module *alphapy.features*. The
-module name is always the first element of the list, and the
-the function name is always the second element of the list. The
-remaining elements of the list are the actual parameters to the
-function.
+The ``model.yml`` file controls every aspect of the pipeline. Here's a comprehensive
+example with all major sections:
 
 .. code-block:: yaml
-   :caption: **model.yml**
 
-    treatments:
-        doji : ['alphapy.features', 'runs_test', ['all'], 18]
-        hc   : ['alphapy.features', 'runs_test', ['all'], 18]
+    # Project Configuration
+    project:
+        directory         : .                    # Project root (usually current dir)
+        file_extension    : csv                  # Data file format
+        submission_file   : 'submission'         # Kaggle submission template
+        submit_probas     : False                # Submit probabilities vs labels
 
-Here is the code for the ``runs_test`` function, which calculates
-runs for Boolean features. For a treatment function, the first and
-second arguments are always the same. The first argument ``f`` is
-the data frame, and the second argument ``c`` is the column (or feature)
-to which we are going to apply the treatment. The remaining function
-arguments correspond to the actual parameters that were specified
-in the configuration file, in this case ``wfuncs`` and ``window``.
+    # Model Training Configuration
+    model:
+        algorithms        : ['CATB', 'LGB', 'XGB', 'RF', 'LOGR']
+        balance_classes   : True                 # Handle imbalanced data
+        calibration       :
+            option        : False                # Probability calibration
+            type          : sigmoid              # sigmoid or isotonic
+        cv_folds          : 5                    # Cross-validation folds
+        estimators        : 100                  # Trees for ensemble methods
+        grid_search       :
+            option        : True                 # Enable hyperparameter search
+            iterations    : 50                   # Number of search iterations
+            random        : True                 # Random vs grid search
+            subsample     : False                # Subsample for faster search
+            sampling_pct  : 0.2                  # Subsample percentage
+        pvalue_level      : 0.01                 # Feature selection p-value
+        rfe               :
+            option        : False                # Recursive feature elimination
+            step          : 3                    # Features to remove per step
+        scoring_function  : roc_auc              # Metric for model selection
+        target            : target               # Target column name
+        type              : classification        # classification or regression
 
-.. code-block:: python
-   :caption: **features.py**
+    # Data Processing Configuration
+    data:
+        drop              : ['id', 'timestamp']  # Columns to drop
+        features          : '*'                  # '*' for all, or list specific
+        sampling          :
+            option        : False                # Resample imbalanced classes
+            method        : over_random          # SMOTE, ADASYN, etc.
+            ratio         : 0.5                  # Target ratio
+        sentinel          : -1                   # Missing value replacement
+        separator         : ','                  # CSV delimiter
+        shuffle           : True                 # Shuffle training data
+        split             : 0.2                  # Validation split ratio
 
-    def runs_test(f, c, wfuncs, window):
-        fc = f[c]
-        all_funcs = {'runs'   : runs,
-                     'streak' : streak,
-                     'rtotal' : rtotal,
-                     'zscore' : zscore}
-        # use all functions
-        if 'all' in wfuncs:
-            wfuncs = all_funcs.keys()
-        # apply each of the runs functions
-        new_features = pd.DataFrame()
-        for w in wfuncs:
-            if w in all_funcs:
-                new_feature = fc.rolling(window=window).apply(all_funcs[w])
-                new_feature.fillna(0, inplace=True)
-                frames = [new_features, new_feature]
-                new_features = pd.concat(frames, axis=1)
-            else:
-                logger.info("Runs Function %s not found", w)
-        return new_features
+    # Feature Engineering Configuration
+    features:
+        clustering        :
+            option        : True                 # Create cluster features
+            increment     : 5                    # Cluster increment
+            maximum       : 30                   # Max clusters
+            minimum       : 5                    # Min clusters
+        counts            :
+            option        : True                 # Value count features
+        encoding          :
+            type          : target               # target, onehot, ordinal
+        factors           : ['category1', 'category2']  # Categorical columns
+        interactions      :
+            option        : True                 # Polynomial interactions
+            poly_degree   : 2                    # Interaction degree
+            sampling_pct  : 10                   # Sample for efficiency
+        lofo              :
+            option        : True                 # LOFO importance
+        pca               :
+            option        : False                # Principal components
+            increment     : 1
+            maximum       : 10
+            minimum       : 2
+        scaling           :
+            option        : True                 # Feature scaling
+            type          : standard             # standard, minmax, robust
+        text              :
+            ngrams        : 2                    # For text features
+            vectorize     : False                # TF-IDF vectorization
+        univariate        :
+            option        : True                 # Univariate selection
+            percentage    : 50                   # Features to keep
+            score_func    : f_classif            # Selection function
 
-When the ``runs_test`` function is invoked, a new data frame is
-created, as multiple feature columns may be generated from a
-single treatment function. These new features are returned and
-appended to the original data frame.
+    # Pipeline Configuration
+    pipeline:
+        number_jobs       : -1                   # Parallel jobs (-1 = all CPUs)
+        seed              : 42                   # Random seed
+        verbosity         : 2                    # Logging level (0-3)
 
-Pipeline Section
-~~~~~~~~~~~~~~~~
+    # Visualization Configuration
+    plots:
+        calibration       : True                 # Calibration plots
+        confusion_matrix  : True                 # Confusion matrices
+        importances       : True                 # Feature importance
+        learning_curve    : True                 # Learning curves
+        roc_curve         : True                 # ROC curves
 
-The ``pipeline`` section has the following keys:
+Configuration Sections
+----------------------
 
-``number_jobs``:
-    Number of jobs to run in parallel [-1 for all cores]
-``seed``:
-    A random seed integer to ensure reproducible results
-``verbosity``:
-    The logging level from 0 (no logging) to 10 (highest)
+**Project Section**
+    Controls file I/O and submission formatting:
+    
+    * ``directory`` - Working directory (usually '.')
+    * ``file_extension`` - Input file format
+    * ``submission_file`` - Competition submission template
+    * ``submit_probas`` - Output probabilities or labels
 
-.. literalinclude:: titanic.yml
-   :language: yaml
-   :caption: **model.yml**
-   :lines: 94-97
+**Model Section**
+    Core modeling parameters:
+    
+    * ``algorithms`` - List of ML algorithms to train
+    * ``balance_classes`` - Handle class imbalance
+    * ``calibration`` - Probability calibration options
+    * ``grid_search`` - Hyperparameter optimization
+    * ``scoring_function`` - Evaluation metric
+    * ``type`` - Problem type (classification/regression)
 
-Plots Section
-~~~~~~~~~~~~~
+**Data Section**
+    Data preprocessing options:
+    
+    * ``drop`` - Features to remove
+    * ``features`` - Features to use ('*' for all)
+    * ``sampling`` - Resampling for imbalanced data
+    * ``split`` - Train/validation split ratio
+    * ``target`` - Target variable name
 
-To turn on the automatic generation of any plot in the ``plots``
-section, simply set the corresponding value to ``True``.
+**Features Section**
+    Feature engineering configuration:
+    
+    * ``clustering`` - K-means cluster features
+    * ``encoding`` - Categorical encoding method
+    * ``interactions`` - Polynomial features
+    * ``lofo`` - Leave One Feature Out importance
+    * ``scaling`` - Feature normalization
+    * ``univariate`` - Statistical feature selection
 
-.. literalinclude:: titanic.yml
-   :language: yaml
-   :caption: **model.yml**
-   :lines: 99-104
+**Pipeline Section**
+    Execution parameters:
+    
+    * ``number_jobs`` - Parallelization (-1 for all cores)
+    * ``seed`` - Random seed for reproducibility
+    * ``verbosity`` - Logging detail level
 
-XGBoost Section
-~~~~~~~~~~~~~~~
+**Plots Section**
+    Visualization options:
+    
+    * Enable/disable specific plot types
+    * All plots saved to runs/*/plots/
 
-The ``xgboost`` section has the following keys:
+Algorithm Configuration (algos.yml)
+-----------------------------------
 
-``stopping_rounds``:
-    early stopping rounds for XGBoost
+The optional ``algos.yml`` file defines hyperparameter grids for each algorithm.
+If not provided, sensible defaults are used. Example:
 
-.. literalinclude:: titanic.yml
-   :language: yaml
-   :caption: **model.yml**
-   :lines: 106-107
+.. code-block:: yaml
 
-.. _algo-config:
+    CATB:
+        iterations: [100, 500, 1000]
+        learning_rate: [0.01, 0.05, 0.1]
+        depth: [4, 6, 8]
+        l2_leaf_reg: [1, 3, 5]
 
-Algorithms Configuration
-------------------------
+    LGB:
+        n_estimators: [100, 500, 1000]
+        learning_rate: [0.01, 0.05, 0.1]
+        num_leaves: [31, 63, 127]
+        feature_fraction: [0.8, 0.9, 1.0]
 
-Each algorithm has its own section in the ``algos.yml`` file, e.g.,
-**AB** or **RF**. The following elements are required for every
-algorithm entry in the YAML file:
+    XGB:
+        n_estimators: [100, 500, 1000]
+        learning_rate: [0.01, 0.05, 0.1]
+        max_depth: [3, 5, 7]
+        subsample: [0.8, 0.9, 1.0]
 
-``model_type``:
-    Specify ``classification`` or ``regression``
-``params``
-    The initial parameters for the first fitting
-``grid``:
-    The grid search dictionary for hyperparameter tuning of an
-    estimator. If you are using randomized grid search, then make
-    sure that the total number of grid combinations exceeds the
-    number of random iterations.
-``scoring``:
-    Set to ``True`` if a specific scoring function will be applied.
+Time Series Projects
+--------------------
 
-.. note:: The parameters ``n_estimators``, ``n_jobs``, ``seed``, and
-   ``verbosity`` are informed by the ``model.yml`` file. When the
-   estimators are created, the proper values for these parameters are
-   automatically substituted in the ``algos.yml`` file on a global
-   basis.
+For time series analysis, add these configuration options:
 
-.. literalinclude:: algos.yml
-   :language: yaml
-   :caption: **algos.yml**
+.. code-block:: yaml
 
-Final Output
-------------
+    model:
+        time_series:
+            option        : True
+            date_index    : date                # Date column
+            group_id      : symbol              # Group by column
+            forecast      : 1                   # Forecast horizon
+            n_lags        : 10                  # Lag features
+            leaders       : []                  # Leading indicators
 
-This is an example of your file structure after running the pipeline::
+Best Practices
+--------------
 
-    project
-    ├── alphapy.log
-    ├── config
-        ├── algos.yml
-        ├── model.yml
-    └── data
-    └── input
-        ├── test.csv
-        ├── train.csv
-    └── model
-        ├── feature_map_20170325.pkl
-        ├── model_20170325.pkl
-    └── output
-        ├── predictions_20170325.csv
-        ├── probabilities_20170325.csv
-        ├── rankings_20170325.csv
-        ├── submission_20170325.csv
-    └── plots
-        ├── calibration_train.png
-        ├── confusion_train_RF.png
-        ├── confusion_train_XGB.png
-        ├── feature_importance_train_RF.png
-        ├── feature_importance_train_XGB.png
-        ├── learning_curve_train_RF.png
-        ├── learning_curve_train_XGB.png
-        ├── roc_curve_train.png
+1. **Version Control** - Keep config files in git
+2. **Data Management** - Store large data files outside the repo
+3. **Experiment Tracking** - Use descriptive project names
+4. **Configuration** - Start with defaults, tune incrementally
+5. **Reproducibility** - Always set the random seed
+
+Example Projects
+----------------
+
+The AlphaPy Pro repository includes several example projects:
+
+* ``projects/kaggle/`` - Titanic competition starter
+* ``projects/shannons-demon/`` - Trading strategy implementation
+* ``projects/time-series/`` - Market prediction example
+* ``projects/triple-barrier-method/`` - Advanced financial ML
+
+Each example includes complete configuration files and sample data.

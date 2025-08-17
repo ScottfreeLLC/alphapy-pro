@@ -19,13 +19,13 @@ def get_version():
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
 
-DISTNAME = 'alphapy'
+DISTNAME = 'alphapy-pro'
 DESCRIPTION = "AlphaPy: A Machine Learning Pipeline for Speculators"
 LONG_DESCRIPTION = "alphapy is a Python library for machine learning using scikit-learn. We have a stock market pipeline and a sports pipeline so that speculators can test predictive models, along with functions for trading systems and portfolio management."
 
 MAINTAINER = 'ScottFree LLC [Robert D. Scott II, Mark Conway]'
 MAINTAINER_EMAIL = 'scottfree.analytics@scottfreellc.com'
-URL = "https://github.com/ScottFreeLLC/AlphaPy"
+URL = "https://github.com/ScottFreeLLC/alphapy-pro"
 LICENSE = "Apache License, Version 2"
 VERSION = get_version()
 

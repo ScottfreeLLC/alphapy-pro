@@ -41,10 +41,10 @@ Written in Python with `scikit-learn`, `pandas`, and many other powerful librari
 #### From PyPI (Recommended)
 ```bash
 # Install the latest stable version
-pip install alphapy
+pip install alphapy-pro
 
 # Install with optional dependencies
-pip install alphapy[dev,docs]
+pip install alphapy-pro[dev,docs]
 ```
 
 #### Development Installation
