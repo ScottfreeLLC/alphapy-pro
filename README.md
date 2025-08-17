@@ -1,10 +1,29 @@
 # AlphaPy Pro
 
-|badge_pypi| |badge_downloads| |badge_docs|
+[![Documentation](https://img.shields.io/badge/docs-github%20pages-blue)](https://scottfreellc.github.io/alphapy-pro/)
+[![PyPI version](https://badge.fury.io/py/alphapy-pro.svg)](https://pypi.org/project/alphapy-pro/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Build Status](https://github.com/ScottFreeLLC/alphapy-pro/workflows/Tests/badge.svg)](https://github.com/ScottFreeLLC/alphapy-pro/actions)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 **AlphaPy Pro** is an advanced machine learning framework designed for speculators and data scientists. Building on the foundation of the original AlphaPy, this professional edition offers enhanced features, improved performance, and enterprise-grade capabilities for financial modeling and prediction.
 
 Written in Python with `scikit-learn`, `pandas`, and many other powerful libraries, AlphaPy Pro provides a comprehensive toolkit for feature engineering, model development, and portfolio analysis.
+
+## 🚀 Project Status
+
+- 📦 **Package**: Ready for PyPI publication (alphapy-pro)
+- 📚 **Documentation**: Live on [GitHub Pages](https://scottfreellc.github.io/alphapy-pro/)
+- 🐍 **Python**: Requires 3.12+ (modern Python features)
+- 🔄 **Development**: Actively maintained and enhanced
+
+## ✨ What's New in AlphaPy Pro
+
+- **MetaLabeling Support**: Advanced financial ML labeling techniques
+- **NLP Features**: Natural language processing for sentiment analysis
+- **Enhanced MarketFlow**: Improved financial data pipeline
+- **Modern Packaging**: Built with `uv` for faster dependency management
+- **Python 3.12+**: Leverages latest Python performance improvements
 
 ## Key Features
 
@@ -38,22 +57,30 @@ Written in Python with `scikit-learn`, `pandas`, and many other powerful librari
 
 ### Installation
 
-#### From PyPI (Recommended)
+#### From PyPI (Coming Soon)
 ```bash
 # Install the latest stable version
 pip install alphapy-pro
+
+# Or using uv (faster)
+uv pip install alphapy-pro
 
 # Install with optional dependencies
 pip install alphapy-pro[dev,docs]
 ```
 
-#### Development Installation
+> 📆 **Note**: Package will be available on PyPI shortly. For now, use development installation below.
+
+#### Development Installation (Current)
 ```bash
 # Clone the repository
 git clone https://github.com/ScottFreeLLC/alphapy-pro.git
 cd alphapy-pro
 
-# Install in development mode with dev dependencies
+# Using uv (recommended - faster)
+uv pip install -e .[dev]
+
+# Or using pip
 pip install -e .[dev]
 ```
 
@@ -168,14 +195,9 @@ mflow
 
 ## Documentation
 
-Comprehensive documentation is available in the `docs/` directory:
+📚 **Live Documentation**: [https://scottfreellc.github.io/alphapy-pro/](https://scottfreellc.github.io/alphapy-pro/)
 
-```bash
-cd docs
-make html
-```
-
-Documentation covers:
+Documentation is automatically built and deployed via GitHub Actions. It covers:
 - **Installation and setup**
 - **Configuration guide**
 - **Feature engineering**
@@ -183,10 +205,27 @@ Documentation covers:
 - **Trading systems**
 - **API reference**
 
+### Building Documentation Locally
+```bash
+# Using uv
+uv pip install sphinx sphinx-rtd-theme
+cd docs
+make html
+
+# Or using pip
+pip install sphinx sphinx-rtd-theme
+cd docs
+make html
+```
+
 ## Development
 
 ### Build Documentation
 ```bash
+# Install documentation dependencies
+uv pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
+
+# Build documentation
 cd docs
 make html
 ```
@@ -210,7 +249,7 @@ pytest tests/test_version.py -v
 
 ## Requirements
 
-- **Python 3.10+** (3.10, 3.11, 3.12 supported)
+- **Python 3.12+** (Latest Python features and performance)
 - **pandas**: Data manipulation and analysis
 - **scikit-learn**: Machine learning algorithms
 - **NumPy**: Numerical computing
@@ -219,9 +258,9 @@ pytest tests/test_version.py -v
 - **seaborn**: Statistical data visualization
 
 ### Optional Dependencies
-- **pytest**: For running tests (install with `pip install alphapy[test]`)
-- **black, isort, flake8**: Code quality tools (install with `pip install alphapy[dev]`)
-- **sphinx**: Documentation building (install with `pip install alphapy[docs]`)
+- **pytest**: For running tests (install with `uv pip install alphapy-pro[test]`)
+- **black, isort, flake8**: Code quality tools (install with `uv pip install alphapy-pro[dev]`)
+- **sphinx**: Documentation building (install with `uv pip install alphapy-pro[docs]`)
 
 ## Contributing
 
@@ -241,7 +280,7 @@ git clone https://github.com/ScottFreeLLC/alphapy-pro.git
 cd alphapy-pro
 
 # Install in development mode with all dev dependencies
-pip install -e .[dev]
+uv pip install -e .[dev]
 
 # Install pre-commit hooks
 pre-commit install
@@ -311,6 +350,3 @@ AlphaPy Pro builds upon the foundation of the original AlphaPy framework, incorp
 
 *AlphaPy Pro - Professional Machine Learning for Financial Markets and Beyond*
 
-.. |badge_pypi| image:: https://badge.fury.io/py/alphapy-pro.svg
-.. |badge_docs| image:: https://readthedocs.org/projects/alphapy-pro/badge/?version=latest
-.. |badge_downloads| image:: https://static.pepy.tech/badge/alphapy-pro
