@@ -57,7 +57,7 @@ Written in Python with `scikit-learn`, `pandas`, and many other powerful librari
 
 ### Installation
 
-#### From PyPI (Coming Soon)
+#### From PyPI (Recommended)
 ```bash
 # Install the latest stable version
 pip install alphapy-pro
@@ -69,9 +69,7 @@ uv pip install alphapy-pro
 pip install alphapy-pro[dev,docs]
 ```
 
-> 📆 **Note**: Package will be available on PyPI shortly. For now, use development installation below.
-
-#### Development Installation (Current)
+#### Development Installation
 ```bash
 # Clone the repository
 git clone https://github.com/ScottFreeLLC/alphapy-pro.git

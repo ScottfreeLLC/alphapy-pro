@@ -93,3 +93,15 @@ Projects are organized under `projects/` with each containing:
 - Python Version: 3.12+ (managed by UV)
 - Virtual Environment: `.venv/` (created with `uv venv`)
 - Development Installation: `uv pip install -e ".[dev]"`
+
+## Branching Workflow
+
+- **main**: Production branch - stable releases only
+- **develop**: Development branch - all new features and fixes should be tested here first
+- **feature branches**: Create from develop for new features, merge back to develop
+
+### Development Process
+1. Always work on develop branch or feature branches created from develop
+2. Test changes on develop before merging to main
+3. Create releases from main branch only
+4. Use PR workflow: feature → develop → main
