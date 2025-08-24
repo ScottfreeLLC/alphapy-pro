@@ -14,14 +14,14 @@ AlphaPy Pro is a machine learning framework designed for speculators and data sc
 
 ### Build and Installation
 ```bash
-# Install in development mode
-pip install -e .
+# Install in development mode using UV
+uv pip install -e ".[dev]"
 
 # Build distribution packages
-python setup.py sdist bdist_wheel
+uv run python -m build
 
-# Create conda environment (if environment.yml exists)
-conda env create -f environment.yml
+# Check package integrity
+uv run twine check dist/*
 ```
 
 ### Running AlphaPy
@@ -83,10 +83,13 @@ Projects are organized under `projects/` with each containing:
 
 - The framework separates domain-specific logic from the core ML pipeline
 - All major functionality is configuration-driven through YAML files
-- Entry points are defined in setup.py: `alphapy` and `mflow`
+- Entry points are defined in pyproject.toml: `alphapy` and `mflow`
 - The project uses Apache License 2.0
 - Warning suppression is in place for pandas and sklearn deprecations
 
 ## Development Environment
 
-- Python Environment: Uses py312 environment located at `/Users/markconway/miniconda3/envs/py312/bin/python`
+- Package Management: Uses UV for Python package management
+- Python Version: 3.12+ (managed by UV)
+- Virtual Environment: `.venv/` (created with `uv venv`)
+- Development Installation: `uv pip install -e ".[dev]"`
