@@ -1,0 +1,55 @@
+portfolio:
+    capital         : 100000
+    margin          : 1.0
+    cost_bps        : 0.0
+    kelly_frac      : 0.1
+
+system:
+    system_name     : simpleclose
+    signal_long     : hc
+    signal_short    : lc
+    profit_factor   : 2.0
+    stoploss_factor : 1.0
+    algo            : xgb
+    prob_min        : 
+    prob_max        : 0.5
+
+data:
+    data_source     : polygon
+    data_fractal    : 1D
+    data_history    : 2000
+    data_start_date : 
+    data_end_date   : 
+    data_start_time : "09:30"
+    data_end_time   : "16:00"
+    forecast_period : 5
+    predict_history : 50
+    subject         : stock
+    target_group    : tsla
+    cohort_group    : 
+
+features :
+    1D:    ['adx', 'adxhigh', 'adxlow', 'atr', 'atrhigh', 'atrlow',
+            'bblower', 'bbupper', 'candoji', 'cminuso', 'diminus', 'diplus',
+            'gap', 'gapbadown', 'gapbaup', 'gapdown', 'gapup', 'hahigher', 'inside',
+            'halower', 'hc', 'hc_2', 'hc_4', 'hh', 'hl', 'ho', 'hookdown', 'hookup',
+            'keltnerlb', 'keltnerml', 'keltnerub', 'lc', 'lc_2', 'lc_4', 'lh', 'll', 'lo', 
+            'maabove', 'mabelow', 'madelta_3', 'madelta_5', 'madelta_7', 'madelta_10',
+            'madelta_12', 'madelta_15', 'madelta_18', 'madelta_20', 'madelta_50',
+            'mompos', 'nr_3', 'nr_4', 'nr_5', 'nr_7', 'nr_8', 'nr_10', 'nr_14', 'nr_18',
+            'nr_25', 'nr_50', 'outside', 'pbdown', 'pbup', 'rixhigh', 'rixlow',
+            'roi_1', 'roi_2', 'roi_3', 'roi_4', 'roi_5', 'roi_8', 'roi_10', 'roi_20',
+            'roi_50', 'roihigh', 'roilow', 'roipos_5',
+            'rr_1_4', 'rr_1_7', 'rr_1_10', 'rr_2_5', 'rr_2_7', 'rr_2_10', 'rr_3_8',
+            'rr_3_14', 'rr_4_10', 'rr_4_20', 'rr_5_10', 'rr_5_20', 'rr_5_30', 'rr_6_14',
+            'rr_6_25', 'rr_7_14', 'rr_7_35', 'rr_8_22', 'rr_1_50', 'rr_5_50', 'rr_7_50',
+            'rrhigh', 'rrlow', 'rrover', 'rrunder', 'rsi_2', 'rsi_3', 'rsi_4', 'rsi_5',
+            'rsi_6', 'rsi_8', 'rsi_10', 'rsi_14', 'rsi_20', 'rtotal_hh4_20',
+            'sep', 'sep_2_2', 'sep_3_3', 'sep_4_4', 'sep_5_5', 'sep_6_6', 'sep_7_7',
+            'sep_8_8', 'sep_9_9', 'sep_10_10', 'sep_14_14', 'sep_20_20', 'sep_30_30',
+            'sep_40_40', 'sep_50_50', 'sephigh', 'seplow', 'smav',
+            'tbdown', 'tbup', 'trendown', 'trendup',
+            'ttmsqueeze', 'ttmsqueezelong', 'ttmsqueezeoff', 'ttmsqueezeon', 'ttmsqueezeshort',
+            'vratio', 'vmunder', 'volatility_3', 'volatility_5', 'volatility', 'volatility_20',
+            'vwap', 'wr_2', 'wr_3', 'wr', 'wr_5', 'wr_6', 'wr_7', 'wr_10',
+            'zscore_hh4_20']

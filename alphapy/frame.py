@@ -131,7 +131,7 @@ class Frame(object):
 # Function read_frame
 #
 
-def read_frame(directory, filename, extension, separator, index_col=False):
+def read_frame(directory, filename, extension, separator, index_col=False, dtype=None):
     r"""Read a delimiter-separated file into a data frame.
 
     Parameters
@@ -146,6 +146,8 @@ def read_frame(directory, filename, extension, separator, index_col=False):
         The delimiter between fields in the file.
     index_col : str, optional
         Column to use as the row labels in the dataframe.
+    dtype : dict, optional
+        Dictionary specifying data types for columns.
 
     Returns
     -------
@@ -158,7 +160,8 @@ def read_frame(directory, filename, extension, separator, index_col=False):
     file_spec = SSEP.join([directory, file_only])
     logger.info("Loading data from %s", file_spec)
     try:
-        df = pd.read_csv(file_spec, sep=separator, index_col=index_col, low_memory=False)
+        df = pd.read_csv(file_spec, sep=separator, index_col=index_col, 
+                        low_memory=False, dtype=dtype)
     except:
         df = pd.DataFrame()
         logger.info("Could not find or access %s", file_spec)

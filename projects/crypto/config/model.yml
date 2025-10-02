@@ -1,0 +1,126 @@
+project:
+    directory         : .
+    file_extension    : csv
+    submission_file   :
+    live_results      : True
+    submit_probas     : False
+
+model:
+    algorithms        : ['XGB']
+    balance_classes   : True
+    calibration       :
+        option        : False
+        type          : sigmoid
+    cv_folds          : 3
+    estimators        : 501
+    grid_search       :
+        option        : False
+        iterations    : 100
+        random        : True
+        subsample     : True
+        sampling_pct  : 0.25
+    ranking           :
+        group_id      : date
+        group_size    : 10
+    rfe               :
+        option        : False
+        step          : 10
+    scoring_function  : roc_auc
+    target            : hc_5min
+    time_series       :
+        option        : False
+        date_index    : date
+        forecast      : 1
+        n_lags        : 0
+        group_id      : unique_id
+        leaders       : []
+    type              : classification
+
+data:
+    allow_na_targets  : False
+    drop              : ['index']
+    features          : '*'
+    sampling          :
+        option        : False
+        method        : under_random
+        ratio         : 0.5
+    sentinel          : -1
+    separator         : ','
+    shuffle           : False
+    split             : 0.4
+
+features:
+    clustering        :
+        option        : False
+        increment     : 3
+        maximum       : 30
+        minimum       : 3
+    counts            :
+        option        : False
+    encoding          :
+        rounding      : 3
+        type          : target
+    factors           : []
+    interactions      :
+        option        : False
+        poly_degree   : 2
+        sampling_pct  : 5
+    isomap            :
+        option        : False
+        components    : 2
+        neighbors     : 5
+    lofo              :
+        option        : False
+    log_transform     :
+        option        : False
+        pvalue_level  : 0.01
+    numpy             :
+        option        : False
+    pca               :
+        option        : False
+        increment     : 3
+        maximum       : 15
+        minimum       : 3
+        whiten        : False
+    scaling           :
+        option        : True
+        type          : standard
+    scipy             :
+        option        : False
+    text              :
+        ngrams        : 1
+        vectorize     : False
+    tsne              :
+        option        : False
+        components    : 2
+        learning_rate : 1000.0
+        perplexity    : 30.0
+    univariate        :
+        option        : True
+        percentage    : 25
+        uni_grid      : [5, 10, 15, 20, 25]
+        score_func    : f_classif
+    variance          :
+        option        : True
+        threshold     : 0.2
+
+#transforms:
+#    hc_4_1D           : ['alphapy.transforms', 'runstest', ['all'], 9]
+#    lc_4_1D           : ['alphapy.transforms', 'runstest', ['all'], 9]
+#    hc_2_1D           : ['alphapy.transforms', 'runstest', ['all'], 13]
+#    lc_2_1D           : ['alphapy.transforms', 'runstest', ['all'], 13]
+
+pipeline:
+    number_jobs       : -1
+    seed              : 10231
+    verbosity         : 0
+
+plots:
+    calibration       : True
+    confusion_matrix  : True
+    importances       : True
+    learning_curve    : False
+    roc_curve         : True
+
+xgboost:
+    stopping_rounds   : 30

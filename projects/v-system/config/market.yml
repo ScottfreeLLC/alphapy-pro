@@ -1,0 +1,148 @@
+market:
+    create_model    : False
+    data_directory  : /Users/markconway/Projects/AlphaPy-Data
+    data_fractal    : 1D
+    data_history    :
+    data_start_date : 2020-01-01
+    data_end_date   : 2021-12-31
+    forecast_period : 1
+    predict_history : 50
+    schema          : yahoo
+    subschema       :
+    api_key_name    :
+    api_key         :
+    subject         : stock
+    target_group    : test
+    run_system      : True
+
+system:
+    name       : V
+    buysignal  : 1D.vlow
+    buyexit    :
+    buystop    :
+    sellsignal :
+    sellexit   :
+    sellstop   :
+    holdperiod : 5
+    scale      : False
+
+groups:
+    all  : ['aaoi', 'aapl', 'abnb', 'adbe', 'adi', 'adp', 'afrm', 'aig', 'akam',
+            'algn', 'alk', 'amat', 'amba', 'amc', 'amd', 'amgn', 'amt',
+            'amzn', 'antm', 'arch', 'arkk', 'asan', 'asml', 'athn', 'atvi', 'auph',
+            'avgo', 'axp', 'ayx', 'azo', 'ba', 'baba', 'bac', 'bby', 'bidu', 'biib',
+            'bynd', 'c', 'cacc', 'cara', 'casy', 'cat', 'cde', 'cern', 'cgc',
+            'chkp', 'chtr', 'clvs', 'cme', 'cmg', 'cof', 'cohr', 'comm', 'cost',
+            'cpk', 'crm', 'crus', 'crwd', 'csco', 'ctsh', 'ctxs', 'csx', 'cvs',
+            'cwh', 'cybr', 'dash', 'ddd', 'deck', 'dia', 'dis', 'dish', 'dkng', 'dpz',
+            'dust', 'ea', 'ebay', 'edc', 'edz', 'eem', 'eog', 'ewh', 'ewt', 'expe',
+            'expi', 'fang', 'fas', 'faz', 'fb', 'fcx', 'fdx', 'ffiv', 'fis', 'five',
+            'fslr', 'fsly', 'ftnt', 'futu', 'gddy', 'gdx', 'gdxj', 'ge', 'gild',
+            'gld', 'glw', 'gm', 'gme', 'googl', 'gpro', 'grub', 'gs', 'hal', 'has',
+            'hd', 'hlf', 'hog', 'hood', 'hum', 'ibb', 'ibm', 'ice', 'idxx', 'ilmn',
+            'ilmn', 'incy', 'intc', 'intu', 'ip', 'isrg', 'iwm', 'ivv', 'iwf', 'iwm',
+            'jack', 'jdst', 'jmia', 'jnj', 'jnpr', 'jnug', 'jpm', 'klac', 'ko', 'kss',
+            'labd', 'labu', 'len', 'lite', 'lrcx', 'lulu', 'lvs', 'lyft', 'mcd', 'mchp',
+            'mrna', 'mdy', 'meoh', 'mnst', 'mo', 'momo', 'mon', 'mrk', 'ms', 'msft', 'mstr',
+            'mtb', 'mtch', 'mu', 'nerd', 'nflx', 'nio', 'nke', 'ntap', 'ntes', 'ntnx',
+            'nugt', 'nvda', 'nxpi', 'nxst', 'oii', 'oled', 'open', 'orcl', 'orly',
+            'panw', 'penn', 'pg', 'pins', 'pltr', 'plug', 'pm', 'prgo', 'pton',
+            'pxd', 'pypl', 'qcom', 'qqq', 'qrvo', 'roku', 'sam', 'sbux', 'sds', 'sgen',
+            'shld', 'shop', 'sig', 'siri', 'skx', 'slb', 'slv', 'snap', 'sncr', 'snow',
+            'spce', 'splk', 'spot', 'spy', 'sq', 'stld', 'stmp', 'stx', 'svxy', 'swks',
+            't', 'tbt', 'tcehy', 'teva', 'tgt', 'tho', 'tlry', 'tlt', 'tmo', 'tna',
+            'tqqq', 'trip', 'tsla', 'ttwo', 'tvix', 'twlo', 'twtr', 'tza', 'uaa', 'uber',
+            'ugaz', 'uhs', 'ulta', 'unh', 'unp', 'upro', 'uri', 'ups', 'uri', 'uthr',
+            'uvxy', 'v', 'veev', 'viav', 'vlo', 'vmc', 'vrsn', 'vrtx', 'vwo', 'vxx',
+            'vz', 'w', 'wday', 'wdc', 'wfc', 'wmt', 'woof', 'wynn', 'x', 'xbi',
+            'xhb', 'xle', 'xlf', 'xlk', 'xlnx', 'xom', 'xlp', 'xlu',
+            'xlv', 'xme', 'xom', 'xpev', 'wix', 'yelp', 'z', 'zbra']
+    etf  : ['dgaz', 'dia', 'dust', 'dwti', 'edc', 'edz', 'eem', 'ewh', 'ewt',
+            'fas', 'faz', 'gld', 'hyg', 'iwm', 'ivv', 'iwf', 'jdst', 'jnug',
+            'jnk', 'labd', 'labu', 'mdy', 'nugt', 'qqq', 'sds', 'smh', 'spxl',
+            'spxs', 'spxu', 'spy', 'sqqq', 'sso', 'svxy', 'tbt', 'tlt', 'tna',
+            'tqqq', 'tvix', 'tza', 'ugaz', 'upro', 'uvxy', 'uwti', 'vwo', 'vxx',
+            'xhb', 'xiv', 'xle', 'xlf', 'xlk', 'xlp', 'xlu', 'xlv', 'xme']
+    tech : ['aapl', 'adbe', 'amat', 'amgn', 'amzn', 'avgo', 'baba', 'bidu',
+            'csco', 'ddd', 'expe', 'fb', 'fslr', 'googl',
+            'intc', 'isrg', 'msft', 'nflx', 'nvda', 'qcom', 'qqq',
+            'tsla', 'twtr']
+    test : ['aapl', 'amzn', 'fb', 'googl', 'nflx', 'nvda', 'tsla']
+
+fractals : ['1D', '1W']
+
+features : ['vlow']
+
+aliases:
+    atr        : 'ma_truerange'
+    aver       : 'ma_hlrange'
+    cma        : 'ma_close'
+    cmax       : 'highest_close'
+    cmin       : 'lowest_close'
+    hc         : 'higher_close'
+    hh         : 'higher_high'
+    hl         : 'higher_low'
+    ho         : 'higher_open'
+    hmax       : 'highest_high'
+    hmin       : 'lowest_high'
+    lc         : 'lower_close'
+    lh         : 'lower_high'
+    ll         : 'lower_low'
+    lo         : 'lower_open'
+    lmax       : 'highest_low'
+    lmin       : 'lowest_low'
+    net        : 'net_close'
+    netdown    : 'down_net'
+    netup      : 'up_net'
+    omax       : 'highest_open'
+    omin       : 'lowest_open'
+    rmax       : 'highest_hlrange'
+    rmin       : 'lowest_hlrange'
+    rr         : 'maratio_hlrange'
+    rixc       : 'rindex_close_high_low'
+    rixo       : 'rindex_open_high_low'
+    roi        : 'netreturn_close'
+    rsi        : 'rsi_close'
+    sepma      : 'ma_sep'
+    vma        : 'ma_volume'
+    vmratio    : 'maratio_volume'
+    upmove     : 'net_high'
+
+variables:
+    abovema    : 'close > cma_50'
+    adxhigh    : 'adx >= 30'
+    adxlow     : 'adx <= 15'
+    belowma    : 'close < cma_50'
+    bigup      : 'rrover & sephigh & netup'
+    bigdown    : 'rrover & sephigh & netdown'
+    cminuso    : 'close - open'
+    doji       : 'sepdoji & rrunder'
+    hahigher   : highha > highha[1]
+    halower    : lowha < lowha[1]
+    hlhigh     : 'hlrange > atr'
+    hllow      : 'hlrange < atr'
+    hookdown   : 'open > high[1] & close < close[1]'
+    hookup     : 'open < low[1] & close > close[1]'
+    inside     : 'low > low[1] & high < high[1]'
+    madelta    : '(close - cma_50) / atr_10'
+    nr         : 'hlrange == rmin_4'
+    outside    : 'low < low[1] & high > high[1]'
+    roihigh    : 'roi_5 >= 5'
+    roilow     : 'roi_5 < -5'
+    roiminus   : 'roi_5 < 0'
+    roiplus    : 'roi_5 > 0'
+    rrhigh     : 'rr_1_20 >= 1.2'
+    rrlow      : 'rr_1_20 <= 0.8'
+    rrover     : 'rr_1_8 >= 1.0'
+    rrunder    : 'rr_1_8 < 1.0'
+    sep        : 'rixc_1 - rixo_1'
+    sepdoji    : 'abs(sep) <= 15'
+    sephigh    : 'abs(sep_1_1) >= 70'
+    seplow     : 'abs(sep_1_1) <= 30'
+    tsdown     : 'halower & rrunder'
+    tsup       : 'hahigher & rrunder'
+    vlow       : 'low < ^low[1] - 1.5 * atr'
+    vmover     : 'vmratio >= 1'
+    vmunder    : 'vmratio < 1'
+    volatility : 'atr_20 / close'
+    wr         : 'hlrange == rmax_4'

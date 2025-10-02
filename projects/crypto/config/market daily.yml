@@ -1,0 +1,111 @@
+market:
+    create_model    : False
+    data_fractal    : 1d
+    data_history    : 1000
+    data_start_date :
+    data_end_date   :
+    forecast_period : 1
+    predict_history : 50
+    schema          : yahoo
+    subschema       :
+    api_key_name    :
+    api_key         :
+    subject         : crypto
+    target_group    : all
+
+system:
+    name       : closer
+    buysignal  : hc
+    buyexit    :
+    buystop    :
+    sellsignal : lc
+    sellexit   :
+    sellstop   :
+    holdperiod : 0
+    scale      : False
+
+groups:
+    all  : ['aave-usd', 'ada-usd', 'algo-usd', 'bch-usd', 'bnb-usd', 'btc-usd', 'btc-usd', 'dash-usd',
+            'doge-usd', 'dot1-usd', 'eos-usd', 'eth-usd', 'fil-usd', 'hbar-usd', 'hex-usd', 'icp1-usd',
+            'link-usd', 'ltc-usd', 'luna1-usd', 'mana-usd', 'matic-usd', 'mkr-usd', 'nano-usd', 'neo-usd',
+            'qnt-usd', 'rune-usd', 'shib-usd', 'sol1-usd', 'sushi-usd', 'theta-usd', 'trx-usd', 'uni3-usd',
+            'vet-usd', 'waves-usd', 'xlm-usd', 'xmr-usd', 'xrp-usd', 'zec-usd']
+    test : ['btc-usd', 'eth-usd', 'ada-usd', 'doge-usd', 'xrp-usd']
+    btc  : ['btc-usd']
+
+features:
+
+    1d   : ['hc', 'lc']
+
+aliases:
+    atr        : 'ma_truerange'
+    aver       : 'ma_hlrange'
+    cma        : 'ma_close'
+    cmax       : 'highest_close'
+    cmin       : 'lowest_close'
+    hc         : 'higher_close'
+    hh         : 'higher_high'
+    hl         : 'higher_low'
+    ho         : 'higher_open'
+    hmax       : 'highest_high'
+    hmin       : 'lowest_high'
+    lc         : 'lower_close'
+    lh         : 'lower_high'
+    ll         : 'lower_low'
+    lo         : 'lower_open'
+    lmax       : 'highest_low'
+    lmin       : 'lowest_low'
+    net        : 'net_close'
+    netdown    : 'down_net'
+    netup      : 'up_net'
+    omax       : 'highest_open'
+    omin       : 'lowest_open'
+    rmax       : 'highest_hlrange'
+    rmin       : 'lowest_hlrange'
+    rr         : 'maratio_hlrange'
+    rixc       : 'rindex_close_high_low'
+    rixo       : 'rindex_open_high_low'
+    roi        : 'netreturn_close'
+    rsi        : 'rsi_close'
+    sepma      : 'ma_sep'
+    vma        : 'ma_volume'
+    vmratio    : 'maratio_volume'
+    upmove     : 'net_high'
+
+variables:
+    abovema    : 'close > cma_50'
+    adxhigh    : 'adx >= 30'
+    adxlow     : 'adx <= 15'
+    belowma    : 'close < cma_50'
+    bigup      : 'rrover & sephigh & netup'
+    bigdown    : 'rrover & sephigh & netdown'
+    cminuso    : 'close - open'
+    doji       : 'sepdoji & rrunder'
+    hahigher   : hahigh > hahigh[1]
+    halower    : halow < halow[1]
+    hlhigh     : 'hlrange > atr'
+    hllow      : 'hlrange < atr'
+    hookdown   : 'open > high[1] & close < close[1]'
+    hookup     : 'open < low[1] & close > close[1]'
+    inside     : 'low > low[1] & high < high[1]'
+    madelta    : '(close - cma_50) / atr_10'
+    nr         : 'hlrange == rmin_4'
+    outside    : 'low < low[1] & high > high[1]'
+    roihigh    : 'roi_5 >= 5'
+    roilow     : 'roi_5 < -5'
+    roiminus   : 'roi_5 < 0'
+    roiplus    : 'roi_5 > 0'
+    rrhigh     : 'rr_1_20 >= 1.2'
+    rrlow      : 'rr_1_20 <= 0.8'
+    rrover     : 'rr_1_8 >= 1.0'
+    rrunder    : 'rr_1_8 < 1.0'
+    sep        : 'rixc_1 - rixo_1'
+    sepdoji    : 'abs(sep) <= 15'
+    sephigh    : 'abs(sep_1_1) >= 70'
+    seplow     : 'abs(sep_1_1) <= 30'
+    tsdown     : 'halower & rrunder'
+    tsup       : 'hahigher & rrunder'
+    vmover     : 'vmratio >= 1'
+    vmunder    : 'vmratio < 1'
+    volatility : 'atr_20 / close'
+    wr         : 'hlrange == rmax_4'
