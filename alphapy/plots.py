@@ -267,8 +267,10 @@ def write_plot(vizlib, plot, plot_type, tag, directory=None):
         if vizlib == 'matplotlib':
             plot.tight_layout()
             plot.savefig(file_all)
+            plot.close('all')  # Release figure memory
         elif vizlib == 'seaborn':
             plot.savefig(file_all)
+            plt.close('all')  # Release figure memory
         else:
             output_file(file_all, title=tag)
             show(plot)
@@ -320,6 +322,13 @@ def plot_calibration(model, partition):
     # Get X, Y for correct partition
 
     X, y = get_partition_data(model, partition)
+
+    # Check if we have both classes for calibration plot
+    unique_values = np.unique(y)
+    if len(unique_values) < 2:
+        pstring = datasets[partition]
+        logger.info("Skipping calibration plot for %s: only one class present (no games with results yet)", pstring)
+        return None
 
     plt.style.use('classic')
     plt.figure(figsize=(10, 10))
@@ -564,6 +573,12 @@ def plot_roc_curve(model, partition):
 
     X, y = get_partition_data(model, partition)
 
+    # Check if we have both classes for ROC curve
+    unique_values = np.unique(y)
+    if len(unique_values) < 2:
+        logger.info("Skipping ROC curves for %s: only one class present (no games with results yet)", pstring)
+        return None
+
     # Initialize plot parameters.
 
     plt.style.use('classic')
@@ -633,6 +648,12 @@ def plot_confusion_matrix(model, partition):
 
     # Get X, Y for correct partition.
     X, y = get_partition_data(model, partition)
+
+    # Check if we have both classes for meaningful confusion matrix
+    unique_values = np.unique(y)
+    if len(unique_values) < 2:
+        logger.info("Skipping confusion matrices for %s: only one class present (no games with results yet)", pstring)
+        return None
 
     # Plot Parameters
     np.set_printoptions(precision=2)

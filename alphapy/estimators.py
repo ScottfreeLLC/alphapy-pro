@@ -37,6 +37,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import LinearSVC
@@ -337,6 +339,11 @@ def get_estimators(alphapy_specs, model):
             logger.info("Algorithm %s not found (check package installation)", algo)
         if algo_found:
             est = func(**params)
+            # Wrap scale-sensitive algorithms in a Pipeline with StandardScaler
+            # to prevent numerical overflow/underflow issues
+            scale_sensitive_algos = {'LOGR', 'KNN', 'KNR', 'LSVC', 'LSVM', 'SVM', 'RBF', 'LR'}
+            if algo in scale_sensitive_algos:
+                est = Pipeline([('scaler', StandardScaler()), ('estimator', est)])
             grid = algo_specs[algo]['grid']
             estimators[algo] = Estimator(algo, model_type, est, grid)
 

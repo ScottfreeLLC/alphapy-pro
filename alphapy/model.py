@@ -1114,6 +1114,18 @@ def generate_metrics(model, partition):
     # Generate Metrics
 
     if not expected.empty:
+        # Check if test set has actual results to evaluate
+        # Handle both Series and DataFrame cases
+        if hasattr(expected, 'iloc'):
+            values_to_check = expected.iloc[:, 0] if hasattr(expected, 'columns') else expected
+        else:
+            values_to_check = expected
+        unique_values = np.unique(values_to_check)
+        if len(unique_values) == 1:
+            logger.info("Skipping metrics for %s: all targets are %s (no games with results yet)",
+                       partition, unique_values[0])
+            return model, False
+
         algolist = copy(model.algolist)
         if len(algolist) > 1:
             algolist.append('BLEND')
@@ -1226,10 +1238,10 @@ def generate_metrics(model, partition):
                 svalue = str(value)
                 svalue.replace('\n', ' ')
                 logger.info("%s: %s", key, svalue)
+        return model, True
     else:
         logger.info("No labels for generating %s metrics", partition)
-
-    return model
+        return model, False
 
 
 #
@@ -1302,7 +1314,7 @@ def save_predictions(model, partition):
 
     best_tag = 'BEST'
     condition1 = partition == Partition.train
-    condition2 = partition == Partition.test and model.test_labels
+    condition2 = partition == Partition.test and model.test_labels and ('BEST', partition) in model.preds
     if condition1 or condition2:
         sort_tag = best_tag
     else:

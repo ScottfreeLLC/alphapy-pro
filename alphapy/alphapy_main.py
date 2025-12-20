@@ -458,9 +458,10 @@ def training_pipeline(alphapy_specs, model):
     #
 
     def generate_results(model, partition):
-        model = generate_metrics(model, partition)
-        model = select_best_model(model, partition)
-        generate_plots(alphapy_specs, model, partition)
+        model, metrics_generated = generate_metrics(model, partition)
+        if metrics_generated:
+            model = select_best_model(model, partition)
+            generate_plots(alphapy_specs, model, partition)
         model = save_predictions(model, partition)
 
     partition = Partition.train
