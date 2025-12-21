@@ -763,15 +763,24 @@ def create_clusters(features, model):
     logger.info("Cluster Maximum   : %d", cluster_max)
     logger.info("Cluster Increment : %d", cluster_inc)
 
+    # Scale features for K-Means distance calculations
+    # Convert to float64 for precision, handle NaN/Inf values, then scale
+    features_f64 = features.astype(np.float64)
+    features_clean = np.nan_to_num(features_f64, nan=0.0, posinf=0.0, neginf=0.0)
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features_clean)
+    features_scaled = np.nan_to_num(features_scaled, nan=0.0, posinf=0.0, neginf=0.0)
+
     # Generate clustering features
+    # Use init='random' to avoid overflow in k-means++ distance calculations
 
     cfeatures = np.zeros((features.shape[0], 1))
     cnames = []
     for i in range(cluster_min, cluster_max+1, cluster_inc):
         logger.info("k = %d", i)
-        km = MiniBatchKMeans(n_clusters=i, random_state=seed)
-        km.fit(features)
-        labels = km.predict(features)
+        km = MiniBatchKMeans(n_clusters=i, random_state=seed, init='random')
+        km.fit(features_scaled)
+        labels = km.predict(features_scaled)
         labels = labels.reshape(-1, 1)
         cfeatures = np.column_stack((cfeatures, labels))
         cnames.append(USEP.join(['cluster', str(i)]))
@@ -828,13 +837,21 @@ def create_pca_features(features, model):
     logger.info("PCA Increment : %d", pca_inc)
     logger.info("PCA Whitening : %r", pca_whiten)
 
-    # Generate clustering features
+    # Scale features to prevent overflow in PCA calculations
+    # Convert to float64 for precision, handle NaN/Inf values, then scale
+    features_f64 = features.astype(np.float64)
+    features_clean = np.nan_to_num(features_f64, nan=0.0, posinf=0.0, neginf=0.0)
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features_clean)
+    features_scaled = np.nan_to_num(features_scaled, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Generate PCA features
 
     pfeatures = np.zeros((features.shape[0], 1))
     pnames = []
     for i in range(pca_min, pca_max+1, pca_inc):
         logger.info("n_components = %d", i)
-        X_pca = PCA(n_components=i, whiten=pca_whiten).fit_transform(features)
+        X_pca = PCA(n_components=i, whiten=pca_whiten).fit_transform(features_scaled)
         pfeatures = np.column_stack((pfeatures, X_pca))
         pnames.append(USEP.join(['pca', str(i)]))
     pfeatures = np.delete(pfeatures, 0, axis=1)
@@ -893,11 +910,19 @@ def create_isomap_features(features, model):
     logger.info("Isomap Components : %d", iso_components)
     logger.info("Isomap Neighbors  : %d", iso_neighbors)
 
+    # Scale features to prevent overflow in Isomap distance calculations
+    # Convert to float64 for precision, handle NaN/Inf values, then scale
+    features_f64 = features.astype(np.float64)
+    features_clean = np.nan_to_num(features_f64, nan=0.0, posinf=0.0, neginf=0.0)
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features_clean)
+    features_scaled = np.nan_to_num(features_scaled, nan=0.0, posinf=0.0, neginf=0.0)
+
     # Generate Isomap features
 
-    model = Isomap(n_neighbors=iso_neighbors, n_components=iso_components,
-                   n_jobs=n_jobs)
-    ifeatures = model.fit_transform(features)
+    iso_model = Isomap(n_neighbors=iso_neighbors, n_components=iso_components,
+                       n_jobs=n_jobs)
+    ifeatures = iso_model.fit_transform(features_scaled)
     inames = [USEP.join(['isomap', str(i+1)]) for i in range(iso_components)]
 
     # Return new Isomap features
@@ -950,11 +975,19 @@ def create_tsne_features(features, model):
     logger.info("T-SNE Learning Rate : %d", tsne_learn_rate)
     logger.info("T-SNE Perplexity    : %d", tsne_perplexity)
 
+    # Scale features to prevent overflow in t-SNE distance calculations
+    # Convert to float64 for precision, handle NaN/Inf values, then scale
+    features_f64 = features.astype(np.float64)
+    features_clean = np.nan_to_num(features_f64, nan=0.0, posinf=0.0, neginf=0.0)
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features_clean)
+    features_scaled = np.nan_to_num(features_scaled, nan=0.0, posinf=0.0, neginf=0.0)
+
     # Generate T-SNE features
 
-    model = TSNE(n_components=tsne_components, perplexity=tsne_perplexity,
-                 learning_rate=tsne_learn_rate, random_state=seed)
-    tfeatures = model.fit_transform(features)
+    tsne_model = TSNE(n_components=tsne_components, perplexity=tsne_perplexity,
+                      learning_rate=tsne_learn_rate, random_state=seed)
+    tfeatures = tsne_model.fit_transform(features_scaled)
     tnames = [USEP.join(['tsne', str(i+1)]) for i in range(tsne_components)]
 
     # Return new T-SNE features

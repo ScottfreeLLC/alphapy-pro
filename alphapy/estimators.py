@@ -331,6 +331,19 @@ def get_estimators(alphapy_specs, model):
         for param in params:
             if param in ps_fields and isinstance(param, str):
                 algo_specs[algo]['params'][param] = eval(ps_fields[param])
+        # Also substitute in grid values
+        grid = algo_specs[algo]['grid']
+        for param in grid:
+            if isinstance(grid[param], list):
+                new_list = []
+                for v in grid[param]:
+                    if isinstance(v, str) and v in ps_fields:
+                        new_list.append(eval(ps_fields[v]))
+                    else:
+                        new_list.append(v)
+                grid[param] = new_list
+            elif isinstance(grid[param], str) and grid[param] in ps_fields:
+                grid[param] = eval(ps_fields[grid[param]])
         try:
             algo_found = True
             func = estimator_map[algo]

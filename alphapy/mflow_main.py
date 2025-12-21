@@ -28,6 +28,10 @@ import warnings
 
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
+# Suppress sklearn numerical warnings during optimization (benign)
+warnings.filterwarnings('ignore', message='.*overflow.*matmul.*', category=RuntimeWarning)
+warnings.filterwarnings('ignore', message='.*divide by zero.*matmul.*', category=RuntimeWarning)
+warnings.filterwarnings('ignore', message='.*invalid value.*matmul.*', category=RuntimeWarning)
 
 
 #

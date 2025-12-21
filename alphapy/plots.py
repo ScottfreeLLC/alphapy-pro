@@ -267,7 +267,7 @@ def write_plot(vizlib, plot, plot_type, tag, directory=None):
         if vizlib == 'matplotlib':
             plot.tight_layout()
             plot.savefig(file_all)
-            plot.close('all')  # Release figure memory
+            plt.close('all')  # Release figure memory
         elif vizlib == 'seaborn':
             plot.savefig(file_all)
             plt.close('all')  # Release figure memory

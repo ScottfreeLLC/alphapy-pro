@@ -238,10 +238,16 @@ def hyper_grid_search(model, estimator):
         y_train = y_train[indices]
 
     # Convert the grid to pipeline format
+    # If the estimator is already a Pipeline (e.g., scale-sensitive algos wrapped with StandardScaler),
+    # we need to prefix with 'est__estimator__' instead of just 'est__'
 
     grid_new = {}
+    if isinstance(est, Pipeline):
+        prefix = 'est__estimator'
+    else:
+        prefix = 'est'
     for k, v in list(grid.items()):
-        new_key = '__'.join(['est', k])
+        new_key = '__'.join([prefix, k])
         grid_new[new_key] = grid[k]
 
     # Create the pipeline for grid search
