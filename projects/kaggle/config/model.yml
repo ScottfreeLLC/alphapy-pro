@@ -13,12 +13,9 @@ model:
         type          : sigmoid
     cv_folds          : 3
     estimators        : 51
-    grid_search       :
-        option        : True
-        iterations    : 20
-        random        : True
-        subsample     : False
-        sampling_pct  : 0.2
+    grid_search       : True
+    optuna_trials     : 100
+    optuna_timeout    : 600
     ranking           :
         group_id      : 
         group_size    : 

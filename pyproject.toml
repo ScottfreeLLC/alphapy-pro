@@ -47,7 +47,11 @@ dependencies = [
     "statsmodels>=0.13.0",
     "venn-abers>=1.4.1",
     "xgboost>=3.0.4",
+    "catboost>=1.2",
     "yfinance>=0.1.59",
+    "lightgbm>=4.0.0",
+    "optuna>=4.0.0",
+    "optuna-integration[sklearn]>=4.0.0",
     # Trading agent dependencies
     "alpaca-py>=0.21.0",
     "anthropic>=0.25.0",

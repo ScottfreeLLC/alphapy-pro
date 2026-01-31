@@ -26,11 +26,13 @@
 # Suppress Warnings
 #
 
+import optuna
 import pandas as pd
 import warnings
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+warnings.filterwarnings('ignore', category=optuna.exceptions.ExperimentalWarning)
 # Suppress sklearn numerical warnings during optimization (benign)
 warnings.filterwarnings('ignore', message='.*overflow.*matmul.*', category=RuntimeWarning)
 warnings.filterwarnings('ignore', message='.*divide by zero.*matmul.*', category=RuntimeWarning)
@@ -436,6 +438,7 @@ def training_pipeline(alphapy_specs, model):
 
     logger.info("Selecting Models")
 
+    failed_algos = []
     for algo in model.algolist:
         logger.info("Algorithm: %s", algo)
         # select estimator
@@ -445,6 +448,7 @@ def training_pipeline(alphapy_specs, model):
         except KeyError:
             est = None
             logger.info("Algorithm %s not found", algo)
+            failed_algos.append(algo)
         if est is not None:
             # select LOFO features
             if fs_lofo:
@@ -464,6 +468,11 @@ def training_pipeline(alphapy_specs, model):
                 model = hyper_grid_search(model, estimator)
             # predictions
             model = make_predictions(model, algo)
+
+    # Remove algorithms that failed to load
+    for algo in failed_algos:
+        model.algolist.remove(algo)
+        logger.info("Removed unavailable algorithm %s from model", algo)
 
     # Create a blended estimator
 

@@ -18,7 +18,11 @@ CATB:
                   "random_seed" : seed,
                   "thread_count" : n_jobs,
                   "verbose" : verbosity}
-    grid       : {}
+    grid       : {"learning_rate" : [0.01, 0.03, 0.05, 0.1, 0.2],
+                  "depth" : [4, 6, 8, 10],
+                  "l2_leaf_reg" : [1, 3, 5, 10],
+                  "iterations" : [100, 200, 500, 1000],
+                  "border_count" : [32, 64, 128]}
 
 CATBR:
     # CatBoost Regression
@@ -27,7 +31,11 @@ CATBR:
                   "random_seed" : seed,
                   "thread_count" : n_jobs,
                   "verbose" : verbosity}
-    grid       : {}
+    grid       : {"learning_rate" : [0.01, 0.03, 0.05, 0.1, 0.2],
+                  "depth" : [4, 6, 8, 10],
+                  "l2_leaf_reg" : [1, 3, 5, 10],
+                  "iterations" : [100, 200, 500, 1000],
+                  "border_count" : [32, 64, 128]}
 
 GB:
     # Gradient Boosting
@@ -80,7 +88,15 @@ LGB:
                   "cat_l2" : 0.0,
                   "force_row_wise" : True,
                   "force_col_wise" : False}
-    grid       : {}
+    grid       : {"n_estimators" : [100, 200, 500, 1000],
+                  "max_depth" : [-1, 5, 10, 15, 20],
+                  "learning_rate" : [0.01, 0.05, 0.1, 0.2],
+                  "num_leaves" : [31, 50, 100, 200],
+                  "min_child_samples" : [1, 5, 10, 20],
+                  "subsample" : [0.6, 0.8, 1.0],
+                  "colsample_bytree" : [0.6, 0.8, 1.0],
+                  "reg_alpha" : [0.0, 0.1, 1.0],
+                  "reg_lambda" : [0.0, 0.1, 1.0]}
 
 LGBR:
     # LightGBM Regression
@@ -96,7 +112,13 @@ LGBR:
                   "cat_l2" : 0.0,
                   "force_row_wise" : True,
                   "force_col_wise" : False}
-    grid       : {}
+    grid       : {"n_estimators" : [100, 200, 500, 1000],
+                  "max_depth" : [-1, 5, 10, 15, 20],
+                  "learning_rate" : [0.01, 0.05, 0.1, 0.2],
+                  "num_leaves" : [31, 50, 100, 200],
+                  "min_child_samples" : [1, 5, 10, 20],
+                  "subsample" : [0.6, 0.8, 1.0],
+                  "colsample_bytree" : [0.6, 0.8, 1.0]}
 
 LOGR:
     # Logistic Regression

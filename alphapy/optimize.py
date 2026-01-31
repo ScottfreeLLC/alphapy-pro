@@ -28,14 +28,19 @@
 
 from alphapy.globals import ModelType
 
+from contextlib import contextmanager
 from datetime import datetime
 import itertools
 import logging
 import numpy as np
+import optuna
+from optuna.distributions import CategoricalDistribution, FloatDistribution, IntDistribution
+from optuna_integration.sklearn import OptunaSearchCV
+import os
+import sys
+from sklearn.base import clone
 from sklearn.feature_selection import RFECV
 from sklearn.feature_selection import SelectPercentile
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from time import time
 
@@ -45,6 +50,70 @@ from time import time
 #
 
 logger = logging.getLogger(__name__)
+
+
+#
+# Helper function to get valid __init__ params
+#
+
+def get_valid_init_params(estimator):
+    """Get params that are actually in the estimator's __init__ signature."""
+    import inspect
+    try:
+        sig = inspect.signature(estimator.__class__.__init__)
+        return set(sig.parameters.keys()) - {'self'}
+    except (ValueError, TypeError):
+        return set()
+
+
+#
+# Context manager to suppress stderr (for C++ library warnings)
+#
+
+@contextmanager
+def suppress_stderr():
+    """Temporarily redirect stderr to /dev/null."""
+    stderr_fd = sys.stderr.fileno()
+    with open(os.devnull, 'w') as devnull:
+        old_stderr = os.dup(stderr_fd)
+        os.dup2(devnull.fileno(), stderr_fd)
+        try:
+            yield
+        finally:
+            os.dup2(old_stderr, stderr_fd)
+            os.close(old_stderr)
+
+
+#
+# Function convert_to_optuna_distributions
+#
+
+def convert_to_optuna_distributions(grid):
+    r"""Convert a grid of parameter lists to Optuna distributions.
+
+    Parameters
+    ----------
+    grid : dict
+        Dictionary mapping parameter names to lists of values.
+
+    Returns
+    -------
+    distributions : dict
+        Dictionary mapping parameter names to Optuna distributions.
+
+    """
+    distributions = {}
+    for param, values in grid.items():
+        if isinstance(values, list) and len(values) > 0:
+            # Use CategoricalDistribution for lists of values
+            distributions[param] = CategoricalDistribution(values)
+        elif hasattr(values, '__iter__') and not isinstance(values, str):
+            # Handle numpy arrays or other iterables
+            distributions[param] = CategoricalDistribution(list(values))
+        else:
+            # Single value - wrap in list for CategoricalDistribution
+            distributions[param] = CategoricalDistribution([values])
+    return distributions
 
 
 #
@@ -98,9 +167,24 @@ def rfecv_search(model, algo):
     estimator = model.estimators[algo]
 
     # Perform Recursive Feature Elimination
+    # Clone estimator and set to single-threaded to avoid nested parallelism with RFECV
+    rfe_est = clone(estimator)
+    thread_params = ['n_jobs', 'nthread', 'thread_count', 'num_threads']
+    if isinstance(rfe_est, Pipeline):
+        inner_est = rfe_est.named_steps.get('estimator')
+        if inner_est:
+            valid_params = get_valid_init_params(inner_est)
+            for param in thread_params:
+                if param in valid_params:
+                    rfe_est.set_params(**{f'estimator__{param}': 1})
+    else:
+        valid_params = get_valid_init_params(rfe_est)
+        for param in thread_params:
+            if param in valid_params:
+                rfe_est.set_params(**{param: 1})
 
     logger.info("Recursive Feature Elimination with CV")
-    rfecv = RFECV(estimator, step=rfe_step, cv=cv_folds,
+    rfecv = RFECV(rfe_est, step=rfe_step, cv=cv_folds,
                   scoring=scorer, verbose=verbosity, n_jobs=n_jobs)
     start = time()
     selector = rfecv.fit(X_train, y_train.values.ravel())
@@ -158,54 +242,56 @@ def grid_report(results, n_top=3):
 #
 
 def hyper_grid_search(model, estimator):
-    r"""Return the best hyperparameters for a grid search.
+    r"""Hyperparameter optimization using Optuna.
 
     Parameters
     ----------
     model : alphapy.Model
-        The model object with grid search parameters.
+        The model with training data and configuration.
     estimator : alphapy.Estimator
-        The estimator containing the hyperparameter grid.
+        The estimator to optimize.
 
     Returns
     -------
     model : alphapy.Model
-        The model object with the grid search estimator.
+        Model with optimized estimator.
 
     Notes
     -----
-    To reduce the time required for grid search, use either
-    randomized grid search with a fixed number of iterations
-    or a full grid search with subsampling. AlphaPy uses
-    the scikit-learn Pipeline with feature selection to
-    reduce the feature space.
+    This function uses Optuna's OptunaSearchCV for hyperparameter
+    optimization, which provides more efficient search than
+    traditional grid search or random search.
 
     References
     ----------
-    For more information about grid search, refer to [GRID]_.
+    For more information about Optuna, refer to [OPTUNA]_.
 
-    .. [GRID] http://scikit-learn.org/stable/modules/grid_search.html#grid-search
-
-    To learn about pipelines, refer to [PIPE]_.
-
-    .. [PIPE] http://scikit-learn.org/stable/modules/pipeline.html#pipeline
+    .. [OPTUNA] https://optuna.readthedocs.io/
 
     """
 
-    # Extract estimator parameters.
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+    algo = estimator.algorithm
+    scorer = model.specs['scorer']
+    cv_folds = model.specs['cv_folds']
+    n_trials = model.specs.get('optuna_trials', 100)
+    timeout = model.specs.get('optuna_timeout', None)
+
+    logger.info("Optuna optimization for %s (%d trials)", algo, n_trials)
 
     grid = estimator.grid
     if not grid:
-        logger.info("No grid is defined for grid search")
+        logger.info("No grid parameters for %s, skipping optimization", algo)
         return model
 
-    # Get estimator.
+    # Convert grid to Optuna distributions
+    param_distributions = convert_to_optuna_distributions(grid)
 
-    algo = estimator.algorithm
+    # Get the estimator
     est = model.estimators[algo]
 
-    # Extract model data.
-
+    # Extract model data
     try:
         support = model.support[algo]
         X_train = model.X_train[:, support]
@@ -213,91 +299,55 @@ def hyper_grid_search(model, estimator):
         X_train = model.X_train
     y_train = model.y_train
 
-    # Extract model parameters.
+    # Clone estimator and set to single-threaded to avoid nested parallelism with Optuna
+    optuna_est = clone(est)
+    thread_params = ['n_jobs', 'nthread', 'thread_count', 'num_threads']
 
-    cv_folds = model.specs['cv_folds']
-    fs_univariate = model.specs['fs_univariate']
-    fs_uni_pct = model.specs['fs_uni_pct']
-    fs_uni_score_func = model.specs['fs_uni_score_func']
-    fs_uni_grid = model.specs['fs_uni_grid']
-    gs_iters = model.specs['gs_iters']
-    gs_random = model.specs['gs_random']
-    gs_sample = model.specs['gs_sample']
-    gs_sample_pct = model.specs['gs_sample_pct']
+    # Handle Pipeline estimators - need to prefix params correctly
+    if isinstance(optuna_est, Pipeline):
+        # For pipelines, prefix with the estimator step name
+        prefixed_params = {}
+        for k, v in param_distributions.items():
+            prefixed_params[f'estimator__{k}'] = v
+        param_distributions = prefixed_params
+        # Set estimator threading to 1
+        inner_est = optuna_est.named_steps.get('estimator')
+        if inner_est:
+            valid_params = get_valid_init_params(inner_est)
+            for param in thread_params:
+                if param in valid_params:
+                    optuna_est.set_params(**{f'estimator__{param}': 1})
+    else:
+        # Set estimator threading to 1
+        valid_params = get_valid_init_params(optuna_est)
+        for param in thread_params:
+            if param in valid_params:
+                optuna_est.set_params(**{param: 1})
+
     n_jobs = model.specs['n_jobs']
-    scorer = model.specs['scorer']
-    verbosity = model.specs['verbosity']
+    search = OptunaSearchCV(
+        estimator=optuna_est,
+        param_distributions=param_distributions,
+        cv=cv_folds,
+        scoring=scorer,
+        n_trials=n_trials,
+        timeout=timeout,
+        n_jobs=n_jobs,
+        verbose=0
+    )
 
-    # Subsample if necessary to reduce grid search duration.
-
-    if gs_sample:
-        length = len(X_train)
-        subset = int(length * gs_sample_pct)
-        indices = np.random.choice(length, subset, replace=False)
-        X_train = X_train[indices]
-        y_train = y_train[indices]
-
-    # Convert the grid to pipeline format
-    # If the estimator is already a Pipeline (e.g., scale-sensitive algos wrapped with StandardScaler),
-    # we need to prefix with 'est__estimator__' instead of just 'est__'
-
-    grid_new = {}
-    if isinstance(est, Pipeline):
-        prefix = 'est__estimator'
-    else:
-        prefix = 'est'
-    for k, v in list(grid.items()):
-        new_key = '__'.join([prefix, k])
-        grid_new[new_key] = grid[k]
-
-    # Create the pipeline for grid search
-
-    if fs_univariate:
-        # Augment the grid for feature selection.
-        fs = SelectPercentile(score_func=fs_uni_score_func,
-                              percentile=fs_uni_pct)
-        # Combine the feature selection and estimator grids.
-        fs_grid = dict(fs__percentile=fs_uni_grid)
-        grid_new.update(fs_grid)
-        # Create a pipeline with the selected features and estimator.
-        pipeline = Pipeline([("fs", fs), ("est", est)])
-    else:
-        pipeline = Pipeline([("est", est)])
-
-    # Create the randomized grid search iterator.
-
-    if gs_random:
-        logger.info("Randomized Grid Search")
-        gscv = RandomizedSearchCV(pipeline, param_distributions=grid_new,
-                                  n_iter=gs_iters, scoring=scorer,
-                                  n_jobs=n_jobs, cv=cv_folds, verbose=verbosity)
-    else:
-        logger.info("Full Grid Search")
-        gscv = GridSearchCV(pipeline, param_grid=grid_new, scoring=scorer,
-                            n_jobs=n_jobs, cv=cv_folds, verbose=verbosity)
-
-    # Fit the randomized search and time it.
+    # Convert to numpy if needed
+    X_train_np = X_train.to_numpy() if hasattr(X_train, 'to_numpy') else X_train
+    y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else np.ravel(y_train)
 
     start = time()
-    # Convert to numpy if Polars DataFrame
-    y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train.values.ravel()
-    gscv.fit(X_train, y_train_np)
-    if gs_iters > 0:
-        logger.info("Grid Search took %.2f seconds for %d candidate"
-                    " parameter settings." % ((time() - start), gs_iters))
-    else:
-        logger.info("Grid Search took %.2f seconds for %d candidate parameter"
-                    " settings." % (time() - start, len(gscv.cv_results_['params'])))
+    search.fit(X_train_np, y_train_np)
+    logger.info("Optuna optimization took %.2f seconds", time() - start)
 
-    # Log the grid search scoring statistics.
+    logger.info("Best score for %s: %.4f", algo, search.best_score_)
+    logger.info("Best params: %s", search.best_params_)
 
-    grid_report(gscv.cv_results_)
-    logger.info("Algorithm: %s, Best Score: %.4f, Best Parameters: %s",
-                algo, gscv.best_score_, gscv.best_params_)
+    estimator.estimator = search.best_estimator_
+    model.estimators[algo] = search.best_estimator_
 
-    # Assign the Grid Search estimator for this algorithm
-
-    model.estimators[algo] = gscv
-
-    # Return the model with Grid Search estimators
     return model
