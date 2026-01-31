@@ -8,13 +8,19 @@
 # 4. Keep your API keys secret and secure!
 #
 # To obtain API keys, visit:
+# - Alpaca: https://alpaca.markets/ (crypto is free, stocks require keys)
 # - EOD Historical Data: https://eodhistoricaldata.com/
 # - Finnhub: https://finnhub.io/ (Premium access required for full features)
 # - Finviz: https://finviz.com/elite.ashx (Elite access required)
-# - IEX Cloud: https://iexcloud.io/
 # - Polygon: https://polygon.io/
-# - Supabase: https://supabase.com/
 #
+
+# Alpaca Markets - Stock and crypto market data
+# Note: Crypto data is FREE and requires no API keys
+# Stock data requires API keys from https://alpaca.markets/
+alpaca:
+    api_key      : YOUR_ALPACA_API_KEY_HERE
+    api_secret   : YOUR_ALPACA_API_SECRET_HERE
 
 # EOD Historical Data - Provides historical market data
 eodhd:
@@ -32,11 +38,6 @@ finviz:
     api_key      : YOUR_FINVIZ_API_KEY_HERE
     portfolios   : ['Portfolio1', 'Portfolio2']  # List your portfolio names
 
-# IEX Cloud - Financial data platform
-iex:
-    api_key_name : IEX_TOKEN  # Environment variable name (optional)
-    api_key      : YOUR_IEX_API_KEY_HERE
-
 # Pandas DataReader - Free data sources (no API key required)
 pandas:
     api_key_name :
@@ -46,11 +47,6 @@ pandas:
 polygon:
     api_key_name : POLYGON_API_KEY  # Environment variable name (optional)
     api_key      : YOUR_POLYGON_API_KEY_HERE
-
-# Supabase - Database backend (if using)
-supabase:
-    api_key      : 'YOUR_SUPABASE_API_KEY_HERE'
-    url          : 'https://YOUR_PROJECT_ID.supabase.co'
 
 # Yahoo Finance - Free market data (no API key required)
 yahoo:

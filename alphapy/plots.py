@@ -510,8 +510,9 @@ def plot_learning_curve(alphapy_specs, model, partition):
         plt.ylabel("Score")
         # call learning curve function
         train_sizes=np.linspace(0.1, 1.0, cv_folds)
+        y_np = y.to_numpy().ravel() if hasattr(y, 'to_numpy') else y.values.ravel()
         train_sizes, train_scores, test_scores = \
-            learning_curve(est, X, y.values.ravel(), train_sizes=train_sizes,
+            learning_curve(est, X, y_np, train_sizes=train_sizes,
                            cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)

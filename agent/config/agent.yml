@@ -1,0 +1,47 @@
+# Trading Agent Configuration
+
+agent:
+  # Claude model to use
+  model: claude-sonnet-4-20250514
+  # Loop interval in seconds (5 minutes = 300)
+  loop_interval_seconds: 300
+
+trading:
+  symbols:
+    stocks:
+      - AAPL
+      - TSLA
+      - NVDA
+      - AMD
+      - META
+    crypto:
+      - BTC/USD
+      - ETH/USD
+  # Bar timeframe for data and signals
+  timeframe: 5Min
+  # Number of bars to fetch for feature calculation
+  bar_lookback: 100
+
+risk:
+  # Maximum value per position in dollars
+  max_position_value: 5000
+  # Maximum total portfolio exposure in dollars
+  max_portfolio_exposure: 25000
+  # Maximum number of concurrent positions
+  max_positions: 5
+  # Stop trading if daily loss exceeds this percentage
+  daily_loss_limit: 0.02
+  # Exit position if loss exceeds this percentage
+  position_stop_loss: 0.01
+  # Minimum order value in dollars
+  min_order_value: 100
+  # Don't enter new trades this many minutes before market close
+  no_new_trades_before_close: 15
+
+model:
+  # Path to AlphaPy run directory with trained model
+  run_dir: projects/intraday/runs/latest
+  # Algorithm name
+  algo: xgb
+  # Minimum probability for signal to be actionable
+  prob_min: 0.55

@@ -45,6 +45,7 @@ import argparse
 import logging
 import numpy as np
 import os
+import polars as pl
 import shutil
 from sklearn.model_selection import train_test_split
 import sys
@@ -284,29 +285,37 @@ def training_pipeline(alphapy_specs, model):
 
     # If there is no test partition, then we will split the train partition
 
-    if X_test.empty:
+    if X_test.is_empty():
         logger.info("No Test Data Found")
         if ts_option:
             logger.info("Splitting Training Data for Time Series")
-            df_train = pd.concat([X_train, y_train], axis=1)
-            df_sorted = df_train.sort_values(by=[ts_date]).reset_index(drop=True)
+            df_train = pl.concat([X_train, y_train], how="horizontal")
+            df_sorted = df_train.sort(ts_date)
             df_sorted = sequence_frame(df_sorted, target, ts_date,
                                        forecast_period=ts_forecast,
                                        n_lags=ts_n_lags,
                                        leaders=ts_leaders,
                                        group_id=ts_group_id)
             split_index = int((1.0 - split) * df_sorted.shape[0])
-            split_date = df_sorted.iloc[split_index][ts_date]
-            df_train = df_sorted[df_sorted[ts_date] <= split_date].reset_index(drop=True)
-            y_train = pd.DataFrame(df_train[target], columns=[target])
-            X_train = df_train.drop(columns=[target])
-            df_test = df_sorted[df_sorted[ts_date] > split_date].reset_index(drop=True)
-            y_test = pd.DataFrame(df_test[target], columns=[target])
-            X_test = df_test.drop(columns=[target])
+            split_date = df_sorted[split_index, ts_date]
+            df_train = df_sorted.filter(pl.col(ts_date) <= split_date)
+            y_train = df_train.select(target)
+            X_train = df_train.drop(target)
+            df_test = df_sorted.filter(pl.col(ts_date) > split_date)
+            y_test = df_test.select(target)
+            X_test = df_test.drop(target)
         else:
             logger.info("Splitting Training Data")
-            X_train, X_test, y_train, y_test = train_test_split(
-                X_train, y_train, test_size=split, random_state=seed, shuffle=shuffle)
+            # sklearn returns numpy arrays, preserve column info
+            columns_X = X_train.columns
+            columns_y = y_train.columns
+            X_train_np, X_test_np, y_train_np, y_test_np = train_test_split(
+                X_train.to_numpy(), y_train.to_numpy(),
+                test_size=split, random_state=seed, shuffle=shuffle)
+            X_train = pl.DataFrame(X_train_np, schema=columns_X)
+            X_test = pl.DataFrame(X_test_np, schema=columns_X)
+            y_train = pl.DataFrame(y_train_np, schema=columns_y)
+            y_test = pl.DataFrame(y_test_np, schema=columns_y)
 
     # Save original train/test data
 
@@ -319,16 +328,16 @@ def training_pipeline(alphapy_specs, model):
     # Save train/test groups
 
     if group_id:
-        train_counts = X_train.groupby(group_id).agg(['count'])
-        model.groups_train = train_counts[train_counts.columns[0]].values
+        train_counts = X_train.group_by(group_id).len()
+        model.groups_train = train_counts["len"].to_numpy()
         del train_counts
-        test_counts = X_test.groupby(group_id).agg(['count'])
-        model.groups_test = test_counts[test_counts.columns[0]].values
+        test_counts = X_test.group_by(group_id).len()
+        model.groups_test = test_counts["len"].to_numpy()
         del test_counts
 
     # Determine if there are any test labels
 
-    if not y_test.empty:
+    if not y_test.is_empty():
         logger.info("Test Labels Found")
         model.test_labels = True
     else:
@@ -354,7 +363,11 @@ def training_pipeline(alphapy_specs, model):
 
     if X_train.shape[1] == X_test.shape[1]:
         split_point = X_train.shape[0]
-        X_all = pd.concat([X_train, X_test])
+        # Align test schema to train schema to avoid type mismatches
+        # This handles cases where Polars infers different types for small test sets
+        train_schema = X_train.schema
+        X_test_aligned = X_test.cast({col: dtype for col, dtype in train_schema.items()})
+        X_all = pl.concat([X_train, X_test_aligned])
     else:
         raise IndexError("The number of training and test columns [%d, %d] must match." %
                          (X_train.shape[1], X_test.shape[1]))
@@ -369,13 +382,13 @@ def training_pipeline(alphapy_specs, model):
 
     data_dir = SSEP.join([run_dir, 'input'])
     # train data
-    df_train = X_all.iloc[:split_point, :].copy()
-    df_train[target] = y_train
+    df_train = X_all[:split_point].clone()
+    df_train = pl.concat([df_train, y_train], how="horizontal")
     write_frame(df_train, data_dir, model.train_file, extension, separator, index=False)
     # test data
-    df_test = X_all.iloc[split_point:, :]
+    df_test = X_all[split_point:]
     if model.test_labels:
-        df_test[target] = y_test
+        df_test = pl.concat([df_test, y_test], how="horizontal")
     write_frame(df_test, data_dir, model.test_file, extension, separator, index=False)
 
     # Create crosstabs for any categorical features

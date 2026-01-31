@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-AlphaPy Pro is a machine learning framework designed for speculators and data scientists. It provides a flexible ML pipeline built on scikit-learn and pandas, with specialized pipelines for market analysis (MarketFlow) and sports prediction (SportFlow).
+AlphaPy Pro is a machine learning framework designed for speculators and data scientists. It provides a flexible ML pipeline built on scikit-learn and pandas, with specialized pipelines for market analysis (MarketFlow).
 
 ## Common Development Commands
 

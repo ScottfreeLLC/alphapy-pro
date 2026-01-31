@@ -112,7 +112,7 @@ Key Features
 * **Feature Selection**: LOFO (Leave One Feature Out) importance and univariate selection
 * **Model Calibration**: Probability calibration with sigmoid and isotonic methods
 * **Advanced Visualization**: Learning curves, ROC curves, confusion matrices, and feature importance plots
-* **Multiple Data Sources**: EODHD, Yahoo Finance, Polygon, IEX Cloud, and more
+* **Multiple Data Sources**: EODHD, Yahoo Finance, Polygon
 * **Grid Search**: Randomized and systematic hyperparameter optimization
 * **Ensemble Methods**: Model blending and stacking
 

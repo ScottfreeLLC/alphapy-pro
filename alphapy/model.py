@@ -27,6 +27,7 @@
 #
 
 import pandas as pd
+import polars as pl
 import warnings
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -717,47 +718,50 @@ def first_fit(model, algo, est):
     groups_train = model.groups_train
 
     # Fit the initial model.
+    # Convert Polars DataFrames to numpy for sklearn
+    X_train_np = X_train.to_numpy() if hasattr(X_train, 'to_numpy') else X_train
+    y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train.ravel()
 
     algo_xgb = 'XGB' in algo
 
     if model_type == ModelType.ranking:
-        est.fit(X_train, y_train, group=groups_train)
+        est.fit(X_train_np, y_train_np, group=groups_train)
     elif algo_xgb and scorer in xgb_score_map:
         if ts_option:
             shuffle_flag = False
         else:
             shuffle_flag = shuffle
-        X1, X2, y1, y2 = train_test_split(X_train, y_train, test_size=split,
+        X1, X2, y1, y2 = train_test_split(X_train_np, y_train_np, test_size=split,
                                           random_state=seed, shuffle=shuffle_flag)
         eval_set = [(X1, y1), (X2, y2)]
         eval_metric = xgb_score_map[scorer]
         # For newer XGBoost versions, set eval_metric in estimator if possible
         if hasattr(est, 'set_params'):
             est.set_params(eval_metric=eval_metric)
-        
+
         # Handle early stopping for different XGBoost versions
         try:
             # Try newer XGBoost callback approach
             import xgboost as xgb
             callback = xgb.callback.EarlyStopping(rounds=esr)
-            est.fit(X1, y1.values.ravel(), eval_set=eval_set, callbacks=[callback])
+            est.fit(X1, y1, eval_set=eval_set, callbacks=[callback])
         except (AttributeError, TypeError):
             # Fallback to older approach
             try:
-                est.fit(X1, y1.values.ravel(), eval_set=eval_set,
+                est.fit(X1, y1, eval_set=eval_set,
                         early_stopping_rounds=esr)
             except TypeError:
                 # If both fail, fit without early stopping
-                est.fit(X1, y1.values.ravel(), eval_set=eval_set)
+                est.fit(X1, y1, eval_set=eval_set)
     else:
-        est.fit(X_train, y_train.values.ravel())
+        est.fit(X_train_np, y_train_np)
 
     # Get the initial scores
 
     if model_type != ModelType.ranking:
         logger.info("Cross-Validation")
         strat_k_fold = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
-        scores = cross_val_score(est, X_train, y_train.values.ravel(), scoring=scorer,
+        scores = cross_val_score(est, X_train_np, y_train_np, scoring=scorer,
                                  cv=strat_k_fold, n_jobs=n_jobs, verbose=verbosity)
         logger.info("Cross-Validation Scores: %s", scores)
 
@@ -842,7 +846,7 @@ def make_predictions(model, algo):
                 est = VennAbersCalibrator(estimator=est, inductive=True, cal_size=0.2)
             else:
                 est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
-            est.fit(X_train, y_train.values.ravel())
+            est.fit(X_train_np, y_train_np)
             model.estimators[algo] = est
             logger.info("Calibration Complete")
         else:
@@ -1113,7 +1117,7 @@ def generate_metrics(model, partition):
 
     # Generate Metrics
 
-    if not expected.empty:
+    if not (expected.is_empty() if hasattr(expected, 'is_empty') else expected.empty):
         # Check if test set has actual results to evaluate
         # Handle both Series and DataFrame cases
         if hasattr(expected, 'iloc'):
@@ -1295,14 +1299,14 @@ def save_predictions(model, partition):
 
     # Join train and test files
 
-    df_master = pd.DataFrame()
+    df_master = pl.DataFrame()
     if partition == Partition.train:
-        df_master = pd.concat([model.df_X_train, model.df_y_train], axis=1)
+        df_master = pl.concat([model.df_X_train, model.df_y_train], how="horizontal")
     elif partition == Partition.test:
         if model.test_labels:
-            df_master = pd.concat([model.df_X_test, model.df_y_test], axis=1)
+            df_master = pl.concat([model.df_X_test, model.df_y_test], how="horizontal")
         else:
-            df_master = model.df_X_test
+            df_master = model.df_X_test.clone()
     else:
         raise ValueError("Invalid Partition: %s", partition)
 
@@ -1329,20 +1333,20 @@ def save_predictions(model, partition):
 
     for tag_id in tag_list:
         pred_name = USEP.join(['pred', datasets[partition], tag_id.lower()])
-        df_master[pred_name] = model.preds[(tag_id, partition)]
+        df_master = df_master.with_columns(pl.Series(pred_name, model.preds[(tag_id, partition)]))
         if model_type == ModelType.classification or model_type == ModelType.system:
             prob_name = USEP.join(['prob', datasets[partition], tag_id.lower()])
-            df_master[prob_name] = model.probas[(tag_id, partition)]
+            df_master = df_master.with_columns(pl.Series(prob_name, model.probas[(tag_id, partition)]))
 
     # Save ranked predictions
 
     logger.info("Saving Ranked Predictions")
     if model_type == ModelType.classification or model_type == ModelType.system:
         prob_name = USEP.join(['prob', datasets[partition], sort_tag.lower()])
-        df_master.sort_values(prob_name, ascending=False, inplace=True)
+        df_master = df_master.sort(prob_name, descending=True)
     else:
         pred_name = USEP.join(['pred', datasets[partition], sort_tag.lower()])
-        df_master.sort_values(pred_name, ascending=False, inplace=True)
+        df_master = df_master.sort(pred_name, descending=True)
     output_file = USEP.join(['ranked', datasets[partition]])
     write_frame(df_master, output_dir, output_file, extension, separator)
 
@@ -1400,8 +1404,18 @@ def save_metrics(model):
 
     keys = [list(k) for (k, _) in model.metrics.items()]
     values = [v for (_, v) in model.metrics.items()]
-    df = pd.DataFrame(keys, columns=['algo', 'partition', 'metric'])
-    df['value'] = values
+    # Build columns from keys list of lists
+    algos = [k[0] for k in keys]
+    partitions = [str(k[1]) for k in keys]
+    metrics = [k[2] for k in keys]
+    # Convert values to strings since they can be mixed types (floats, arrays, etc.)
+    values_str = [str(v) for v in values]
+    df = pl.DataFrame({
+        'algo': algos,
+        'partition': partitions,
+        'metric': metrics,
+        'value': values_str
+    })
 
     # Save model metrics
 

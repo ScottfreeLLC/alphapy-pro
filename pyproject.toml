@@ -15,7 +15,7 @@ authors = [
 maintainers = [
     {name = "ScottFree LLC", email = "scottfree.analytics@scottfreellc.com"},
 ]
-keywords = ["machine learning", "trading", "finance", "sports", "prediction", "scikit-learn", "pandas"]
+keywords = ["machine learning", "trading", "finance", "prediction", "scikit-learn", "pandas"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
@@ -31,7 +31,6 @@ dependencies = [
     "arrow>=0.13",
     "bokeh>=1.3",
     "category_encoders>=2.1",
-    "iexfinance>=0.4.3",
     "imbalanced-learn>=0.5",
     "ipython>=7.2",
     "lofo-importance>=0.3.4",
@@ -42,13 +41,22 @@ dependencies = [
     "polygon-api-client>=1.13.4",
     "pyyaml>=5.0",
     "scikit-learn>=1.0",
-    "scipy>=1.7,<1.14",
+    "scipy>=1.7",
     "seaborn>=0.11",
     "setuptools>=61.0",
-    "statsmodels>=0.13.0,<0.15.0",
+    "statsmodels>=0.13.0",
     "venn-abers>=1.4.1",
     "xgboost>=3.0.4",
     "yfinance>=0.1.59",
+    # Trading agent dependencies
+    "alpaca-py>=0.21.0",
+    "anthropic>=0.25.0",
+    # High-performance data & indicators
+    "polars>=1.0.0",
+    "talipp>=2.7.0",
+    "pydantic>=2.0.0",
+    "quantstats>=0.0.77",
+    "pyarrow>=22.0.0",
 ]
 
 [project.optional-dependencies]
@@ -71,6 +79,10 @@ test = [
     "pytest>=6.0",
     "pytest-cov>=2.0",
     "pytest-xdist>=2.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.10.0",
+    "pytest-timeout>=2.1.0",
+    "freezegun>=1.2.0",
 ]
 
 [project.urls]
@@ -82,12 +94,13 @@ Repository = "https://github.com/ScottFreeLLC/alphapy-pro.git"
 [project.scripts]
 alphapy = "alphapy.alphapy_main:main"
 mflow = "alphapy.mflow_main:main"
+trading-agent = "scripts.run_agent:main"
 
 [tool.hatch.version]
 path = "alphapy/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["alphapy"]
+packages = ["alphapy", "agent", "scripts"]
 
 [tool.uv]
 dev-dependencies = [
@@ -127,10 +140,17 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
     "--strict-config",
+    "-v",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
+    "asyncio: marks tests as async (pytest-asyncio)",
+]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::FutureWarning",
 ]
 
 # Coverage settings (used when pytest-cov is installed)
@@ -144,7 +164,7 @@ addopts = [
 ]
 
 [tool.coverage.run]
-source = ["alphapy"]
+source = ["alphapy", "agent"]
 omit = [
     "*/tests/*",
     "*/test_*",
@@ -152,6 +172,7 @@ omit = [
 ]
 
 [tool.coverage.report]
+fail_under = 80
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -159,6 +180,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise AssertionError",
     "raise NotImplementedError",
+    "if TYPE_CHECKING:",
 ]
 
 [tool.mypy]
@@ -186,6 +208,5 @@ module = [
     "bokeh.*",
     "yfinance.*",
     "polygon.*",
-    "iexfinance.*",
 ]
 ignore_missing_imports = true

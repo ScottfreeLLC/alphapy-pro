@@ -6,7 +6,7 @@ portfolio:
 
 system:
     system_name     : 
-    signal_long     : hc_5min
+    signal_long     : hc_1D
     signal_short    : 
     profit_factor   : 
     stoploss_factor : 
@@ -15,8 +15,8 @@ system:
     prob_max        : 
 
 data:
-    data_source     : eodhd
-    data_fractal    : 5min
+    data_source     : alpaca
+    data_fractal    : 1d
     data_history    : 600
     data_start_date : 
     data_end_date   : 
@@ -31,7 +31,6 @@ data:
 bar_type : time
 
 features :
-    5min:  ['hc']
     1D:    ['abovema_3', 'abovema_5', 'abovema_10', 'abovema_20', 'abovema',
             'adx', 'adxhigh', 'adxlow', 'atr', 'belowma', 'cminuso',
             'diminus', 'diplus', 'doji', 'gap', 'gapbadown', 'gapbaup', 'gapdown', 'gapup',

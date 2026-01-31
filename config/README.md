@@ -31,7 +31,7 @@ These files define ML algorithms, features, and system behavior:
 
 2. **Edit `alphapy.yml`**: Update with your local directory paths:
    - Set `data_dir` to where you want to store market data
-   - Set project roots for each pipeline (aflow, mflow, sflow)
+   - Set project roots for each pipeline (aflow, mflow)
 
 3. **Edit `sources.yml`**: Add your API keys:
    - Get free/paid API keys from the providers listed in the template
@@ -46,7 +46,6 @@ Controls where AlphaPy stores data and projects:
 - `data_dir`: Central location for all downloaded market data
 - `aflow.project_root`: Location for general ML projects
 - `mflow.project_root`: Location for market analysis projects
-- `sflow.project_root`: Location for sports prediction projects
 
 ### sources.yml
 Contains API credentials for data providers:

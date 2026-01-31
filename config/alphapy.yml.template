@@ -27,10 +27,3 @@ mflow:
     project_root: /path/to/your/alphapy-markets/Projects
     # Server URL (only used if use_server is True)
     server_url: 'http://localhost:8000/'
-
-# Sport Flow configuration
-sflow:
-    # Root directory for sports prediction projects
-    project_root: /path/to/your/alphapy-sports/Projects
-    # Server URL (only used if use_server is True)
-    server_url: 'http://localhost:8000/'

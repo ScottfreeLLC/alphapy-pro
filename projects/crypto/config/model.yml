@@ -20,16 +20,16 @@ model:
         subsample     : True
         sampling_pct  : 0.25
     ranking           :
-        group_id      : date
+        group_id      : datetime
         group_size    : 10
     rfe               :
         option        : False
         step          : 10
     scoring_function  : roc_auc
-    target            : hc_5min
+    target            : hc_1D
     time_series       :
         option        : False
-        date_index    : date
+        date_index    : datetime
         forecast      : 1
         n_lags        : 0
         group_id      : unique_id

@@ -54,7 +54,7 @@ class TestCoreModules:
 
 class TestOptionalModules:
     """Test optional modules that might have external dependencies."""
-    
+
     def test_market_flow_import(self):
         """Test market flow module import."""
         try:
@@ -62,11 +62,3 @@ class TestOptionalModules:
             assert market_flow is not None
         except ImportError as e:
             pytest.skip(f"Market flow module not available: {e}")
-    
-    def test_sport_flow_import(self):
-        """Test sport flow module import."""
-        try:
-            from alphapy import sport_flow
-            assert sport_flow is not None
-        except ImportError as e:
-            pytest.skip(f"Sport flow module not available: {e}")

@@ -1,0 +1,198 @@
+#
+# AlphaPy Indicators Configuration
+#
+# This file defines technical analysis indicators available in the system.
+# Indicators can come from multiple sources with prefixes:
+#   ap:  - AlphaPy transforms.py (76 functions, default)
+#   ta:  - TA-Lib (200+ indicators)
+#   pta: - pandas-ta (130+ indicators)
+#   vbt: - VectorBT (backtesting indicators)
+#
+# Examples:
+#   ap:rsi_14       - AlphaPy RSI
+#   ta:RSI_14       - TA-Lib RSI
+#   pta:rsi_14      - pandas-ta RSI
+#   vbt:rsi_14      - VectorBT RSI
+#   rsi_14          - defaults to ap:rsi_14
+#
+# The indicator registry loads this configuration on startup.
+#
+
+# Source Configuration
+# Configure indicator sources and their behavior
+sources:
+  alphapy:
+    enabled: true
+    default: true  # Use ap: prefix when no prefix specified
+    streaming: true  # Use talipp for O(1) streaming when available
+    description: "AlphaPy transforms.py (76 functions)"
+
+  talib:
+    enabled: true
+    module: talib
+    description: "TA-Lib: 200+ indicators via C library"
+    install: "brew install ta-lib && pip install TA-Lib"
+
+  pandas_ta:
+    enabled: true
+    module: pandas_ta
+    description: "pandas-ta: 130+ technical analysis indicators"
+    install: "pip install pandas-ta"
+
+  vectorbt:
+    enabled: true
+    module: vectorbt
+    description: "VectorBT: Vectorized backtesting indicators"
+    install: "pip install vectorbt"
+
+# External Library Configuration (legacy, use sources above)
+external_libraries:
+  pandas_ta:
+    enabled: true
+    module: pandas_ta
+    description: "pandas-ta: 130+ technical analysis indicators"
+    install: "pip install pandas-ta"
+
+  talib:
+    # TA-Lib requires C library installation before Python bindings
+    # macOS: brew install ta-lib && pip install TA-Lib
+    # Linux: apt-get install libta-lib-dev && pip install TA-Lib
+    enabled: true
+    module: talib
+    description: "TA-Lib: 200+ indicators via C library"
+    install: "brew install ta-lib && pip install TA-Lib"
+
+  vectorbt:
+    enabled: true
+    module: vectorbt
+    description: "VectorBT: Vectorized backtesting indicators"
+    install: "pip install vectorbt"
+
+# Aliases for indicator names
+# Map shorthand names to canonical indicator names
+aliases:
+  # Common abbreviations
+  sma: ma
+  avg: ma
+  average: ma
+
+  # ATR aliases
+  atr: ma_truerange
+  average_true_range: ma_truerange
+
+  # Volume aliases
+  adv: ma_volume
+  average_volume: ma_volume
+
+  # Directional movement
+  plusdi: diplus
+  minusdi: diminus
+  di_plus: diplus
+  di_minus: diminus
+
+  # Bollinger bands
+  bb_lower: bblower
+  bb_upper: bbupper
+  bollinger_lower: bblower
+  bollinger_upper: bbupper
+
+# Custom Indicators from External Libraries
+# Define indicators not in transforms.py that you want to use
+custom_indicators:
+  # Example: Supertrend from pandas-ta
+  # supertrend:
+  #   source: pandas_ta
+  #   function: supertrend
+  #   category: trend
+  #   description: "Supertrend indicator for trend following"
+  #   params:
+  #     length: 10
+  #     multiplier: 3.0
+  #   outputs:
+  #     - SUPERT_10_3.0
+  #     - SUPERTd_10_3.0
+  #     - SUPERTl_10_3.0
+  #     - SUPERTs_10_3.0
+
+  # Example: Ichimoku from pandas-ta
+  # ichimoku:
+  #   source: pandas_ta
+  #   function: ichimoku
+  #   category: trend
+  #   description: "Ichimoku Cloud indicator"
+  #   params:
+  #     tenkan: 9
+  #     kijun: 26
+  #     senkou: 52
+  #   requires_ohlcv: true
+
+  # Example: Custom user indicator
+  # my_indicator:
+  #   source: my_custom_module.indicators
+  #   function: my_custom_indicator
+  #   category: momentum
+  #   description: "My custom momentum indicator"
+  #   params:
+  #     period: 14
+  #     threshold: 0.5
+
+# Indicator Groups
+# Group related indicators for batch computation
+groups:
+  trend_indicators:
+    - adx
+    - aroon
+    - psar
+
+  momentum_indicators:
+    - rsi
+    - macd
+    - stoch
+    - cci
+    - williams
+    - roc
+
+  volatility_indicators:
+    - atr
+    - bbands
+    - natr
+
+  volume_indicators:
+    - obv
+    - vwap
+    - mfi
+
+  moving_averages:
+    - ma
+    - ema
+    - dema
+    - tema
+    - kama
+    - zlema
+
+  # Common sets for different strategies
+  swing_trading:
+    - rsi_14
+    - macd_12_26_9
+    - bbands_close_20
+    - atr_14
+
+  day_trading:
+    - ema_9
+    - ema_21
+    - vwap
+    - rsi_7
+    - atr_14
+
+  trend_following:
+    - adx_14
+    - ma_close_50
+    - ma_close_200
+    - psar
+
+# Default Parameters
+# Override default parameter values globally
+defaults:
+  period: 14
+  column: close
+  std_dev: 2.0

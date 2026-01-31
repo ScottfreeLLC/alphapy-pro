@@ -154,7 +154,7 @@ AlphaPy Pro uses a comprehensive YAML-based configuration system:
 
 Specialized pipeline for financial market analysis featuring:
 
-- **Multi-source data integration** (EOD Historical Data, Finnhub, IEX, Polygon, etc.)
+- **Multi-source data integration** (EOD Historical Data, Polygon, Yahoo Finance)
 - **Advanced technical indicators** and market features
 - **Trading system development** and backtesting
 - **Portfolio optimization** and risk analysis
@@ -166,11 +166,8 @@ Specialized pipeline for financial market analysis featuring:
 AlphaPy Pro supports multiple data providers:
 
 - **EOD Historical Data**: Historical market data
-- **Finnhub**: Real-time market data and news
-- **IEX Cloud**: Financial data platform
 - **Polygon**: Stock market data API
 - **Yahoo Finance**: Free market data
-- **Custom sources**: Easily integrate your own data
 
 ## Examples
 

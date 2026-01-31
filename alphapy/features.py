@@ -42,6 +42,7 @@ import logging
 import numpy as np
 import os
 import pandas as pd
+import polars as pl
 import re
 from scipy import sparse
 import scipy.stats as sps
@@ -261,21 +262,31 @@ def impute_values(feature, dt, sentinel):
     """
 
     try:
-        # for pandas series
-        feature = feature.values.reshape(-1, 1)
-    except:
+        # for Polars/pandas DataFrame or Series
+        feature = feature.to_numpy().reshape(-1, 1)
+    except AttributeError:
         # for numpy array
         feature = feature.reshape(-1, 1)
 
-    if dt == 'float64':
+    # Handle both pandas dtype strings and Polars dtype objects
+    is_float = (hasattr(dt, 'is_float') and dt.is_float()) or dt == 'float64'
+    is_signed_int = (hasattr(dt, 'is_signed_integer') and dt.is_signed_integer()) or dt == 'int64'
+    is_unsigned_int = hasattr(dt, 'is_unsigned_integer') and dt.is_unsigned_integer()
+    is_bool = (dt == pl.Boolean if hasattr(dt, 'is_float') else dt == 'bool')
+
+    if is_float:
         logger.info("    Imputation for Data Type %s: Median Strategy" % dt)
         # replace infinity with imputed value
         feature[np.isinf(feature)] = np.nan
         imp = SimpleImputer(missing_values=np.nan, strategy='median')
-    elif dt == 'int64':
+    elif is_signed_int:
         logger.info("    Imputation for Data Type %s: Most Frequent Strategy" % dt)
         imp = SimpleImputer(missing_values=np.nan, strategy='most_frequent')
-    elif dt != 'bool':
+    elif is_unsigned_int:
+        # Unsigned ints can't use negative sentinel, use 0
+        logger.info("    Imputation for Data Type %s: Fill Strategy with 0" % dt)
+        imp = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=np.uint32(0))
+    elif not is_bool:
         logger.info("    Imputation for Data Type %s: Fill Strategy with %d" % (dt, sentinel))
         imp = SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=sentinel)
     else:
@@ -417,8 +428,16 @@ def get_text_features(fnum, fname, df, nvalues, vectorize, ngrams_max):
 
     """
     feature = df[fname]
-    min_length = int(feature.astype(str).str.len().min())
-    max_length = int(feature.astype(str).str.len().max())
+    # Handle both Polars and pandas
+    if hasattr(feature, 'cast'):
+        # Polars Series
+        str_feature = feature.cast(pl.Utf8)
+        min_length = int(str_feature.str.len_chars().min())
+        max_length = int(str_feature.str.len_chars().max())
+    else:
+        # pandas Series
+        min_length = int(feature.astype(str).str.len().min())
+        max_length = int(feature.astype(str).str.len().max())
     if len(feature) == nvalues:
         logger.info("Feature %d: %s is a text feature [%d:%d] with maximum number of values %d",
                     fnum, fname, min_length, max_length, nvalues)
@@ -426,22 +445,30 @@ def get_text_features(fnum, fname, df, nvalues, vectorize, ngrams_max):
         logger.info("Feature %d: %s is a text feature [%d:%d] with %d unique values",
                     fnum, fname, min_length, max_length, nvalues)
     # need a null text placeholder for vectorization
-    feature.fillna(value=NULLTEXT, inplace=True)
+    # Handle both Polars and pandas
+    if hasattr(feature, 'fill_null'):
+        # Polars Series
+        feature = feature.fill_null(NULLTEXT)
+        feature_list = feature.to_list()
+    else:
+        # pandas Series
+        feature = feature.fillna(value=NULLTEXT)
+        feature_list = feature.tolist()
     # vectorization creates many columns, otherwise just factorize
     if vectorize:
         logger.info("Feature %d: %s => Attempting Vectorization", fnum, fname)
         vectorizer = TfidfVectorizer(ngram_range=[1, ngrams_max])
         try:
-            new_features = vectorizer.fit_transform(feature)
+            new_features = vectorizer.fit_transform(feature_list)
             new_fnames = vectorizer.get_feature_names()
             logger.info("Feature %d: %s => Vectorization Succeeded", fnum, fname)
         except:
             logger.info("Feature %d: %s => Vectorization Failed", fnum, fname)
-            new_features, _ = pd.factorize(feature)
+            new_features, _ = pd.factorize(feature_list)
             new_fnames = [USEP.join([fname, 'factor'])]
     else:
         logger.info("Feature %d: %s => Factorization", fnum, fname)
-        new_features, _ = pd.factorize(feature)
+        new_features, _ = pd.factorize(feature_list)
         new_fnames = [USEP.join([fname, 'factor'])]
     return new_features, new_fnames
 
@@ -506,10 +533,13 @@ def create_crosstabs(model, target):
     # Iterate through columns, dispatching and transforming each feature.
 
     crosstabs = {}
-    for fname in X_train:
+    for fname in X_train.columns:
         if fname in factors:
             logger.info("Creating crosstabs for feature %s", fname)
-            ct_factor = pd.crosstab(X_train[fname], y_train[target]).apply(lambda r : r / r.sum(), axis=1)
+            # Convert to pandas for crosstab
+            x_col = X_train[fname].to_pandas() if hasattr(X_train[fname], 'to_pandas') else X_train[fname]
+            y_col = y_train[target].to_pandas() if hasattr(y_train[target], 'to_pandas') else y_train[target]
+            ct_factor = pd.crosstab(x_col, y_col).apply(lambda r : r / r.sum(), axis=1)
             crosstabs[fname] = ct_factor
 
     # Save crosstabs to the feature map
@@ -564,17 +594,21 @@ def get_factors(model, X_train, X_test, y_train, fnum, fname,
                 fnum, fname, dtype, nvalues)
     logger.info("Encoding: %s", encoder)
 
-    # get feature
-    feature_train = X_train[fname]
-    feature_test = X_test[fname]
+    # get feature - convert to pandas for category_encoders compatibility
+    if hasattr(X_train[fname], 'to_pandas'):
+        feature_train = X_train[fname].to_pandas()
+        feature_test = X_test[fname].to_pandas()
+    else:
+        feature_train = X_train[fname]
+        feature_test = X_test[fname]
     # convert float to factor
-    if dtype == 'float64':
+    if dtype == 'float64' or (hasattr(dtype, 'is_float') and dtype.is_float()):
         logger.info("Rounding: %d", rounding)
         feature_train = feature_train.apply(float_factor, args=[rounding])
         feature_test = feature_test.apply(float_factor, args=[rounding])
     # create data frames for the feature
-    df_train = pd.DataFrame(feature_train)
-    df_test = pd.DataFrame(feature_test)
+    df_train = pd.DataFrame({fname: feature_train})
+    df_test = pd.DataFrame({fname: feature_test})
     # encoders
     enc = None
     try:
@@ -585,7 +619,8 @@ def get_factors(model, X_train, X_test, y_train, fnum, fname,
     if enc is not None:
         # fit training features
         logger.info("Fitting training features for %s", fname)
-        ftrain = enc.fit_transform(df_train, y_train.values.ravel())
+        y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train.ravel()
+        ftrain = enc.fit_transform(df_train, y_train_np)
         # fit testing features
         logger.info("Transforming testing features for %s", fname)
         ftest = enc.transform(df_test)
@@ -1058,11 +1093,20 @@ def create_features(model, X, X_train, X_test, y_train):
     if counts_flag:
         logger.info("Creating Count Features")
         logger.info("NA Counts")
-        X['nan_count'] = X.count(axis=1)
+        # Count non-null values per row using Polars
+        nan_count = pl.sum_horizontal(pl.all().is_not_null()).alias('nan_count')
+        X = X.with_columns(nan_count)
         logger.info("Number Counts")
-        for i in range(10):
-            fc = USEP.join(['count', str(i)])
-            X[fc] = (X == i).astype(int).sum(axis=1)
+        # Get numeric columns only for count comparison
+        numeric_cols = [c for c in X.columns if X[c].dtype.is_numeric()]
+        if numeric_cols:
+            for i in range(10):
+                fc = USEP.join(['count', str(i)])
+                # Count occurrences of value i per row (numeric columns only)
+                count_expr = pl.sum_horizontal(
+                    (pl.col(c) == i).cast(pl.Int32) for c in numeric_cols
+                ).alias(fc)
+                X = X.with_columns(count_expr)
         logger.info("New Feature Count : %d", X.shape[1])
 
     # Iterate through columns, dispatching and transforming each feature.
@@ -1071,18 +1115,32 @@ def create_features(model, X, X_train, X_test, y_train):
     all_features = np.zeros((X.shape[0], 1))
     model.feature_names = []
 
-    for i, fname in enumerate(X):
+    # Convert object/Object dtype columns to Utf8 for Polars compatibility
+    for col in X.columns:
+        dtype_str = str(X[col].dtype).lower()
+        if dtype_str == 'object' or X[col].dtype == pl.Object:
+            # Can't directly cast Object type, convert via string representation
+            X = X.with_columns(
+                pl.Series(col, [str(v) if v is not None else None for v in X[col].to_list()]).cast(pl.Utf8)
+            )
+
+    for i, fname in enumerate(X.columns):
         fnum = i + 1
-        dtype = X[fname].dtypes
-        nunique = len(X[fname].unique())
+        dtype = X[fname].dtype
+        nunique = X[fname].n_unique()
         # standard processing of numerical, categorical, and text features
+        # Handle both pandas dtype strings and Polars dtype objects
+        is_numeric = (dtype.is_numeric() if hasattr(dtype, 'is_numeric')
+                      else dtype in ('float64', 'int64', 'bool'))
+        is_string = (dtype == pl.Utf8 or dtype == pl.String if hasattr(dtype, 'is_numeric')
+                     else dtype == 'object')
         if factors and fname in factors:
             features, fnames = get_factors(model, X_train, X_test, y_train, fnum, fname,
                                            nunique, dtype, encoder, rounding, sentinel)
-        elif dtype == 'float64' or dtype == 'int64' or dtype == 'bool':
+        elif is_numeric:
             features, fnames = get_numerical_features(fnum, fname, X, nunique, dtype,
                                                       sentinel, log_transform, pvalue_level)
-        elif dtype == 'object':
+        elif is_string:
             features, fnames = get_text_features(fnum, fname, X, nunique, vectorize, ngrams_max)
         else:
             raise TypeError("Base Feature Error with unrecognized type %s" % dtype)
@@ -1227,7 +1285,9 @@ def select_features_lofo(model, algo, est):
     # Construct the LOFO dataset.
 
     X_df = pd.DataFrame(X_fs, columns=fnames)
-    df = pd.concat([X_df, y_train], axis=1)
+    # Convert y_train to pandas if it's a Polars DataFrame (lofo requires pandas)
+    y_train_pd = y_train.to_pandas() if hasattr(y_train, 'to_pandas') else y_train
+    df = pd.concat([X_df, y_train_pd], axis=1)
     dataset = lofo.Dataset(df=df, target=target, features=fnames)
 
     # Calculate the feature importances.
@@ -1306,8 +1366,8 @@ def select_features_univariate(model):
                           percentile=fs_uni_pct)
 
     # Perform feature selection and get the support mask
-
-    fsfit = fs.fit(X_train, y_train.values.ravel())
+    y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train.ravel()
+    fsfit = fs.fit(X_train, y_train_np)
     support = fsfit.get_support()
 
     # Record the support vector
@@ -1434,7 +1494,8 @@ def create_interactions(model, X):
                 selector = SelectPercentile(f_classif, percentile=isample_pct)
             else:
                 raise TypeError("Unknown model type when creating interactions")
-            selector.fit(X_train, y_train.values.ravel())
+            y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train.ravel()
+            selector.fit(X_train, y_train_np)
             support = selector.get_support()
             model.feature_map['poly_support'] = support
         else:
@@ -1462,14 +1523,14 @@ def drop_features(X, drop):
 
     Parameters
     ----------
-    X : pandas.DataFrame
+    X : polars.DataFrame
         The dataframe containing the features.
     drop : list
         The list of features to remove from ``X``.
 
     Returns
     -------
-    X : pandas.DataFrame
+    X : polars.DataFrame
         The dataframe without the dropped features.
 
     """
@@ -1481,7 +1542,10 @@ def drop_features(X, drop):
                     drop_cols.append(col)
         logger.info("Dropping Features: %s", drop_cols)
         logger.info("Original Feature Count : %d", X.shape[1])
-        X.drop(drop_cols, axis=1, inplace=True, errors='ignore')
+        # Filter to only columns that exist (ignore missing)
+        existing_cols = [c for c in drop_cols if c in X.columns]
+        if existing_cols:
+            X = X.drop(existing_cols)
         logger.info("Reduced Feature Count  : %d", X.shape[1])
     return X
 

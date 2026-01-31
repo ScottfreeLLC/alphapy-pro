@@ -2,7 +2,7 @@
 # AlphaPy Groups
 #
 
-btc        : ['BTC-USD.CC']
+btc        : ['BTC/USD']
 
 crypto     : ['aave-usd', 'ada-usd', 'algo-usd', 'amp1-usd', 'ankr-usd', 'ar-usd', 'arrr-usd',
               'atom1-usd', 'avax-usd', 'bat-usd', 'bch-usd', 'bnb-usd', 'bnt-usd', 'bsv-usd',

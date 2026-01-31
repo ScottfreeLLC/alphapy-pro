@@ -31,7 +31,6 @@ AlphaPy Pro MarketFlow supports multiple professional-grade data providers:
 * **EODHD (End of Day Historical Data)** - Daily and intraday market data
 * **Yahoo Finance** - Free daily stock data via yfinance
 * **Polygon** - Professional real-time and historical market data
-* **IEX Cloud** - Financial data API with extensive coverage
 
 **Legacy Support:**
 

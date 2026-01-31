@@ -36,20 +36,13 @@ from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import SSEP
 from alphapy.globals import WILDCARD
 from alphapy.space import Space
-from alphapy.transforms import dateparts
-from alphapy.transforms import timeparts
+from alphapy.data_sources import AlpacaDataSource, PolygonDataSource
 
 from datetime import datetime
-from iexfinance.stocks import get_historical_data
-from iexfinance.stocks import get_historical_intraday
 from io import BytesIO
 import logging
 import numpy as np
-import pandas as pd
-pd.core.common.is_list_like = pd.api.types.is_list_like
-import pandas_datareader.data as web
-from polygon import RESTClient
-import pytz
+import polars as pl
 import re
 import requests
 from sklearn.preprocessing import LabelEncoder
@@ -80,9 +73,9 @@ def get_data(model, partition):
 
     Returns
     -------
-    df_X : pandas.DataFrame
+    df_X : polars.DataFrame
         The feature set.
-    df_y : pandas.DataFrame
+    df_y : polars.DataFrame
         The array of target values, if available.
 
     """
@@ -102,46 +95,46 @@ def get_data(model, partition):
 
     # Initialize X and y
 
-    df_X = pd.DataFrame()
-    df_y = pd.DataFrame()
+    df_X = pl.DataFrame()
+    df_y = pl.DataFrame()
 
     # Read in the file
 
     filename = datasets[partition]
     data_dir = SSEP.join([directory, 'data'])
     df = read_frame(data_dir, filename, extension, separator)
-    if df.empty:
+    if df.is_empty():
         input_dir = SSEP.join([run_dir, 'input'])
         df = read_frame(input_dir, filename, extension, separator)
 
     # Get features and target
 
-    if not df.empty:
+    if not df.is_empty():
         if target in df.columns:
             logger.info("Found target %s in data frame", target)
             # check if target column has NaN values
-            nan_count = df[target].isnull().sum()
+            nan_count = df[target].null_count()
             logger.info("Found %d records with NaN target values", nan_count)
             # drop NA targets
             if not live_results or partition == Partition.train:
-                df = df.dropna(subset=[target]).reset_index(drop=True)
+                df = df.drop_nulls(subset=[target])
                 if nan_count > 0:
                     logger.info("Dropped %d records with NaN target values", nan_count)
             # assign the target column to y
-            df_y = df[target]
+            df_y = df.select(target)
             # encode label only for classification or system
             if model_type == ModelType.classification or model_type == ModelType.system:
-                y = LabelEncoder().fit_transform(df_y)
-                df_y = pd.DataFrame(y, columns=[target])
+                y = LabelEncoder().fit_transform(df_y[target].to_numpy())
+                df_y = pl.DataFrame({target: y})
             # drop the target from the original frame
-            df = df.drop([target], axis=1)
+            df = df.drop(target)
         else:
             logger.info("Target %s not found in %s", target, partition)
         # Extract features
         if features == WILDCARD:
             df_X = df
         else:
-            df_X = df[features]
+            df_X = df.select(features)
 
     # Labels are returned usually only for training data
     return df_X, df_y
@@ -192,70 +185,98 @@ def shuffle_data(model):
 # Function convert_data
 #
 
-def convert_data(df, intraday_data):
+def convert_data(df: pl.DataFrame, intraday_data: bool) -> pl.DataFrame:
     r"""Convert the market data frame to canonical format.
 
     Parameters
     ----------
-    df : pandas.DataFrame
+    df : polars.DataFrame
         The intraday dataframe.
     intraday_data : bool
         Flag set to True if the frame contains intraday data.
 
     Returns
     -------
-    df : pandas.DataFrame
-        The canonical dataframe with date/time index.
+    df : polars.DataFrame
+        The canonical dataframe with date/time columns.
 
     """
+    # Ensure datetime column exists
+    if "datetime" not in df.columns:
+        raise ValueError("DataFrame must have a 'datetime' column")
 
-    # Create the date and time columns
+    # Add date column
+    df = df.with_columns(
+        pl.col("datetime").dt.date().alias("date")
+    )
 
-    df['date'] = df.index
-    df['date'] = pd.to_datetime(df['date']).dt.date
+    # Add date parts
+    df = df.with_columns([
+        pl.col("date").dt.year().alias("year"),
+        pl.col("date").dt.month().alias("month"),
+        pl.col("date").dt.day().alias("day"),
+        pl.col("date").dt.weekday().alias("dayofweek"),
+        pl.col("date").dt.ordinal_day().alias("dayofyear"),
+        pl.col("date").dt.week().alias("weekofyear"),
+        pl.col("date").dt.quarter().alias("quarter"),
+    ])
+
     if intraday_data:
-        df['time'] = df.index
-        df['time'] = pd.to_datetime(df['time']).dt.time
+        # Add time column
+        df = df.with_columns(
+            pl.col("datetime").dt.time().alias("time")
+        )
 
-    # Add datetime columns
+        # Add time parts
+        df = df.with_columns([
+            pl.col("datetime").dt.hour().alias("hour"),
+            pl.col("datetime").dt.minute().alias("minute"),
+            pl.col("datetime").dt.second().alias("second"),
+        ])
 
-    # daily data
-    df = pd.concat([df, dateparts(df, 'date')], axis=1)
+        # Group by date for intraday calculations
+        df = df.with_columns([
+            pl.col("datetime").cum_count().over("date").alias("barnumber"),
+        ])
 
-    # intraday data
-    if intraday_data:
-        # Group by date first
-        date_group = df.groupby('date')
-        # Number the intraday bars
-        df['barnumber'] = date_group.cumcount().astype(int)
-        df['barpct'] = date_group['barnumber'].transform(lambda x: 100.0 * x / x.count())
-        # Add progressive intraday columns
-        df['opend'] = date_group['open'].transform('first')
-        df['highd'] = date_group['high'].cummax()
-        df['lowd'] = date_group['low'].cummin()
-        df['closed'] = date_group['close'].transform('last')
-        # Mark the end of the trading day
-        df['endofday'] = False
-        df.loc[date_group.tail(1).index, 'endofday'] = True
-        # get time fields
-        df = pd.concat([df, timeparts(df, 'time')], axis=1)
+        # Calculate bar percentage within day
+        df = df.with_columns([
+            (pl.col("barnumber") * 100.0 / pl.col("barnumber").max().over("date")).alias("barpct"),
+        ])
 
-    # Drop date and time fields after extracting parts
+        # Progressive intraday columns
+        df = df.with_columns([
+            pl.col("open").first().over("date").alias("opend"),
+            pl.col("high").cum_max().over("date").alias("highd"),
+            pl.col("low").cum_min().over("date").alias("lowd"),
+            pl.col("close").last().over("date").alias("closed"),
+        ])
 
-    del df['date']
-    if intraday_data:
-        del df['time']
+        # Mark end of day
+        df = df.with_columns([
+            (pl.col("barnumber") == pl.col("barnumber").max().over("date")).alias("endofday"),
+        ])
 
-    # Make the numerical columns floating point
+        # Drop time column after extracting parts
+        df = df.drop("time")
 
-    cols_float = ['open', 'high', 'low', 'close', 'volume']
-    df[cols_float] = df[cols_float].astype(float)
+    # Drop date column after extracting parts
+    df = df.drop("date")
 
-    # Forward-Fill prices and volume
-    df.loc[:, cols_float] = df.loc[:, cols_float].ffill()
+    # Ensure numerical columns are float
+    cols_float = ["open", "high", "low", "close", "volume"]
+    for col in cols_float:
+        if col in df.columns:
+            df = df.with_columns(pl.col(col).cast(pl.Float64))
 
-    # Order the frame by increasing date if necessary
-    df = df.sort_index()
+    # Forward-fill prices and volume
+    for col in cols_float:
+        if col in df.columns:
+            df = df.with_columns(pl.col(col).forward_fill())
+
+    # Sort by datetime
+    df = df.sort("datetime")
+
     return df
 
 
@@ -264,11 +285,11 @@ def convert_data(df, intraday_data):
 #
 
 def convert_offset(alias, mappings):
-    r"""Convert the market data frame to canonical format.
+    r"""Convert offset alias to timespan.
 
     Parameters
     ----------
-    alias : pandas.tseries.offsets
+    alias : str
         Pandas offset alias.
     mappings : dict
         Mapping of offset alias time frame.
@@ -300,349 +321,12 @@ def convert_offset(alias, mappings):
 
 
 #
-# Function get_eodhd_data
-#
-
-def get_eodhd_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
-                   from_date, to_date, lookback_period):
-    r"""Get EODHD daily and intraday data.
-
-    Parameters
-    ----------
-    source : str
-        The data feed.
-    alphapy_specs : dict
-        The specifications for controlling the AlphaPy pipeline.
-    symbol : str
-        A valid stock symbol.
-    intraday_data : bool
-        If True, then get intraday data.
-    data_fractal : str
-        Pandas offset alias.
-    from_date : str
-        Starting date for symbol retrieval.
-    to_date : str
-        Ending date for symbol retrieval.
-    lookback_period : int
-        The number of periods of data to retrieve.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        The dataframe containing the intraday data.
-
-    """
-
-    # Set up parameters for EODHD API
-
-    symbol = symbol.upper()
-
-    mappings = {
-        "min" : "m",
-        "T"   : "m",
-        "H"   : "h",
-        "D"   : "d",
-        "W"   : "w",
-        "M"   : "m",
-    }
-    n_periods, period = convert_offset(data_fractal, mappings)
-
-    #
-    # Note: HTTP Request to EODHD API
-    #
-    # Examples:
-    #
-    # https://eodhd.com/api/eod/MCD.US?period=d&api_token=demo&fmt=csv
-    #
-    # https://eodhd.com/api/eod/MCD.US?from=2020-01-05&to=2020-02-10&period=d&api_token=647208fdeb65b4.31965673&fmt=json
-    #
-
-    df = pd.DataFrame()
-
-    api_key = alphapy_specs['sources']['eodhd']['api_key']
-    api_key_str = 'api_token=' + api_key
-    format_str = 'fmt=csv'
-    if intraday_data:
-        url_base = f'https://eodhd.com/api/intraday/{symbol}?'
-        tz_eastern = pytz.timezone('US/Eastern')
-        from_obj = datetime.strptime(from_date, "%Y-%m-%d")
-        from_obj_est = tz_eastern.localize(from_obj)
-        from_unix_time = int(from_obj_est.timestamp())
-        from_str = 'from=' + str(from_unix_time)
-        to_obj = datetime.strptime(to_date, "%Y-%m-%d")
-        to_obj_est = tz_eastern.localize(to_obj)
-        to_unix_time  = int(to_obj_est.timestamp())
-        to_str = 'to=' + str(to_unix_time)
-        interval_str = 'interval=' + str(n_periods) + period
-        url_str = '&'.join([api_key_str, from_str, to_str, interval_str, format_str])
-    else:
-        url_base = f'https://eodhd.com/api/eod/{symbol}?'
-        from_str = 'from=' + from_date
-        to_str = 'to=' + to_date
-        period_str = 'period=' + period
-        url_str = '&'.join([api_key_str, from_str, to_str, period_str, format_str])
-    url = url_base + url_str
-
-    response = requests.get(url).content
-    df = pd.read_csv(BytesIO(response))
-    df.columns = [col.lower() for col in df.columns]
-    cols_ohlcv = ['open', 'high', 'low', 'close', 'volume']
-
-    if intraday_data:
-        col_dt = 'datetime'
-        df[col_dt] = pd.to_datetime(df[col_dt], utc=True)
-        df[col_dt] = df[col_dt].dt.tz_convert(tz_eastern)
-        df[col_dt] = df[col_dt].dt.tz_localize(None)
-    else:
-        col_dt = 'date'
-        df[col_dt] = pd.to_datetime(df[col_dt])
-
-    cols_df = [col_dt] + cols_ohlcv
-    df = df[cols_df]
-
-    # Return the dataframe
-    return df
-
-
-#
-# Function get_google_intraday_data
-#
-
-def get_google_intraday_data(symbol, lookback_period, fractal):
-    r"""Get Google Finance intraday data.
-
-    We get intraday data from the Google Finance API, even though
-    it is not officially supported. You can retrieve a maximum of
-    50 days of history, so you may want to build your own database
-    for more extensive backtesting.
-
-    Parameters
-    ----------
-    symbol : str
-        A valid stock symbol.
-    lookback_period : int
-        The number of days of intraday data to retrieve, capped at 50.
-    fractal : str
-        The intraday frequency, e.g., "5m" for 5-minute data.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        The dataframe containing the intraday data.
-
-    """
-
-    # Google requires upper-case symbol, otherwise not found
-    symbol = symbol.upper()
-    # Initialize data frame
-    df = pd.DataFrame()
-    # Convert fractal to interval
-    interval = 60 * int(re.findall(r'\d+', fractal)[0])
-    # Google has a 50-day limit
-    max_days = 50
-    if lookback_period > max_days:
-        lookback_period = max_days
-    # Set Google data constants
-    toffset = 7
-    line_length = 6
-    # Make the request to Google
-    base_url = 'https://finance.google.com/finance/getprices?q={}&i={}&p={}d&f=d,o,h,l,c,v'
-    url = base_url.format(symbol, interval, lookback_period)
-    response = requests.get(url)
-    # Process the response
-    text = response.text.split('\n')
-    records = []
-    for line in text[toffset:]:
-        items = line.split(',')
-        if len(items) == line_length:
-            dt_item = items[0]
-            close_item = items[1]
-            high_item = items[2]
-            low_item = items[3]
-            open_item = items[4]
-            volume_item = items[5]
-            if dt_item[0] == 'a':
-                day_item = float(dt_item[1:])
-                offset = 0
-            else:
-                offset = float(dt_item)
-            dt = datetime.fromtimestamp(day_item + (interval * offset))
-            dt = pd.to_datetime(dt)
-            dt_date = dt.strftime('%Y-%m-%d')
-            dt_time = dt.strftime('%H:%M:%S')
-            record = (dt_date, dt_time, open_item, high_item, low_item, close_item, volume_item)
-            records.append(record)
-    # Create data frame
-    cols = ['date', 'time', 'open', 'high', 'low', 'close', 'volume']
-    df = pd.DataFrame.from_records(records, columns=cols)
-    # Return the dataframe
-    return df
-
-
-#
-# Function get_google_data
-#
-
-def get_google_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
-                    from_date, to_date, lookback_period):
-    r"""Get data from Google.
-
-    Parameters
-    ----------
-    source : str
-        The data feed.
-    alphapy_specs : dict
-        The specifications for controlling the AlphaPy pipeline.
-    symbol : str
-        A valid stock symbol.
-    intraday_data : bool
-        If True, then get intraday data.
-    data_fractal : str
-        Pandas offset alias.
-    from_date : str
-        Starting date for symbol retrieval.
-    to_date : str
-        Ending date for symbol retrieval.
-    lookback_period : int
-        The number of periods of data to retrieve.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        The dataframe containing the market data.
-
-    """
-
-    df = pd.DataFrame()
-    if intraday_data:
-        # use internal function
-        # df = get_google_intraday_data(symbol, lookback_period, data_fractal)
-        logger.info("Google Finance API for intraday data no longer available")
-    else:
-        # Google Finance API no longer available
-        logger.info("Google Finance API for daily data no longer available")
-    return df
-
-
-#
-# Function get_iex_data
-#
-
-def get_iex_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
-                 from_date, to_date, lookback_period):
-    r"""Get data from IEX.
-
-    Parameters
-    ----------
-    source : str
-        The data feed.
-    alphapy_specs : dict
-        The specifications for controlling the AlphaPy pipeline.
-    symbol : str
-        A valid stock symbol.
-    intraday_data : bool
-        If True, then get intraday data.
-    data_fractal : str
-        Pandas offset alias.
-    from_date : str
-        Starting date for symbol retrieval.
-    to_date : str
-        Ending date for symbol retrieval.
-    lookback_period : int
-        The number of periods of data to retrieve.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        The dataframe containing the market data.
-
-    """
-
-    symbol = symbol.upper()
-    df = pd.DataFrame()
-
-    if intraday_data:
-        # use iexfinance function to get intraday data for each date
-        df = pd.DataFrame()
-        for d in pd.date_range(from_date, to_date):
-            dstr = d.strftime('%Y-%m-%d')
-            logger.info("%s Data for %s", symbol, dstr)
-            try:
-                df1 = get_historical_intraday(symbol, d, output_format="pandas")
-                df1_len = len(df1)
-                if df1_len > 0:
-                    logger.info("%s: %d rows", symbol, df1_len)
-                    df = df.append(df1)
-                    df = pd.concat([df, df1])
-                else:
-                    logger.info("%s: No Trading Data for %s", symbol, dstr)
-            except:
-                iex_error = "*** IEX Intraday Data Error (check Quota) ***"
-                logger.error(iex_error)
-                sys.exit(iex_error)
-    else:
-        # use iexfinance function for historical daily data
-        try:
-            df = get_historical_data(symbol, from_date, to_date, output_format="pandas")
-        except:
-            iex_error = "*** IEX Daily Data Error (check Quota) ***"
-            logger.error(iex_error)
-            sys.exit(iex_error)
-    return df
-
-
-#
-# Function get_pandas_data
-#
-
-def get_pandas_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
-                    from_date, to_date, lookback_period):
-    r"""Get Pandas Web Reader data.
-
-    Parameters
-    ----------
-    source : str
-        The data feed.
-    alphapy_specs : dict
-        The specifications for controlling the AlphaPy pipeline.
-    symbol : str
-        A valid stock symbol.
-    intraday_data : bool
-        If True, then get intraday data.
-    data_fractal : str
-        Pandas offset alias.
-    from_date : str
-        Starting date for symbol retrieval.
-    to_date : str
-        Ending date for symbol retrieval.
-    lookback_period : int
-        The number of periods of data to retrieve.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        The dataframe containing the market data.
-
-    """
-
-    # Call the Pandas Web data reader.
-
-    try:
-        df = web.DataReader(symbol, source, from_date, to_date)
-    except:
-        df = pd.DataFrame()
-        logger.info("Could not retrieve %s data with pandas-datareader", symbol.upper())
-
-    return df
-
-
-#
 # Function get_polygon_data
 #
 
 def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
                      from_date, to_date, lookback_period):
-    r"""Get Polygon daily and intraday data.
+    r"""Get Polygon daily and intraday data using consolidated PolygonDataSource.
 
     Parameters
     ----------
@@ -665,63 +349,31 @@ def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
 
     Returns
     -------
-    df : pandas.DataFrame
-        The dataframe containing the intraday data.
+    df : polars.DataFrame
+        The dataframe containing the market data.
 
     """
+    # Use the consolidated PolygonDataSource
+    api_key = alphapy_specs['sources']['polygon']['api_key']
+    polygon = PolygonDataSource(api_key=api_key)
 
-    # Set up parameters for Polygon API
+    # Parse dates
+    start_dt = datetime.strptime(from_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(to_date, "%Y-%m-%d")
 
-    symbol = symbol.upper()
+    # Get bars
+    results = polygon.get_bars(
+        symbols=symbol.upper(),
+        timeframe=data_fractal,
+        lookback=lookback_period,
+        start_date=start_dt,
+        end_date=end_dt,
+    )
 
-    mappings = {
-        "min" : "minute",
-        "T"   : "minute",
-        "H"   : "hour",
-        "D"   : "day",
-        "W"   : "week",
-        "M"   : "month",
-        "Q"   : "quarter",
-        "A"   : "year",
-    }
-    n_periods, period = convert_offset(data_fractal, mappings)
+    if symbol.upper() in results:
+        return results[symbol.upper()]
 
-    #
-    # Note: HTTP Request to Polygon API
-    #
-    # Example:
-    #
-    # https://api.polygon.io/v2/aggs/ticker/AAPL/range/5/minute/2023-01-09/2023-05-09
-    # ?adjusted=true&sort=asc&limit=120&apiKey=_BynHqDfXhPoQcFf8Nb6hJzC_p67_5Sf1tn5ms
-    #
-
-    client = RESTClient(api_key=alphapy_specs['sources']['polygon']['api_key'])
-
-    df = pd.DataFrame()
-    aggs = []
-    for a in client.list_aggs(ticker=symbol,
-                              multiplier=n_periods,
-                              timespan=period,
-                              from_=from_date,
-                              to=to_date,
-                              limit=50000):
-        aggs.append(a)
-    df = pd.DataFrame(aggs)
-
-    # Convert timestamp to datetime and adjust the format based on timespan
-    df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
-    if not intraday_data:
-        df['date'] = df['datetime'].dt.date
-        df.drop(columns=['datetime'], inplace=True)
-        rename_column = 'date'
-    else:
-        rename_column = 'datetime'
-
-    df.drop(columns=['timestamp', 'otc'], inplace=True)
-    df = df[[rename_column] + [col for col in df.columns if col != rename_column]]
-
-    # Return the dataframe
-    return df
+    return pl.DataFrame()
 
 
 #
@@ -753,46 +405,216 @@ def get_yahoo_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
 
     Returns
     -------
-    df : pandas.DataFrame
+    df : polars.DataFrame
         The dataframe containing the market data.
 
     """
 
-    df = pd.DataFrame()
     data_fractal = data_fractal.lower()
-    yahoo_fractals = {'min' : 'm',
-                      'h'   : 'h',
-                      'd'   : 'd',
-                      'w'   : 'wk',
-                      'm'   : 'mo'}
+    yahoo_fractals = {'min': 'm',
+                      'h': 'h',
+                      'd': 'd',
+                      'w': 'wk',
+                      'm': 'mo'}
     pandas_offsets = yahoo_fractals.keys()
     fractal = [offset for offset in pandas_offsets if offset in data_fractal]
+
     if fractal:
         fvalue = fractal[0]
         yahoo_fractal = data_fractal.replace(fvalue, yahoo_fractals[fvalue])
         # intraday limit is 60 days
         ignore_tz = True if intraday_data else False
-        df = yf.download(symbol, start=from_date, end=to_date, interval=yahoo_fractal,
-                         ignore_tz=ignore_tz, threads=False)
-        if df.empty:
+
+        # yfinance returns pandas, convert to polars
+        import pandas as pd
+        pdf = yf.download(symbol, start=from_date, end=to_date, interval=yahoo_fractal,
+                          ignore_tz=ignore_tz, threads=False)
+        if pdf.empty:
             logger.info("Could not get data for: %s", symbol)
-        else:
-            df.index = df.index.tz_localize(None)
+            return pl.DataFrame()
+
+        # Convert pandas to polars
+        pdf = pdf.reset_index()
+        pdf.columns = [c.lower() if isinstance(c, str) else c[0].lower() for c in pdf.columns]
+
+        # Rename index column to datetime
+        if 'date' in pdf.columns:
+            pdf = pdf.rename(columns={'date': 'datetime'})
+
+        df = pl.from_pandas(pdf)
+        return df
     else:
         logger.error("Valid Pandas Offsets for Yahoo Data are: %s", pandas_offsets)
+        return pl.DataFrame()
+
+
+#
+# Function get_eodhd_data
+#
+
+def get_eodhd_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
+                   from_date, to_date, lookback_period):
+    r"""Get EODHD daily and intraday data.
+
+    Parameters
+    ----------
+    source : str
+        The data feed.
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
+    symbol : str
+        A valid stock symbol.
+    intraday_data : bool
+        If True, then get intraday data.
+    data_fractal : str
+        Pandas offset alias.
+    from_date : str
+        Starting date for symbol retrieval.
+    to_date : str
+        Ending date for symbol retrieval.
+    lookback_period : int
+        The number of periods of data to retrieve.
+
+    Returns
+    -------
+    df : polars.DataFrame
+        The dataframe containing the intraday data.
+
+    """
+    import pytz
+
+    symbol = symbol.upper()
+
+    mappings = {
+        "min": "m",
+        "T": "m",
+        "H": "h",
+        "D": "d",
+        "W": "w",
+        "M": "m",
+    }
+    n_periods, period = convert_offset(data_fractal, mappings)
+
+    api_key = alphapy_specs['sources']['eodhd']['api_key']
+    api_key_str = 'api_token=' + api_key
+    format_str = 'fmt=csv'
+
+    if intraday_data:
+        url_base = f'https://eodhd.com/api/intraday/{symbol}?'
+        tz_eastern = pytz.timezone('US/Eastern')
+        from_obj = datetime.strptime(from_date, "%Y-%m-%d")
+        from_obj_est = tz_eastern.localize(from_obj)
+        from_unix_time = int(from_obj_est.timestamp())
+        from_str = 'from=' + str(from_unix_time)
+        to_obj = datetime.strptime(to_date, "%Y-%m-%d")
+        to_obj_est = tz_eastern.localize(to_obj)
+        to_unix_time = int(to_obj_est.timestamp())
+        to_str = 'to=' + str(to_unix_time)
+        interval_str = 'interval=' + str(n_periods) + period
+        url_str = '&'.join([api_key_str, from_str, to_str, interval_str, format_str])
+    else:
+        url_base = f'https://eodhd.com/api/eod/{symbol}?'
+        from_str = 'from=' + from_date
+        to_str = 'to=' + to_date
+        period_str = 'period=' + period
+        url_str = '&'.join([api_key_str, from_str, to_str, period_str, format_str])
+
+    url = url_base + url_str
+    response = requests.get(url).content
+
+    # Read CSV with polars
+    df = pl.read_csv(BytesIO(response))
+    df = df.rename({col: col.lower() for col in df.columns})
+    cols_ohlcv = ['open', 'high', 'low', 'close', 'volume']
+
+    if intraday_data:
+        col_dt = 'datetime'
+        df = df.with_columns(
+            pl.col(col_dt).str.to_datetime().alias(col_dt)
+        )
+    else:
+        col_dt = 'date'
+        df = df.with_columns(
+            pl.col(col_dt).str.to_datetime().alias("datetime")
+        )
+        df = df.drop(col_dt)
+
+    # Select relevant columns
+    select_cols = ["datetime"] + [c for c in cols_ohlcv if c in df.columns]
+    df = df.select(select_cols)
+
     return df
+
+
+#
+# Function get_alpaca_data
+#
+
+def get_alpaca_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
+                    from_date, to_date, lookback_period):
+    r"""Get Alpaca daily and intraday data.
+
+    Parameters
+    ----------
+    source : str
+        The data feed.
+    alphapy_specs : dict
+        The specifications for controlling the AlphaPy pipeline.
+    symbol : str
+        A valid stock or crypto symbol.
+    intraday_data : bool
+        If True, then get intraday data.
+    data_fractal : str
+        Pandas offset alias.
+    from_date : str
+        Starting date for symbol retrieval.
+    to_date : str
+        Ending date for symbol retrieval.
+    lookback_period : int
+        The number of periods of data to retrieve.
+
+    Returns
+    -------
+    df : polars.DataFrame
+        The dataframe containing the market data.
+
+    """
+    # Get credentials (optional for crypto)
+    alpaca_config = alphapy_specs.get('sources', {}).get('alpaca', {})
+    api_key = alpaca_config.get('api_key')
+    api_secret = alpaca_config.get('api_secret')
+
+    alpaca = AlpacaDataSource(api_key=api_key, api_secret=api_secret)
+
+    # Parse dates
+    start_dt = datetime.strptime(from_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(to_date, "%Y-%m-%d")
+
+    # Get bars
+    results = alpaca.get_bars(
+        symbols=symbol.upper(),
+        timeframe=data_fractal,
+        lookback=lookback_period,
+        start_date=start_dt,
+        end_date=end_dt,
+    )
+
+    if symbol.upper() in results:
+        return results[symbol.upper()]
+
+    return pl.DataFrame()
 
 
 #
 # Data Dispatch Tables
 #
 
-data_dispatch_table = {'eodhd'   : get_eodhd_data,
-                       'google'  : get_google_data,
-                       'iex'     : get_iex_data,
-                       'pandas'  : get_pandas_data,
-                       'polygon' : get_polygon_data,
-                       'yahoo'   : get_yahoo_data}
+data_dispatch_table = {
+    'alpaca': get_alpaca_data,
+    'eodhd': get_eodhd_data,
+    'polygon': get_polygon_data,
+    'yahoo': get_yahoo_data,
+}
 
 
 #
@@ -804,7 +626,7 @@ def assign_global_data(df, symbol, gspace, fractal):
 
     Parameters
     ----------
-    df : pandas.DataFrame
+    df : polars.DataFrame
         The dataframe for the given symbol.
     symbol : str
         Pandas offset alias.
@@ -815,7 +637,7 @@ def assign_global_data(df, symbol, gspace, fractal):
 
     Returns
     -------
-    df : pandas.DataFrame
+    df : polars.DataFrame
         The dataframe for the given symbol.
 
     """
@@ -832,15 +654,15 @@ def assign_global_data(df, symbol, gspace, fractal):
 #
 
 def standardize_data(symbol, gspace, df, fractal, intraday_data):
-    r"""Get data from an external feed.
+    r"""Standardize market data.
 
     Parameters
     ----------
     symbol : str
-        Pandas offset alias.
+        Stock symbol.
     gspace : alphapy.Space
         AlphaPy data taxonomy data source and subject.
-    df : pandas.DataFrame
+    df : polars.DataFrame
         The raw output dataframe from the market datafeed.
     fractal : str
         Pandas offset alias.
@@ -849,7 +671,7 @@ def standardize_data(symbol, gspace, df, fractal, intraday_data):
 
     Returns
     -------
-    df : pandas.DataFrame
+    df : polars.DataFrame
         The standardized output dataframe for the market data.
 
     """
@@ -860,6 +682,39 @@ def standardize_data(symbol, gspace, df, fractal, intraday_data):
     df = assign_global_data(df, symbol, gspace, fractal)
     # return dataframe
     return df
+
+
+#
+# Function resample_ohlcv
+#
+
+def resample_ohlcv(df: pl.DataFrame, timeframe: str) -> pl.DataFrame:
+    """Resample OHLCV data to a different timeframe.
+
+    Parameters
+    ----------
+    df : polars.DataFrame
+        DataFrame with datetime and OHLCV columns
+    timeframe : str
+        Target timeframe (e.g., "1h", "1d", "1D")
+
+    Returns
+    -------
+    df : polars.DataFrame
+        Resampled DataFrame
+    """
+    # Normalize timeframe to lowercase for Polars (e.g., "1D" -> "1d")
+    timeframe = timeframe.lower()
+    return df.group_by_dynamic(
+        "datetime",
+        every=timeframe,
+    ).agg([
+        pl.col("open").first(),
+        pl.col("high").max(),
+        pl.col("low").min(),
+        pl.col("close").last(),
+        pl.col("volume").sum(),
+    ]).drop_nulls()
 
 
 #
@@ -911,17 +766,14 @@ def get_market_data(alphapy_specs, model, market_specs, group,
     # Determine the feed source
 
     if intraday_data:
-        # intraday data (date and time)
         logger.info("Source [%s] Intraday Data [%s] for %d days",
                     gsource, data_fractal, lookback_period)
     else:
-        # daily data or higher (date only)
         logger.info("Source [%s] Daily Data [%s] for %d days",
                     gsource, data_fractal, lookback_period)
 
     # Get the data from the specified data feed
 
-    df = pd.DataFrame()
     remove_list = []
 
     for symbol in group.members:
@@ -944,53 +796,52 @@ def get_market_data(alphapy_specs, model, market_specs, group,
                                               lookback_period)
         else:
             raise ValueError("Unsupported Data Source: %s", gsource)
+
         # Now that we have content, standardize the data
-        if not df.empty:
-            df = df.copy()
+        if not df.is_empty():
             logger.info("Rows: %d [%s]", len(df), data_fractal)
-            # reset the index to find the correct datetime column
-            df.reset_index(inplace=True)
-            df.columns = df.columns.str.lower()
-            # find date or datetime column
+
+            # Ensure column names are lowercase
+            df = df.rename({col: col.lower() for col in df.columns})
+
+            # Find datetime column
             dt_cols = ['datetime', 'date']
-            dt_index = None
-            if df.index.name:
-                df.index.name = df.index.name.lower()
-                dt_index = [x for x in dt_cols if df.index.name == x]
+            dt_column = [x for x in df.columns if x in dt_cols]
+
+            if dt_column:
+                # Rename to datetime if needed
+                if dt_column[0] == 'date':
+                    df = df.with_columns(
+                        pl.col("date").cast(pl.Datetime).alias("datetime")
+                    ).drop("date")
             else:
-                dt_column = [x for x in df.columns if x in dt_cols]
-            # Set the dataframe's index to the relevant column
-            if not dt_index:
-                if dt_column:
-                    df.set_index(pd.DatetimeIndex(pd.to_datetime(df[dt_column[0]])),
-                                                  drop=True, inplace=True)
-                else:
-                    raise ValueError("Dataframe must have a datetime or date column")
-            # drop any remaining date or index columns
-            df.drop(columns=dt_cols, inplace=True, errors='ignore')
-            df.drop(columns=['index'], inplace=True, errors='ignore')
-            # deduplicate in case we have data overlap
-            df = df.loc[~df.index.duplicated(keep='first')]
-            # scope dataframe in time range
+                raise ValueError("DataFrame must have a datetime or date column")
+
+            # Remove duplicates
+            df = df.unique(subset=["datetime"], keep="first")
+
+            # Filter by time range for intraday
             if intraday_data and start_time and end_time:
-                mask = (df.index.time >= start_time) & (df.index.time <= end_time)
-                df = df.loc[mask]
-            # scope dataframe in date range
-            assert df.index.is_unique, "Index has duplicate values"
-            df = df[from_date:to_date]
-            # register the dataframe in the global namespace
+                df = df.filter(
+                    (pl.col("datetime").dt.time() >= start_time) &
+                    (pl.col("datetime").dt.time() <= end_time)
+                )
+
+            # Filter by date range - cast to handle timezone/precision differences
+            df = df.filter(
+                (pl.col("datetime").dt.date() >= pl.lit(from_date).str.to_date()) &
+                (pl.col("datetime").dt.date() <= pl.lit(to_date).str.to_date())
+            )
+
+            # Register the dataframe
             df = standardize_data(symbol, gspace, df, data_fractal, intraday_data)
-            # resample data and drop any NA values
+
+            # Resample to other fractals
             for ff in feature_fractals:
                 if ff != data_fractal:
-                    df_rs = df.resample(ff).agg({'open'   : 'first',
-                                                 'high'   : 'max',
-                                                 'low'    : 'min',
-                                                 'close'  : 'last',
-                                                 'volume' : 'sum'})
-                    df_rs.dropna(axis=0, how='any', inplace=True)
+                    df_rs = resample_ohlcv(df, ff)
                     logger.info("Rows: %d [%s] resampled", len(df_rs), ff)
-                    # standardize resampled data
+                    # Check if this is intraday
                     intraday_fractal = any(substring in ff for substring in PD_INTRADAY_OFFSETS)
                     df_rs = standardize_data(symbol, gspace, df_rs, ff, intraday_fractal)
         else:

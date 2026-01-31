@@ -279,7 +279,9 @@ def hyper_grid_search(model, estimator):
     # Fit the randomized search and time it.
 
     start = time()
-    gscv.fit(X_train, y_train.values.ravel())
+    # Convert to numpy if Polars DataFrame
+    y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train.values.ravel()
+    gscv.fit(X_train, y_train_np)
     if gs_iters > 0:
         logger.info("Grid Search took %.2f seconds for %d candidate"
                     " parameter settings." % ((time() - start), gs_iters))

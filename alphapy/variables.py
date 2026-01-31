@@ -47,6 +47,7 @@
 
 import warnings
 import pandas as pd
+import polars as pl
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
@@ -617,6 +618,12 @@ def vapply(group, market_specs, vfuncs=None):
             fname = frame_name(symbol, fspace)
             if fname in Frame.frames:
                 df = Frame.frames[fname].df
+                # Convert Polars to pandas for variable processing
+                if isinstance(df, pl.DataFrame):
+                    df = df.to_pandas()
+                    # Set datetime as index if present
+                    if 'datetime' in df.columns:
+                        df = df.set_index('datetime')
                 if not df.empty:
                     # Remap to a different bar type if specified
                     df = map_bar_type(df, bar_type, fractal)
@@ -817,3 +824,129 @@ def map_bar_type(df, bar_type, fractal, p=100, pv_factor=1.0):
     else:
         raise ValueError("Unknown Bar Type: %s" % bar_type)
     return df
+
+
+#
+# Function cached_vtree
+#
+
+from functools import lru_cache
+
+@lru_cache(maxsize=256)
+def cached_vtree(feature):
+    r"""Cached version of vtree for performance.
+
+    Parameters
+    ----------
+    feature : str
+        The feature name to get antecedent variables for.
+
+    Returns
+    -------
+    tuple
+        Tuple of all antecedent variables (tuple for hashability).
+
+    """
+    return tuple(vtree(feature))
+
+
+#
+# Function build_feature_order
+#
+
+def build_feature_order(features):
+    r"""Build topologically sorted list of all variables needed.
+
+    This function pre-computes the complete variable execution order
+    for a list of features, eliminating redundant vtree calls when
+    processing multiple symbols.
+
+    Parameters
+    ----------
+    features : list
+        List of feature names to compute.
+
+    Returns
+    -------
+    ordered : list
+        Ordered list of all variables to apply.
+
+    """
+    seen = set()
+    ordered = []
+    for feature in features:
+        for v in cached_vtree(feature):
+            if v not in seen:
+                seen.add(v)
+                ordered.append(v)
+    return ordered
+
+
+#
+# Function vapply_fast
+#
+
+def vapply_fast(symbols, frames, features, vfuncs=None, max_workers=8):
+    r"""Apply variables to multiple dataframes with parallelization.
+
+    This is an optimized version of vapply that:
+    1. Pre-computes the variable execution order once
+    2. Processes symbols in parallel using ThreadPoolExecutor
+    3. Caches vtree results to avoid redundant computation
+
+    Parameters
+    ----------
+    symbols : list
+        List of symbol names.
+    frames : dict
+        Dictionary mapping symbol names to DataFrames.
+    features : list
+        List of features to compute.
+    vfuncs : dict, optional
+        Dictionary of external modules and functions.
+    max_workers : int
+        Maximum number of parallel workers (default 8).
+
+    Returns
+    -------
+    results : dict
+        Dictionary mapping symbols to DataFrames with computed features.
+
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    # Pre-compute variable order once for all symbols
+    var_order = build_feature_order(features)
+    logger.info(f"Processing {len(symbols)} symbols with {len(var_order)} variables")
+
+    def process_symbol(symbol):
+        """Process a single symbol's dataframe."""
+        if symbol not in frames:
+            logger.warning(f"No frame found for symbol: {symbol}")
+            return symbol, None
+
+        df = frames[symbol].copy()
+        for v in var_order:
+            df = vexec(df, v, vfuncs)
+        return symbol, df
+
+    # Process symbols in parallel
+    results = {}
+    n_workers = min(len(symbols), max_workers)
+
+    with ThreadPoolExecutor(max_workers=n_workers) as executor:
+        futures = {
+            executor.submit(process_symbol, sym): sym
+            for sym in symbols
+        }
+        for future in as_completed(futures):
+            sym = futures[future]
+            try:
+                symbol, df = future.result()
+                if df is not None:
+                    results[symbol] = df
+            except Exception as e:
+                logger.error(f"Error processing {sym}: {e}")
+
+    logger.info(f"Completed processing {len(results)} symbols")
+    return results

@@ -18,7 +18,6 @@ dependencies:
 - pip:
   - arrow>=0.13
   - category_encoders>=2.1
-  - iexfinance>=0.4.3
   - imbalanced-learn>=0.5
   - lofo-importance>=0.3.4
   - pandas-datareader>=0.8
