@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## IMPORTANT RULES
 - **NO GUESSING**: Do not attempt solutions you're not certain about. If you don't know how to fix something, say so directly instead of wasting time with attempts that might not work.
 - Be honest about limitations and knowledge gaps
+- **DO NOT suggest `uv run` or virtual environment activation**: After installing with `uv pip install -e ".[dev]"`, commands like `alphapy` and `mflow` work directly. Never tell the user to use `uv run` or `source .venv/bin/activate`.
 
 ## Overview
 
@@ -14,14 +15,14 @@ AlphaPy Pro is a machine learning framework designed for speculators and data sc
 
 ### Build and Installation
 ```bash
-# Install in development mode using UV
-uv pip install -e ".[dev]"
+# Install package locally (editable mode) - commands work directly after this
+pip install -e ".[dev]"
 
 # Build distribution packages
-uv run python -m build
+python -m build
 
 # Check package integrity
-uv run twine check dist/*
+twine check dist/*
 ```
 
 ### Running AlphaPy
@@ -29,7 +30,7 @@ uv run twine check dist/*
 # Main pipeline
 alphapy
 
-# Market flow pipeline  
+# Market flow pipeline
 mflow
 ```
 
@@ -89,10 +90,8 @@ Projects are organized under `projects/` with each containing:
 
 ## Development Environment
 
-- Package Management: Uses UV for Python package management
-- Python Version: 3.12+ (managed by UV)
-- Virtual Environment: `.venv/` (created with `uv venv`)
-- Development Installation: `uv pip install -e ".[dev]"`
+- Python Version: 3.12+
+- Development Installation: `pip install -e ".[dev]"` (editable install, commands work directly)
 
 ## Branching Workflow
 

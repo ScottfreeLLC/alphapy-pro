@@ -25,7 +25,6 @@ limitations under the License.
 #
 
 import warnings
-
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 # Suppress sklearn numerical warnings during optimization (benign)

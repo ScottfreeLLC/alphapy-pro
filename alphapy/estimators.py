@@ -325,11 +325,17 @@ def get_estimators(alphapy_specs, model):
 
     # Create estimators for all of the algorithms
 
+    # Algorithms that need special verbosity handling (don't override their config)
+    lgb_algos = {'LGB', 'LGBR'}
+
     for algo in algo_specs:
         model_type = algo_specs[algo]['model_type']
         params = algo_specs[algo]['params']
         for param in params:
             if param in ps_fields and isinstance(param, str):
+                # Skip verbosity substitution for LightGBM (needs -1 for silent)
+                if param in ('verbosity', 'verbose') and algo in lgb_algos:
+                    continue
                 algo_specs[algo]['params'][param] = eval(ps_fields[param])
         # Also substitute in grid values
         grid = algo_specs[algo]['grid']
