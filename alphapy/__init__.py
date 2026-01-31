@@ -1,4 +1,4 @@
-__version__ = "3.1.0"
+__version__ = "3.1.1"
 
 # Suppress common warnings for cleaner output
 import warnings

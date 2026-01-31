@@ -94,7 +94,7 @@ Repository = "https://github.com/ScottFreeLLC/alphapy-pro.git"
 [project.scripts]
 alphapy = "alphapy.alphapy_main:main"
 mflow = "alphapy.mflow_main:main"
-trading-agent = "scripts.run_agent:main"
+scott = "scripts.run_agent:main"
 
 [tool.hatch.version]
 path = "alphapy/__init__.py"

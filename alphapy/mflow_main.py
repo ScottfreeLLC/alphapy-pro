@@ -863,9 +863,9 @@ def main(args=None):
     parser.add_argument('--tdate', dest='train_date',
                         help="training date is in the format: YYYY-MM-DD",
                         required=False, type=valid_date)
-    parser.add_mutually_exclusive_group(required=False)
-    parser.add_argument('--predict', dest='predict_mode', action='store_true')
-    parser.add_argument('--train', dest='predict_mode', action='store_false')
+    mode_group = parser.add_mutually_exclusive_group(required=False)
+    mode_group.add_argument('--predict', dest='predict_mode', action='store_true', help="Enable predict mode")
+    mode_group.add_argument('--train', dest='predict_mode', action='store_false', help="Enable train mode (default)")
     parser.set_defaults(predict_mode=False)
     parser.add_argument('--rundir', dest='run_dir',
                         help="run directory is in the format: run_YYYYMMDD_hhmmss",
