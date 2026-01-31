@@ -35,28 +35,19 @@ Additional dependencies for specific features:
 * **Calibration**: venn-abers
 * **Portfolio Analysis**: pyfolio (optional, for legacy support)
 
-Anaconda Python
----------------
+Using uv (Recommended)
+----------------------
 
-If you're using Anaconda Python, you can create a dedicated environment
-for AlphaPy Pro:
+`uv <https://docs.astral.sh/uv/>`_ is a fast Python package manager.
+Install it following the instructions at https://docs.astral.sh/uv/getting-started/installation/
 
-.. code-block:: bash
+Then create a virtual environment and install AlphaPy Pro::
 
-    conda create -n alphapy-pro python=3.9
-    conda activate alphapy-pro
-    
-    # Install from conda-forge when available
-    conda install -c conda-forge pandas numpy scikit-learn matplotlib seaborn pyyaml
-    conda install -c conda-forge xgboost lightgbm catboost
-    
-    # Install remaining packages via pip
-    pip install yfinance polygon-api-client lofo-importance
-    pip install imbalanced-learn category_encoders venn-abers
-    
-    # Install AlphaPy Pro
-    cd /path/to/alphapy-pro
-    pip install -e .
+    git clone https://github.com/ScottFreeLLC/alphapy-pro.git
+    cd alphapy-pro
+    uv venv
+    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+    uv pip install -e .
 
 Platform-Specific Notes
 -----------------------
