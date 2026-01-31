@@ -28,10 +28,12 @@
 
 import pandas as pd
 import polars as pl
+from sklearn.exceptions import ConvergenceWarning
 import warnings
 warnings.simplefilter(action='ignore', category=DeprecationWarning)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+warnings.simplefilter(action='ignore', category=ConvergenceWarning)
 
 
 #
@@ -55,6 +57,7 @@ from datetime import datetime
 import joblib
 
 import logging
+import os
 import numpy as np
 from scipy import stats
 from sklearn.calibration import CalibratedClassifierCV
@@ -366,12 +369,14 @@ def get_model_config(directory='.'):
     # calibration
     specs['calibration'] = model_section['calibration']['option']
     specs['cal_type'] = model_section['calibration']['type']
-    # grid search
-    specs['grid_search'] = model_section['grid_search']['option']
-    specs['gs_iters'] = model_section['grid_search']['iterations']
-    specs['gs_random'] = model_section['grid_search']['random']
-    specs['gs_sample'] = model_section['grid_search']['subsample']
-    specs['gs_sample_pct'] = model_section['grid_search']['sampling_pct']
+    # grid search / optuna
+    grid_search_cfg = model_section.get('grid_search', {})
+    if isinstance(grid_search_cfg, bool):
+        specs['grid_search'] = grid_search_cfg
+    else:
+        specs['grid_search'] = grid_search_cfg.get('option', False)
+    specs['optuna_trials'] = model_section.get('optuna_trials', 100)
+    specs['optuna_timeout'] = model_section.get('optuna_timeout', None)
     # ranking
     specs['rank_group_id'] = model_section['ranking']['group_id']
     specs['rank_group_size'] = model_section['ranking']['group_size']
@@ -394,7 +399,15 @@ def get_model_config(directory='.'):
     # Section: pipeline
 
     pipeline_section = cfg['pipeline']
-    specs['n_jobs'] = pipeline_section['number_jobs']
+    n_jobs_cfg = pipeline_section['number_jobs']
+    if n_jobs_cfg == -1:
+        # Auto-detect: use half of available CPUs to leave room for nested parallelism
+        cpu_count = os.cpu_count() or 4
+        n_jobs = max(1, cpu_count // 2)
+        logger.info("Auto-detected %d CPUs, using n_jobs=%d", cpu_count, n_jobs)
+    else:
+        n_jobs = n_jobs_cfg
+    specs['n_jobs'] = n_jobs
     specs['seed'] = pipeline_section['seed']
     specs['verbosity'] = pipeline_section['verbosity']
 
@@ -446,10 +459,8 @@ def get_model_config(directory='.'):
     logger.info('fs_uni_pct        = %d', specs['fs_uni_pct'])
     logger.info('fs_uni_score_func = %s', specs['fs_uni_score_func'])
     logger.info('grid_search       = %r', specs['grid_search'])
-    logger.info('gs_iters          = %d', specs['gs_iters'])
-    logger.info('gs_random         = %r', specs['gs_random'])
-    logger.info('gs_sample         = %r', specs['gs_sample'])
-    logger.info('gs_sample_pct     = %f', specs['gs_sample_pct'])
+    logger.info('optuna_trials     = %d', specs['optuna_trials'])
+    logger.info('optuna_timeout    = %s', specs['optuna_timeout'])
     logger.info('importances       = %r', specs['importances'])
     logger.info('interactions      = %r', specs['interactions'])
     logger.info('isomap            = %r', specs['isomap'])

@@ -908,7 +908,7 @@ def plot_boundary(model, partition, f1=0, f2=1):
 #
 
 def plot_partial_dependence(est, X, features, fnames, tag,
-                            n_jobs=-1, verbosity=0, directory=None):
+                            n_jobs, verbosity=0, directory=None):
     r"""Display a Partial Dependence Plot.
 
     Parameters

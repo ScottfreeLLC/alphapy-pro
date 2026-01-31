@@ -46,6 +46,7 @@ import polars as pl
 import re
 from scipy import sparse
 import scipy.stats as sps
+from sklearn.base import clone
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -62,6 +63,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.manifold import Isomap
 from sklearn.manifold import TSNE
 from sklearn.model_selection import KFold
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.preprocessing import StandardScaler
@@ -1291,10 +1293,51 @@ def select_features_lofo(model, algo, est):
     dataset = lofo.Dataset(df=df, target=target, features=fnames)
 
     # Calculate the feature importances.
+    # Clone estimator and reduce threading to avoid contention with LOFO parallelism
+
+    lofo_est = clone(est)
+    thread_params = ['n_jobs', 'nthread', 'thread_count']
+
+    def get_valid_init_params(estimator):
+        """Get params that are actually in the estimator's __init__ signature."""
+        import inspect
+        try:
+            sig = inspect.signature(estimator.__class__.__init__)
+            return set(sig.parameters.keys()) - {'self'}
+        except (ValueError, TypeError):
+            return set()
+
+    if isinstance(lofo_est, Pipeline):
+        inner_est = lofo_est.named_steps.get('estimator')
+        if inner_est:
+            valid_params = get_valid_init_params(inner_est)
+            for param in thread_params:
+                if param in valid_params:
+                    lofo_est.set_params(**{f'estimator__{param}': 1})
+    else:
+        valid_params = get_valid_init_params(lofo_est)
+        for param in thread_params:
+            if param in valid_params:
+                lofo_est.set_params(**{param: 1})
 
     cv = KFold(n_splits=cv_folds, shuffle=False)
-    lofo_imp = lofo.LOFOImportance(dataset, model=est, cv=cv, scoring=scorer, n_jobs=n_jobs)
-    importance_df = lofo_imp.get_importance()
+    # Suppress LOFO's generic multithreading warning and stdout noise from multiprocessing
+    import warnings
+    import sys
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', message='.*multithreaded.*', category=UserWarning)
+        lofo_imp = lofo.LOFOImportance(dataset, model=lofo_est, cv=cv, scoring=scorer, n_jobs=n_jobs)
+    # Suppress None outputs from LOFO's multiprocessing (redirect at fd level for child processes)
+    stdout_fd = sys.stdout.fileno()
+    old_stdout_fd = os.dup(stdout_fd)
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, stdout_fd)
+    try:
+        importance_df = lofo_imp.get_importance()
+    finally:
+        os.dup2(old_stdout_fd, stdout_fd)
+        os.close(old_stdout_fd)
+        os.close(devnull)
     importance_df.sort_values('importance_mean', ascending=False, inplace=True)
     
     # Filter the feature names and store.
