@@ -215,9 +215,9 @@ def write_frame(df, directory, filename, extension, separator, tag='',
     tag : str, optional
         An additional tag to add to the file name.
     index : bool, optional
-        Ignored (Polars doesn't have row indices).
+        If True, write row index (pandas only, Polars has no indices).
     index_label : str, optional
-        Ignored.
+        Column label for index column (pandas only).
     columns : list, optional
         A list of column names to write.
 
@@ -239,7 +239,7 @@ def write_frame(df, directory, filename, extension, separator, tag='',
             # Select columns if specified
             if columns:
                 df = df[columns]
-            df.to_csv(file_all, sep=separator)
+            df.to_csv(file_all, sep=separator, index=index, index_label=index_label)
         else:
             # Polars DataFrame
             if columns:

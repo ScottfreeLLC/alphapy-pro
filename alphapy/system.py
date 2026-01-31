@@ -773,6 +773,11 @@ def run_system(model,
     file_path = most_recent_file(rank_dir, 'ranked_test*')
     file_name = file_path.split(SSEP)[-1].split('.')[0]
     df_rank = read_frame(rank_dir, file_name, extension, separator, index_col='date')
+    # Convert to pandas for trading system operations
+    if hasattr(df_rank, 'to_pandas'):
+        df_rank = df_rank.to_pandas()
+        if 'date' in df_rank.columns:
+            df_rank.set_index('date', inplace=True)
 
     # If ranking, sort the dataframe, and assign long and short ranks
 

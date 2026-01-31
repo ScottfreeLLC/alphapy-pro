@@ -298,7 +298,13 @@ class Position:
         self.costbasis = 0.0
         self.trades = []
         self.ntrades = 0
-        self.pdata = Frame.frames[frame_name(name.lower(), space)].df
+        pdata = Frame.frames[frame_name(name.lower(), space)].df
+        # Convert to pandas if needed for position tracking
+        if hasattr(pdata, 'to_pandas'):
+            pdata = pdata.to_pandas()
+            if 'datetime' in pdata.columns:
+                pdata.set_index('datetime', inplace=True)
+        self.pdata = pdata
 
     # __str__
     
@@ -944,6 +950,11 @@ def exec_trade(p, name, order, quantity, price, tdate):
     else:
         if order == Orders.le or order == Orders.se:
             pf = Frame.frames[frame_name(name.lower(), p.space)].df
+            # Convert to pandas if needed for .loc access
+            if hasattr(pf, 'to_pandas'):
+                pf = pf.to_pandas()
+                if 'datetime' in pf.columns:
+                    pf.set_index('datetime', inplace=True)
             cv = float(pf.loc[tdate][p.posby])
             tsize = math.trunc((p.value * p.fixedfrac) / cv)
             if quantity < 0:
