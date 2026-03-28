@@ -1014,22 +1014,27 @@ def select_best_model(model, partition):
 
     # Iterate through the models, getting the best score for each one.
 
-    for index, algorithm in enumerate(model.algolist):
+    best_algo = None
+    best_score = 0.0
+    for algorithm in model.algolist:
         logger.info("Scoring %s Model", algorithm)
-        top_score = model.metrics[(algorithm, partition, scorer)]
-        if index > 0:
-            # objective is to either maximize or minimize score
-            if maximize:
-                if top_score > best_score:
-                    best_score = top_score
-                    best_algo = algorithm
-            else:
-                if top_score < best_score:
-                    best_score = top_score
-                    best_algo = algorithm
-        else:
+        top_score = model.metrics.get((algorithm, partition, scorer))
+        if top_score is None:
+            logger.info("Skipping %s: metric %s not available for partition %s", algorithm, scorer, partition)
+            continue
+        if best_algo is None:
             best_score = top_score
             best_algo = algorithm
+        elif maximize and top_score > best_score:
+            best_score = top_score
+            best_algo = algorithm
+        elif not maximize and top_score < best_score:
+            best_score = top_score
+            best_algo = algorithm
+
+    if best_algo is None:
+        best_algo = model.algolist[0]
+        logger.info("No valid metric found for partition %s; defaulting best model to %s", partition, best_algo)
 
     # Record predictions of best estimator
 
