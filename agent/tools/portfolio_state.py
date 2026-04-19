@@ -7,7 +7,7 @@ from typing import Any
 
 from .base import Tool
 from ..utils.alpaca_client import AlpacaClient
-from alphapy.portfolio import LivePortfolio
+from alphapy.portfolio.live import LivePortfolio
 
 logger = logging.getLogger(__name__)
 
