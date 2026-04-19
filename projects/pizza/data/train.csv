@@ -1,0 +1,87 @@
+name,category,cuisine,flavor_family,sweet,salt,umami,heat,acid,bitter,fat,crunch,melt,moist,heat_tol,buzz,chef_adopt,novelty,insta,years_on_menu,price_tier,is_fermented,is_plant_based,is_premium,is_family_savory,is_family_umami_bomb,is_family_bright_acidic,is_family_spicy,is_family_sweet,is_family_herbal,is_family_smoky,is_family_pungent,is_family_funky_fermented,trend_score
+Blue Cheese Crumble,cheese,european,pungent,1,8,6,0,3,4,7,2,6,4,8,6,5,1,7,20,3,0,0,1,0,0,0,0,0,0,0,1,0,22
+Brie,cheese,french,savory,3,4,5,0,2,1,7,0,8,8,7,7,6,1,7,10,3,1,0,1,1,0,0,0,0,0,0,0,0,42
+Burrata,cheese,italian,savory,2,4,5,0,1,0,8,0,5,9,5,9,7,1,9,10,4,0,0,1,1,0,0,0,0,0,0,0,0,65
+Feta,cheese,mediterranean,bright_acidic,1,8,4,0,4,1,6,2,2,5,8,7,5,1,6,30,2,1,0,0,0,0,1,0,0,0,0,0,0,26
+Goat Cheese (Chevre),cheese,french,bright_acidic,2,5,4,0,5,2,7,1,4,5,8,7,6,1,7,25,3,1,0,1,0,0,1,0,0,0,0,0,0,34
+Gorgonzola,cheese,italian,pungent,1,7,6,0,2,5,7,0,7,5,7,6,5,1,7,30,3,0,0,1,0,0,0,0,0,0,0,1,0,24
+Labneh,cheese,levantine,bright_acidic,2,4,4,0,4,1,6,0,2,8,6,7,6,5,7,6,3,0,0,0,0,0,1,0,0,0,0,0,0,54
+Manchego,cheese,spanish,umami_bomb,1,6,6,0,1,1,6,2,3,4,9,6,4,1,6,15,3,0,0,1,0,1,0,0,0,0,0,0,0,24
+Mozzarella,cheese,italian,savory,2,4,5,0,1,0,7,0,10,7,9,8,6,1,6,60,2,0,0,0,1,0,0,0,0,0,0,0,0,14
+Parmigiano Reggiano,cheese,italian,umami_bomb,1,8,9,0,2,1,6,3,2,2,10,8,7,1,8,60,4,0,0,1,0,1,0,0,0,0,0,0,0,18
+Ricotta,cheese,italian,savory,3,3,4,0,2,0,6,0,4,7,8,7,6,1,5,40,2,0,0,0,1,0,0,0,0,0,0,0,0,32
+Saag Paneer,cheese,indian,herbal,2,4,6,2,2,3,5,1,0,7,8,8,7,6,8,5,3,1,0,0,0,0,0,0,0,1,0,0,0,66
+Smoked Gouda,cheese,dutch_american,smoky,2,5,7,0,1,1,7,1,8,4,9,7,6,2,7,12,3,0,0,0,0,0,0,0,0,0,1,0,0,48
+Smoked Mozzarella,cheese,italian,smoky,2,5,6,0,1,1,7,0,9,7,9,6,4,1,6,15,3,0,0,0,0,0,0,0,0,0,1,0,0,30
+Tandoori Paneer,cheese,indian,spicy,2,5,6,5,3,1,6,3,0,5,9,9,8,7,9,5,3,1,0,0,0,0,0,1,0,0,0,0,0,82
+Pineapple,fruit,hawaiian,sweet,8,1,2,0,5,1,1,2,0,8,9,6,3,2,8,40,2,0,1,0,0,0,0,0,1,0,0,0,0,3
+Everything Bagel Mix,herb_spice,american,savory,1,6,4,0,1,1,2,5,0,1,9,8,7,4,8,3,2,0,1,0,1,0,0,0,0,0,0,0,0,58
+Fresh Cilantro,herb_spice,mexican_asian,herbal,1,1,2,0,3,3,1,2,0,6,6,5,4,1,5,30,1,0,1,0,0,0,0,0,0,1,0,0,0,20
+Fried Shallot,herb_spice,southeast_asian,savory,3,4,5,0,1,1,5,8,0,1,9,7,6,2,7,3,2,0,1,0,1,0,0,0,0,0,0,0,0,50
+Garam Masala,herb_spice,indian,spicy,2,2,4,5,2,3,1,2,0,3,8,8,7,6,7,8,2,0,1,0,0,0,0,1,0,0,0,0,0,52
+Lemon Zest,herb_spice,mediterranean,bright_acidic,2,1,2,0,7,3,1,1,0,4,6,7,6,2,7,10,2,0,1,0,0,0,1,0,0,0,0,0,0,28
+Pistachio,herb_spice,italian_med,savory,2,4,5,0,1,2,6,7,0,2,9,9,8,8,9,4,3,0,1,1,1,0,0,0,0,0,0,0,0,86
+Sesame Seeds,herb_spice,asian,savory,2,2,3,0,1,2,3,5,0,1,9,5,4,2,5,5,1,0,1,0,1,0,0,0,0,0,0,0,0,32
+Sumac,herb_spice,levantine,bright_acidic,1,3,2,0,6,2,1,3,0,2,7,7,6,5,7,8,2,0,1,0,0,0,1,0,0,0,0,0,0,42
+Thai Basil,herb_spice,thai,herbal,1,1,2,1,2,3,1,2,0,6,6,7,6,3,7,8,3,0,1,0,0,0,0,0,0,1,0,0,0,38
+Zaatar,herb_spice,levantine,herbal,1,4,3,1,4,3,3,4,0,2,8,7,6,5,7,8,2,0,1,0,0,0,0,0,0,1,0,0,0,52
+BBQ Chicken,meat,american,sweet,5,5,5,2,4,1,4,2,0,6,9,6,5,1,6,20,2,0,0,0,0,0,0,0,1,0,0,0,0,26
+Bacon,meat,american,smoky,2,8,8,1,1,1,8,7,0,2,10,8,6,1,8,40,3,0,0,0,0,0,0,0,0,0,1,0,0,22
+Buffalo Chicken,meat,american,spicy,1,6,5,6,5,1,6,5,0,6,9,7,6,2,7,15,2,0,0,0,0,0,0,1,0,0,0,0,0,40
+Butter Chicken,meat,indian,umami_bomb,4,5,7,3,3,1,7,2,0,8,8,9,8,7,9,5,3,0,0,1,0,1,0,0,0,0,0,0,0,84
+Chicken Tikka Masala,meat,indian,umami_bomb,3,5,7,4,4,1,6,2,0,8,8,9,8,7,9,5,3,0,0,1,0,1,0,0,0,0,0,0,0,80
+Chorizo,meat,spanish_mexican,spicy,2,6,7,6,2,1,7,3,0,4,9,7,6,3,7,15,3,0,0,0,0,0,0,1,0,0,0,0,0,46
+Guanciale,meat,italian,savory,1,7,8,0,1,0,9,4,0,2,10,7,6,2,8,15,4,0,0,1,1,0,0,0,0,0,0,0,0,42
+Ham,meat,italian_american,savory,2,7,6,0,1,0,5,1,0,3,10,4,3,1,3,50,2,0,0,0,1,0,0,0,0,0,0,0,0,5
+Italian Sausage,meat,italian,savory,1,7,8,3,1,1,7,2,0,3,10,6,4,1,5,50,2,0,0,0,1,0,0,0,0,0,0,0,0,12
+Korean Bulgogi Beef,meat,korean,umami_bomb,6,6,7,2,3,1,6,3,0,5,9,9,8,7,9,6,3,0,0,1,0,1,0,0,0,0,0,0,0,72
+Meatball,meat,italian_american,savory,2,5,6,1,2,1,6,3,0,6,9,5,4,1,5,40,2,0,0,0,1,0,0,0,0,0,0,0,0,18
+Mortadella,meat,italian,savory,2,6,7,0,1,1,7,1,0,4,8,8,6,2,8,8,3,0,0,1,1,0,0,0,0,0,0,0,0,58
+Nashville Hot Chicken,meat,american_south,spicy,2,5,6,9,2,1,7,7,0,5,9,9,7,7,9,4,3,0,0,0,0,0,0,1,0,0,0,0,0,78
+Nduja,meat,italian_calabrian,spicy,1,6,7,7,2,1,8,0,3,7,9,9,8,6,8,8,4,0,0,1,0,0,0,1,0,0,0,0,0,72
+Pepperoni,meat,italian_american,savory,1,8,9,3,2,1,8,2,0,2,10,8,5,1,7,60,2,0,0,0,1,0,0,0,0,0,0,0,0,18
+Plant-Based Pepperoni,meat,modern_plant,savory,1,7,6,3,2,1,6,2,0,3,9,9,9,8,9,3,3,0,1,1,1,0,0,0,0,0,0,0,0,83
+Prosciutto di Parma,meat,italian,umami_bomb,1,8,8,0,2,0,7,1,0,4,6,9,8,1,9,30,4,0,0,1,0,1,0,0,0,0,0,0,0,38
+Salami,meat,italian,savory,1,7,7,2,2,1,7,3,0,3,9,5,4,1,5,50,2,0,0,0,1,0,0,0,0,0,0,0,0,10
+Soppressata,meat,italian,spicy,1,7,7,4,2,1,7,3,0,3,10,7,5,1,7,20,3,0,0,1,0,0,0,1,0,0,0,0,0,32
+Tandoori Chicken,meat,indian,spicy,2,5,6,5,3,1,4,4,0,5,9,8,7,5,8,6,3,0,0,0,0,0,0,1,0,0,0,0,0,62
+Vindaloo Pork,meat,indian,spicy,3,5,6,8,5,1,6,2,0,7,9,8,7,5,8,5,3,0,0,1,0,0,0,1,0,0,0,0,0,70
+Artichoke Heart,produce,mediterranean,bright_acidic,2,4,4,0,5,3,3,3,0,6,9,5,4,1,5,30,2,0,1,0,0,0,1,0,0,0,0,0,0,9
+Arugula,produce,italian,bright_acidic,1,2,3,0,3,4,1,3,0,5,7,7,6,1,7,20,2,0,1,0,0,0,1,0,0,0,0,0,0,22
+Baby Spinach,produce,italian,bright_acidic,1,1,3,0,2,4,1,2,0,6,8,5,4,1,5,40,1,0,1,0,0,0,1,0,0,0,0,0,0,12
+Black Olive,produce,mediterranean,savory,0,8,5,0,3,3,5,2,0,4,10,4,4,1,4,50,1,0,1,0,1,0,0,0,0,0,0,0,0,6
+Button Mushroom,produce,italian,umami_bomb,1,3,7,0,1,2,2,2,0,6,9,5,4,1,4,50,1,0,0,0,0,1,0,0,0,0,0,0,0,10
+Calabrian Chili,produce,italian,spicy,2,4,4,7,3,2,4,2,0,6,9,8,7,5,8,8,3,1,1,0,0,0,0,1,0,0,0,0,0,62
+Caramelized Onion,produce,french,sweet,6,3,6,0,2,1,2,2,0,6,8,7,5,2,7,15,2,0,1,0,0,0,0,0,1,0,0,0,0,44
+Chanterelle,produce,european,umami_bomb,2,2,7,0,1,3,2,3,0,5,9,6,5,3,6,15,4,0,0,1,0,1,0,0,0,0,0,0,0,38
+Dill Pickles,produce,american_deli,funky_fermented,1,7,3,0,7,1,1,5,0,7,8,9,8,3,9,3,2,1,1,0,0,0,0,0,0,0,0,0,1,70
+Green Bell Pepper,produce,italian,bright_acidic,3,2,2,1,3,2,1,4,0,6,9,4,3,1,4,55,1,0,1,0,0,0,1,0,0,0,0,0,0,6
+Green Olive,produce,mediterranean,bright_acidic,0,8,4,0,5,2,5,2,0,4,10,4,4,1,3,45,1,0,1,0,0,0,1,0,0,0,0,0,0,5
+Jalapeno,produce,mexican_american,spicy,2,3,2,7,2,1,1,4,0,6,9,7,5,2,7,40,1,0,1,0,0,0,0,1,0,0,0,0,0,24
+Kalamata Olive,produce,greek,savory,0,8,5,0,4,3,5,2,0,4,10,5,4,1,5,25,2,1,1,0,1,0,0,0,0,0,0,0,0,14
+Kimchi,produce,korean,funky_fermented,2,4,6,6,7,1,1,4,0,7,7,9,8,5,9,5,4,1,1,0,0,0,0,0,0,0,0,0,1,75
+Microgreens,produce,modern,bright_acidic,1,1,2,0,2,3,1,3,0,4,4,9,9,2,9,5,3,0,1,1,0,0,1,0,0,0,0,0,0,48
+Oyster Mushroom,produce,asian,umami_bomb,1,2,7,0,1,2,2,3,0,5,9,7,6,3,7,10,3,0,0,0,0,1,0,0,0,0,0,0,0,52
+Pepperoncini,produce,mediterranean,bright_acidic,1,5,3,3,5,1,1,4,0,6,9,7,5,2,7,10,2,1,1,0,0,0,1,0,0,0,0,0,0,44
+Pickled Red Onion,produce,mexican,bright_acidic,3,3,2,0,6,1,1,4,0,6,8,8,7,3,8,8,2,1,1,0,0,0,1,0,0,0,0,0,0,58
+Porcini Mushroom,produce,italian,umami_bomb,1,3,9,0,1,2,2,2,0,5,9,7,5,3,7,15,4,0,0,1,0,1,0,0,0,0,0,0,0,48
+Roasted Garlic,produce,mediterranean,umami_bomb,4,2,6,0,1,2,3,2,0,6,9,6,5,2,6,25,1,0,1,0,0,1,0,0,0,0,0,0,0,26
+Roasted Red Pepper,produce,mediterranean,sweet,5,2,5,0,3,1,2,2,0,7,9,5,5,1,5,30,2,0,1,0,0,0,0,0,1,0,0,0,0,11
+San Marzano Tomato,produce,italian,bright_acidic,5,3,7,0,6,1,1,1,0,9,9,7,6,1,8,60,3,0,0,1,0,0,1,0,0,0,0,0,0,20
+Sauerkraut,produce,german,funky_fermented,1,5,4,0,7,1,1,4,0,7,8,5,4,2,6,6,2,1,1,0,0,0,0,0,0,0,0,0,1,40
+Sun-Dried Tomato,produce,mediterranean,umami_bomb,6,5,8,0,6,1,2,4,0,3,9,5,4,1,5,25,2,0,0,0,0,1,0,0,0,0,0,0,0,14
+Tomato Confit,produce,french,umami_bomb,5,2,7,0,5,1,4,0,0,8,8,7,6,2,7,10,3,0,1,1,0,1,0,0,0,0,0,0,0,34
+Yellow Onion,produce,italian,savory,3,2,5,0,2,1,1,4,0,5,9,4,4,1,3,60,1,0,1,0,1,0,0,0,0,0,0,0,0,7
+Sunny-Side Egg,protein,french_italian,umami_bomb,1,3,5,0,1,1,6,0,0,8,6,8,7,4,8,10,2,0,0,1,0,1,0,0,0,0,0,0,0,40
+Chili Crisp,sauce,sichuan,spicy,2,6,8,7,3,2,6,6,0,4,9,9,9,5,9,4,3,0,0,0,0,0,0,1,0,0,0,0,0,88
+Fig Jam,sauce,mediterranean,sweet,8,1,2,0,3,2,1,0,0,7,8,7,6,2,7,10,3,1,0,1,0,0,0,0,1,0,0,0,0,46
+Gochujang Sauce,sauce,korean,spicy,4,5,7,6,3,1,3,0,0,8,8,9,8,5,9,5,3,1,0,0,0,0,0,1,0,0,0,0,0,78
+Harissa,sauce,north_african,spicy,2,4,5,7,4,1,4,0,0,7,8,7,6,4,7,7,3,1,1,0,0,0,0,1,0,0,0,0,0,56
+Hot Honey,sauce,american,sweet,9,2,2,6,3,0,2,0,0,8,7,9,8,3,9,4,2,0,0,0,0,0,0,0,1,0,0,0,0,95
+Mango Chutney,sauce,indian,sweet,8,2,2,3,5,1,1,0,0,7,8,7,6,4,7,6,2,1,1,0,0,0,0,0,1,0,0,0,0,48
+Pesto,sauce,italian,herbal,2,4,6,1,3,3,7,0,0,8,8,7,6,1,6,25,3,0,0,0,0,0,0,0,0,1,0,0,0,28
+Truffle Oil,sauce,french_italian,umami_bomb,1,2,9,0,1,3,6,0,0,5,6,7,6,3,8,12,5,0,0,1,0,1,0,0,0,0,0,0,0,35
+Anchovy,seafood,italian,umami_bomb,0,10,9,0,4,2,6,2,0,5,10,4,3,1,3,60,3,0,0,0,0,1,0,0,0,0,0,0,0,8
+Clam,seafood,new_haven,umami_bomb,1,6,8,0,3,1,3,2,0,6,9,5,4,1,5,40,3,0,0,0,0,1,0,0,0,0,0,0,0,24
+Shrimp,seafood,italian_american,savory,2,4,6,0,2,1,3,3,0,6,9,6,5,1,6,20,3,0,0,0,1,0,0,0,0,0,0,0,0,22
+Smoked Salmon,seafood,nordic,umami_bomb,1,7,7,0,2,1,6,0,0,6,5,7,5,1,7,20,4,0,0,1,0,1,0,0,0,0,0,0,0,28

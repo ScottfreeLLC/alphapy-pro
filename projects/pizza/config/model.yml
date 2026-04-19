@@ -1,0 +1,118 @@
+project:
+    directory         : .
+    file_extension    : csv
+    live_results      : True
+    submission_file   :
+    submit_probas     : False
+
+model:
+    algorithms        : ['XGRK']
+    calibration       :
+        option        : False
+        type          : sigmoid
+    cv_folds          : 3
+    estimators        : 501
+    grid_search       : False
+    optuna_trials     : 50
+    optuna_timeout    : 300
+    ranking           :
+        group_id      : category
+        group_size    :
+    pvalue_level      : 0.01
+    rfe               :
+        option        : False
+        step          : 3
+    scoring_function  : dcg_score
+    target            : trend_score
+    time_series       :
+        option        : False
+        date_index    : date
+        forecast      : 1
+        n_lags        : 0
+        group_id      : unique_id
+        leaders       : []
+    type              : ranking
+
+data:
+    allow_na_targets  : True
+    drop              : ['name', 'flavor_family']
+    features          : '*'
+    leaders           : []
+    sampling          :
+        option        : False
+        method        : under_random
+        ratio         : 0.5
+    sentinel          : -1
+    separator         : ','
+    shuffle           : False
+    split             : 0.3
+
+features:
+    clustering        :
+        option        : False
+        increment     : 3
+        maximum       : 30
+        minimum       : 3
+    counts            :
+        option        : False
+    encoding          :
+        rounding      : 3
+        type          : target
+    factors           : ['cuisine']
+    interactions      :
+        option        : False
+        poly_degree   : 2
+        sampling_pct  : 10
+    isomap            :
+        option        : False
+        components    : 2
+        neighbors     : 5
+    lofo              :
+        option        : False
+    log_transform     :
+        option        : False
+        pvalue_level  : 0.01
+    numpy             :
+        option        : True
+    pca               :
+        option        : False
+        increment     : 1
+        maximum       : 10
+        minimum       : 2
+        whiten        : False
+    scaling           :
+        option        : True
+        type          : standard
+    scipy             :
+        option        : False
+    text              :
+        ngrams        : 1
+        vectorize     : False
+    tsne              :
+        option        : False
+        components    : 2
+        learning_rate : 1000.0
+        perplexity    : 30.0
+    univariate        :
+        option        : False
+        percentage    : 50
+        uni_grid      : [5, 10, 15, 20, 25]
+        score_func    : f_regression
+    variance          :
+        option        : False
+        threshold     : 0.1
+
+pipeline:
+    number_jobs       : -1
+    seed              : 42
+    verbosity         : 1
+
+plots:
+    calibration       : False
+    confusion_matrix  : False
+    importances       : True
+    learning_curve    : False
+    roc_curve         : False
+
+xgboost:
+    stopping_rounds   : 30
