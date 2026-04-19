@@ -1140,7 +1140,20 @@ def generate_metrics(model, partition):
             values_to_check = expected.iloc[:, 0] if hasattr(expected, 'columns') else expected
         else:
             values_to_check = expected
-        unique_values = np.unique(values_to_check)
+        # Drop nulls before uniqueness check: live_results runs may have all-null
+        # targets (pure inference), which np.unique cannot sort.
+        if hasattr(values_to_check, 'drop_nulls'):
+            values_to_check = values_to_check.drop_nulls()
+        elif hasattr(values_to_check, 'dropna'):
+            values_to_check = values_to_check.dropna()
+        values_arr = np.asarray(values_to_check)
+        if values_arr.dtype == object:
+            mask = np.array([v is not None for v in values_arr], dtype=bool)
+            values_arr = values_arr[mask]
+        if len(values_arr) == 0:
+            logger.info("Skipping metrics for %s: all target values are null (pure inference)", partition)
+            return model, False
+        unique_values = np.unique(values_arr)
         if len(unique_values) == 1:
             logger.info("Skipping metrics for %s: all targets are %s (no games with results yet)",
                        partition, unique_values[0])
