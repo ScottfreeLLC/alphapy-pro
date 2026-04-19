@@ -153,6 +153,7 @@ markers = [
     "integration: marks tests as integration tests",
     "asyncio: marks tests as async (pytest-asyncio)",
 ]
+asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::FutureWarning",

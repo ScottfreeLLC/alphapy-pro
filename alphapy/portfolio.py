@@ -696,8 +696,7 @@ def balance(p, tdate, cashlevel):
     attrs = [aname for aname in dir(positions[0]) if not aname.startswith('_')]
     for i, pos in enumerate(positions):
         if weightby in attrs:
-            estr = '.'.join('pos', weightby)
-            bdata[i] = eval(estr)
+            bdata[i] = getattr(pos, weightby)
         else:
             bdata[i] = pos.pdata.loc[tdate][weightby]
     if invert:
@@ -768,8 +767,7 @@ def kick_out(p, tdate):
     attrs = [aname for aname in dir(positions[0]) if not aname.startswith('_')]
     for i, pos in enumerate(positions):
         if koby in attrs:
-            estr = '.'.join('pos', koby)
-            kovalue[i] = eval(estr)
+            kovalue[i] = getattr(pos, koby)
         else:
             kovalue[i] = pos.pdata.loc[tdate][koby]
     koorder = np.argsort(np.argsort(kovalues))

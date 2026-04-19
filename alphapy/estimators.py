@@ -244,7 +244,7 @@ def get_algos_config(cfg_dir):
 
     full_path = SSEP.join([cfg_dir, 'algos.yml'])
     with open(full_path, 'r') as ymlfile:
-        specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+        specs = yaml.safe_load(ymlfile)
 
     # Find optional packages
 
@@ -318,6 +318,16 @@ def get_estimators(alphapy_specs, model):
                  'verbosity'    : 'verbosity',
                  'verbose'      : 'verbosity'}
 
+    # Safe substitution table: resolves ps_fields values (variable names) to
+    # the actual local values. Replaces an earlier eval() pattern that allowed
+    # arbitrary code execution when algos.yml content was attacker-controlled.
+    ps_values = {
+        'n_estimators': n_estimators,
+        'n_jobs':       n_jobs,
+        'seed':         seed,
+        'verbosity':    verbosity,
+    }
+
     # Get algorithm specifications
 
     config_dir = SSEP.join([alphapy_specs['alphapy_root'], 'config'])
@@ -336,7 +346,7 @@ def get_estimators(alphapy_specs, model):
                 # Skip verbosity substitution for LightGBM (needs -1 for silent)
                 if param in ('verbosity', 'verbose') and algo in lgb_algos:
                     continue
-                algo_specs[algo]['params'][param] = eval(ps_fields[param])
+                algo_specs[algo]['params'][param] = ps_values[ps_fields[param]]
         # Also substitute in grid values
         grid = algo_specs[algo]['grid']
         for param in grid:
@@ -344,12 +354,12 @@ def get_estimators(alphapy_specs, model):
                 new_list = []
                 for v in grid[param]:
                     if isinstance(v, str) and v in ps_fields:
-                        new_list.append(eval(ps_fields[v]))
+                        new_list.append(ps_values[ps_fields[v]])
                     else:
                         new_list.append(v)
                 grid[param] = new_list
             elif isinstance(grid[param], str) and grid[param] in ps_fields:
-                grid[param] = eval(ps_fields[grid[param]])
+                grid[param] = ps_values[ps_fields[grid[param]]]
         try:
             algo_found = True
             func = estimator_map[algo]

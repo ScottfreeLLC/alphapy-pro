@@ -127,7 +127,7 @@ def get_alphapy_config(alphapy_root):
 
     full_path = SSEP.join([alphapy_root, 'config', 'alphapy.yml'])
     with open(full_path, 'r') as ymlfile:
-        specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+        specs = yaml.safe_load(ymlfile)
     specs['alphapy_root'] = alphapy_root
 
     #
@@ -136,7 +136,7 @@ def get_alphapy_config(alphapy_root):
 
     full_path = SSEP.join([alphapy_root, 'config', 'groups.yml'])
     with open(full_path, 'r') as ymlfile:
-        group_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+        group_specs = yaml.safe_load(ymlfile)
 
     logger.info("Creating Groups")
     try:
@@ -153,7 +153,7 @@ def get_alphapy_config(alphapy_root):
 
     full_path = SSEP.join([alphapy_root, 'config', 'variables.yml'])
     with open(full_path, 'r') as ymlfile:
-        var_specs = yaml.load(ymlfile, Loader=yaml.FullLoader)
+        var_specs = yaml.safe_load(ymlfile)
 
     logger.info("Creating Aliases")
     try:
@@ -179,7 +179,7 @@ def get_alphapy_config(alphapy_root):
 
     full_path = SSEP.join([alphapy_root, 'config', 'sources.yml'])
     with open(full_path, 'r') as ymlfile:
-        data_sources = yaml.load(ymlfile, Loader=yaml.FullLoader)
+        data_sources = yaml.safe_load(ymlfile)
 
     logger.info("Getting Data Sources")
     try:
@@ -207,7 +207,7 @@ def get_alphapy_config(alphapy_root):
 
     full_path = SSEP.join([alphapy_root, 'config', 'systems.yml'])
     with open(full_path, 'r') as ymlfile:
-        trading_systems = yaml.load(ymlfile, Loader=yaml.FullLoader)
+        trading_systems = yaml.safe_load(ymlfile)
 
     logger.info("Getting Trading Systems")
     try:

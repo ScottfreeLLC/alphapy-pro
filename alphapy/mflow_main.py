@@ -114,7 +114,7 @@ def get_market_config(directory='.'):
 
     full_path = SSEP.join([directory, 'config', 'market.yml'])
     with open(full_path, 'r') as ymlfile:
-        cfg = yaml.load(ymlfile, Loader=yaml.FullLoader)
+        cfg = yaml.safe_load(ymlfile)
 
     # Store configuration parameters in dictionary
 
