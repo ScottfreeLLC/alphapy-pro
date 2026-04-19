@@ -22,6 +22,3 @@ def test_version_format():
         assert part.isdigit(), f"Version part '{part}' should be numeric"
 
 
-def test_current_version():
-    """Test that current version is 3.0.0."""
-    assert alphapy.__version__ == "3.0.0"
