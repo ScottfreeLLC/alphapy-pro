@@ -70,38 +70,6 @@ def get_vol_ema(ds_close, p=60):
 
 
 #
-# Function get_daily_dollar_vol
-#
-
-def get_daily_dollar_vol(df, p=60):
-    r"""Calculate daily dollar volume.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Frame containing the close and volume values.
-    p : int
-        The lookback period for computing daily dollar volume.
-
-    Returns
-    -------
-    ds_dv : pandas.Series (float)
-        The array of dollar volumes.
-
-    """
-
-    logger.debug('Calculating daily dollar volume')
-
-    fractal_daily = '1D'
-    ds_price_avg = df['close'].groupby(pd.Grouper(freq=fractal_daily)).mean().dropna()
-    ds_volume_sum = df['volume'].groupby(pd.Grouper(freq=fractal_daily)).sum()
-    ds_volume_sum = ds_volume_sum[ds_volume_sum > 0]
-    ds_dv = ds_price_avg * ds_volume_sum
-    ds_dv = ds_dv.ewm(span=p, min_periods=p).mean()
-    return ds_dv[-1]
-
-
-#
 # Function get_threshold_events
 #
 
