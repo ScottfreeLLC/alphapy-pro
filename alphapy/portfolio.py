@@ -38,6 +38,19 @@ import math
 import numpy as np
 import pandas as pd
 import quantstats as qs
+import warnings
+
+
+#
+# Deprecation Warning
+#
+
+warnings.warn(
+    "alphapy.portfolio is deprecated and will be removed in a future version. "
+    "Use alphapy.backtest for vectorbt-based backtesting instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 
 #

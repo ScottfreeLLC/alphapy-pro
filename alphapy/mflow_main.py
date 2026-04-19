@@ -66,7 +66,7 @@ from alphapy.metalabel import get_events
 from alphapy.metalabel import get_threshold_events
 from alphapy.model import get_model_config
 from alphapy.model import Model
-from alphapy.portfolio import gen_portfolios
+from alphapy.backtest import gen_vbt_portfolios
 from alphapy.space import Space
 from alphapy.system import run_system
 from alphapy.system import System
@@ -507,6 +507,8 @@ def prepare_data(model, dfs, market_specs):
 
     for df in dfs:
         # subset each individual frame and add to the master frame
+        if df.empty:
+            continue
         symbol = df['symbol'].iloc[0].upper()
         if not df.empty:
             # set model targets based on model type
@@ -823,7 +825,7 @@ def market_pipeline(alphapy_specs, model, market_specs):
             logger.info("No trades to generate a portfolio")
         else:
             portfolio_specs = market_specs['portfolio']
-            gen_portfolios(model, system_name, portfolio_specs, group, df_trades_base, df_trades_prob)
+            gen_vbt_portfolios(model, system_name, portfolio_specs, group, df_trades_base, df_trades_prob)
 
     # Return the completed model.
     return model

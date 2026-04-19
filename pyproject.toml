@@ -61,6 +61,8 @@ dependencies = [
     "pydantic>=2.0.0",
     "quantstats>=0.0.77",
     "pyarrow>=22.0.0",
+    # Vectorized backtesting
+    "vectorbt>=0.26.0",
 ]
 
 [project.optional-dependencies]
@@ -151,7 +153,6 @@ markers = [
     "integration: marks tests as integration tests",
     "asyncio: marks tests as async (pytest-asyncio)",
 ]
-asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::FutureWarning",
