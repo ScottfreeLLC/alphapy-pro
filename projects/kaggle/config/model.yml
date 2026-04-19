@@ -7,7 +7,6 @@ project:
 
 model:
     algorithms        : ['CATB', 'LGB', 'LOGR', 'RF', 'XGB']
-    balance_classes   : True
     calibration       :
         option        : False
         type          : sigmoid

@@ -7,7 +7,6 @@ project:
 
 model:
     algorithms        : ['CATBR', 'LGBR', 'RFR', 'XGBR']
-    balance_classes   : False
     calibration       :
         option        : False
         type          : sigmoid
@@ -20,9 +19,8 @@ model:
         subsample     : False
         sampling_pct  : 0.2
     ranking           :
-        group_id      : 
-        group_size    : 
-    pvalue_level      : 0.01
+        group_id      :
+        group_size    :
     rfe               :
         option        : False
         step          : 3

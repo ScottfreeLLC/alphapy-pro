@@ -21,7 +21,6 @@ data:
 
 model:
     algorithms        : ['XGB']
-    balance_classes   : True
     calibration       :
         option        : False
         type          : sigmoid

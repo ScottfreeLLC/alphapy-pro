@@ -19,10 +19,7 @@ project:
 model:
     # List of algorithms to use (see algos.yml for available options)
     algorithms        : ['LOGR', 'RF', 'XGB']
-    
-    # Class balancing for imbalanced datasets
-    balance_classes   : False
-    
+
     # Probability calibration
     calibration       :
         option        : False                # Enable calibration
