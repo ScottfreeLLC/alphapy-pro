@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCOTTFREE // TERMINAL</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-bright: #39ff14;
+    --green-mid: #1aff00;
+    --green-dim: #0a8a00;
+    --green-dark: #064d00;
+    --green-glow: rgba(57, 255, 20, 0.15);
+    --amber: #ffb000;
+    --amber-dim: #996a00;
+    --red: #ff3333;
+    --red-dim: #991f1f;
+    --bg-primary: #0a0a0a;
+    --bg-panel: #0d0d0d;
+    --bg-panel-border: #1a1a1a;
+    --bg-row-hover: rgba(57, 255, 20, 0.04);
+    --text-primary: #cccccc;
+    --text-dim: #555555;
+    --scanline-opacity: 0.03;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* CRT Scanlines Overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, var(--scanline-opacity)) 2px,
+      rgba(0, 0, 0, var(--scanline-opacity)) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* CRT Flicker */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(57, 255, 20, 0.008);
+    pointer-events: none;
+    z-index: 9998;
+    animation: flicker 0.15s infinite;
+  }
+
+  @keyframes flicker {
+    0%, 100% { opacity: 0.97; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes glowPulse {
+    0%, 100% { text-shadow: 0 0 4px var(--green-bright); }
+    50% { text-shadow: 0 0 12px var(--green-bright), 0 0 20px var(--green-dim); }
+  }
+
+  @keyframes tickerScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  @keyframes dataFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--bg-panel-border);
+    background: var(--bg-panel);
+    position: relative;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--green-bright);
+    letter-spacing: 4px;
+    text-shadow: 0 0 8px var(--green-dim);
+    animation: glowPulse 3s ease-in-out infinite;
+  }
+
+  .logo-divider {
+    color: var(--text-dim);
+    font-size: 16px;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-size: 11px;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green-bright);
+    box-shadow: 0 0 6px var(--green-bright);
+    margin-right: 6px;
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  .clock {
+    color: var(--amber);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+  }
+
+  /* TICKER BAR */
+  .ticker-bar {
+    background: rgba(57, 255, 20, 0.03);
+    border-bottom: 1px solid var(--bg-panel-border);
+    overflow: hidden;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+
+  .ticker-track {
+    display: flex;
+    white-space: nowrap;
+    animation: tickerScroll 40s linear infinite;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  .ticker-item {
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ticker-symbol { color: var(--text-primary); font-weight: 600; }
+  .ticker-price { color: var(--text-dim); }
+  .ticker-change.up { color: var(--green-bright); }
+  .ticker-change.down { color: var(--red); }
+
+  /* MAIN GRID */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr 320px;
+    grid-template-rows: auto 1fr auto;
+    gap: 1px;
+    background: var(--bg-panel-border);
+    min-height: calc(100vh - 70px);
+  }
+
+  .panel {
+    background: var(--bg-panel);
+    padding: 16px;
+    position: relative;
+    animation: slideIn 0.5s ease-out both;
+  }
+
+  .panel:nth-child(1) { animation-delay: 0.05s; }
+  .panel:nth-child(2) { animation-delay: 0.1s; }
+  .panel:nth-child(3) { animation-delay: 0.15s; }
+  .panel:nth-child(4) { animation-delay: 0.2s; }
+  .panel:nth-child(5) { animation-delay: 0.25s; }
+  .panel:nth-child(6) { animation-delay: 0.3s; }
+  .panel:nth-child(7) { animation-delay: 0.35s; }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--bg-panel-border);
+  }
+
+  .panel-title {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--green-dim);
+    font-weight: 600;
+  }
+
+  .panel-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border: 1px solid var(--green-dark);
+    color: var(--green-dim);
+    letter-spacing: 1px;
+  }
+
+  /* METRICS ROW */
+  .metrics-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    padding: 0;
+    background: var(--bg-panel-border);
+  }
+
+  .metric-card {
+    background: var(--bg-panel);
+    padding: 16px 20px;
+    animation: slideIn 0.4s ease-out both;
+  }
+
+  .metric-card:nth-child(1) { animation-delay: 0.05s; }
+  .metric-card:nth-child(2) { animation-delay: 0.1s; }
+  .metric-card:nth-child(3) { animation-delay: 0.15s; }
+  .metric-card:nth-child(4) { animation-delay: 0.2s; }
+  .metric-card:nth-child(5) { animation-delay: 0.25s; }
+
+  .metric-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .metric-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 22px;
+    color: var(--green-bright);
+    text-shadow: 0 0 6px var(--green-dark);
+  }
+
+  .metric-value.amber { color: var(--amber); text-shadow: 0 0 6px var(--amber-dim); }
+  .metric-value.red { color: var(--red); text-shadow: 0 0 6px var(--red-dim); }
+
+  .metric-delta {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+  .metric-delta.up { color: var(--green-mid); }
+  .metric-delta.down { color: var(--red); }
+
+  /* CHART AREA */
+  .chart-panel {
+    grid-column: 1 / 3;
+    min-height: 300px;
+  }
+
+  .chart-container {
+    width: 100%;
+    height: 260px;
+    position: relative;
+  }
+
+  .chart-canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* POSITIONS TABLE */
+  .positions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .positions-table th {
+    text-align: left;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--bg-panel-border);
+    font-weight: 500;
+  }
+
+  .positions-table td {
+    padding: 7px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+  }
+
+  .positions-table tr:hover td {
+    background: var(--bg-row-hover);
+  }
+
+  .positions-table .symbol {
+    color: var(--amber);
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  .positions-table .positive { color: var(--green-bright); }
+  .positions-table .negative { color: var(--red); }
+
+  /* ORDER BOOK */
+  .orderbook-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 2px;
+    font-size: 11px;
+    font-family: 'Share Tech Mono', monospace;
+    margin-bottom: 2px;
+    position: relative;
+  }
+
+  .orderbook-bid {
+    text-align: right;
+    padding: 3px 8px;
+    color: var(--green-mid);
+    position: relative;
+  }
+
+  .orderbook-bid::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    background: rgba(57, 255, 20, 0.06);
+    z-index: 0;
+  }
+
+  .orderbook-price {
+    text-align: center;
+    padding: 3px 4px;
+    color: var(--text-dim);
+    font-size: 10px;
+  }
+
+  .orderbook-ask {
+    text-align: left;
+    padding: 3px 8px;
+    color: var(--red);
+    position: relative;
+  }
+
+  .orderbook-ask::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    background: rgba(255, 51, 51, 0.06);
+    z-index: 0;
+  }
+
+  .ob-header {
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    text-align: center;
+  }
+
+  /* LOG FEED */
+  .log-feed {
+    font-size: 10px;
+    line-height: 1.7;
+    max-height: 240px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--green-dark) var(--bg-primary);
+  }
+
+  .log-entry {
+    display: flex;
+    gap: 8px;
+    animation: dataFade 0.3s ease-out;
+  }
+
+  .log-time {
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    flex-shrink: 0;
+    min-width: 70px;
+  }
+
+  .log-tag {
+    font-size: 9px;
+    padding: 0px 4px;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    height: 16px;
+    line-height: 16px;
+  }
+
+  .log-tag.exec { background: var(--green-dark); color: var(--green-bright); }
+  .log-tag.risk { background: var(--red-dim); color: var(--red); }
+  .log-tag.info { background: rgba(255, 176, 0, 0.15); color: var(--amber); }
+  .log-tag.sys { background: var(--bg-panel-border); color: var(--text-dim); }
+
+  .log-msg { color: var(--text-primary); }
+
+  /* BOTTOM BAR */
+  .bottom-bar {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 20px;
+    font-size: 10px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--bg-panel-border);
+    background: var(--bg-panel);
+  }
+
+  .cmd-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cmd-prompt {
+    color: var(--green-bright);
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .cmd-cursor {
+    display: inline-block;
+    width: 7px;
+    height: 14px;
+    background: var(--green-bright);
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+    box-shadow: 0 0 4px var(--green-dim);
+  }
+
+  .bottom-stats {
+    display: flex;
+    gap: 24px;
+    letter-spacing: 1px;
+  }
+
+  /* SIDEBAR PANEL */
+  .sidebar-panel {
+    grid-row: 2 / 4;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background: var(--green-dark); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+
+  /* Signal strength bars */
+  .signal-bars {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 14px;
+  }
+  .signal-bar {
+    width: 3px;
+    background: var(--green-dark);
+    transition: background 0.3s;
+  }
+  .signal-bar.active { background: var(--green-bright); box-shadow: 0 0 3px var(--green-dim); }
+
+  /* Sparkline */
+  .sparkline { vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">SCOTTFREE</div>
+    <span class="logo-divider">│</span>
+    <span class="logo-sub">Trading Terminal v3.1.0</span>
+  </div>
+  <div class="header-right">
+    <span><span class="status-dot"></span>CONNECTED</span>
+    <span style="color: var(--text-dim);">LATENCY: <span style="color: var(--green-mid);">4ms</span></span>
+    <span class="clock" id="clock">00:00:00</span>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker-bar">
+  <div class="ticker-track" id="ticker"></div>
+</div>
+
+<!-- METRICS -->
+<div class="metrics-row">
+  <div class="metric-card">
+    <div class="metric-label">Portfolio Value</div>
+    <div class="metric-value">$2,847,312</div>
+    <div class="metric-delta up">▲ +2.34% today</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Unrealized P&L</div>
+    <div class="metric-value">+$64,891</div>
+    <div class="metric-delta up">▲ 14 positions</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Realized P&L (MTD)</div>
+    <div class="metric-value amber">$128,440</div>
+    <div class="metric-delta up">▲ +8.7% vs prev</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Sharpe Ratio</div>
+    <div class="metric-value">1.84</div>
+    <div class="metric-delta" style="color: var(--text-dim);">Rolling 90d</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Max Drawdown</div>
+    <div class="metric-value red">-6.2%</div>
+    <div class="metric-delta" style="color: var(--text-dim);">Since inception</div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="dashboard">
+  <!-- CHART -->
+  <div class="panel chart-panel">
+    <div class="panel-header">
+      <span class="panel-title">Equity Curve</span>
+      <div style="display:flex; gap: 12px; font-size: 10px;">
+        <span style="color: var(--text-dim); cursor:pointer;">1D</span>
+        <span style="color: var(--text-dim); cursor:pointer;">1W</span>
+        <span style="color: var(--green-bright); cursor:pointer; border-bottom: 1px solid var(--green-bright);">1M</span>
+        <span style="color: var(--text-dim); cursor:pointer;">3M</span>
+        <span style="color: var(--text-dim); cursor:pointer;">YTD</span>
+        <span style="color: var(--text-dim); cursor:pointer;">ALL</span>
+      </div>
+    </div>
+    <div class="chart-container">
+      <canvas id="equityChart" class="chart-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- SIDEBAR: ORDER BOOK -->
+  <div class="panel sidebar-panel">
+    <div class="panel-header">
+      <span class="panel-title">Order Book</span>
+      <span class="panel-badge">NVDA</span>
+    </div>
+    <div class="ob-header">
+      <span>BID SIZE</span>
+      <span>PRICE</span>
+      <span>ASK SIZE</span>
+    </div>
+    <div id="orderbook"></div>
+
+    <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--bg-panel-border);">
+      <div class="panel-title" style="margin-bottom: 10px; font-size: 10px; letter-spacing: 3px; color: var(--green-dim);">Signal Strength</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+          <div style="font-size: 9px; color: var(--text-dim); margin-bottom: 4px; letter-spacing: 1px;">MOMENTUM</div>
+          <div class="signal-bars" id="sig-momentum"></div>
+        </div>
+        <div>
+          <div style="font-size: 9px; color: var(--text-dim); margin-bottom: 4px; letter-spacing: 1px;">MEAN REV</div>
+          <div class="signal-bars" id="sig-meanrev"></div>
+        </div>
+        <div>
+          <div style="font-size: 9px; color: var(--text-dim); margin-bottom: 4px; letter-spacing: 1px;">VOL REGIME</div>
+          <div class="signal-bars" id="sig-vol"></div>
+        </div>
+        <div>
+          <div style="font-size: 9px; color: var(--text-dim); margin-bottom: 4px; letter-spacing: 1px;">CORRELATION</div>
+          <div class="signal-bars" id="sig-corr"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POSITIONS -->
+  <div class="panel" style="grid-column: 1 / 2;">
+    <div class="panel-header">
+      <span class="panel-title">Open Positions</span>
+      <span class="panel-badge">14 ACTIVE</span>
+    </div>
+    <table class="positions-table">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Qty</th>
+          <th>Entry</th>
+          <th>Last</th>
+          <th>P&L</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="positions"></tbody>
+    </table>
+  </div>
+
+  <!-- LOG FEED -->
+  <div class="panel" style="grid-column: 2 / 3;">
+    <div class="panel-header">
+      <span class="panel-title">Execution Log</span>
+      <span class="panel-badge">LIVE</span>
+    </div>
+    <div class="log-feed" id="logFeed"></div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <div class="cmd-input">
+      <span class="cmd-prompt">scottfree@terminal:~$</span>
+      <span class="cmd-cursor"></span>
+    </div>
+    <div class="bottom-stats">
+      <span>CPU: <span style="color: var(--green-mid);">12%</span></span>
+      <span>MEM: <span style="color: var(--amber);">3.2GB</span></span>
+      <span>NET: <span style="color: var(--green-mid);">↑2.1 ↓4.8 MB/s</span></span>
+      <span>ORDERS: <span style="color: var(--green-bright);">847</span>/day</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CLOCK ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toTimeString().slice(0, 8);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── TICKER ──
+const tickerData = [
+  { sym: 'NVDA', price: '924.72', change: '+3.41%', up: true },
+  { sym: 'AAPL', price: '213.07', change: '-0.28%', up: false },
+  { sym: 'MSFT', price: '441.85', change: '+1.12%', up: true },
+  { sym: 'TSLA', price: '248.42', change: '+4.67%', up: true },
+  { sym: 'AMD', price: '178.33', change: '+2.19%', up: true },
+  { sym: 'GOOG', price: '176.49', change: '-0.54%', up: false },
+  { sym: 'AMZN', price: '198.62', change: '+0.87%', up: true },
+  { sym: 'META', price: '542.81', change: '+1.93%', up: true },
+  { sym: 'SPY', price: '543.16', change: '+0.72%', up: true },
+  { sym: 'QQQ', price: '472.38', change: '+1.14%', up: true },
+  { sym: 'BTC', price: '71,842', change: '+2.89%', up: true },
+  { sym: 'ETH', price: '3,891', change: '+1.44%', up: true },
+];
+
+const tickerEl = document.getElementById('ticker');
+const tickerHTML = tickerData.map(t =>
+  `<div class="ticker-item">
+    <span class="ticker-symbol">${t.sym}</span>
+    <span class="ticker-price">${t.price}</span>
+    <span class="ticker-change ${t.up ? 'up' : 'down'}">${t.change}</span>
+  </div>`
+).join('');
+tickerEl.innerHTML = tickerHTML + tickerHTML; // duplicate for seamless loop
+
+// ── EQUITY CHART (Canvas) ──
+function drawChart() {
+  const canvas = document.getElementById('equityChart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.scale(dpr, dpr);
+
+  const W = rect.width;
+  const H = rect.height;
+  const pad = { top: 20, right: 60, bottom: 30, left: 10 };
+
+  // Generate data
+  const points = 120;
+  let data = [2600000];
+  for (let i = 1; i < points; i++) {
+    const drift = 1800;
+    const vol = 18000;
+    data.push(data[i - 1] + drift + (Math.random() - 0.45) * vol);
+  }
+
+  const minVal = Math.min(...data) * 0.998;
+  const maxVal = Math.max(...data) * 1.002;
+
+  const xScale = (i) => pad.left + (i / (points - 1)) * (W - pad.left - pad.right);
+  const yScale = (v) => pad.top + (1 - (v - minVal) / (maxVal - minVal)) * (H - pad.top - pad.bottom);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (i / 4) * (H - pad.top - pad.bottom);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(W - pad.right, y);
+    ctx.stroke();
+
+    const val = maxVal - (i / 4) * (maxVal - minVal);
+    ctx.fillStyle = '#444';
+    ctx.font = '10px IBM Plex Mono';
+    ctx.textAlign = 'left';
+    ctx.fillText('$' + (val / 1e6).toFixed(2) + 'M', W - pad.right + 6, y + 4);
+  }
+
+  // Gradient fill
+  const gradient = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  gradient.addColorStop(0, 'rgba(57, 255, 20, 0.12)');
+  gradient.addColorStop(1, 'rgba(57, 255, 20, 0.0)');
+
+  ctx.beginPath();
+  ctx.moveTo(xScale(0), H - pad.bottom);
+  data.forEach((v, i) => ctx.lineTo(xScale(i), yScale(v)));
+  ctx.lineTo(xScale(points - 1), H - pad.bottom);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    if (i === 0) ctx.moveTo(xScale(i), yScale(v));
+    else ctx.lineTo(xScale(i), yScale(v));
+  });
+  ctx.strokeStyle = '#39ff14';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = 'rgba(57, 255, 20, 0.5)';
+  ctx.shadowBlur = 6;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Latest point
+  const lastX = xScale(points - 1);
+  const lastY = yScale(data[points - 1]);
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#39ff14';
+  ctx.shadowColor = '#39ff14';
+  ctx.shadowBlur = 10;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Dashed line from last point
+  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = 'rgba(57, 255, 20, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(W - pad.right, lastY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Price label
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(W - pad.right + 2, lastY - 9, 56, 18);
+  ctx.strokeStyle = '#39ff14';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(W - pad.right + 2, lastY - 9, 56, 18);
+  ctx.fillStyle = '#39ff14';
+  ctx.font = '10px Share Tech Mono';
+  ctx.textAlign = 'left';
+  ctx.fillText('$' + (data[points - 1] / 1e6).toFixed(3) + 'M', W - pad.right + 5, lastY + 4);
+}
+drawChart();
+window.addEventListener('resize', drawChart);
+
+// ── ORDER BOOK ──
+function renderOrderBook() {
+  const ob = document.getElementById('orderbook');
+  const basePrice = 924.72;
+  let rows = '';
+  for (let i = 7; i >= -7; i--) {
+    if (i === 0) continue;
+    const price = (basePrice + i * 0.05).toFixed(2);
+    const bidSize = i > 0 ? Math.floor(Math.random() * 800 + 100) : '';
+    const askSize = i < 0 ? Math.floor(Math.random() * 800 + 100) : '';
+    const bidWidth = bidSize ? (bidSize / 900 * 100) : 0;
+    const askWidth = askSize ? (askSize / 900 * 100) : 0;
+    rows += `<div class="orderbook-row">
+      <div class="orderbook-bid" style="position:relative">
+        <span style="position:relative;z-index:1">${bidSize}</span>
+        ${bidSize ? `<div style="position:absolute;top:0;right:0;bottom:0;width:${bidWidth}%;background:rgba(57,255,20,0.07);"></div>` : ''}
+      </div>
+      <div class="orderbook-price">${price}</div>
+      <div class="orderbook-ask" style="position:relative">
+        <span style="position:relative;z-index:1">${askSize}</span>
+        ${askSize ? `<div style="position:absolute;top:0;left:0;bottom:0;width:${askWidth}%;background:rgba(255,51,51,0.07);"></div>` : ''}
+      </div>
+    </div>`;
+  }
+  ob.innerHTML = rows;
+}
+renderOrderBook();
+setInterval(renderOrderBook, 2000);
+
+// ── SIGNAL BARS ──
+function renderSignal(id, strength) {
+  const el = document.getElementById(id);
+  let html = '';
+  for (let i = 0; i < 8; i++) {
+    const h = 4 + i * 1.5;
+    html += `<div class="signal-bar ${i < strength ? 'active' : ''}" style="height:${h}px"></div>`;
+  }
+  el.innerHTML = html;
+}
+function updateSignals() {
+  renderSignal('sig-momentum', Math.floor(Math.random() * 3) + 5);
+  renderSignal('sig-meanrev', Math.floor(Math.random() * 4) + 2);
+  renderSignal('sig-vol', Math.floor(Math.random() * 3) + 4);
+  renderSignal('sig-corr', Math.floor(Math.random() * 4) + 3);
+}
+updateSignals();
+setInterval(updateSignals, 3000);
+
+// ── POSITIONS ──
+const positions = [
+  { sym: 'NVDA', qty: 450, entry: 882.10, last: 924.72, spark: [0.2,0.3,0.35,0.5,0.55,0.7,0.65,0.8,0.9,1.0] },
+  { sym: 'MSFT', qty: 320, entry: 428.50, last: 441.85, spark: [0.4,0.3,0.5,0.6,0.55,0.7,0.75,0.8,0.85,0.9] },
+  { sym: 'TSLA', qty: 200, entry: 231.80, last: 248.42, spark: [0.3,0.4,0.2,0.5,0.6,0.45,0.7,0.8,0.75,0.9] },
+  { sym: 'AMD', qty: 600, entry: 168.20, last: 178.33, spark: [0.5,0.4,0.6,0.55,0.7,0.65,0.8,0.75,0.85,0.9] },
+  { sym: 'META', qty: 180, entry: 521.30, last: 542.81, spark: [0.3,0.4,0.5,0.45,0.6,0.7,0.65,0.8,0.9,0.85] },
+  { sym: 'AMZN', qty: 280, entry: 193.40, last: 198.62, spark: [0.6,0.5,0.55,0.65,0.7,0.6,0.75,0.8,0.7,0.85] },
+  { sym: 'GOOG', qty: 350, entry: 179.20, last: 176.49, spark: [0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.45,0.4,0.35] },
+  { sym: 'AAPL', qty: 400, entry: 215.60, last: 213.07, spark: [0.7,0.65,0.6,0.55,0.58,0.5,0.48,0.45,0.42,0.4] },
+];
+
+function makeSpark(data, color) {
+  const w = 48, h = 16;
+  let path = data.map((v, i) => `${i === 0 ? 'M' : 'L'}${(i / (data.length - 1)) * w},${h - v * h}`).join(' ');
+  return `<svg class="sparkline" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="1.2"/>
+  </svg>`;
+}
+
+const posEl = document.getElementById('positions');
+posEl.innerHTML = positions.map(p => {
+  const pnl = (p.last - p.entry) * p.qty;
+  const pnlPct = ((p.last - p.entry) / p.entry * 100).toFixed(2);
+  const cls = pnl >= 0 ? 'positive' : 'negative';
+  const sparkColor = pnl >= 0 ? '#39ff14' : '#ff3333';
+  return `<tr>
+    <td class="symbol">${p.sym}</td>
+    <td>${p.qty}</td>
+    <td>$${p.entry.toFixed(2)}</td>
+    <td>$${p.last.toFixed(2)}</td>
+    <td class="${cls}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(0)} (${pnlPct}%)</td>
+    <td>${makeSpark(p.spark, sparkColor)}</td>
+  </tr>`;
+}).join('');
+
+// ── LOG FEED ──
+const logMessages = [
+  { tag: 'exec', msg: 'BUY 50 NVDA @ 924.72 — filled 50/50' },
+  { tag: 'exec', msg: 'SELL 100 GOOG @ 176.49 — partial 80/100' },
+  { tag: 'risk', msg: 'TSLA position approaching 8% portfolio weight' },
+  { tag: 'info', msg: 'Momentum signal triggered: AMD breakout detected' },
+  { tag: 'sys',  msg: 'Rebalance scheduled: T+1 settlement window open' },
+  { tag: 'exec', msg: 'BUY 200 AMD @ 178.33 — filled 200/200' },
+  { tag: 'info', msg: 'Volatility regime shift: low → medium' },
+  { tag: 'risk', msg: 'Correlation spike: NVDA/AMD r=0.91' },
+  { tag: 'sys',  msg: 'Market data feed reconnected (src: polygon)' },
+  { tag: 'exec', msg: 'SELL 30 AAPL @ 213.07 — filled 30/30' },
+  { tag: 'info', msg: 'Earnings catalyst: META reports after close' },
+  { tag: 'risk', msg: 'Max drawdown threshold: 87% utilized' },
+  { tag: 'sys',  msg: 'Strategy heartbeat OK — all agents nominal' },
+  { tag: 'exec', msg: 'BUY 150 MSFT @ 441.85 — filled 150/150' },
+  { tag: 'info', msg: 'Sector rotation signal: tech → defensives fading' },
+];
+
+const logFeed = document.getElementById('logFeed');
+let logIndex = 0;
+
+function addLog() {
+  const log = logMessages[logIndex % logMessages.length];
+  const now = new Date();
+  const time = now.toTimeString().slice(0, 8);
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `
+    <span class="log-time">${time}</span>
+    <span class="log-tag ${log.tag}">${log.tag.toUpperCase()}</span>
+    <span class="log-msg">${log.msg}</span>
+  `;
+  logFeed.insertBefore(entry, logFeed.firstChild);
+  if (logFeed.children.length > 30) logFeed.removeChild(logFeed.lastChild);
+  logIndex++;
+}
+
+// Initial fill
+for (let i = 0; i < 10; i++) addLog();
+setInterval(addLog, 3500);
+</script>
+</body>
+</html>

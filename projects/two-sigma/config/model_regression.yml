@@ -1,0 +1,114 @@
+project:
+    directory         : .
+    file_extension    : csv
+    submission_file   :
+    submit_probas     : False
+
+data:
+    drop              : ['index', 'date']
+    features          : '*'
+    leaders           : []
+    sampling          :
+        option        : False
+        method        : under_random
+        ratio         : 0.5
+    sentinel          : -1
+    separator         : ','
+    shuffle           : False
+    split             : 0.4
+    target            : target
+    target_value      : True
+
+model:
+    algorithms        : ['CATBR', 'XGBR']
+    balance_classes   : True
+    calibration       :
+        option        : False
+        type          : sigmoid
+    cv_folds          : 3
+    estimators        : 501
+    feature_selection :
+        option        : True
+        percentage    : 20
+        uni_grid      : [5, 10, 15, 20, 25]
+        score_func    : f_regression
+    grid_search       :
+        option        : False
+        iterations    : 100
+        random        : True
+        subsample     : True
+        sampling_pct  : 0.25
+    pvalue_level      : 0.01
+    rfe               :
+        option        : False
+        step          : 10
+    scoring_function  : 'neg_mean_absolute_error'
+    time_series       :
+        option        : True
+        backtests     : 100
+        date_index    : date
+        forecast      : 3
+        window        : 100
+    type              : regression
+
+features:
+    clustering        :
+        option        : False
+        increment     : 3
+        maximum       : 30
+        minimum       : 3
+    counts            :
+        option        : False
+    encoding          :
+        rounding      : 3
+        type          : target
+    factors           : []
+    interactions      :
+        option        : False
+        poly_degree   : 2
+        sampling_pct  : 5
+    isomap            :
+        option        : False
+        components    : 2
+        neighbors     : 5
+    logtransform      :
+        option        : False
+    numpy             :
+        option        : False
+    pca               :
+        option        : False
+        increment     : 3
+        maximum       : 15
+        minimum       : 3
+        whiten        : False
+    scaling           :
+        option        : True
+        type          : standard
+    scipy             :
+        option        : False
+    text              :
+        ngrams        : 1
+        vectorize     : False
+    tsne              :
+        option        : False
+        components    : 2
+        learning_rate : 1000.0
+        perplexity    : 30.0
+    variance          :
+        option        : True
+        threshold     : 0.1
+
+pipeline:
+    number_jobs       : -1
+    seed              : 10231
+    verbosity         : 0
+
+plots:
+    calibration       : True
+    confusion_matrix  : True
+    importances       : True
+    learning_curve    : True
+    roc_curve         : True
+
+xgboost:
+    stopping_rounds   : 30

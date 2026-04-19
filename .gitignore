@@ -48,3 +48,20 @@ coverage.xml
 docs/_build/
 docs/_static/
 docs/_templates/
+
+# Alfi markets app (merged from alphapy-markets)
+app/data/backtests/
+app/data/cache/
+app/data/models/
+app/data/performance/
+node_modules/
+.playwright-cli/
+*.pkl
+*.csv
+*.parq
+*.zip
+*.data
+*.db
+*.local
+*.pdf
+.venv/

@@ -1,0 +1,125 @@
+# Trade-GPT Configuration
+
+data:
+  # Symbols to fetch for training corpus
+  daily_symbols:
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - NVDA
+    - META
+    - TSLA
+    - JPM
+    - V
+    - JNJ
+    - WMT
+    - PG
+    - UNH
+    - HD
+    - DIS
+    - NFLX
+    - ADBE
+    - CRM
+    - AMD
+    - INTC
+    - PYPL
+    - BA
+    - GS
+    - CAT
+    - DE
+    - XOM
+    - CVX
+    - KO
+    - PEP
+    - MCD
+    - NKE
+    - COST
+    - LOW
+    - TGT
+    - SBUX
+    - CMG
+    - LULU
+    - SQ
+    - SHOP
+    - ABNB
+    - UBER
+    - COIN
+    - SNOW
+    - PLTR
+    - NET
+    - DDOG
+    - CRWD
+    - ZS
+    - PANW
+    - FTNT
+  intraday_symbols:
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - NVDA
+    - META
+    - TSLA
+    - JPM
+    - AMD
+    - NFLX
+    - ADBE
+    - CRM
+    - SQ
+    - COIN
+    - UBER
+    - ABNB
+    - PLTR
+    - NET
+    - SNOW
+    - CRWD
+  daily_years: 5
+  intraday_months: 12
+
+encoding:
+  period: 20
+
+tokenizer:
+  vocab_size: 2000
+  min_frequency: 2
+  special_tokens:
+    - "<s>"
+    - "</s>"
+    - "<pad>"
+    - "<mask>"
+    - "<unk>"
+    - "boy"
+    - "eoy"
+    - "bom"
+    - "eom"
+    - "bod"
+    - "eod"
+
+mlm:
+  model_name: "trade-roberta"
+  num_layers: 4
+  num_heads: 8
+  hidden_dim: 256
+  intermediate_dim: 1024
+  max_length: 512
+  mlm_probability: 0.15
+  batch_size: 32
+  learning_rate: 5.0e-5
+  epochs: 20
+  warmup_steps: 500
+
+causal:
+  model_name: "trade-gpt"
+  num_layers: 4
+  num_heads: 8
+  hidden_dim: 256
+  max_length: 256
+  batch_size: 32
+  learning_rate: 3.0e-4
+  epochs: 20
+  warmup_steps: 200
+
+evaluation:
+  walk_forward_splits: 5
+  test_ratio: 0.2
