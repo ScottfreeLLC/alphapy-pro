@@ -241,12 +241,34 @@ def write_frame(df, directory, filename, extension, separator, tag='',
                 df = df[columns]
             df.to_csv(file_all, sep=separator, index=index, index_label=index_label)
         else:
-            # Polars DataFrame
-            if columns:
-                df = df.select(columns)
-            df.write_csv(file_all, separator=separator)
+            # Polars DataFrame - check for Object columns first
+            import polars as pl
+            has_object_cols = any(df[col].dtype == pl.Object for col in df.columns)
+
+            if has_object_cols:
+                # Convert to pandas for reliable CSV writing with Object columns
+                pdf = df.to_pandas()
+                if columns:
+                    pdf = pdf[columns]
+                pdf.to_csv(file_all, sep=separator, index=index, index_label=index_label)
+            else:
+                # Pure Polars write
+                if columns:
+                    df = df.select(columns)
+                df.write_csv(file_all, separator=separator)
     except Exception as e:
-        logger.info("Could not write data frame to %s: %s", file_all, e)
+        logger.warning("Primary write failed for %s: %s, trying fallback", file_all, e)
+        # Fallback: convert to pandas and write
+        try:
+            if hasattr(df, 'to_pandas'):
+                pdf = df.to_pandas()
+            else:
+                pdf = df
+            if columns:
+                pdf = pdf[columns]
+            pdf.to_csv(file_all, sep=separator, index=index, index_label=index_label)
+        except Exception as e2:
+            logger.error("Failed to write data frame to %s: %s", file_all, e2)
 
 
 #
