@@ -466,11 +466,11 @@ def get_text_features(fnum, fname, df, nvalues, vectorize, ngrams_max):
             logger.info("Feature %d: %s => Vectorization Succeeded", fnum, fname)
         except:
             logger.info("Feature %d: %s => Vectorization Failed", fnum, fname)
-            new_features, _ = pd.factorize(feature_list)
+            new_features, _ = pd.factorize(np.asarray(feature_list))
             new_fnames = [USEP.join([fname, 'factor'])]
     else:
         logger.info("Feature %d: %s => Factorization", fnum, fname)
-        new_features, _ = pd.factorize(feature_list)
+        new_features, _ = pd.factorize(np.asarray(feature_list))
         new_fnames = [USEP.join([fname, 'factor'])]
     return new_features, new_fnames
 
