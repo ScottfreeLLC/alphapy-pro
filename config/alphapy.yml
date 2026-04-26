@@ -20,10 +20,3 @@ aflow:
     project_root: /Users/markconway/Projects/alphapy-pro/projects
     # Server URL (only used if use_server is True)
     server_url: 'http://localhost:8000/'
-
-# Market Flow configuration
-mflow:
-    # Root directory for market analysis projects
-    project_root: /Users/markconway/Projects/alphapy-pro/projects
-    # Server URL (only used if use_server is True)
-    server_url: 'http://localhost:8000/'
