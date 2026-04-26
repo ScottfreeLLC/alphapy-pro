@@ -36,7 +36,6 @@ from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import SSEP
 from alphapy.globals import WILDCARD
 from alphapy.space import Space
-from alphapy.data_sources import AlpacaDataSource, PolygonDataSource
 
 from datetime import datetime
 from io import BytesIO
@@ -47,7 +46,6 @@ import re
 import requests
 from sklearn.preprocessing import LabelEncoder
 import sys
-import yfinance as yf
 
 
 #
@@ -354,6 +352,7 @@ def get_polygon_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
 
     """
     # Use the consolidated PolygonDataSource
+    from alphapy.data_sources import PolygonDataSource
     api_key = alphapy_specs['sources']['polygon']['api_key']
     polygon = PolygonDataSource(api_key=api_key)
 
@@ -427,6 +426,7 @@ def get_yahoo_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
 
         # yfinance returns pandas, convert to polars
         import pandas as pd
+        import yfinance as yf
         pdf = yf.download(symbol, start=from_date, end=to_date, interval=yahoo_fractal,
                           ignore_tz=ignore_tz, threads=False)
         if pdf.empty:
@@ -584,6 +584,7 @@ def get_alpaca_data(source, alphapy_specs, symbol, intraday_data, data_fractal,
     api_key = alpaca_config.get('api_key')
     api_secret = alpaca_config.get('api_secret')
 
+    from alphapy.data_sources import AlpacaDataSource
     alpaca = AlpacaDataSource(api_key=api_key, api_secret=api_secret)
 
     # Parse dates
