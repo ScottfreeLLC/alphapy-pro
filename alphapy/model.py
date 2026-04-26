@@ -83,6 +83,7 @@ from sklearn.metrics import r2_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import roc_curve
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import train_test_split
 import sys
@@ -771,9 +772,12 @@ def first_fit(model, algo, est):
 
     if model_type != ModelType.ranking:
         logger.info("Cross-Validation")
-        strat_k_fold = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
+        if model_type == ModelType.regression:
+            cv_splitter = KFold(n_splits=cv_folds, shuffle=shuffle)
+        else:
+            cv_splitter = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
         scores = cross_val_score(est, X_train_np, y_train_np, scoring=scorer,
-                                 cv=strat_k_fold, n_jobs=n_jobs, verbose=verbosity)
+                                 cv=cv_splitter, n_jobs=n_jobs, verbose=verbosity)
         logger.info("Cross-Validation Scores: %s", scores)
 
     # Store the estimator

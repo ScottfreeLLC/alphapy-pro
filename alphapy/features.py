@@ -210,7 +210,12 @@ def apply_transforms(model, X):
                 features = apply_transform(f_latest, X, transforms[fname])
                 if features is not None:
                     if features.shape[0] == X.shape[0]:
-                        all_features = pd.concat([all_features, features], axis=1)
+                        if hasattr(all_features, "to_pandas"):
+                            # X is polars; coerce features to polars too
+                            features_pl = pl.from_pandas(features) if isinstance(features, pd.DataFrame) else features
+                            all_features = pl.concat([all_features, features_pl], how="horizontal")
+                        else:
+                            all_features = pd.concat([all_features, features], axis=1)
                     else:
                         raise IndexError("The number of transform rows [%d] must match X [%d]" %
                                          (features.shape[0], X.shape[0]))
