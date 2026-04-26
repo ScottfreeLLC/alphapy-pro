@@ -3,27 +3,19 @@
 #
 # INSTRUCTIONS:
 # 1. Copy this file to 'alphapy.yml' (remove the .template extension)
-# 2. Replace all placeholder paths with your actual directory paths
-# 3. The 'alphapy.yml' file is gitignored and will not be committed
+# 2. Replace placeholder paths with your actual directory paths
+# 3. 'alphapy.yml' is gitignored and will not be committed
 #
 
 # Whether to use the AlphaPy server (usually False for local development)
 use_server: False
 
-# Main data directory for storing market data and other datasets
-# Replace with your actual data directory path
+# Main data directory for storing datasets
 data_dir: /path/to/your/alphapy-data
 
-# AlphaPy Flow (main pipeline) configuration
+# AlphaPy pipeline configuration
 aflow:
     # Root directory for AlphaPy projects
     project_root: /path/to/your/alphapy-projects
-    # Server URL (only used if use_server is True)
-    server_url: 'http://localhost:8000/'
-
-# Market Flow configuration
-mflow:
-    # Root directory for market analysis projects
-    project_root: /path/to/your/alphapy-markets/Projects
     # Server URL (only used if use_server is True)
     server_url: 'http://localhost:8000/'

@@ -53,7 +53,6 @@ from sklearn.model_selection import train_test_split
 import sys
 import yaml
 
-from alphapy.alias import Alias
 from alphapy.data import get_data
 from alphapy.data import shuffle_data
 from alphapy.estimators import get_estimators
@@ -72,7 +71,6 @@ from alphapy.frame import write_frame
 from alphapy.globals import SSEP, USEP
 from alphapy.globals import ModelType
 from alphapy.globals import Partition
-from alphapy.group import Group
 from alphapy.model import first_fit
 from alphapy.model import generate_metrics
 from alphapy.model import get_model_config
@@ -91,7 +89,6 @@ from alphapy.optimize import rfecv_search
 from alphapy.plots import generate_plots
 from alphapy.utilities import datetime_stamp
 from alphapy.utilities import most_recent_file
-from alphapy.variables import Variable
 
 
 #
@@ -130,100 +127,10 @@ def get_alphapy_config(alphapy_root):
         specs = yaml.safe_load(ymlfile)
     specs['alphapy_root'] = alphapy_root
 
-    #
-    # Section: groups
-    #
-
-    full_path = SSEP.join([alphapy_root, 'config', 'groups.yml'])
-    with open(full_path, 'r') as ymlfile:
-        group_specs = yaml.safe_load(ymlfile)
-
-    logger.info("Creating Groups")
-    try:
-        for g in group_specs.keys():
-            Group(g)
-            Group.groups[g].add(group_specs[g])
-            logger.info("Added Group: %s", g)
-    except:
-        raise ValueError("No Groups Found")
-
-    #
-    # Section: aliases
-    #
-
-    full_path = SSEP.join([alphapy_root, 'config', 'variables.yml'])
-    with open(full_path, 'r') as ymlfile:
-        var_specs = yaml.safe_load(ymlfile)
-
-    logger.info("Creating Aliases")
-    try:
-        for k, v in list(var_specs['aliases'].items()):
-            Alias(k, v)
-    except:
-        raise ValueError("No Aliases Found")
-
-    #
-    # Section: variables
-    #
-
-    logger.info("Creating Variables")
-    try:
-        for k, v in list(var_specs['variables'].items()):
-            Variable(k, v)
-    except:
-        raise ValueError("No Variables Found")
-
-    #
-    # Section: sources
-    #
-
-    full_path = SSEP.join([alphapy_root, 'config', 'sources.yml'])
-    with open(full_path, 'r') as ymlfile:
-        data_sources = yaml.safe_load(ymlfile)
-
-    logger.info("Getting Data Sources")
-    try:
-        specs['sources'] = data_sources
-    except:
-        raise ValueError("No Data Sources Found")
-
-    # Set API Key environment variables
-
-    for key in data_sources:
-        key_dict = data_sources[key]
-        if 'api_key' in key_dict and 'api_key_name' in key_dict and key_dict['api_key_name']:
-            os.environ[key_dict['api_key_name']] = key_dict['api_key']
-        if 'directory' in key_dict:
-            dir = key_dict['directory']
-            dir_exists = os.path.isdir(dir)
-            if dir_exists:
-                specs['data_dir'] = dir
-            else:
-                raise ValueError(f"Directory {dir} does not exist")
-
-    #
-    # Section: systems
-    #
-
-    full_path = SSEP.join([alphapy_root, 'config', 'systems.yml'])
-    with open(full_path, 'r') as ymlfile:
-        trading_systems = yaml.safe_load(ymlfile)
-
-    logger.info("Getting Trading Systems")
-    try:
-        specs['systems'] = trading_systems
-    except:
-        raise ValueError("No Trading Systems Found")
-
-    #
-    # Log the AlphaPy parameters
-    #
-
     logger.info('ALPHAPY PARAMETERS:')
     for spec in specs.keys():
         logger.info('%s: %s', spec, specs[spec])
 
-    # AlphaPy Specifications
     return specs
 
 
