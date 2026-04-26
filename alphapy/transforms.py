@@ -282,7 +282,10 @@ def dateparts(df, c):
         The dataframe containing the date features.
     """
 
-    ds_dt = pd.to_datetime(df[c])
+    col = df[c]
+    if hasattr(col, "to_pandas"):
+        col = col.to_pandas()
+    ds_dt = pd.to_datetime(col)
     date_features = pd.DataFrame()
     try:
         fyear = pd.Series(ds_dt.dt.year, name='year').astype(int)

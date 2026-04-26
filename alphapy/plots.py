@@ -69,6 +69,7 @@ from sklearn.inspection import PartialDependenceDisplay
 from sklearn.metrics import auc
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve
+from sklearn.model_selection import KFold
 from sklearn.model_selection import learning_curve
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import validation_curve
@@ -476,6 +477,7 @@ def plot_learning_curve(alphapy_specs, model, partition):
     # Extract model parameters.
 
     cv_folds = model.specs['cv_folds']
+    model_type = model.specs['model_type']
     n_jobs = model.specs['n_jobs']
     shuffle = model.specs['shuffle']
     verbosity = model.specs['verbosity']
@@ -488,7 +490,10 @@ def plot_learning_curve(alphapy_specs, model, partition):
     X, y = get_partition_data(model, partition)
 
     # Set cross-validation parameters to get mean train and test curves.
-    cv = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
+    if model_type == ModelType.regression:
+        cv = KFold(n_splits=cv_folds, shuffle=shuffle)
+    else:
+        cv = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
 
     # Plot a learning curve for each algorithm.
 
