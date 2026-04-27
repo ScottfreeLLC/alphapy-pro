@@ -861,6 +861,8 @@ def make_predictions(model, algo):
                 est = VennAbersCalibrator(estimator=est, inductive=True, cal_size=0.2)
             else:
                 est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
+            X_train_np = X_train.to_numpy() if hasattr(X_train, 'to_numpy') else X_train
+            y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train
             est.fit(X_train_np, y_train_np)
             model.estimators[algo] = est
             logger.info("Calibration Complete")
