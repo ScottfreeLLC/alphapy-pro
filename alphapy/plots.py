@@ -316,7 +316,7 @@ def plot_calibration(model, partition):
     # For classification only
 
     model_type = model.specs['model_type']
-    if model_type != ModelType.classification and model_type != ModelType.system:
+    if model_type != ModelType.classification:
         logger.info('Calibration plot is for classification only')
         return None
 
@@ -571,7 +571,7 @@ def plot_roc_curve(model, partition):
     # For classification only
 
     model_type = model.specs['model_type']
-    if model_type != ModelType.classification and model_type != ModelType.system:
+    if model_type != ModelType.classification:
         logger.info('ROC Curves are for classification only')
         return None
 
@@ -648,7 +648,7 @@ def plot_confusion_matrix(model, partition):
     # For classification only
 
     model_type = model.specs['model_type']
-    if model_type != ModelType.classification and model_type != ModelType.system:
+    if model_type != ModelType.classification:
         logger.info('Confusion Matrix is for classification only')
         return None
 
@@ -850,7 +850,7 @@ def plot_boundary(model, partition, f1=0, f2=1):
     # For classification only
 
     model_type = model.specs['model_type']
-    if model_type != ModelType.classification and model_type != ModelType.system:
+    if model_type != ModelType.classification:
         logger.info('Boundary Plots are for classification only')
         return None
 

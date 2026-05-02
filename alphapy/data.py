@@ -117,7 +117,7 @@ def get_data(model, partition):
             # assign the target column to y
             df_y = df.select(target)
             # encode label only for classification or system
-            if model_type == ModelType.classification or model_type == ModelType.system:
+            if model_type == ModelType.classification:
                 y = LabelEncoder().fit_transform(df_y[target].to_numpy())
                 df_y = pl.DataFrame({target: y})
             # drop the target from the original frame

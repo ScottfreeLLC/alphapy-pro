@@ -130,7 +130,6 @@ class ModelType(Enum):
     ranking = 2
     multiclass = 3
     regression = 4
-    system = 5
 
 
 #
@@ -149,54 +148,6 @@ class Objective(Enum):
     """
     maximize = 1
     minimize = 2
-
-
-#
-# Bar Types
-#
-
-@unique
-class BarType(Enum):
-    """Bar Types.
-
-    Bar Types for running models, usually translated from a normal OHLC bar to a
-    weighted bar based on volume, dollar amount, etc.
-
-    """
-    time = 1
-    dollar = 2
-    heikinashi = 3
-
-
-#
-# Class Orders
-#
-
-class Orders:
-    """System Order Types.
-
-    Attributes
-    ----------
-    le : str
-        long entry
-    se : str
-        short entry
-    lx : str
-        long exit
-    sx : str
-        short exit
-    lh : str
-        long exit at the end of the holding period
-    sh : str
-        short exit at the end of the holding period
-
-    """
-    le = 'le'
-    se = 'se'
-    lx = 'lx'
-    sx = 'sx'
-    lh = 'lh'
-    sh = 'sh'
 
 
 #
