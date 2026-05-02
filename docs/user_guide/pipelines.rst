@@ -252,8 +252,8 @@ All outputs are saved in timestamped run directories::
 Advanced Features
 -----------------
 
-**Meta-Labeling:**
-    Triple Barrier Method for financial ML applications
+**Variable/Transform DSL:**
+    Declarative feature definitions with reusable transform functions
 
 **Time Series Support:**
     Lag features, rolling statistics, and proper CV splits
@@ -277,6 +277,4 @@ Best Practices
 5. **Ensemble Wisely** - Combine diverse models for best results
 6. **Track Experiments** - Use the timestamped runs for comparison
 
-For specific domain applications, see:
-
-* :doc:`market_flow` - Financial market analysis and trading strategies
+For concrete project setup details, see :doc:`project`.

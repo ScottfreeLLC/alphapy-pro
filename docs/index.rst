@@ -16,8 +16,6 @@ AlphaPy Pro Documentation
    :caption: Tutorials
 
    tutorials/kaggle
-   tutorials/market
-   tutorials/system
 
 .. toctree::
    :maxdepth: 2
@@ -25,7 +23,6 @@ AlphaPy Pro Documentation
 
    user_guide/pipelines
    user_guide/project
-   user_guide/market_flow
 
 .. toctree::
    :maxdepth: 2

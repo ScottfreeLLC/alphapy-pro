@@ -67,13 +67,8 @@ The project uses regression algorithms optimized for time series:
    alphapy
    ```
 
-   Or use the market flow pipeline if working with financial time series:
-   ```bash
-   mflow
-   ```
-
 4. **Monitor progress**:
-   - Check `alphapy.log` or `market_flow.log` for execution details
+   - Check `alphapy.log` for execution details
    - Results saved in timestamped directories under `runs/`
 
 ## Output Structure

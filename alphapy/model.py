@@ -886,7 +886,7 @@ def make_predictions(model, algo):
     model.preds[(algo, Partition.train)] = train_preds
     model.preds[(algo, Partition.test)] = test_preds
 
-    if model_type == ModelType.classification or model_type == ModelType.system:
+    if model_type == ModelType.classification:
         # Get probabilities for the positive class.
         train_probas = est.predict_proba(X_train)
         test_probas = est.predict_proba(X_test)
@@ -945,7 +945,7 @@ def predict_blend(model):
     for partition in datasets.keys():
         pred_set = [model.preds[key] for key, _ in model.preds.items() if partition in key]
         model.preds[(blend_tag, partition)] = np.round(np.mean(pred_set, axis=0), 0).astype(int)
-        if model_type == ModelType.classification or model_type == ModelType.system:
+        if model_type == ModelType.classification:
             proba_set = [model.probas[key] for key, _ in model.probas.items() if partition in key]
             model.probas[(blend_tag, partition)] = np.mean(proba_set, axis=0)
             model.preds[(blend_tag, partition)] = np.round(model.probas[(blend_tag, partition)], 0).astype(int)
@@ -1048,7 +1048,7 @@ def select_best_model(model, partition):
     model.best_algo = best_algo
     model.estimators[best_tag] = model.estimators[best_algo]
     model.preds[(best_tag, partition)] = model.preds[(best_algo, partition)]
-    if model_type == ModelType.classification or model_type == ModelType.system:
+    if model_type == ModelType.classification:
         model.probas[(best_tag, partition)] = model.probas[(best_algo, partition)]
 
     # Record support vector for any recursive feature elimination
@@ -1173,7 +1173,7 @@ def generate_metrics(model, partition):
             # get predictions for the given algorithm
             predicted = model.preds[(algo, partition)]
             # Classification Metrics
-            if model_type == ModelType.classification or model_type == ModelType.system:
+            if model_type == ModelType.classification:
                 probas = model.probas[(algo, partition)]
                 try:
                     model.metrics[(algo, partition, 'accuracy')] = accuracy_score(expected, predicted)
@@ -1369,14 +1369,14 @@ def save_predictions(model, partition):
     for tag_id in tag_list:
         pred_name = USEP.join(['pred', datasets[partition], tag_id.lower()])
         df_master = df_master.with_columns(pl.Series(pred_name, model.preds[(tag_id, partition)]))
-        if model_type == ModelType.classification or model_type == ModelType.system:
+        if model_type == ModelType.classification:
             prob_name = USEP.join(['prob', datasets[partition], tag_id.lower()])
             df_master = df_master.with_columns(pl.Series(prob_name, model.probas[(tag_id, partition)]))
 
     # Save ranked predictions
 
     logger.info("Saving Ranked Predictions")
-    if model_type == ModelType.classification or model_type == ModelType.system:
+    if model_type == ModelType.classification:
         prob_name = USEP.join(['prob', datasets[partition], sort_tag.lower()])
         df_master = df_master.sort(prob_name, descending=True)
     else:
@@ -1391,7 +1391,7 @@ def save_predictions(model, partition):
         sample_spec = PSEP.join([submission_file, extension])
         sample_input = SSEP.join([data_dir, sample_spec])
         df_sub = pd.read_csv(sample_input)
-        if submit_probas and (model_type == ModelType.classification or model_type == ModelType.system):
+        if submit_probas and (model_type == ModelType.classification):
             df_sub[df_sub.columns[1]] = model.probas[(model.best_algo, Partition.test)]
         else:
             df_sub[df_sub.columns[1]] = model.preds[(model.best_algo, Partition.test)]

@@ -3,7 +3,7 @@ Command Line Interface
 
 The AlphaPy Pro Command Line Interface (CLI) provides a streamlined way
 to run machine learning pipelines. Simply navigate to your project
-directory and run the appropriate command.
+directory and run ``alphapy``.
 
 Basic Usage
 -----------
@@ -44,41 +44,12 @@ Example::
     # Train with verbose output
     alphapy --train --verbose
 
-**mflow** - MarketFlow Pipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-For financial market analysis and trading systems::
-
-    mflow [options]
-
-Options:
-
-* ``--train`` - Train new models [Default]
-* ``--predict`` - Make predictions from saved models
-* ``--tdate YYYY-MM-DD`` - Training start date (Default: earliest date)
-* ``--pdate YYYY-MM-DD`` - Prediction date (Default: today)
-* ``--lookback N`` - Number of days for lookback window
-* ``--forecast N`` - Number of days to forecast
-
-Examples::
-
-    # Train a market model
-    mflow
-    
-    # Train from a specific date
-    mflow --tdate 2023-01-01
-    
-    # Make predictions for a specific date
-    mflow --predict --pdate 2024-01-15
-    
-    # Use lookback window
-    mflow --lookback 252 --forecast 20
-
 **Custom Pipelines**
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
-You can create custom domain-specific pipelines following the MarketFlow pattern.
-See the AlphaPy Pro architecture documentation for implementation details.
+You can create custom data-preparation pipelines around AlphaPy by producing
+the canonical ``train``/``test`` inputs expected by the package and then
+running ``alphapy`` from the project directory.
 
 Project Structure Requirements
 ------------------------------
@@ -135,18 +106,12 @@ Then run::
     # Use the model for multiple prediction sets
     alphapy --predict
 
-**4. Market Backtesting**::
-
-    # Run market analysis with specific dates
-    mflow --tdate 2020-01-01 --pdate 2023-12-31
-
 Logging and Debugging
 ---------------------
 
 AlphaPy Pro creates detailed logs:
 
 * ``alphapy.log`` - Main pipeline log
-* ``market_flow.log`` - MarketFlow specific log (when using mflow)
 
 To increase log verbosity::
 

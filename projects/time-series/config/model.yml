@@ -104,7 +104,7 @@ features:
         threshold     : 0.1
 
 transforms:
-    ds                : ['alphapy.transforms', 'dateparts']
+    ds                : ['alphapy.calendrical', 'dateparts']
 
 pipeline:
     number_jobs       : -1

@@ -5,7 +5,7 @@ Install AlphaPy Pro from source::
 
     git clone https://github.com/ScottFreeLLC/alphapy-pro.git
     cd alphapy-pro
-    pip install -e .
+    pip install -e ".[dev]"
 
 .. note:: Please refer to :doc:`install` for detailed installation instructions.
 
@@ -43,17 +43,16 @@ Example Projects
 The repository includes several example projects:
 
 * **Kaggle** - Titanic survival prediction
-* **Shannon's Demon** - Trading strategy implementation
-* **Time Series** - Market prediction examples
-* **Triple Barrier Method** - Advanced labeling for financial ML
+* **Pizza** - Learning-to-rank example
+* **Time Series** - Generic forecasting example
 
 Quick Examples
 --------------
 
-**Running a Market Analysis**::
+**Running a Time-Series Example**::
 
     cd projects/time-series
-    mflow
+    alphapy
 
 **Customizing Model Configuration**:
 
@@ -81,20 +80,17 @@ Edit ``config/model.yml`` to change algorithms, features, or parameters::
 Working with Notebooks
 ----------------------
 
-You can also work with AlphaPy Pro in Jupyter notebooks:
+You can also work with AlphaPy Pro in Jupyter notebooks for data preparation
+and inspection, while using the CLI for end-to-end runs:
 
 .. code-block:: python
 
-    from alphapy.model import create_model
     from alphapy.frame import read_frame
     
     # Load your data
     train_df = read_frame('data/train.csv')
     test_df = read_frame('data/test.csv')
     
-    # Create and train models
-    model = create_model(train_df, test_df, 'config/model.yml')
-
 .. note:: AlphaPy Pro supports both command-line and notebook workflows. 
    We recommend using the command line for production runs and notebooks 
    for exploratory analysis.
@@ -104,5 +100,4 @@ Next Steps
 
 * Explore the example projects in ``projects/``
 * Read the :doc:`../user_guide/pipelines` guide
-* Learn about :doc:`../user_guide/market_flow` for trading applications
 * Check out the :doc:`../tutorials/kaggle` tutorial
