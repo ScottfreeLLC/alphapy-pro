@@ -1,26 +1,22 @@
 Introduction
 ============
 
-**AlphaPy Pro** is an advanced machine learning framework for data scientists
-and quantitative traders. Built on top of ``scikit-learn``, ``pandas``, and
-modern ML libraries, it provides a comprehensive toolkit for feature engineering,
-model development, and systematic trading. Here are just some of the things you
-can do with AlphaPy Pro:
+**AlphaPy Pro** is a machine learning framework for configuration-driven model
+development. Built on top of ``scikit-learn``, ``pandas``, and modern ML
+libraries, it provides a reusable toolkit for feature engineering, model
+training, evaluation, and prediction. Here are some of the things you can do
+with AlphaPy Pro:
 
 * Build and optimize ML models using ``scikit-learn``, ``XGBoost``, ``LightGBM``, and ``CatBoost``.
-* Analyze financial markets with *MarketFlow* using multiple data providers.
-* Implement advanced trading strategies with meta-labeling and the Triple Barrier Method.
-* Develop and backtest trading systems with portfolio analysis.
-* Implement custom domain-specific pipelines for specialized applications.
+* Configure experiments with YAML instead of writing one-off training scripts.
+* Create custom domain-specific pipelines around a shared model pipeline.
+* Run classification, regression, ranking, and time-series style workflows.
 
-The ``alphapy`` package is the core platform providing the ML pipeline.
-The *domain* pipeline MarketFlow (``mflow``) runs on top of ``alphapy``
-for financial market analysis. As shown in the diagram below, we separate
-the domain pipeline from the model pipeline. The domain pipeline transforms
-raw application data into canonical form—training and testing sets—while
-the model pipeline handles feature engineering, model training, and evaluation.
-This architecture has been refined through numerous Kaggle competitions and
-real-world trading applications.
+The ``alphapy`` package provides the reusable model pipeline. Domain-specific
+applications prepare canonical training and testing data outside the package,
+then hand that data to AlphaPy for feature engineering, model training, and
+evaluation. In ``v4.0.0``, the finance-specific MarketFlow stack was moved to
+``alphapy-finance`` so ``alphapy-pro`` can stay focused on the ML core.
 
 .. image:: alphapy_pipeline.png
    :alt: AlphaPy Model Pipeline
@@ -107,12 +103,10 @@ Key Features
 
 **AlphaPy Pro** includes several advanced features for modern ML workflows:
 
-* **Meta-Labeling**: Triple Barrier Method for advanced financial ML
 * **Feature Engineering**: Automated feature generation with clustering, interactions, and transformations
 * **Feature Selection**: LOFO (Leave One Feature Out) importance and univariate selection
 * **Model Calibration**: Probability calibration with sigmoid and isotonic methods
 * **Advanced Visualization**: Learning curves, ROC curves, confusion matrices, and feature importance plots
-* **Multiple Data Sources**: EODHD, Yahoo Finance, Polygon
 * **Grid Search**: Randomized and systematic hyperparameter optimization
 * **Ensemble Methods**: Model blending and stacking
 
@@ -125,7 +119,5 @@ External Packages
 * **Feature Engineering**: category_encoders, lofo-importance
 * **Imbalanced Learning**: imbalanced-learn (SMOTE, ADASYN, etc.)
 * **Calibration**: venn-abers for probability calibration
-* **Market Data**: yfinance, polygon-api-client, pandas-datareader
-* **Portfolio Analysis**: pyfolio (legacy), custom portfolio analytics
 * **Visualization**: matplotlib, seaborn, plotly
 * **Time Series**: statsmodels, arch

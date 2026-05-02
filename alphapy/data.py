@@ -32,18 +32,14 @@ from alphapy.frame import read_frame
 from alphapy.globals import datasets
 from alphapy.globals import ModelType
 from alphapy.globals import Partition
-from alphapy.globals import PD_INTRADAY_OFFSETS
 from alphapy.globals import SSEP
 from alphapy.globals import WILDCARD
 from alphapy.space import Space
 
-from datetime import datetime
-from io import BytesIO
 import logging
 import numpy as np
 import polars as pl
 import re
-import requests
 from sklearn.preprocessing import LabelEncoder
 import sys
 
@@ -177,5 +173,4 @@ def shuffle_data(model):
         logger.info("Skipping Shuffling")
 
     return model
-
 

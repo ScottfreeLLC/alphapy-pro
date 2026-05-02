@@ -52,13 +52,21 @@ class TestCoreModules:
                 raise
 
 
-class TestOptionalModules:
-    """Test optional modules that might have external dependencies."""
+class TestSupportingModules:
+    """Test supporting modules that are still part of the package."""
 
-    def test_market_flow_import(self):
-        """Test market flow module import."""
+    def test_variables_import(self):
+        """Test variables module import."""
         try:
-            from alphapy import market_flow
-            assert market_flow is not None
+            from alphapy import variables
+            assert variables is not None
         except ImportError as e:
-            pytest.skip(f"Market flow module not available: {e}")
+            pytest.skip(f"Skipping variables import due to optional dependency issue: {e}")
+
+    def test_transforms_import(self):
+        """Test transforms module import."""
+        try:
+            from alphapy import transforms
+            assert transforms is not None
+        except ImportError as e:
+            pytest.skip(f"Skipping transforms import due to optional dependency issue: {e}")

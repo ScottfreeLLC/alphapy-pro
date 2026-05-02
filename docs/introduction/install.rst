@@ -1,7 +1,7 @@
 Installation
 ============
 
-AlphaPy Pro requires Python 3.10 or higher. You can install it directly
+AlphaPy Pro requires Python 3.12 or higher. You can install it directly
 from the source repository or via pip after it's published.
 
 Development Installation
@@ -12,7 +12,7 @@ in editable mode::
 
     git clone https://github.com/ScottFreeLLC/alphapy-pro.git
     cd alphapy-pro
-    pip install -e .
+    pip install -e ".[dev]"
 
 This will install AlphaPy Pro along with all required dependencies.
 
@@ -29,25 +29,9 @@ AlphaPy Pro will automatically install the following core dependencies:
 
 Additional dependencies for specific features:
 
-* **Market Data**: yfinance, polygon-api-client, pandas-datareader
 * **Feature Engineering**: category_encoders, lofo-importance
 * **Imbalanced Learning**: imbalanced-learn
 * **Calibration**: venn-abers
-* **Portfolio Analysis**: pyfolio (optional, for legacy support)
-
-Using uv (Recommended)
-----------------------
-
-`uv <https://docs.astral.sh/uv/>`_ is a fast Python package manager.
-Install it following the instructions at https://docs.astral.sh/uv/getting-started/installation/
-
-Then create a virtual environment and install AlphaPy Pro::
-
-    git clone https://github.com/ScottFreeLLC/alphapy-pro.git
-    cd alphapy-pro
-    uv venv
-    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-    uv pip install -e .
 
 Platform-Specific Notes
 -----------------------
@@ -71,10 +55,7 @@ After installation, verify that AlphaPy Pro is correctly installed::
 
     # Check if the alphapy command is available
     alphapy --help
-    
-    # Check if the mflow command is available
-    mflow --help
-    
+
     # In Python, verify imports
     python -c "import alphapy; print(alphapy.__version__)"
 

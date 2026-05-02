@@ -574,7 +574,7 @@ def vapply(group, market_specs, vfuncs=None):
     group : alphapy.Group
         The input group.
     market_specs : dict
-        The specifications for controlling the MarketFlow pipeline.
+        Specifications for applying variable definitions across grouped data.
     vfuncs : dict, optional
         Dictionary of external modules and functions.
 

@@ -76,34 +76,10 @@ alphapy.group module
     :undoc-members:
     :show-inheritance:
 
-alphapy.metalabel module
-------------------------
-
-.. automodule:: alphapy.metalabel
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-alphapy.mflow_main module
--------------------------
-
-.. automodule:: alphapy.mflow_main
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 alphapy.model module
 --------------------
 
 .. automodule:: alphapy.model
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-alphapy.nlp module
-------------------
-
-.. automodule:: alphapy.nlp
     :members:
     :undoc-members:
     :show-inheritance:
@@ -124,26 +100,10 @@ alphapy.plots module
     :undoc-members:
     :show-inheritance:
 
-alphapy.portfolio module
-------------------------
-
-.. automodule:: alphapy.portfolio
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 alphapy.space module
 --------------------
 
 .. automodule:: alphapy.space
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-alphapy.system module
----------------------
-
-.. automodule:: alphapy.system
     :members:
     :undoc-members:
     :show-inheritance:
