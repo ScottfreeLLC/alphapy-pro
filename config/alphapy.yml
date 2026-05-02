@@ -10,7 +10,7 @@
 # Whether to use the AlphaPy server (usually False for local development)
 use_server: False
 
-# Main data directory for storing market data and other datasets
+# Main data directory for datasets
 # Replace with your actual data directory path
 data_dir: /Users/markconway/Projects/alphapy-pro/data
 
