@@ -63,10 +63,8 @@ class TestSupportingModules:
         except ImportError as e:
             pytest.skip(f"Skipping variables import due to optional dependency issue: {e}")
 
-    def test_transforms_import(self):
-        """Test transforms module import."""
-        try:
-            from alphapy import transforms
-            assert transforms is not None
-        except ImportError as e:
-            pytest.skip(f"Skipping transforms import due to optional dependency issue: {e}")
+    def test_calendrical_import(self):
+        """Test calendrical module import (now hosts dateparts/timeparts/bizday)."""
+        from alphapy import calendrical
+        assert calendrical is not None
+        assert hasattr(calendrical, "dateparts")

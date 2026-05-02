@@ -108,14 +108,6 @@ alphapy.space module
     :undoc-members:
     :show-inheritance:
 
-alphapy.transforms module
--------------------------
-
-.. automodule:: alphapy.transforms
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 alphapy.utilities module
 ------------------------
 

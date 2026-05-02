@@ -471,7 +471,7 @@ def vfunc(f, v, vfuncs):
                 module = module_name
                 break
     # If the module was found, import the external transform function,
-    # else search the local namespace and AlphaPy.
+    # else search the local namespace.
     if module:
         ext_module = import_module(module)
         func = getattr(ext_module, func_name)
@@ -481,12 +481,7 @@ def vfunc(f, v, vfuncs):
         if func_name in dir(module):
             func = getattr(module, func_name)
         else:
-            # Search the AlphaPy namespace
-            try:
-                ap_module = import_module('alphapy.transforms')
-                func = getattr(ap_module, func_name)
-            except:
-                func = None
+            func = None
     # return function and parameter list
     if func:
         logger.debug("Found function %s with parameters %s", func_name, newlist)
@@ -501,10 +496,8 @@ def vexec(f, v, vfuncs=None):
     r"""Add a variable to the given dataframe.
 
     This is the core function for adding a variable to a dataframe.
-    The default variable functions are already defined locally
-    in ``alphapy.transforms``; however, you may want to define your
-    own variable functions. If so, then the ``vfuncs`` parameter
-    will contain the list of modules and functions to be imported
+    To define your own variable functions, populate the ``vfuncs``
+    parameter with the list of modules and functions to be imported
     and applied by the ``vexec`` function.
 
     To write your own variable function, your function must have

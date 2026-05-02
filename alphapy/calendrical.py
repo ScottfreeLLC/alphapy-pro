@@ -1271,3 +1271,106 @@ def set_holidays(gyear, observe):
         else:
             holidays[h] = hfunc(gyear)
     return holidays
+
+
+#
+# Function dateparts
+#
+
+def dateparts(df, c):
+    r"""Extract date into its components: year, month, day, dayofweek.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``df``.
+
+    Returns
+    -------
+    date_features : pandas.DataFrame
+        The dataframe containing the date features.
+    """
+
+    col = df[c]
+    if hasattr(col, "to_pandas"):
+        col = col.to_pandas()
+    ds_dt = pd.to_datetime(col)
+    date_features = pd.DataFrame()
+    try:
+        fyear = pd.Series(ds_dt.dt.year, name='year').astype(int)
+        fmonth = pd.Series(ds_dt.dt.month, name='month').astype(int)
+        fday = pd.Series(ds_dt.dt.day, name='day').astype(int)
+        fdow = pd.Series(ds_dt.dt.dayofweek, name='dayofweek').astype(int)
+        frames = [fyear, fmonth, fday, fdow]
+        date_features = pd.concat(frames, axis=1)
+    except Exception:
+        logger.info("Could not extract date information from the series")
+    return date_features
+
+
+#
+# Function timeparts
+#
+
+def timeparts(df, c):
+    r"""Extract time into its components: hour, minute, second.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``df``.
+
+    Returns
+    -------
+    time_features : pandas.DataFrame
+        The dataframe containing the time features.
+    """
+
+    ds_dt = pd.to_datetime(df[c].astype(str), format='%H:%M:%S')
+    time_features = pd.DataFrame()
+    try:
+        fhour = pd.Series(ds_dt.dt.hour, name='hour').astype(int)
+        fminute = pd.Series(ds_dt.dt.minute, name='minute').astype(int)
+        fsecond = pd.Series(ds_dt.dt.second, name='second').astype(int)
+        frames = [fhour, fminute, fsecond]
+        time_features = pd.concat(frames, axis=1)
+    except Exception:
+        logger.info("Could not extract time information from the series")
+    return time_features
+
+
+#
+# Function bizday
+#
+
+def bizday(df, c):
+    r"""Extract business day of month and week.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Dataframe containing the column ``c``.
+    c : str
+        Name of the column in the dataframe ``df``.
+
+    Returns
+    -------
+    date_features : pandas.DataFrame
+        The dataframe containing the date features.
+    """
+
+    date_features = pd.DataFrame()
+    try:
+        date_features = dateparts(df, c)
+        rdate = date_features.apply(get_rdate, axis=1)
+        bdm = pd.Series(rdate.apply(biz_day_month), name='bizdaymonth')
+        bdw = pd.Series(rdate.apply(biz_day_week), name='bizdayweek')
+        frames = [date_features, bdm, bdw]
+        date_features = pd.concat(frames, axis=1)
+    except Exception:
+        logger.info("Could not extract business date information from the series")
+    return date_features
