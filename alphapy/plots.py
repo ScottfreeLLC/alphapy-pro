@@ -407,7 +407,7 @@ def plot_importances(model, partition):
     for algo in model.algolist:
         tag = USEP.join([pstring, algo])
         # LOFO Feature Importances
-        if fs_lofo:
+        if fs_lofo and algo in model.lofo_df:
             logger.info("LOFO Importances for Algorithm: %s", algo)
             importance_df = model.lofo_df[algo].copy()
             importance_df['color'] = (importance_df['importance_mean'] > 0).map({True: 'g', False: 'r'})

@@ -169,6 +169,7 @@ def training_pipeline(alphapy_specs, model):
     drop = model.specs['drop']
     extension = model.specs['extension']
     fs_lofo = model.specs['fs_lofo']
+    fs_lofo_algorithms = model.specs.get('fs_lofo_algorithms', [])
     fs_univariate = model.specs['fs_univariate']
     group_id = model.specs['rank_group_id']
     grid_search = model.specs['grid_search']
@@ -358,7 +359,7 @@ def training_pipeline(alphapy_specs, model):
             failed_algos.append(algo)
         if est is not None:
             # select LOFO features
-            if fs_lofo:
+            if fs_lofo and (not fs_lofo_algorithms or algo in fs_lofo_algorithms):
                 select_features_lofo(model, algo, est)
             # run classic train/test model pipeline
             model = first_fit(model, algo, est)

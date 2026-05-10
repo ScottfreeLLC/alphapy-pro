@@ -308,6 +308,7 @@ def get_model_config(directory='.'):
     specs['iso_neighbors'] = features_section['isomap']['neighbors']
     # LOFO
     specs['fs_lofo'] = features_section['lofo']['option']
+    specs['fs_lofo_algorithms'] = features_section['lofo'].get('algorithms', [])
     # log transformation
     specs['log_transform'] = features_section['log_transform']['option']
     specs['pvalue_level'] = features_section['log_transform']['pvalue_level']
@@ -455,6 +456,7 @@ def get_model_config(directory='.'):
     logger.info('factors           = %s', specs['factors'])
     logger.info('features [X]      = %s', specs['features'])
     logger.info('fs_lofo           = %r', specs['fs_lofo'])
+    logger.info('fs_lofo_algorithms= %r', specs['fs_lofo_algorithms'])
     logger.info('fs_univariate     = %r', specs['fs_univariate'])
     logger.info('fs_uni_grid       = %s', specs['fs_uni_grid'])
     logger.info('fs_uni_pct        = %d', specs['fs_uni_pct'])
@@ -674,12 +676,51 @@ def save_feature_map(model):
     # Save model object
 
     logger.info("Writing feature map to %s", full_path)
+    if model.lofo_df:
+        model.feature_map['lofo_importances'] = model.lofo_df.copy()
     joblib.dump(model.feature_map, full_path)
 
 
 #
 # Function first_fit
 #
+
+def get_feature_selection_support(model, algo):
+    r"""Get the effective pre-model feature selection support for an algorithm.
+
+    Feature selection is staged in AlphaPy. Univariate selection is global, LOFO
+    is algorithm-specific and computed after univariate selection, and RFE is
+    handled separately in ``model.support``. This helper returns the feature mask
+    that should be applied before fitting or predicting with the base estimator.
+    If LOFO rejects every feature, fall back to the univariate mask so the
+    estimator never receives an empty matrix.
+    """
+
+    try:
+        support = model.feature_map['support_lofo', algo]
+        if np.any(support):
+            return support
+    except KeyError:
+        pass
+
+    try:
+        support = model.feature_map['support_uni']
+        if np.any(support):
+            return support
+    except KeyError:
+        pass
+
+    return None
+
+
+def apply_feature_selection_support(model, algo, X):
+    r"""Apply the effective pre-model feature selection support to ``X``."""
+
+    support = get_feature_selection_support(model, algo)
+    if support is None:
+        return X
+    return X[:, support]
+
 
 def first_fit(model, algo, est):
     r"""Fit the model before optimization.
@@ -725,7 +766,7 @@ def first_fit(model, algo, est):
 
     # Extract model data.
 
-    X_train = model.X_train
+    X_train = apply_feature_selection_support(model, algo, model.X_train)
     y_train = model.y_train
     groups_train = model.groups_train
 
@@ -784,7 +825,11 @@ def first_fit(model, algo, est):
     model.estimators[algo] = est
 
     # Copy feature name master into feature names per algorithm
-    model.fnames_algo[algo] = model.feature_names
+    support = get_feature_selection_support(model, algo)
+    if support is None:
+        model.fnames_algo[algo] = model.feature_names
+    else:
+        model.fnames_algo[algo] = list(np.array(model.feature_names)[support])
 
     # Record importances and coefficients if necessary.
 
@@ -840,13 +885,14 @@ def make_predictions(model, algo):
 
     # Extract model data
 
+    X_train = apply_feature_selection_support(model, algo, model.X_train)
+    X_test = apply_feature_selection_support(model, algo, model.X_test)
     try:
         support = model.support[algo]
-        X_train = model.X_train[:, support]
-        X_test = model.X_test[:, support]
+        X_train = X_train[:, support]
+        X_test = X_test[:, support]
     except:
-        X_train = model.X_train
-        X_test = model.X_test
+        pass
 
     y_train = model.y_train
     groups_train = model.groups_train
