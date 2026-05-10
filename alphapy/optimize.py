@@ -27,6 +27,7 @@
 #
 
 from alphapy.globals import ModelType
+from alphapy.model import apply_feature_selection_support
 
 from contextlib import contextmanager
 from datetime import datetime
@@ -292,11 +293,12 @@ def hyper_grid_search(model, estimator):
     est = model.estimators[algo]
 
     # Extract model data
+    X_train = apply_feature_selection_support(model, algo, model.X_train)
     try:
         support = model.support[algo]
-        X_train = model.X_train[:, support]
+        X_train = X_train[:, support]
     except:
-        X_train = model.X_train
+        pass
     y_train = model.y_train
 
     # Clone estimator and set to single-threaded to avoid nested parallelism with Optuna
