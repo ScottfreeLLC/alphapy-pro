@@ -48,8 +48,6 @@
 #     2. Candlestick
 #
 
-print(__doc__)
-
 
 #
 # Imports

@@ -708,9 +708,6 @@ def main(args=None):
     logger.info("AlphaPy End")
     logger.info('*'*80)
 
-    # Return the model
-    return model
-
 
 #
 # MAIN PROGRAM
