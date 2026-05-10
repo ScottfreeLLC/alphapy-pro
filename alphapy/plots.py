@@ -408,6 +408,9 @@ def plot_importances(model, partition):
         if fs_lofo and algo in model.lofo_df:
             logger.info("LOFO Importances for Algorithm: %s", algo)
             importance_df = model.lofo_df[algo].copy()
+            if importance_df.empty:
+                logger.info("No LOFO importances to plot for Algorithm: %s", algo)
+                continue
             importance_df['color'] = (importance_df['importance_mean'] > 0).map({True: 'g', False: 'r'})
             importance_df.sort_values('importance_mean', inplace=True)
             ax = importance_df.plot(x='feature', y='importance_mean', xerr='importance_std',
