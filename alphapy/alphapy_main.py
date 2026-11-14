@@ -230,6 +230,9 @@ def training_pipeline(alphapy_specs, model):
     # Save original train/test data
 
     model.df_X_train = X_train
+    cv_blocks_column = model.specs.get('cv_blocks_column')
+    if cv_blocks_column:
+        model.cv_blocks_train = X_train[cv_blocks_column].to_numpy()
     model.df_y_train = y_train
     model.df_X_test = X_test
     model.df_y_test = y_test

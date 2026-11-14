@@ -358,6 +358,10 @@ def get_model_config(directory='.'):
     model_section = cfg['model']
     specs['algorithms'] = model_section['algorithms']
     specs['cv_folds'] = model_section['cv_folds']
+    # optional: time-ordered folds over a block column (for example a date), with an embargo in blocks
+    cv_blocks = model_section.get('cv_time_blocks') or {}
+    specs['cv_blocks_column'] = cv_blocks.get('column') if cv_blocks.get('option') else None
+    specs['cv_blocks_embargo'] = int(cv_blocks.get('embargo', 1))
     # determine whether or not model type is valid
     model_types = {x.name: x.value for x in ModelType}
     model_type = model_section['type']
@@ -682,6 +686,76 @@ def save_feature_map(model):
 
 
 #
+# Class TimeBlockSplit
+#
+
+class TimeBlockSplit:
+    r"""Walk-forward folds over time blocks (for example dates), for pooled data.
+
+    The sorted block values are cut into ``n_splits + 1`` runs. Fold ``k`` tests on run ``k`` and trains on every
+    row whose block is earlier than that run by more than ``embargo`` blocks, so a fold never trains on its own
+    or later timestamps.
+
+    Parameters
+    ----------
+    blocks : array-like
+        Each training row's block value (sortable), in row order.
+    n_splits : int
+        The number of folds.
+    embargo : int
+        Blocks left out between a fold's training and test rows.
+
+    """
+
+    def __init__(self, blocks, n_splits, embargo=1):
+        self.blocks = np.asarray(blocks)
+        self.n_splits = n_splits
+        self.embargo = embargo
+
+    def get_n_splits(self, X=None, y=None, groups=None):
+        return self.n_splits
+
+    def split(self, X=None, y=None, groups=None):
+        values, position = np.unique(self.blocks, return_inverse=True)
+        if len(values) < (self.n_splits + 1) * (self.embargo + 1):
+            raise ValueError("Too few time blocks for %d folds with an embargo of %d"
+                             % (self.n_splits, self.embargo))
+        runs = np.array_split(np.arange(len(values)), self.n_splits + 1)
+        for run in runs[1:]:
+            train = np.flatnonzero(position < run[0] - self.embargo)
+            test = np.flatnonzero((position >= run[0]) & (position <= run[-1]))
+            yield train, test
+
+
+#
+# Function time_block_splitter
+#
+
+def time_block_splitter(model, n_rows):
+    r"""The time-ordered splitter when the model asks for one, else None.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model object; ``cv_blocks_train`` holds each training row's block value.
+    n_rows : int
+        The number of training rows about to be split.
+
+    Returns
+    -------
+    splitter : TimeBlockSplit or None
+
+    """
+    if not model.specs.get('cv_blocks_column'):
+        return None
+    blocks = getattr(model, 'cv_blocks_train', None)
+    if blocks is None or len(blocks) != n_rows:
+        raise ValueError("Time-ordered folds need one block value per training row "
+                         "(shuffling, sampling and row filters must be off)")
+    return TimeBlockSplit(blocks, model.specs['cv_folds'], model.specs.get('cv_blocks_embargo', 1))
+
+
+#
 # Function first_fit
 #
 
@@ -813,9 +887,10 @@ def first_fit(model, algo, est):
 
     if model_type != ModelType.ranking:
         logger.info("Cross-Validation")
-        if model_type == ModelType.regression:
+        cv_splitter = time_block_splitter(model, len(y_train_np))
+        if cv_splitter is None and model_type == ModelType.regression:
             cv_splitter = KFold(n_splits=cv_folds, shuffle=shuffle)
-        else:
+        elif cv_splitter is None:
             cv_splitter = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
         scores = cross_val_score(est, X_train_np, y_train_np, scoring=scorer,
                                  cv=cv_splitter, n_jobs=n_jobs, verbose=verbosity)
@@ -906,7 +981,8 @@ def make_predictions(model, algo):
             if cal_type == 'vennabers':
                 est = VennAbersCalibrator(estimator=est, inductive=True, cal_size=0.2)
             else:
-                est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
+                est = CalibratedClassifierCV(est, cv=time_block_splitter(model, y_train.shape[0]) or cv_folds,
+                                             method=cal_type)
             X_train_np = X_train.to_numpy() if hasattr(X_train, 'to_numpy') else X_train
             y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train
             est.fit(X_train_np, y_train_np)
