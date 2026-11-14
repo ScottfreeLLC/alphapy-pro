@@ -184,7 +184,7 @@ def read_frame(directory, filename, extension, separator, index_col=False, dtype
             file_spec,
             separator=separator,
             schema_overrides=schema_overrides,
-            infer_schema_length=10000,
+            infer_schema_length=None,   # the whole file: a column empty in its first rows is still typed by its values
         )
     except Exception as e:
         df = pl.DataFrame()
