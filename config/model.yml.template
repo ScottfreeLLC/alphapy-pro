@@ -191,6 +191,18 @@ plots:
     shap              : False                # SHAP explanations on a sample of test rows (needs the explain extra)
     shap_samples      : 2000                 # rows explained per algorithm
 
+# Raw windows for algorithms that learn their own features (MROCK, TSFRESH, GPSYM, CNN, LSTM, GRU, INCEPT, TCN,
+# PATCH, CNNLSTM). Each row's window holds its own group's last `window` values of each channel, its own last.
+sequence:
+    option            : False
+    group             : ticker               # windows never cross groups
+    order             : date                 # sort key within a group
+    channels          : [open, high, low, close, volume]
+    window            : 20
+    session           : null                 # optional column; a window does not cross a change in it
+    scale             : {open: close, high: close, low: close, close: close, volume: mean}
+    max_gb            : 8.0                  # refuse windows larger than this
+
 # XGBoost specific settings
 xgboost:
     stopping_rounds   : 10                   # Early stopping rounds

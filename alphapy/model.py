@@ -194,6 +194,8 @@ class Model:
         self.best_algo = None
         # feature names
         self.feature_names = []
+        # names of the raw window block (the sequence section), after the tabular columns
+        self.window_names = []
         # feature map
         self.feature_map = {}
         # Key: (algorithm)
@@ -427,6 +429,11 @@ def get_model_config(directory='.'):
     specs['learning_curve'] = plots_section['learning_curve']
     specs['roc_curve'] = plots_section['roc_curve']
     specs['shap'] = plots_section.get('shap', False)
+
+    # Section: sequence (optional): raw windows for algorithms that learn their own features
+
+    sequence_section = cfg.get('sequence') or {}
+    specs['sequence'] = sequence_section if sequence_section.get('option') else None
     specs['shap_samples'] = plots_section.get('shap_samples', 2000)
 
     # Section: transforms
@@ -500,6 +507,7 @@ def get_model_config(directory='.'):
     logger.info('rfe_step          = %d', specs['rfe_step'])
     logger.info('roc_curve         = %r', specs['roc_curve'])
     logger.info('shap              = %r', specs['shap'])
+    logger.info('sequence          = %r', specs['sequence'])
     logger.info('rounding          = %d', specs['rounding'])
     logger.info('scaler_option     = %r', specs['scaler_option'])
     logger.info('scaler_type       = %r', specs['scaler_type'])
@@ -792,23 +800,40 @@ def get_feature_selection_support(model, algo):
 
 
 def apply_feature_selection_support(model, algo, X):
-    r"""Apply the effective pre-model feature selection support to ``X``."""
+    r"""``X`` as an algorithm takes it: its pre-model feature selection on the tabular columns, then the raw window
+    block (the ``sequence`` section) for algorithms that read windows. Tabular algorithms never see the window block."""
 
+    from alphapy.estimators import is_window_algo
+
+    n_tabular = model.specs.get('n_tabular')
+    tabular = X if n_tabular is None else X[:, :n_tabular]
     support = get_feature_selection_support(model, algo)
-    if support is None:
-        return X
-    return X[:, support]
+    if support is not None:
+        tabular = tabular[:, support]
+    if n_tabular is not None and is_window_algo(algo):
+        return np.hstack([tabular, X[:, n_tabular:]])
+    return tabular
 
 
 def algo_matrix(model, algo, X):
-    r"""``X`` as one algorithm sees it (its pre-model feature selection, then any RFE support), with the names."""
+    r"""``X`` as one algorithm sees it (its pre-model feature selection, then any RFE support), with its names.
 
-    names = list(model.fnames_algo.get(algo, model.feature_names))
+    ``model.fnames_algo`` already holds an algorithm's names after RFE. An RFE support whose length does not match the
+    pre-selected matrix (RFE fitted before univariate or LOFO selection) is not applied, as before, but logged.
+    """
+
     X = apply_feature_selection_support(model, algo, X)
     support = model.support.get(algo)
     if support is not None:
-        X = X[:, support]
-        names = list(np.asarray(names)[support])
+        if len(support) == X.shape[1]:
+            X = X[:, support]
+        else:
+            logger.warning("RFE support for %s has %d entries but its matrix has %d columns; not applied",
+                           algo, len(support), X.shape[1])
+    names = list(model.fnames_algo.get(algo, model.feature_names))
+    if len(names) != X.shape[1]:
+        logger.warning("%s has %d feature names for %d columns; using column numbers", algo, len(names), X.shape[1])
+        names = [f"x{i}" for i in range(X.shape[1])]
     return X, names
 
 
@@ -918,9 +943,12 @@ def first_fit(model, algo, est):
     # Copy feature name master into feature names per algorithm
     support = get_feature_selection_support(model, algo)
     if support is None:
-        model.fnames_algo[algo] = model.feature_names
+        model.fnames_algo[algo] = list(model.feature_names)
     else:
         model.fnames_algo[algo] = list(np.array(model.feature_names)[support])
+    from alphapy.estimators import is_window_algo
+    if model.specs.get('n_tabular') is not None and is_window_algo(algo):
+        model.fnames_algo[algo] = model.fnames_algo[algo] + list(model.window_names)
 
     # Record importances and coefficients if necessary.
 

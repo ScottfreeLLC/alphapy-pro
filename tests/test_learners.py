@@ -43,7 +43,7 @@ def test_each_learner_finds_a_pattern_visible_only_in_the_window_shape(learner, 
 class _Spy:
     fitted_rows = []
 
-    def __init__(self, random_state=0):
+    def __init__(self, random_state=0, **kwargs):
         pass
 
     def fit(self, windows, y):

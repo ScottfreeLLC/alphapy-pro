@@ -26,6 +26,7 @@
 # Imports
 #
 
+from alphapy.sequence import tabular
 from alphapy.globals import ModelType
 from alphapy.model import apply_feature_selection_support
 
@@ -155,7 +156,7 @@ def rfecv_search(model, algo):
 
     # Extract model data.
 
-    X_train = model.X_train
+    X_train = tabular(model, model.X_train)       # never the raw window block
     y_train = model.y_train
 
     # Extract model parameters.

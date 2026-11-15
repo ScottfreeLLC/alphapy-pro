@@ -26,6 +26,7 @@
 # Imports
 #
 
+import functools
 import logging
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import ExtraTreesClassifier
@@ -47,6 +48,7 @@ import yaml
 
 
 from alphapy.globals import ModelType
+from alphapy.sequence import window_shape
 from alphapy.globals import Objective
 from alphapy.globals import SSEP
 
@@ -171,6 +173,28 @@ estimator_map = {'AB'     : AdaBoostClassifier,
 
 
 #
+# Window algorithms: they read the raw window block of the ``sequence`` section (alphapy.sequence)
+#
+
+WINDOW_LEARNERS = {'MROCK'   : ('aeon', 'minirocket'),
+                   'TSFRESH' : ('tsfresh', 'tsfresh'),
+                   'GPSYM'   : ('gplearn', 'symbolic')}
+WINDOW_NETWORKS = {'CNN'     : 'cnn',
+                   'LSTM'    : 'lstm',
+                   'GRU'     : 'gru',
+                   'INCEPT'  : 'inception',
+                   'TCN'     : 'tcn',
+                   'PATCH'   : 'patch',
+                   'CNNLSTM' : 'cnn_lstm'}
+WINDOW_ALGOS = set(WINDOW_LEARNERS) | set(WINDOW_NETWORKS)
+
+
+def is_window_algo(algo):
+    r"""Whether an algorithm reads the window block."""
+    return algo in WINDOW_ALGOS
+
+
+#
 # Find optional packages
 #
 
@@ -214,6 +238,22 @@ def find_optional_packages():
         estimator_map['CATBR'] = catb.CatBoostRegressor
     except ModuleNotFoundError:
         logger.info("Cannot load %s", module_name)
+
+    from alphapy.learners import LearnedFeatureClassifier
+    for algo, (module_name, learner) in WINDOW_LEARNERS.items():
+        try:
+            __import__(module_name)
+            estimator_map[algo] = functools.partial(LearnedFeatureClassifier, learner=learner)
+        except ModuleNotFoundError:
+            logger.info("Cannot load %s", module_name)
+
+    try:
+        import torch  # noqa: F401
+        from alphapy.networks import SequenceNetClassifier
+        for algo, arch in WINDOW_NETWORKS.items():
+            estimator_map[algo] = functools.partial(SequenceNetClassifier, arch=arch)
+    except ModuleNotFoundError:
+        logger.info("Cannot load torch")
 
     return
 
@@ -366,6 +406,13 @@ def get_estimators(alphapy_specs, model):
         except Exception:
             algo_found = False
             logger.info("Algorithm %s not found (check package installation)", algo)
+        if algo_found and is_window_algo(algo):
+            sequence = model.specs.get('sequence')
+            if not sequence:
+                logger.warning("Algorithm %s reads raw windows; it needs the sequence section of model.yml", algo)
+                algo_found = False
+            else:
+                params['n_channels'], params['window'] = window_shape(sequence)
         if algo_found:
             est = func(**params)
             # Wrap scale-sensitive algorithms in a Pipeline with StandardScaler

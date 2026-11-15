@@ -52,9 +52,46 @@ def test_the_sample_is_seeded_sorted_and_whole_when_small():
 
 
 def test_an_algorithm_is_explained_on_the_columns_it_was_fitted_on():
+    # As the pipeline leaves it: LOFO kept a, c, d, e; RFE then kept a, d, e and already shortened the names.
     X = np.arange(20.0).reshape(4, 5)
-    model = SimpleNamespace(feature_names=list("abcde"), fnames_algo={"LGB": ["a", "c", "d", "e"]},
+    model = SimpleNamespace(specs={}, feature_names=list("abcde"), fnames_algo={"LGB": ["a", "d", "e"]},
                             feature_map={("support_lofo", "LGB"): np.array([True, False, True, True, True])},
                             support={"LGB": np.array([True, False, True, True])})
     matrix, names = algo_matrix(model, "LGB", X)
     assert names == ["a", "d", "e"] and np.array_equal(matrix, X[:, [0, 3, 4]])
+
+
+def test_a_mismatched_rfe_support_or_stale_names_do_not_crash():
+    X = np.arange(20.0).reshape(4, 5)
+    model = SimpleNamespace(specs={}, feature_names=list("abcdefg"), fnames_algo={}, feature_map={},
+                            support={"RF": np.array([True, False, True])})          # RFE fitted on another matrix
+    matrix, names = algo_matrix(model, "RF", X)
+    assert matrix.shape == (4, 5) and names == ["x0", "x1", "x2", "x3", "x4"]
+
+
+def test_a_scaled_logistic_pipeline_is_explained_by_its_linear_step(data):
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    X, y = data
+    est = make_pipeline(StandardScaler(), LogisticRegression()).fit(X, y)   # how AlphaPy builds LOGR
+    values, unit = explain_estimator(est, X[:100], X[:100])
+    assert unit == "log-odds" and ranking(values, list("abcd"))["feature"].iloc[0] == "c"
+
+
+def test_regressors_are_explained_in_their_predicted_value_and_multiclass_is_refused(data):
+    from sklearn.ensemble import RandomForestRegressor
+    X, y = data
+    _, unit = explain_estimator(RandomForestRegressor(n_estimators=10, random_state=0).fit(X, X[:, 2]), X[:50], X[:50])
+    assert unit == "prediction"
+    three = RandomForestClassifier(n_estimators=10, random_state=0).fit(X, (X[:, 2] > 0).astype(int) + (X[:, 1] > 1))
+    with pytest.raises(ValueError, match="multiclass"):
+        explain_estimator(three, X[:20], X[:20])
+
+
+def test_low_variance_removal_keeps_the_feature_names_with_the_columns():
+    from alphapy.features import remove_lv_features
+    X = np.column_stack([np.arange(6.0), np.ones(6), np.arange(6.0) ** 2])          # the middle column is constant
+    model = SimpleNamespace(specs={"lv_remove": True, "lv_threshold": 0.0, "predict_mode": False},
+                            feature_names=["a", "b", "c"], feature_map={}, algolist=["LGB"], fnames_algo={})
+    reduced = remove_lv_features(model, X)
+    assert reduced.shape[1] == 2 and model.feature_names == ["a", "c"] and model.fnames_algo["LGB"] == ["a", "c"]

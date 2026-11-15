@@ -125,7 +125,7 @@ class LearnedFeatureClassifier(ClassifierMixin, BaseEstimator):
     """A feature learner on the window block, then a classifier; both fitted on the rows ``fit`` receives."""
 
     def __init__(self, learner="minirocket", n_channels=6, window=20, use_tabular=False, classifier="logistic",
-                 learner_params=None, classifier_params=None, random_state=0):
+                 learner_params=None, classifier_params=None, n_jobs=1, random_state=0):
         self.learner = learner
         self.n_channels = n_channels
         self.window = window
@@ -133,6 +133,7 @@ class LearnedFeatureClassifier(ClassifierMixin, BaseEstimator):
         self.classifier = classifier
         self.learner_params = learner_params
         self.classifier_params = classifier_params
+        self.n_jobs = n_jobs
         self.random_state = random_state
 
     def _split(self, X):
@@ -148,7 +149,8 @@ class LearnedFeatureClassifier(ClassifierMixin, BaseEstimator):
     def fit(self, X, y):
         y = np.asarray(y).ravel()
         _, windows = self._split(X)
-        self.learner_ = LEARNERS[self.learner](random_state=self.random_state, **(self.learner_params or {}))
+        params = {"n_jobs": self.n_jobs, **(self.learner_params or {})}
+        self.learner_ = LEARNERS[self.learner](random_state=self.random_state, **params)
         self.learner_.fit(windows, y)
         self.model_ = _classifier(self.classifier, self.classifier_params, self.random_state)
         self.model_.fit(self._features(X), y)

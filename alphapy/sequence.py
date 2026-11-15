@@ -117,3 +117,34 @@ def flatten(windows: np.ndarray) -> np.ndarray:
 def unflatten(block: np.ndarray, n_channels: int, window: int) -> np.ndarray:
     """The 2-D window block back to (rows, channels, window)."""
     return np.asarray(block, dtype=np.float32).reshape(-1, n_channels, window)
+
+
+def tabular(model, X: np.ndarray) -> np.ndarray:
+    """The tabular columns of a feature matrix (all of them when there is no window block)."""
+    n_tabular = model.specs.get("n_tabular")
+    return X if n_tabular is None else X[:, :n_tabular]
+
+
+def append_windows(model, X_all: np.ndarray, raw_frames=None) -> np.ndarray:
+    """Append the window block to the processed feature matrix (training rows, then test rows).
+
+    Windows are built from the raw frames AlphaPy keeps before dropping columns (``model.df_X_train`` and
+    ``model.df_X_test``), so the group, order and channel columns need not be features. Records the tabular column
+    count (``model.specs['n_tabular']``) and the block's names (``model.window_names``).
+    """
+    spec = model.specs["sequence"]
+    if raw_frames is None:
+        raw_frames = (model.df_X_train, model.df_X_test)
+    frames = [f for f in raw_frames if f is not None and len(f)]
+    raw = pd.concat([f.to_pandas() if hasattr(f, "to_pandas") else f for f in frames], ignore_index=True)
+    needed = [spec["group"], spec["order"], *spec["channels"], *([spec["session"]] if spec.get("session") else [])]
+    missing = [c for c in needed if c not in raw.columns]
+    if missing:
+        raise KeyError(f"The sequence section names columns not in the data: {missing}")
+    if len(raw) != X_all.shape[0]:
+        raise ValueError(f"{len(raw)} raw rows for {X_all.shape[0]} feature rows")
+    block = flatten(build_windows(raw, spec))
+    model.specs["n_tabular"] = X_all.shape[1]
+    model.window_names = window_names(spec)
+    logger.info("Appended %d window columns to %d tabular columns", block.shape[1], X_all.shape[1])
+    return np.hstack([X_all, block.astype(X_all.dtype if X_all.dtype.kind == "f" else np.float32)])

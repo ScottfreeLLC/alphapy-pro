@@ -344,7 +344,8 @@ def plot_calibration(model, partition):
         if hasattr(clf, "predict_proba"):
             prob_pos = model.probas[(algo, partition)]
         else:  # use decision function
-            prob_pos = clf.decision_function(X)
+            from alphapy.model import algo_matrix
+            prob_pos = clf.decision_function(algo_matrix(model, algo, X)[0])
             prob_pos = \
                 (prob_pos - prob_pos.min()) / (prob_pos.max() - prob_pos.min())
         fraction_of_positives, mean_predicted_value = \
@@ -520,8 +521,9 @@ def plot_learning_curve(alphapy_specs, model, partition):
         # call learning curve function
         train_sizes=np.linspace(0.1, 1.0, cv_folds)
         y_np = y.to_numpy().ravel() if hasattr(y, 'to_numpy') else y.values.ravel()
+        from alphapy.model import algo_matrix
         train_sizes, train_scores, test_scores = \
-            learning_curve(est, X, y_np, train_sizes=train_sizes,
+            learning_curve(est, algo_matrix(model, algo, X)[0], y_np, train_sizes=train_sizes,
                            cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)

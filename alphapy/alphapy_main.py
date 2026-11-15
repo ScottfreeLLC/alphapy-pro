@@ -57,6 +57,8 @@ from alphapy.data import get_data
 from alphapy.data import shuffle_data
 from alphapy.estimators import get_estimators
 from alphapy.estimators import scorers
+from alphapy.estimators import is_window_algo
+from alphapy.sequence import append_windows
 from alphapy.features import apply_transforms
 from alphapy.features import create_crosstabs
 from alphapy.features import create_features
@@ -327,6 +329,13 @@ def training_pipeline(alphapy_specs, model):
     X_train, X_test = np.array_split(X_all, [split_point])
     model = save_features(model, X_train, X_test)
 
+    # Append the raw window block [if the sequence section is on]; tabular algorithms never see it
+
+    if model.specs.get('sequence'):
+        X_all = append_windows(model, X_all)
+        X_train, X_test = np.array_split(X_all, [split_point])
+        model = save_features(model, X_train, X_test)
+
     # Shuffle the data [if specified]
     model = shuffle_data(model)
 
@@ -362,7 +371,7 @@ def training_pipeline(alphapy_specs, model):
             failed_algos.append(algo)
         if est is not None:
             # select LOFO features
-            if fs_lofo and (not fs_lofo_algorithms or algo in fs_lofo_algorithms):
+            if fs_lofo and (not fs_lofo_algorithms or algo in fs_lofo_algorithms) and not is_window_algo(algo):
                 select_features_lofo(model, algo, est)
             # run classic train/test model pipeline
             model = first_fit(model, algo, est)
@@ -486,6 +495,12 @@ def prediction_pipeline(alphapy_specs, model):
 
     # Remove low-variance features
     X_all = remove_lv_features(model, X_all)
+
+    # Append the raw window block [if the sequence section is on]: each row's window comes from the prediction
+    # frame itself, so it must carry each group's earlier bars
+
+    if model.specs.get('sequence'):
+        X_all = append_windows(model, X_all, raw_frames=(X_predict,))
 
     # Load the LOFO support vector, if any
 

@@ -73,16 +73,31 @@ window or features change when later bars change.
 - one heavy fit at a time, never beside another AlphaPy run;
 - see `~/.claude/CLAUDE.md` "Hardware limits".
 
+## Framework requirement (2026-11-14)
+
+Every new model fits AlphaPy's existing framework and configuration:
+- registered in `estimator_map` as optional packages and configured in `config/algos.yml`, with AlphaPy's own
+  `seed` and `n_jobs` substituted in;
+- `sequence` is a `model.yml` section;
+- AlphaPy passes the window shape to window algorithms;
+- `apply_feature_selection_support` is the single gate: tabular algorithms never see the window block, and window
+  algorithms get their tabular columns plus the block;
+- univariate selection, LOFO and RFE read tabular columns only;
+- calibration, the time-ordered folds, the blend and SHAP work unchanged;
+- an end-to-end pipeline test runs tabular and window algorithms side by side.
+
 ## Phases
 
-- [ ] P1 SHAP for the existing estimators: a seeded sample of test rows; the base estimator of a calibrated model
+- [x] P1 (7bb7293, review fixes after Fable's review) SHAP for the existing estimators: a seeded sample of test rows; the base estimator of a calibrated model
       (values are before calibration); beeswarm and bar plots and a values CSV per algorithm; `plots: shap` in
       `model.yml`. Tests.
-- [ ] P2 The `sequence` section and window builder, the window block in `X`, and `input` selection in `algos.yml`.
+- [x] P2 (dbaf111 builder; pipeline integration in the framework commit) The `sequence` section and window builder, the window block in `X`, and `input` selection in `algos.yml`.
       Tests: planted pattern, no look-ahead, short history, group interleaving, session rule.
-- [ ] P3 Fold-fitted learners: MiniRocket, tsfresh (extraction and FRESH selection inside the fold), `gplearn`
+- [x] P3 (dbaf111) Fold-fitted learners: MiniRocket, tsfresh (extraction and FRESH selection inside the fold), `gplearn`
       `SymbolicTransformer`. Tests.
-- [ ] P4 torch classifiers with an sklearn interface: 1D CNN, LSTM/GRU, InceptionTime, TCN, patch transformer, CNN +
+- [x] P4 torch classifiers (written in torch directly; channels standardised on the fitted rows; early stopping only
+      after `min_epochs`, because an LSTM stopped on its initial flat loss and kept untrained weights; torch held to one
+      CPU thread, because LightGBM's and torch's OpenMP runtimes deadlocked an LSTM in one process) with an sklearn interface: 1D CNN, LSTM/GRU, InceptionTime, TCN, patch transformer, CNN +
       LSTM over bars. Early stopping on a time-ordered internal split; fixed seeds. Tests.
 - [ ] P5 Chart-image CNN after Jiang, Kelly and Xiu (images rendered from the window block). Tests.
 - [ ] P6 TS2Vec representation learner. Tests.
