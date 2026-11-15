@@ -35,3 +35,12 @@ def test_label_free_features_expose_the_shape_and_each_row_is_encoded_on_its_own
     assert roc_auc_score(y_new, clf.predict_proba(learner.transform(w_new))[:, 1]) > 0.8
     alone = learner.transform(w_new[:1])
     assert np.allclose(learner.transform(w_new)[:1], alone, atol=1e-5)
+
+
+
+def test_a_fitted_learner_pickles_and_encodes_the_same_after_loading():
+    import pickle
+    w, _ = planted(100, 2)
+    learner = TS2VecLearner(hidden=16, out=16, depth=2, epochs=1, device="cpu").fit(w)
+    loaded = pickle.loads(pickle.dumps(learner))
+    assert np.allclose(loaded.transform(w), learner.transform(w), atol=1e-5)

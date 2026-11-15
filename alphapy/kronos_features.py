@@ -47,6 +47,10 @@ Features. ``pooling="last"`` takes the final normalised hidden state at the row'
 reads to predict the next bar's token (the training objective, and the purpose of these features); ``"mean"`` averages the states
 over the row's bars; ``"both"`` concatenates them. The model's calendar embedding is not used (windows carry no
 timestamps), although Kronos was trained with one. A row with no present bar gets zeros.
+
+Leakage caution: Kronos-small was pretrained on about 12 billion bars from 45 exchanges (paper of August 2025); its
+model card states no training cutoff. Bars from before the weights were published may have been in its pretraining
+data, so results on them can overstate what it would have known at the time.
 """
 
 #

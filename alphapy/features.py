@@ -26,6 +26,7 @@
 # Imports
 #
 
+from alphapy.estimators import worker_jobs
 from alphapy.sequence import tabular
 from alphapy.globals import BSEP, LOFF, NULLTEXT
 from alphapy.globals import PSEP, SSEP, USEP
@@ -1337,7 +1338,8 @@ def select_features_lofo(model, algo, est):
     import sys
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', message='.*multithreaded.*', category=UserWarning)
-        lofo_imp = lofo.LOFOImportance(dataset, model=lofo_est, cv=cv, scoring=scorer, n_jobs=n_jobs)
+        lofo_imp = lofo.LOFOImportance(dataset, model=lofo_est, cv=cv, scoring=scorer,
+                                       n_jobs=worker_jobs(n_jobs, lofo_est))
     # Suppress None outputs from LOFO's multiprocessing (redirect at fd level for child processes)
     stdout_fd = sys.stdout.fileno()
     old_stdout_fd = os.dup(stdout_fd)

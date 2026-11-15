@@ -41,7 +41,7 @@ def config():
     return {
         "project": {"directory": ".", "file_extension": "csv", "live_results": False, "submission_file": None,
                     "submit_probas": False},
-        "model": {"algorithms": ["LGB", "CNN", "MROCK"], "calibration": {"option": True, "type": "isotonic"},
+        "model": {"algorithms": ["LGB", "CNN", "MROCK", "CHART"], "calibration": {"option": True, "type": "isotonic"},
                   "cv_folds": 3, "estimators": 51, "grid_search": False, "optuna_trials": 5, "optuna_timeout": 30,
                   "ranking": {"group_id": None, "group_size": None}, "pvalue_level": 0.01,
                   "rfe": {"option": False, "step": 3}, "scoring_function": "roc_auc", "target": "label",
@@ -65,7 +65,7 @@ def config():
                                     "score_func": "f_regression"},
                      "variance": {"option": False, "threshold": 0.1}},
         "pipeline": {"number_jobs": -1, "seed": 42, "verbosity": 0},   # the setting that segfaulted LightGBM
-        "plots": {"calibration": False, "confusion_matrix": False, "importances": False, "learning_curve": False,
+        "plots": {"calibration": False, "confusion_matrix": False, "importances": False, "learning_curve": True,
                   "roc_curve": False, "shap": True, "shap_samples": 200},
         "sequence": {"option": True, "group": "ticker", "order": "date", "channels": ["close", "volume"],
                      "window": 12, "scale": {"close": "close", "volume": "mean"}},
@@ -93,5 +93,33 @@ def test_tabular_and_window_algorithms_run_side_by_side_through_the_pipeline(tmp
     auc = {a: roc_auc_score(ranked["label"], ranked[f"prob_test_{a}"]) for a in ("lgb", "cnn", "mrock")}
     assert auc["cnn"] > 0.65 and auc["mrock"] > 0.65, auc      # the windows carry the signal
     assert auc["lgb"] < 0.6, auc                               # the tabular noise column does not
+    assert "CHART draws bars from open, high, low and close" in log  # no open/high/low channels: skipped, not fatal
     assert (out / "shap_ranking_test_LGB.csv").exists()         # tabular SHAP ran
+    assert (out / "shap_ranking_test_CNN.csv").exists()         # window SHAP ran, by channel and bar age
     assert pd.read_csv(out / "shap_ranking_test_LGB.csv")["feature"].tolist() == ["noise"]   # no window columns
+
+
+
+def test_rfe_after_univariate_selection_keeps_its_features(tmp_path):
+    cfg = config()
+    cfg["model"]["algorithms"] = ["LGB"]
+    cfg["model"]["calibration"]["option"] = False
+    cfg["model"]["rfe"] = {"option": True, "step": 1}
+    cfg["features"]["univariate"] = {"option": True, "percentage": 75, "uni_grid": [5, 10], "score_func": "f_classif"}
+    cfg["sequence"]["option"] = False
+    cfg["plots"]["shap"] = False
+    cfg["plots"]["learning_curve"] = False
+    data = bars(1).assign(noise2=lambda d: d["noise"] * 0.5 + 0.1, noise3=lambda d: -d["noise"])
+    cut = data["date"] >= "2022-01-01"
+    (tmp_path / "config").mkdir()
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config" / "model.yml").write_text(yaml.safe_dump(cfg, sort_keys=False))
+    data[~cut].to_csv(tmp_path / "data" / "train.csv", index=False)
+    data[cut].to_csv(tmp_path / "data" / "test.csv", index=False)
+    run = subprocess.run([sys.executable, "-c", "import sys; sys.argv = ['alphapy']; "
+                          "from alphapy.alphapy_main import main; main()"],
+                         cwd=tmp_path, env={**os.environ, "ALPHAPY_ROOT": str(ROOT)}, capture_output=True,
+                         text=True, timeout=600)
+    log = run.stdout + run.stderr
+    assert run.returncode == 0, log[-3000:]
+    assert "Recursive Feature Elimination" in log and "not applied" not in log and "using column numbers" not in log

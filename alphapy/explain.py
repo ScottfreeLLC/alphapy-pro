@@ -55,6 +55,7 @@ LINEAR_TYPES = ("LogisticRegression", "LinearRegression", "LinearSVC", "LinearSV
 PROBABILITY_TREES = ("RandomForest", "ExtraTrees", "DecisionTree")
 BACKGROUND_ROWS = 100
 PERMUTATION_ROWS = 200
+WINDOW_ROWS = 50            # window models: rows explained and background rows (each row costs groups x background)
 
 
 def unwrap(estimator, X: np.ndarray, background: np.ndarray):
@@ -110,11 +111,11 @@ AGE_GROUPS = ((0, 1), (1, 5), (5, 10), (10, 20), (20, 60), (60, None))   # bars 
 
 def window_groups(channels: list[str], window: int) -> tuple[list[str], list[np.ndarray]]:
     """Names and column positions (in the flattened block, channel by channel, oldest bar first) of each channel's
-    bar-age groups: the row's own bar, bars 2-5 back, 6-10, 11-20, 21-60, older. The mask channel is not explained."""
+    bar-age groups: the row's own bar, bars 2-5 back, 6-10, 11-20, 21-60, older. The mask channel's groups are named
+    "bar present", so every column belongs to exactly one group."""
     names, columns = [], []
     for c, channel in enumerate(channels):
-        if channel == "_mask":
-            continue
+        channel = "bar present" if channel == "_mask" else channel
         for lo, hi in AGE_GROUPS:
             hi = window if hi is None else min(hi, window)
             if lo >= hi:
@@ -142,14 +143,13 @@ def explain_window_model(estimator, X: np.ndarray, background: np.ndarray, chann
 
     def predict(codes):
         codes = np.asarray(codes, dtype=int)
-        rebuilt = np.repeat(data[:1], len(codes), axis=0)
-        rebuilt[:] = data[codes[:, 0]]                      # columns outside every group follow the first group's row
-        for g, cols in enumerate(columns):
+        rebuilt = np.empty((len(codes), data.shape[1]), dtype=data.dtype)
+        for g, cols in enumerate(columns):                  # every column belongs to one group
             rebuilt[:, cols] = data[codes[:, g]][:, cols]
         return estimator.predict_proba(rebuilt)[:, 1]
 
     explainer = shap.PermutationExplainer(predict, shap.maskers.Independent(back, max_samples=len(back)), seed=seed)
-    values = explainer(own, max_evals=max(500, 2 * len(columns) + 1)).values
+    values = explainer(own, max_evals=2 * len(columns) + 1).values      # one permutation each way
     return np.asarray(values), names
 
 
@@ -193,8 +193,10 @@ def shap_analysis(model, partition: Partition) -> None:
             background, _ = algo_matrix(model, algo, model.X_train)
             window_model = hasattr(estimator, "n_channels") and hasattr(estimator, "window")
             kind = "other" if window_model else _kind(unwrap(estimator, X[:1], X[:1])[0])
-            rows = sample_rows(X.shape[0], size if kind != "other" else min(size, PERMUTATION_ROWS), seed)
-            back = background[sample_rows(background.shape[0], BACKGROUND_ROWS, seed + 1)]
+            limit = WINDOW_ROWS if window_model else size if kind != "other" else min(size, PERMUTATION_ROWS)
+            rows = sample_rows(X.shape[0], limit, seed)
+            back = background[sample_rows(background.shape[0], WINDOW_ROWS if window_model else BACKGROUND_ROWS,
+                                          seed + 1)]
             logger.info("SHAP for Algorithm: %s (%d rows)", algo, len(rows))
             if window_model:
                 from alphapy.sequence import MASK

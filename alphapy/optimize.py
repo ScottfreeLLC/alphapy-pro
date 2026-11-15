@@ -26,7 +26,7 @@
 # Imports
 #
 
-from alphapy.sequence import tabular
+from alphapy.estimators import worker_jobs
 from alphapy.globals import ModelType
 from alphapy.model import apply_feature_selection_support
 
@@ -156,7 +156,8 @@ def rfecv_search(model, algo):
 
     # Extract model data.
 
-    X_train = tabular(model, model.X_train)       # never the raw window block
+    # The columns the algorithm was fitted on (its univariate or LOFO selection), so RFE's support lines up with them
+    X_train = apply_feature_selection_support(model, algo, model.X_train)
     y_train = model.y_train
 
     # Extract model parameters.
@@ -187,7 +188,7 @@ def rfecv_search(model, algo):
 
     logger.info("Recursive Feature Elimination with CV")
     rfecv = RFECV(rfe_est, step=rfe_step, cv=cv_folds,
-                  scoring=scorer, verbose=verbosity, n_jobs=n_jobs)
+                  scoring=scorer, verbose=verbosity, n_jobs=worker_jobs(n_jobs, rfe_est))
     start = time()
     y_np = y_train.to_numpy().ravel() if hasattr(y_train, "to_numpy") else np.asarray(y_train).ravel()
     selector = rfecv.fit(X_train, y_np)
@@ -336,7 +337,7 @@ def hyper_grid_search(model, estimator):
         scoring=scorer,
         n_trials=n_trials,
         timeout=timeout,
-        n_jobs=n_jobs,
+        n_jobs=worker_jobs(n_jobs, optuna_est),
         verbose=0
     )
 

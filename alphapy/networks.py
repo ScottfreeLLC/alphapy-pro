@@ -274,8 +274,9 @@ class SequenceNetClassifier(ClassifierMixin, BaseEstimator):
         self.__dict__.update(state)
         if weights is not None:
             import torch
-            self.net_ = _network(self.arch, self.n_channels, self.window, self.hidden)
-            self.net_.load_state_dict(weights)
+            with torch_threads(1):
+                self.net_ = _network(self.arch, self.n_channels, self.window, self.hidden)
+                self.net_.load_state_dict(weights)
             self.net_.eval()
             self.device_ = torch.device("cpu")
 

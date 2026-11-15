@@ -124,8 +124,9 @@ def _scale(win: np.ndarray, channels: list[str], scale: dict) -> np.ndarray:
             i = index[channel]
             if how in (None, "none"):
                 continue
-            if how == "mean":
-                scaled[:, i, :] = win[:, i, :] / np.nanmean(win[:, i, :], axis=1, keepdims=True)
+            if how == "mean":            # an all-zero channel (no volume) stays zero rather than unscalable
+                mean = np.nanmean(win[:, i, :], axis=1, keepdims=True)
+                scaled[:, i, :] = np.where(mean > 0, win[:, i, :] / np.where(mean > 0, mean, 1.0), 0.0)
             else:
                 scaled[:, i, :] = win[:, i, :] / win[:, index[how], -1:]
     return scaled
@@ -147,7 +148,7 @@ def tabular(model, X: np.ndarray) -> np.ndarray:
     return X if n_tabular is None else X[:, :n_tabular]
 
 
-def append_windows(model, X_all: np.ndarray, raw_frames=None) -> np.ndarray:
+def append_windows(model, X_all: np.ndarray) -> np.ndarray:
     """Append the window block to the processed feature matrix (training rows, then test rows).
 
     Windows are built from the raw frames AlphaPy keeps before dropping columns (``model.df_X_train`` and
@@ -155,9 +156,7 @@ def append_windows(model, X_all: np.ndarray, raw_frames=None) -> np.ndarray:
     count (``model.specs['n_tabular']``) and the block's names (``model.window_names``).
     """
     spec = model.specs["sequence"]
-    if raw_frames is None:
-        raw_frames = (model.df_X_train, model.df_X_test)
-    frames = [f for f in raw_frames if f is not None and len(f)]
+    frames = [f for f in (model.df_X_train, model.df_X_test) if f is not None and len(f)]
     raw = pd.concat([f.to_pandas() if hasattr(f, "to_pandas") else f for f in frames], ignore_index=True)
     needed = [spec["group"], spec["order"], *spec["channels"], *([spec["session"]] if spec.get("session") else [])]
     missing = [c for c in needed if c not in raw.columns]

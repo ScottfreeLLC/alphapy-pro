@@ -45,3 +45,10 @@ def test_the_cnn_learns_a_shape_from_the_images():
     X_new, y_new = planted(300, 1)
     model = ChartCNNClassifier(window=20, epochs=8, lr=1e-3, batch_size=64, device="cpu").fit(X, y)
     assert roc_auc_score(y_new, model.predict_proba(X_new)[:, 1]) > 0.8
+
+
+def test_the_network_has_the_papers_fully_connected_sizes():
+    pytest.importorskip("torch")
+    from alphapy.chart_cnn import _network
+    sizes = {w: _network(w, image_height(w))[-1].in_features for w in (5, 20, 60)}
+    assert sizes == {5: 15360, 20: 46080, 60: 184320}            # Jiang, Kelly and Xiu (2023), section on the models

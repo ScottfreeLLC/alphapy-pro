@@ -40,6 +40,7 @@ warnings.simplefilter(action='ignore', category=ConvergenceWarning)
 # Imports
 #
 
+from alphapy.estimators import worker_jobs
 from alphapy.estimators import scorers
 from alphapy.estimators import xgb_score_map
 from alphapy.features import feature_scorers
@@ -935,7 +936,7 @@ def first_fit(model, algo, est):
         elif cv_splitter is None:
             cv_splitter = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
         scores = cross_val_score(est, X_train_np, y_train_np, scoring=scorer,
-                                 cv=cv_splitter, n_jobs=n_jobs, verbose=verbosity)
+                                 cv=cv_splitter, n_jobs=worker_jobs(n_jobs, est), verbose=verbosity)
         logger.info("Cross-Validation Scores: %s", scores)
 
     # Store the estimator

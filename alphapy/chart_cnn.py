@@ -30,9 +30,10 @@ volume as bars in the bottom fifth. The image height follows the paper (32 pixel
 other lengths are interpolated). Prices are scaled to the window's own high and low, volume to its own maximum. The
 moving average is taken within the window (expanding at its start), since the window holds no earlier bars.
 
-The network follows the paper: blocks of a 5x3 convolution (64 channels, doubling per block), batch normalisation,
-leaky ReLU and 2x1 max pooling (two blocks for up to 5 bars, three up to 20, four beyond), then 50% dropout and a
-linear output. Images are drawn batch by batch, so the full set never sits in memory.
+The network follows the paper: blocks of a 5x3 convolution (64 channels, doubling per block; the first with the
+paper's vertical stride and dilation), batch normalisation, leaky ReLU and 2x1 max pooling (two blocks for up to 5
+bars, three up to 20, four beyond), then 50% dropout and a linear output. Cost: about 1 ms per row per epoch on MPS
+at 20 bars, so hours per fit on millions of rows. Images are drawn batch by batch, so the full set never sits in memory.
 """
 
 #
@@ -97,20 +98,37 @@ def render(windows: np.ndarray, channels: list[str]) -> np.ndarray:
     return images
 
 
+def first_layer(window: int) -> tuple[int, int, int]:
+    """(vertical stride, vertical dilation, vertical padding) of the first convolution. The paper uses strides 1, 3, 3
+    and dilations 1, 2, 3 for 5-, 20- and 60-bar images, on the first layer only; it does not state the padding. These
+    paddings reproduce its fully connected sizes exactly (15,360, 46,080 and 184,320)."""
+    if window <= 5:
+        return 1, 1, 2
+    return (3, 2, 12) if window <= 20 else (3, 3, 12)
+
+
 def _network(window, height):
+    import torch
     from torch import nn
 
     blocks = 2 if window <= 5 else 3 if window <= 20 else 4
-    layers, c_in, h = [], 1, height
+    stride, dilation, padding = first_layer(window)
+    layers, c_in = [], 1
     for b in range(blocks):
         c_out = 64 * 2 ** b
-        layers += [nn.Conv2d(c_in, c_out, (5, 3), padding=(2, 1)), nn.BatchNorm2d(c_out), nn.LeakyReLU(0.01),
-                   nn.MaxPool2d((2, 1))]
-        c_in, h = c_out, h // 2
-    body = nn.Sequential(*layers, nn.Flatten(), nn.Dropout(0.5), nn.Linear(c_in * h * 3 * window, 1))
-    for m in body.modules():
-        if isinstance(m, (nn.Conv2d, nn.Linear)):
-            nn.init.xavier_uniform_(m.weight)
+        conv = (nn.Conv2d(c_in, c_out, (5, 3), stride=(stride, 1), dilation=(dilation, 1), padding=(padding, 1))
+                if b == 0 else nn.Conv2d(c_in, c_out, (5, 3), padding=(2, 1)))
+        layers += [conv, nn.BatchNorm2d(c_out), nn.LeakyReLU(0.01), nn.MaxPool2d((2, 1))]
+        c_in = c_out
+    convs = nn.Sequential(*layers, nn.Flatten())
+    from alphapy.networks import torch_threads
+    with torch.no_grad(), torch_threads(1):     # any torch CPU work keeps to one thread (alphapy.networks)
+        n_flat = convs.eval()(torch.zeros(2, 1, height, 3 * window)).shape[1]
+    body = nn.Sequential(convs, nn.Dropout(0.5), nn.Linear(n_flat, 1))
+    with torch_threads(1):
+        for m in body.modules():
+            if isinstance(m, (nn.Conv2d, nn.Linear)):
+                nn.init.xavier_uniform_(m.weight)
     return body
 
 
@@ -135,7 +153,10 @@ class ChartCNNClassifier(ClassifierMixin, BaseEstimator):
 
     def _windows(self, X):
         width = self.n_channels * self.window
-        return unflatten(np.asarray(X, dtype=np.float32)[:, -width:], self.n_channels, self.window)
+        X = np.asarray(X, dtype=np.float32)
+        if X.shape[1] != width:
+            raise ValueError(f"Expected the {width}-column window block, got {X.shape[1]} columns")
+        return unflatten(X, self.n_channels, self.window)
 
     def _images(self, windows):
         import torch
@@ -238,7 +259,9 @@ class ChartCNNClassifier(ClassifierMixin, BaseEstimator):
         self.__dict__.update(state)
         if weights is not None:
             import torch
-            self.net_ = _network(self.window, image_height(self.window))
-            self.net_.load_state_dict(weights)
+            from alphapy.networks import torch_threads
+            with torch_threads(1):
+                self.net_ = _network(self.window, image_height(self.window))
+                self.net_.load_state_dict(weights)
             self.net_.eval()
             self.device_ = torch.device("cpu")

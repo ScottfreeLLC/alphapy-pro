@@ -74,6 +74,7 @@ from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
 import warnings
 
+from alphapy.estimators import worker_jobs
 from alphapy.estimators import get_estimators
 from alphapy.globals import BSEP, SSEP, USEP
 from alphapy.globals import ModelType
@@ -524,7 +525,7 @@ def plot_learning_curve(alphapy_specs, model, partition):
         from alphapy.model import algo_matrix
         train_sizes, train_scores, test_scores = \
             learning_curve(est, algo_matrix(model, algo, X)[0], y_np, train_sizes=train_sizes,
-                           cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
+                           cv=cv_folds, n_jobs=worker_jobs(n_jobs, est), verbose=verbosity)
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
@@ -786,7 +787,7 @@ def plot_validation_curve(model, partition, pname, prange):
         # set up plot
         train_scores, test_scores = validation_curve(
             estimator, X, y.values.ravel(), param_name=pname, param_range=prange,
-            cv=cv_folds, scoring=scorer, n_jobs=n_jobs)
+            cv=cv_folds, scoring=scorer, n_jobs=worker_jobs(n_jobs, estimator))
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
@@ -957,7 +958,7 @@ def plot_partial_dependence(est, X, features, fnames, tag,
     # Plot partial dependence
 
     fig, axs = PartialDependenceDisplay(est, X, features, feature_names=fnames,
-                                        grid_resolution=50, n_jobs=n_jobs,
+                                        grid_resolution=50, n_jobs=worker_jobs(n_jobs, est),
                                         verbose=verbosity)
     title = "Partial Dependence Plot"
     fig.suptitle(title)

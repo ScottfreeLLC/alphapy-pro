@@ -22,7 +22,9 @@
 ################################################################################
 
 """Self-supervised window representations after TS2Vec (Yue et al., "TS2Vec: Towards Universal Representation of
-Time Series", AAAI 2022), reimplemented from the paper (optional dependency ``torch``).
+Time Series", AAAI 2022) (optional dependency ``torch``). The encoder and training loop are written for AlphaPy; the
+contrastive loss functions (``_instance_loss``, ``_temporal_loss``, ``hierarchical_loss``) follow the authors' code,
+``zhihanyue/ts2vec`` ``models/losses.py``, under its MIT licence (notice below).
 
 An encoder (a linear input projection, random timestamp masking during training, then residual dilated convolutions)
 maps a window to a representation per bar. Training needs no labels: two overlapping random crops of each window are
@@ -30,6 +32,26 @@ encoded, and a hierarchical contrastive loss pulls the two views of the same bar
 (temporal contrast) and other windows (instance contrast), repeated after each halving of the time axis by max
 pooling. A window's features are its representations max-pooled over time.
 """
+
+# The loss functions are adapted from https://github.com/zhihanyue/ts2vec (models/losses.py):
+#
+#   MIT License
+#
+#   Copyright (c) 2022 Zhihan Yue
+#
+#   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+#   documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+#   the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+#   to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+#
+#   The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+#   the Software.
+#
+#   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+#   THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+#   CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+#   IN THE SOFTWARE.
 
 #
 # Imports
@@ -105,18 +127,19 @@ def _temporal_loss(z1, z2):
     return (logits[:, i, t + i - 1].mean() + logits[:, t + i, i].mean()) / 2
 
 
-def hierarchical_loss(z1, z2):
-    """The paper's loss: instance and temporal contrast, repeated after each halving of the time axis."""
+def hierarchical_loss(z1, z2, alpha=0.5):
+    """The paper's loss: instance and temporal contrast (weights ``alpha`` and ``1 - alpha``, the authors' default),
+    repeated after each halving of the time axis."""
     import torch.nn.functional as F
 
     loss, levels = 0.0, 0
     while z1.size(1) > 1:
-        loss = loss + _instance_loss(z1, z2) + _temporal_loss(z1, z2)
+        loss = loss + alpha * _instance_loss(z1, z2) + (1 - alpha) * _temporal_loss(z1, z2)
         levels += 1
         z1 = F.max_pool1d(z1.transpose(1, 2), 2).transpose(1, 2)
         z2 = F.max_pool1d(z2.transpose(1, 2), 2).transpose(1, 2)
     if z1.size(1) == 1:
-        loss = loss + _instance_loss(z1, z2)
+        loss = loss + alpha * _instance_loss(z1, z2)
         levels += 1
     return loss / levels
 
@@ -142,6 +165,11 @@ class TS2VecLearner:
         torch.manual_seed(self.random_state)
         rng = np.random.default_rng(self.random_state)
         self.device_ = _device(self.device)
+        # Channels standardised on the fit rows' present bars (prices arrive as ratios near 1; unstandardised, weak
+        # shapes were lost), padding kept at zero and the mask as it is.
+        from alphapy.networks import standardise, standardise_stats
+        self.mean_, self.std_ = standardise_stats(windows)
+        windows = standardise(windows, self.mean_, self.std_)
         x = torch.from_numpy(np.ascontiguousarray(windows.transpose(0, 2, 1)))   # (rows, time, channels)
         self.encoder_ = _encoder(x.shape[2], self.hidden, self.out, self.depth).to(self.device_)
         opt = torch.optim.AdamW(self.encoder_.parameters(), lr=self.lr)
@@ -173,8 +201,32 @@ class TS2VecLearner:
 
     def _transform(self, windows):
         import torch
+
+        from alphapy.networks import standardise
+        windows = standardise(windows, self.mean_, self.std_)
         x = torch.from_numpy(np.ascontiguousarray(windows.transpose(0, 2, 1)))
         with torch.no_grad():
             parts = [self.encoder_(x[i:i + 4096].to(self.device_)).max(dim=1).values.cpu()
                      for i in range(0, len(x), 4096)]
         return torch.cat(parts).numpy().astype(np.float32)
+
+    def __getstate__(self):
+        # The encoder's layers are built inside a function, so it pickles as CPU weights and is rebuilt on loading.
+        state = self.__dict__.copy()
+        if "encoder_" in state:
+            state["encoder_weights_"] = {k: v.detach().cpu() for k, v in self.encoder_.state_dict().items()}
+            state["n_channels_"] = self.mean_.shape[0]
+            del state["encoder_"], state["device_"]
+        return state
+
+    def __setstate__(self, state):
+        weights = state.pop("encoder_weights_", None)
+        self.__dict__.update(state)
+        if weights is not None:
+            import torch
+            from alphapy.networks import torch_threads
+            with torch_threads(1):
+                self.encoder_ = _encoder(state["n_channels_"], self.hidden, self.out, self.depth)
+                self.encoder_.load_state_dict(weights)
+            self.encoder_.eval()
+            self.device_ = torch.device("cpu")

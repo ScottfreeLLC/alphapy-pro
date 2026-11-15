@@ -67,3 +67,10 @@ def test_repeated_keys_are_refused_and_text_dates_are_ordered_as_dates():
 def test_without_a_scale_prices_are_divided_by_the_last_close_and_volume_by_its_mean():
     w = build_windows(frame(), {k: v for k, v in SPEC.items() if k != "scale"})
     assert np.allclose(w[4, 0], [10 / 12, 11 / 12, 1.0]) and np.allclose(w[4, 1], [0.5, 1.0, 1.5])
+
+
+
+def test_a_window_without_volume_keeps_its_bars():
+    f = frame().assign(volume=0.0)
+    w = build_windows(f, SPEC)
+    assert np.allclose(w[4, 2], [1, 1, 1]) and np.allclose(w[4, 1], 0) and np.allclose(w[4, 0], [10 / 12, 11 / 12, 1])

@@ -234,8 +234,11 @@ def evaluate(formula, windows, channels=CHANNELS, fill=None) -> np.ndarray:
             args.append(int(operands[-1]))
         return _finite(_apply(op, args))
 
-    with np.errstate(all="ignore"):
-        value = walk(tree)[:, -1]
+    try:
+        with np.errstate(all="ignore"):
+            value = walk(tree)[:, -1]
+    finally:
+        walk = None     # the recursive closure refers to itself; break the cycle so the float64 windows free at once
     return value if fill is None else np.where(np.isnan(value), fill, value)
 
 

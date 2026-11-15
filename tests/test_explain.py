@@ -102,7 +102,8 @@ def test_window_models_are_explained_by_channel_and_bar_age_and_the_values_add_u
     window, channels = 12, ["close", "volume", "_mask"]
     names, columns = window_groups(channels, window)
     assert names[:4] == ["close[own bar]", "close[2-5 back]", "close[6-10 back]", "close[11-12 back]"]
-    assert list(columns[0]) == [window - 1] and "_mask" not in " ".join(names)
+    assert list(columns[0]) == [window - 1] and names[-4] == "bar present[own bar]"
+    assert sorted(np.concatenate(columns)) == list(range(3 * window))      # every column in exactly one group
 
     class SixToTen:                                    # depends only on close, 6-10 bars back
         def predict_proba(self, X):

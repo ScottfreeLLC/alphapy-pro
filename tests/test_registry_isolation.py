@@ -26,3 +26,23 @@ print(cross_val_score(LGBMClassifier(n_estimators=30, n_jobs=-1, verbose=-1), X,
 def test_registry_loads_no_window_dependency_and_multithreaded_lightgbm_cross_validation_runs():
     run = subprocess.run([sys.executable, "-c", SCRIPT], capture_output=True, text=True, timeout=300)
     assert run.returncode == 0, run.stderr[-2000:]
+
+
+WORKERS = """
+import numpy as np
+import lightgbm as lgb
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.ensemble import RandomForestClassifier
+from alphapy.estimators import worker_jobs
+assert worker_jobs(-1, lgb.LGBMClassifier()) == -1          # torch not loaded: workers allowed
+import torch  # noqa: F401
+assert worker_jobs(-1, lgb.LGBMClassifier()) == 1           # torch loaded: LightGBM runs in the parent
+assert worker_jobs(-1, CalibratedClassifierCV(lgb.LGBMClassifier())) == 1
+assert worker_jobs(-1, RandomForestClassifier()) == -1
+"""
+
+
+def test_lightgbm_runs_without_workers_once_torch_is_loaded():
+    pytest.importorskip("torch")
+    run = subprocess.run([sys.executable, "-c", WORKERS], capture_output=True, text=True, timeout=300)
+    assert run.returncode == 0, run.stderr[-2000:]

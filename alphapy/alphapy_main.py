@@ -371,9 +371,20 @@ def training_pipeline(alphapy_specs, model):
             est = None
             logger.info("Algorithm %s not found", algo)
             failed_algos.append(algo)
+        if est is not None and is_window_algo(algo):
+            # A window algorithm that cannot run (its features over max_gb, missing channels) is skipped, not fatal
+            try:
+                model = first_fit(model, algo, est)
+                model = make_predictions(model, algo)
+            except (MemoryError, ValueError, KeyError, RuntimeError) as e:
+                logger.error("Algorithm %s failed and is skipped: %s", algo, e)
+                failed_algos.append(algo)
+                for store in (model.estimators, model.uncalibrated, model.fnames_algo):
+                    store.pop(algo, None)
+            continue
         if est is not None:
             # select LOFO features
-            if fs_lofo and (not fs_lofo_algorithms or algo in fs_lofo_algorithms) and not is_window_algo(algo):
+            if fs_lofo and (not fs_lofo_algorithms or algo in fs_lofo_algorithms):
                 select_features_lofo(model, algo, est)
             # run classic train/test model pipeline
             model = first_fit(model, algo, est)
