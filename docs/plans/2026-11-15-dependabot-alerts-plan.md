@@ -32,5 +32,9 @@ urllib3, tornado, virtualenv, filelock, black, setuptools and Mako. None is pinn
    cryptography only comes in through secretstorage (Linux keyring, via twine) and is
    not installed on macOS.
 4. Commit, push `develop`, open a pull request, merge to `main` once CI passes.
-   Status: pending.
-5. Confirm the alerts close on `main`; list any that remain. Status: pending.
+   Status: done. Pull request #18, squash-merged as 23bc87c with the administrator
+   override (main requires an approval the author can't give). The squash of #17 had
+   put #18 in conflict; main was merged into develop with `-s ours` after checking the
+   trees were identical.
+5. Confirm the alerts close on `main`; list any that remain. Status: done. 0 open
+   alerts after the merge; Tests, documentation and dependency graph pass on main.
