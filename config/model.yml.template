@@ -188,6 +188,8 @@ plots:
     importances       : True                 # Feature importances
     learning_curve    : False                # Learning curves
     roc_curve         : True                 # ROC curves (classification only)
+    shap              : False                # SHAP explanations on a sample of test rows (needs the explain extra)
+    shap_samples      : 2000                 # rows explained per algorithm
 
 # XGBoost specific settings
 xgboost:

@@ -169,6 +169,9 @@ def generate_plots(alphapy_specs, model, partition):
         plot_confusion_matrix(model, partition)
     if roc_curve_flag:
         plot_roc_curve(model, partition)
+    if model.specs.get('shap') and (partition == Partition.test or not model.test_labels):
+        from alphapy.explain import shap_analysis
+        shap_analysis(model, partition)
     if partition == Partition.train:
         if learning_curve_flag:
             plot_learning_curve(alphapy_specs, model, partition)

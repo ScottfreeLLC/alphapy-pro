@@ -198,6 +198,7 @@ class Model:
         self.feature_map = {}
         # Key: (algorithm)
         self.estimators = {}
+        self.uncalibrated = {}      # the full fit of a calibrated algorithm, for explanations
         self.importances = {}
         self.coefs = {}
         self.support = {}
@@ -425,6 +426,8 @@ def get_model_config(directory='.'):
     specs['importances'] = plots_section['importances']
     specs['learning_curve'] = plots_section['learning_curve']
     specs['roc_curve'] = plots_section['roc_curve']
+    specs['shap'] = plots_section.get('shap', False)
+    specs['shap_samples'] = plots_section.get('shap_samples', 2000)
 
     # Section: transforms
 
@@ -496,6 +499,7 @@ def get_model_config(directory='.'):
     logger.info('rfe               = %r', specs['rfe'])
     logger.info('rfe_step          = %d', specs['rfe_step'])
     logger.info('roc_curve         = %r', specs['roc_curve'])
+    logger.info('shap              = %r', specs['shap'])
     logger.info('rounding          = %d', specs['rounding'])
     logger.info('scaler_option     = %r', specs['scaler_option'])
     logger.info('scaler_type       = %r', specs['scaler_type'])
@@ -796,6 +800,18 @@ def apply_feature_selection_support(model, algo, X):
     return X[:, support]
 
 
+def algo_matrix(model, algo, X):
+    r"""``X`` as one algorithm sees it (its pre-model feature selection, then any RFE support), with the names."""
+
+    names = list(model.fnames_algo.get(algo, model.feature_names))
+    X = apply_feature_selection_support(model, algo, X)
+    support = model.support.get(algo)
+    if support is not None:
+        X = X[:, support]
+        names = list(np.asarray(names)[support])
+    return X, names
+
+
 def first_fit(model, algo, est):
     r"""Fit the model before optimization.
 
@@ -960,14 +976,8 @@ def make_predictions(model, algo):
 
     # Extract model data
 
-    X_train = apply_feature_selection_support(model, algo, model.X_train)
-    X_test = apply_feature_selection_support(model, algo, model.X_test)
-    try:
-        support = model.support[algo]
-        X_train = X_train[:, support]
-        X_test = X_test[:, support]
-    except:
-        pass
+    X_train, _ = algo_matrix(model, algo, model.X_train)
+    X_test, _ = algo_matrix(model, algo, model.X_test)
 
     y_train = model.y_train
     groups_train = model.groups_train
@@ -985,6 +995,7 @@ def make_predictions(model, algo):
                                              method=cal_type)
             X_train_np = X_train.to_numpy() if hasattr(X_train, 'to_numpy') else X_train
             y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train
+            model.uncalibrated[algo] = model.estimators[algo]
             est.fit(X_train_np, y_train_np)
             model.estimators[algo] = est
             logger.info("Calibration Complete")
