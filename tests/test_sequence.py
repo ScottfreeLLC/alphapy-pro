@@ -74,3 +74,11 @@ def test_a_window_without_volume_keeps_its_bars():
     f = frame().assign(volume=0.0)
     w = build_windows(f, SPEC)
     assert np.allclose(w[4, 2], [1, 1, 1]) and np.allclose(w[4, 1], 0) and np.allclose(w[4, 0], [10 / 12, 11 / 12, 1])
+
+
+def test_mean_scaling_keeps_negative_means_and_masks_a_wholly_missing_channel():
+    f = frame().assign(volume=[-200.0, 9.0, -100.0, 11.0, -300.0, -400.0])
+    w = build_windows(f, SPEC)
+    assert np.allclose(w[4, 1], [0.5, 1.0, 1.5])                # negative mean: still scaled, not zeroed
+    g = frame().assign(volume=np.nan)
+    assert np.allclose(build_windows(g, SPEC)[4, 2], 0)         # no volume at all: the bars are masked

@@ -186,6 +186,10 @@ def rfecv_search(model, algo):
             if param in valid_params:
                 rfe_est.set_params(**{param: 1})
 
+    if X_train.shape[1] < 2:
+        logger.info("RFE skipped for %s: its feature selection left %d column", algo, X_train.shape[1])
+        return model
+
     logger.info("Recursive Feature Elimination with CV")
     rfecv = RFECV(rfe_est, step=rfe_step, cv=cv_folds,
                   scoring=scorer, verbose=verbosity, n_jobs=worker_jobs(n_jobs, rfe_est))

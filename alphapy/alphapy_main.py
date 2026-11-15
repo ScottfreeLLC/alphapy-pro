@@ -402,10 +402,14 @@ def training_pipeline(alphapy_specs, model):
             # predictions
             model = make_predictions(model, algo)
 
-    # Remove algorithms that failed to load
+    # Remove algorithms that failed to load or run, and say so plainly
     for algo in failed_algos:
         model.algolist.remove(algo)
         logger.info("Removed unavailable algorithm %s from model", algo)
+    if failed_algos:
+        logger.warning("Algorithms not in this run's results: %s", ", ".join(failed_algos))
+    if not model.algolist:
+        raise RuntimeError(f"No algorithm could run (requested: {', '.join(failed_algos)}); see the log for each")
 
     # Create a blended estimator
 

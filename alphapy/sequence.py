@@ -124,9 +124,10 @@ def _scale(win: np.ndarray, channels: list[str], scale: dict) -> np.ndarray:
             i = index[channel]
             if how in (None, "none"):
                 continue
-            if how == "mean":            # an all-zero channel (no volume) stays zero rather than unscalable
+            if how == "mean":            # an all-zero channel (no volume) stays zero; an all-missing one stays missing
                 mean = np.nanmean(win[:, i, :], axis=1, keepdims=True)
-                scaled[:, i, :] = np.where(mean > 0, win[:, i, :] / np.where(mean > 0, mean, 1.0), 0.0)
+                safe = np.where(mean != 0, mean, 1.0)
+                scaled[:, i, :] = np.where(mean != 0, win[:, i, :] / safe, np.where(np.isnan(mean), np.nan, 0.0))
             else:
                 scaled[:, i, :] = win[:, i, :] / win[:, index[how], -1:]
     return scaled

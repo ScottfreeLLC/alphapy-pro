@@ -101,7 +101,9 @@ def render(windows: np.ndarray, channels: list[str]) -> np.ndarray:
 def first_layer(window: int) -> tuple[int, int, int]:
     """(vertical stride, vertical dilation, vertical padding) of the first convolution. The paper uses strides 1, 3, 3
     and dilations 1, 2, 3 for 5-, 20- and 60-bar images, on the first layer only; it does not state the padding. These
-    paddings reproduce its fully connected sizes exactly (15,360, 46,080 and 184,320)."""
+    paddings reproduce its fully connected sizes exactly (15,360, 46,080 and 184,320); other paddings in a range do
+    too, and the added rows are background zeros. Other window lengths take the nearest tier above (up to 5, up to 20,
+    beyond): a house rule."""
     if window <= 5:
         return 1, 1, 2
     return (3, 2, 12) if window <= 20 else (3, 3, 12)
