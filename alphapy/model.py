@@ -800,18 +800,19 @@ def get_feature_selection_support(model, algo):
 
 
 def apply_feature_selection_support(model, algo, X):
-    r"""``X`` as an algorithm takes it: its pre-model feature selection on the tabular columns, then the raw window
-    block (the ``sequence`` section) for algorithms that read windows. Tabular algorithms never see the window block."""
+    r"""``X`` as an algorithm takes it. Tabular algorithms get the tabular columns with their pre-model feature
+    selection and never see the raw window block (the ``sequence`` section); window algorithms get the block alone,
+    as a view, without copying the matrix."""
 
     from alphapy.estimators import is_window_algo
 
     n_tabular = model.specs.get('n_tabular')
+    if n_tabular is not None and is_window_algo(algo):
+        return X[:, n_tabular:]
     tabular = X if n_tabular is None else X[:, :n_tabular]
     support = get_feature_selection_support(model, algo)
     if support is not None:
         tabular = tabular[:, support]
-    if n_tabular is not None and is_window_algo(algo):
-        return np.hstack([tabular, X[:, n_tabular:]])
     return tabular
 
 
@@ -948,7 +949,7 @@ def first_fit(model, algo, est):
         model.fnames_algo[algo] = list(np.array(model.feature_names)[support])
     from alphapy.estimators import is_window_algo
     if model.specs.get('n_tabular') is not None and is_window_algo(algo):
-        model.fnames_algo[algo] = model.fnames_algo[algo] + list(model.window_names)
+        model.fnames_algo[algo] = list(model.window_names)
 
     # Record importances and coefficients if necessary.
 

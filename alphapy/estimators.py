@@ -26,7 +26,6 @@
 # Imports
 #
 
-import functools
 import logging
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import ExtraTreesClassifier
@@ -48,7 +47,7 @@ import yaml
 
 
 from alphapy.globals import ModelType
-from alphapy.sequence import window_shape
+from alphapy.sequence import MASK, window_shape
 from alphapy.globals import Objective
 from alphapy.globals import SSEP
 
@@ -173,25 +172,44 @@ estimator_map = {'AB'     : AdaBoostClassifier,
 
 
 #
-# Window algorithms: they read the raw window block of the ``sequence`` section (alphapy.sequence)
+# Window algorithms: they read the raw window block of the ``sequence`` section (alphapy.sequence). They are kept out
+# of ``estimator_map`` and nothing they need is imported until a run with the sequence section fits one: importing
+# torch at start-up made LightGBM's multithreaded cross-validation segfault (two OpenMP runtimes).
 #
 
-WINDOW_LEARNERS = {'MROCK'   : ('aeon', 'minirocket'),
-                   'TSFRESH' : ('tsfresh', 'tsfresh'),
-                   'GPSYM'   : ('gplearn', 'symbolic')}
-WINDOW_NETWORKS = {'CNN'     : 'cnn',
-                   'LSTM'    : 'lstm',
-                   'GRU'     : 'gru',
-                   'INCEPT'  : 'inception',
-                   'TCN'     : 'tcn',
-                   'PATCH'   : 'patch',
-                   'CNNLSTM' : 'cnn_lstm'}
-WINDOW_ALGOS = set(WINDOW_LEARNERS) | set(WINDOW_NETWORKS)
+# algorithm: (module that must be installed, "module:class")
+WINDOW_ALGOS = {'MROCK'   : ('aeon',        'alphapy.learners:LearnedFeatureClassifier'),
+                'TSFRESH' : ('tsfresh',     'alphapy.learners:LearnedFeatureClassifier'),
+                'GPSYM'   : ('gplearn',     'alphapy.learners:LearnedFeatureClassifier'),
+                'TS2VEC'  : ('torch',       'alphapy.learners:LearnedFeatureClassifier'),
+                'KRONOS'  : ('einops',      'alphapy.learners:LearnedFeatureClassifier'),
+                'FORMULA' : ('sb3_contrib', 'alphapy.learners:LearnedFeatureClassifier'),
+                'CNN'     : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'LSTM'    : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'GRU'     : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'INCEPT'  : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'TCN'     : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'PATCH'   : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'CNNLSTM' : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'CHART'   : ('torch',       'alphapy.chart_cnn:ChartCNNClassifier')}
 
 
 def is_window_algo(algo):
     r"""Whether an algorithm reads the window block."""
     return algo in WINDOW_ALGOS
+
+
+def window_estimator_class(algo):
+    r"""The class of a window algorithm, imported now, or None when its package is not installed."""
+    import importlib
+    import importlib.util
+
+    module_name, target = WINDOW_ALGOS[algo]
+    if importlib.util.find_spec(module_name) is None:
+        logger.info("Cannot load %s for %s", module_name, algo)
+        return None
+    module, name = target.split(':')
+    return getattr(importlib.import_module(module), name)
 
 
 #
@@ -238,22 +256,6 @@ def find_optional_packages():
         estimator_map['CATBR'] = catb.CatBoostRegressor
     except ModuleNotFoundError:
         logger.info("Cannot load %s", module_name)
-
-    from alphapy.learners import LearnedFeatureClassifier
-    for algo, (module_name, learner) in WINDOW_LEARNERS.items():
-        try:
-            __import__(module_name)
-            estimator_map[algo] = functools.partial(LearnedFeatureClassifier, learner=learner)
-        except ModuleNotFoundError:
-            logger.info("Cannot load %s", module_name)
-
-    try:
-        import torch  # noqa: F401
-        from alphapy.networks import SequenceNetClassifier
-        for algo, arch in WINDOW_NETWORKS.items():
-            estimator_map[algo] = functools.partial(SequenceNetClassifier, arch=arch)
-    except ModuleNotFoundError:
-        logger.info("Cannot load torch")
 
     return
 
@@ -400,19 +402,23 @@ def get_estimators(alphapy_specs, model):
                 grid[param] = new_list
             elif isinstance(grid[param], str) and grid[param] in ps_fields:
                 grid[param] = ps_values[ps_fields[grid[param]]]
-        try:
-            algo_found = True
-            func = estimator_map[algo]
-        except Exception:
-            algo_found = False
-            logger.info("Algorithm %s not found (check package installation)", algo)
-        if algo_found and is_window_algo(algo):
+        if is_window_algo(algo):
             sequence = model.specs.get('sequence')
-            if not sequence:
+            func = window_estimator_class(algo) if sequence and algo in model.algolist else None
+            algo_found = func is not None
+            if algo in model.algolist and not sequence:
                 logger.warning("Algorithm %s reads raw windows; it needs the sequence section of model.yml", algo)
-                algo_found = False
-            else:
+            if algo_found:
                 params['n_channels'], params['window'] = window_shape(sequence)
+                if 'channels' in func().get_params():
+                    params['channels'] = list(sequence['channels']) + [MASK]
+        else:
+            try:
+                algo_found = True
+                func = estimator_map[algo]
+            except Exception:
+                algo_found = False
+                logger.info("Algorithm %s not found (check package installation)", algo)
         if algo_found:
             est = func(**params)
             # Wrap scale-sensitive algorithms in a Pipeline with StandardScaler

@@ -166,9 +166,12 @@ def shuffle_data(model):
 
     if shuffle:
         logger.info("Shuffling Training Data")
-        np.random.seed(seed)
-        np.random.shuffle(X_train)
-        model.X_train = X_train
+        order = np.random.default_rng(seed).permutation(X_train.shape[0])
+        model.X_train = X_train[order]          # the target and any time blocks move with the rows
+        y_train = model.y_train
+        model.y_train = y_train[order] if not hasattr(y_train, "to_numpy") else y_train[order.tolist()]
+        if getattr(model, "cv_blocks_train", None) is not None:
+            model.cv_blocks_train = model.cv_blocks_train[order]
     else:
         logger.info("Skipping Shuffling")
 

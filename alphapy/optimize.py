@@ -189,7 +189,8 @@ def rfecv_search(model, algo):
     rfecv = RFECV(rfe_est, step=rfe_step, cv=cv_folds,
                   scoring=scorer, verbose=verbosity, n_jobs=n_jobs)
     start = time()
-    selector = rfecv.fit(X_train, y_train.values.ravel())
+    y_np = y_train.to_numpy().ravel() if hasattr(y_train, "to_numpy") else np.asarray(y_train).ravel()
+    selector = rfecv.fit(X_train, y_np)
     logger.info("RFECV took %.2f seconds for step %d and %d folds",
                 (time() - start), rfe_step, cv_folds)
     logger.info("Algorithm: %s, Selected Features: %d, Ranking: %s",

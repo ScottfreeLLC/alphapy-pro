@@ -23,9 +23,9 @@
 
 """Neural networks that learn their own features from raw windows (optional dependency ``torch``).
 
-``SequenceNetClassifier`` reads the window block as the last ``n_channels * window`` columns of what it is given and
-trains one of these networks end to end on the rows ``fit`` receives, holding out the latest ``validation`` share of
-them (rows arrive in time order) for early stopping:
+``SequenceNetClassifier`` reads the window block (AlphaPy gives window algorithms only the block) and
+trains one of these networks end to end on the rows ``fit`` receives, holding out their last ``validation`` share
+(the latest rows when the data are in time order, as AlphaPy's time-ordered folds give them) for early stopping:
 
 - ``cnn``: 1D convolutions with global average pooling.
 - ``lstm`` / ``gru``: a recurrent layer read at the last bar.
@@ -88,8 +88,7 @@ def _network(arch, n_channels, window, hidden):
 
         def forward(self, x):
             b = self.bottleneck(x)
-            width = x.shape[-1]
-            parts = [conv(b)[..., :width] for conv in self.convs] + [self.pool(x)]
+            parts = [conv(b) for conv in self.convs] + [self.pool(x)]
             return self.norm(torch.cat(parts, dim=1))
 
     class Causal(nn.Module):
@@ -119,6 +118,8 @@ def _network(arch, n_channels, window, hidden):
             return self.encoder(self.embed(x) + self.position).mean(dim=1)
 
     h = hidden
+    if arch in ("inception", "patch") and h % 4:
+        raise ValueError(f"hidden must be a multiple of 4 for {arch}, got {h}")
     if arch == "cnn":
         body = nn.Sequential(nn.Conv1d(n_channels, h, 5, padding=2), nn.ReLU(), nn.Conv1d(h, h, 5, padding=2),
                              nn.ReLU(), nn.Conv1d(h, h, 3, padding=1), nn.ReLU(), GlobalPool())
@@ -137,6 +138,47 @@ def _network(arch, n_channels, window, hidden):
     else:
         raise ValueError(f"Unknown architecture {arch}")
     return nn.Sequential(body, nn.Linear(h, 1))
+
+
+class torch_threads:
+    """Hold torch to ``n`` CPU threads inside the block and restore the previous count after.
+
+    LightGBM and torch each bundle an OpenMP runtime; in one process torch's CPU kernels can deadlock unless torch
+    keeps to one thread. Training runs on MPS when available, so this costs little.
+    """
+
+    def __init__(self, n):
+        self.n = n
+
+    def __enter__(self):
+        import torch
+        self.previous = torch.get_num_threads()
+        torch.set_num_threads(self.n)
+
+    def __exit__(self, *exc):
+        import torch
+        torch.set_num_threads(self.previous)
+
+
+def standardise_stats(windows: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Each data channel's mean and standard deviation over present bars only (the mask, the last channel, is 1 there);
+    the mask channel itself is left as it is (mean 0, deviation 1)."""
+    present = windows[:, -1:, :] > 0
+    count = max(int(present.sum()), 1)
+    data = np.where(present, windows, 0.0)
+    mean = data.sum(axis=(0, 2), keepdims=True)[0] / count
+    var = (np.where(present, windows - mean, 0.0) ** 2).sum(axis=(0, 2), keepdims=True)[0] / count
+    std = np.sqrt(var) + 1e-6
+    mean[-1], std[-1] = 0.0, 1.0
+    return mean.astype(np.float32), std.astype(np.float32)
+
+
+def standardise(windows: np.ndarray, mean: np.ndarray, std: np.ndarray) -> np.ndarray:
+    """Standardised windows with padded bars kept at zero."""
+    present = windows[:, -1:, :] > 0
+    out = (windows - mean) / std
+    out[:, :-1, :] = np.where(present, out[:, :-1, :], 0.0)
+    return out
 
 
 class SequenceNetClassifier(ClassifierMixin, BaseEstimator):
@@ -160,28 +202,32 @@ class SequenceNetClassifier(ClassifierMixin, BaseEstimator):
         self.torch_threads = torch_threads
         self.random_state = random_state
 
-    def _windows(self, X):
+    def _raw(self, X):
         width = self.n_channels * self.window
-        windows = unflatten(np.asarray(X, dtype=np.float32)[:, -width:], self.n_channels, self.window)
-        if hasattr(self, "mean_"):                 # each channel standardised by the fitted rows' statistics
-            windows = (windows - self.mean_) / self.std_
-        return windows
+        X = np.asarray(X, dtype=np.float32)
+        if X.shape[1] != width:
+            raise ValueError(f"Expected the {width}-column window block, got {X.shape[1]} columns")
+        return unflatten(X, self.n_channels, self.window)
+
+    def _windows(self, X):
+        return standardise(self._raw(X), self.mean_, self.std_)
 
     def fit(self, X, y):
+        with torch_threads(self.torch_threads):
+            return self._fit(X, y)
+
+    def _fit(self, X, y):
         import torch
 
-        # LightGBM and torch each bundle an OpenMP runtime; in one process torch's CPU kernels can deadlock unless
-        # torch keeps to one thread. Training runs on MPS when available, so this costs little.
-        torch.set_num_threads(self.torch_threads)
         torch.manual_seed(self.random_state)
-        np.random.seed(self.random_state)
-        for name in ("mean_", "std_"):
-            self.__dict__.pop(name, None)
-        raw = self._windows(X)
-        self.mean_ = raw.mean(axis=(0, 2), keepdims=True)[0]
-        self.std_ = raw.std(axis=(0, 2), keepdims=True)[0] + 1e-6
-        windows, y = self._windows(X), np.asarray(y).ravel().astype(np.float32)
-        self.classes_ = np.array([0, 1])
+        y = np.asarray(y).ravel()
+        self.classes_ = np.unique(y)
+        if len(self.classes_) != 2:
+            raise ValueError(f"SequenceNetClassifier needs two classes, got {len(self.classes_)}")
+        y = (y == self.classes_[1]).astype(np.float32)
+        raw = self._raw(X)
+        self.mean_, self.std_ = standardise_stats(raw)
+        windows = standardise(raw, self.mean_, self.std_)
         cut = int(len(y) * (1 - self.validation)) if self.validation else len(y)
         device = _device(self.device)
         net = _network(self.arch, self.n_channels, self.window, self.hidden).to(device)
@@ -243,10 +289,10 @@ class SequenceNetClassifier(ClassifierMixin, BaseEstimator):
     def predict_proba(self, X):
         import torch
 
-        torch.set_num_threads(self.torch_threads)
-        logits = self._logits(self.net_, torch.from_numpy(self._windows(X)), self.device_)
+        with torch_threads(self.torch_threads):
+            logits = self._logits(self.net_, torch.from_numpy(self._windows(X)), self.device_)
         p = torch.sigmoid(logits).cpu().numpy().astype(np.float64)
         return np.column_stack([1 - p, p])
 
     def predict(self, X):
-        return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)
+        return self.classes_[(self.predict_proba(X)[:, 1] >= 0.5).astype(int)]

@@ -65,6 +65,15 @@ sequence = [
     "tsfresh>=0.21",
     "gplearn>=0.4.3",
 ]
+deep = [
+    "torch>=2.0",
+    "einops>=0.8",
+    "huggingface_hub>=0.33",
+    "safetensors>=0.6",
+    "tqdm>=4.0",
+    "stable-baselines3>=2.9",
+    "sb3-contrib>=2.9",
+]
 dev = [
     "pytest>=6.0",
     "pytest-cov>=2.0",
@@ -186,3 +195,7 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = ["sklearn.*", "pandas.*", "numpy.*", "matplotlib.*", "seaborn.*", "bokeh.*"]
 ignore_missing_imports = true
+
+[tool.ruff]
+extend-exclude = ["alphapy/vendor"]   # Kronos, vendored verbatim (alphapy/vendor/kronos/__init__.py)
+line-length = 120

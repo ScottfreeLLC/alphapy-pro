@@ -52,3 +52,18 @@ def test_the_flat_block_round_trips_and_is_named_channel_by_channel():
 def test_windows_too_large_for_memory_are_refused():
     with pytest.raises(MemoryError, match="max_gb"):
         build_windows(frame(), {**SPEC, "max_gb": 1e-9})
+
+
+def test_repeated_keys_are_refused_and_text_dates_are_ordered_as_dates():
+    f = frame()
+    with pytest.raises(ValueError, match="repeat"):
+        build_windows(pd.concat([f, f.iloc[:1]]), SPEC)
+    dated = pd.DataFrame({"g": ["A"] * 3, "t": ["1/10/2020", "1/2/2020", "1/3/2020"], "close": [3.0, 1.0, 2.0],
+                          "volume": [1.0, 1.0, 1.0]})
+    w = build_windows(dated, SPEC)
+    assert np.allclose(w[0, 0], [1 / 3, 2 / 3, 1.0])      # 2 Jan, 3 Jan, then 10 Jan: the row's own bar last
+
+
+def test_without_a_scale_prices_are_divided_by_the_last_close_and_volume_by_its_mean():
+    w = build_windows(frame(), {k: v for k, v in SPEC.items() if k != "scale"})
+    assert np.allclose(w[4, 0], [10 / 12, 11 / 12, 1.0]) and np.allclose(w[4, 1], [0.5, 1.0, 1.5])

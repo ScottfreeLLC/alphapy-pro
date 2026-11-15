@@ -56,11 +56,29 @@ def window_names(spec: dict) -> list[str]:
     return [f"{c}[-{window - 1 - k}]" for c in channels for k in range(window)]
 
 
+def default_scale(channels: list[str]) -> dict:
+    """Prices over the window's last close (when there is a close channel), volume over its window mean."""
+    scale = {c: "close" for c in ("open", "high", "low", "close") if c in channels and "close" in channels}
+    if "volume" in channels:
+        scale["volume"] = "mean"
+    return scale
+
+
+def _order_key(values: pd.Series) -> pd.Series:
+    """A sortable order: numbers and datetimes as they are, text parsed as dates (never sorted as text)."""
+    if pd.api.types.is_numeric_dtype(values) or pd.api.types.is_datetime64_any_dtype(values):
+        return values
+    try:
+        return pd.to_datetime(values)
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"The sequence order column {values.name!r} is neither numeric nor dates") from e
+
+
 def build_windows(frame: pd.DataFrame, spec: dict) -> np.ndarray:
     """Windows for every row of ``frame`` in its own order: float32 array (rows, channels + mask, window)."""
     group, order, session = spec["group"], spec["order"], spec.get("session")
     channels, window = list(spec["channels"]), int(spec["window"])
-    scale = spec.get("scale") or {}
+    scale = spec["scale"] if spec.get("scale") is not None else default_scale(channels)
     n_rows, n_ch = len(frame), len(channels)
     size_gb = n_rows * (n_ch + 1) * window * 4 / 1e9
     limit = float(spec.get("max_gb", 8.0))
@@ -69,8 +87,11 @@ def build_windows(frame: pd.DataFrame, spec: dict) -> np.ndarray:
         raise MemoryError(f"Sequence windows need {size_gb:.1f} GB, above the {limit:.1f} GB limit (max_gb)")
 
     out = np.zeros((n_rows, n_ch + 1, window), dtype=np.float32)
-    keys = frame[[group, order]].reset_index(drop=True)
-    positions = keys.sort_values([group, order], kind="stable").index.to_numpy()
+    keys = pd.DataFrame({"g": frame[group].to_numpy(), "o": _order_key(frame[order].reset_index(drop=True))})
+    duplicated = keys.duplicated()
+    if duplicated.any():
+        raise ValueError(f"{int(duplicated.sum())} rows repeat a ({group}, {order}) pair; windows need one bar per pair")
+    positions = keys.sort_values(["g", "o"], kind="stable").index.to_numpy()
     values = frame[channels].to_numpy(dtype=np.float64)[positions]
     groups = frame[group].to_numpy()[positions]
     sessions = frame[session].to_numpy()[positions] if session else None
@@ -86,9 +107,10 @@ def build_windows(frame: pd.DataFrame, spec: dict) -> np.ndarray:
             sess_win = np.lib.stride_tricks.sliding_window_view(sess, window)
             other = sess_win != sess_win[:, -1:]
             win[np.broadcast_to(other[:, None, :], win.shape)] = np.nan
-        present = ~np.isnan(win).any(axis=1)                                     # (bars, window)
         win = _scale(win, channels, scale)
-        out[positions[start:end], :n_ch, :] = np.nan_to_num(win, nan=0.0, posinf=0.0, neginf=0.0)
+        present = np.isfinite(win).all(axis=1)                                  # (bars, window): a bar any of whose
+        win[~np.broadcast_to(present[:, None, :], win.shape)] = 0.0             # values is missing or unscalable
+        out[positions[start:end], :n_ch, :] = win
         out[positions[start:end], n_ch, :] = present
     return out
 
@@ -143,8 +165,15 @@ def append_windows(model, X_all: np.ndarray, raw_frames=None) -> np.ndarray:
         raise KeyError(f"The sequence section names columns not in the data: {missing}")
     if len(raw) != X_all.shape[0]:
         raise ValueError(f"{len(raw)} raw rows for {X_all.shape[0]} feature rows")
+    n_ch, window = window_shape(spec)
+    final_gb = X_all.shape[0] * (X_all.shape[1] + n_ch * window) * 4 / 1e9
+    limit = float(spec.get("max_gb", 8.0))
+    if 2 * final_gb > limit:            # the stacked float32 matrix, plus the windows while it is built
+        raise MemoryError(f"The feature matrix with windows needs about {2 * final_gb:.1f} GB to build, above the "
+                          f"{limit:.1f} GB limit (max_gb)")
     block = flatten(build_windows(raw, spec))
     model.specs["n_tabular"] = X_all.shape[1]
     model.window_names = window_names(spec)
-    logger.info("Appended %d window columns to %d tabular columns", block.shape[1], X_all.shape[1])
-    return np.hstack([X_all, block.astype(X_all.dtype if X_all.dtype.kind == "f" else np.float32)])
+    logger.info("Appended %d window columns to %d tabular columns (float32, %.2f GB)", block.shape[1], X_all.shape[1],
+                final_gb)
+    return np.hstack([np.asarray(X_all, dtype=np.float32), block])

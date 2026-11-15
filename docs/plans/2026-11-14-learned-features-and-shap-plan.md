@@ -52,9 +52,9 @@ sequence:
   no statistic crosses rows.
 - Windows are built over the training and test rows together, so a test row's window includes the bars before it.
   That uses only past bars.
-- The window block joins `X` after `create_features`, so it skips the tabular median imputation and joint scaling.
-  Each algorithm names its input in `algos.yml`: `input: tabular | window | both`. A column selector at the head of
-  its pipeline takes that block.
+- The window block joins `X` after low-variance removal, so it skips the tabular median imputation and joint
+  scaling. `apply_feature_selection_support` is the gate: tabular algorithms get the tabular columns, window
+  algorithms (`estimators.WINDOW_ALGOS`) get the block alone, as a view.
 - Memory: rows × channels × window float32. Liquid daily stocks at 4.4M rows × 5 × 20 is 1.8 GB. The builder logs
   the size and refuses when it exceeds a configured limit.
 
@@ -99,11 +99,14 @@ Every new model fits AlphaPy's existing framework and configuration:
       after `min_epochs`, because an LSTM stopped on its initial flat loss and kept untrained weights; torch held to one
       CPU thread, because LightGBM's and torch's OpenMP runtimes deadlocked an LSTM in one process) with an sklearn interface: 1D CNN, LSTM/GRU, InceptionTime, TCN, patch transformer, CNN +
       LSTM over bars. Early stopping on a time-ordered internal split; fixed seeds. Tests.
-- [ ] P5 Chart-image CNN after Jiang, Kelly and Xiu (images rendered from the window block). Tests.
-- [ ] P6 TS2Vec representation learner. Tests.
-- [ ] P7 Kronos embeddings (frozen), after the weights' licence check. Tests.
-- [ ] P8 RL formula search reimplemented from the AlphaGen paper. Tests.
-- [ ] P9 SHAP for window models: attributions by bar position and channel (a gradient explainer for torch, grouped
+- [x] P5 (`chart_cnn.py`; batch-norm statistics recomputed each epoch, because the running averages lagged and
+      made evaluation-mode logits huge) Chart-image CNN after Jiang, Kelly and Xiu (images rendered from the window block). Tests.
+- [x] P6 (`ts2vec.py`) TS2Vec representation learner. Tests.
+- [x] P7 (`kronos_features.py`, vendored from Kronos `67b630e`; weights MIT per the model card; no timestamps fed,
+      which Kronos-small was trained with) Kronos embeddings (frozen), after the weights' licence check. Tests.
+- [x] P8 (`formula_search.py`, from the paper only; on synthetic data PPO found no better formulas than uniform
+      valid sampling) RL formula search reimplemented from the AlphaGen paper. Tests.
+- [x] P9 (`explain.window_groups`, `explain_window_model`: interventional SHAP over channel x bar-age groups) SHAP for window models: attributions by bar position and channel (a gradient explainer for torch, grouped
       permutation otherwise), not by thousands of kernel outputs.
 
 Each phase:
@@ -113,3 +116,23 @@ Each phase:
 
 Trying these models on the next-bar cells is separate work in alphapy-finance. Each model is a counted trial there,
 chosen on development folds, because the held-back period has already been read many times.
+
+## Second review (Fable, 2026-11-14) and what changed
+
+- Torch imported at start-up made existing LightGBM projects with `number_jobs: -1` segfault (two OpenMP runtimes).
+  Window algorithms now live in their own map, imported only when a sequence run fits one, and the model loop fits
+  tabular algorithms first. `tests/test_registry_isolation.py` runs multithreaded LightGBM cross-validation after the
+  registry loads.
+- Predict mode is broken independently of this work (the predictor loader and `save_predictions` call). It refuses the
+  sequence section until it is repaired.
+- `n_jobs` below 1 means 1 for learners (numba and tsfresh reject AlphaPy's -1); a learner's inner LightGBM uses one
+  thread.
+- Network standardisation uses present bars only; padding stays zero and the mask is not scaled.
+- Memory: the matrix stays float32 and the check counts the whole stacked matrix; learned features are produced in
+  chunks and refused above `max_gb`. MiniRocket defaults to 1,000 kernels (10,000 needed about 124 GB on 3.1M rows) and
+  tsfresh to its minimal set (the efficient set costs about 0.4 s a row).
+- torch thread counts are restored after each call; the global numpy seed is no longer set; any two class labels work.
+- The window builder refuses repeated (group, order) pairs, parses text dates, scales by default and masks bars it
+  cannot scale.
+- Pre-existing bugs fixed on the way: `shuffle: True` shuffled the features without the target; RFE failed on a Polars
+  target; low-variance removal left `feature_names` stale.

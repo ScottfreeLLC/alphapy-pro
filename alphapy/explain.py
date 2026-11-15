@@ -28,7 +28,8 @@ using the estimator AlphaPy fitted before any calibration (for XGBoost with earl
 split). A pipeline (AlphaPy scales linear models and neighbours in one) is unwrapped: its last step is explained on the
 output of the steps before it. Tree ensembles use SHAP's exact tree explainer, linear models its linear explainer, and
 anything else a permutation explainer on fewer rows. Binary classifiers and regressors are supported; multiclass
-models and window models are skipped with a message.
+models are skipped with a message. Window models (the ``sequence`` section) are explained by channel and bar age:
+the row's own bar, 2-5 bars back, 6-10, 11-20, 21-60 and older, each group's columns masked together.
 
 Units: log-odds for boosted trees and linear classifiers, the probability of the positive class for random forests,
 extra trees and the permutation explainer, and the predicted value for regressors.
@@ -104,6 +105,54 @@ def explain_estimator(estimator, X: np.ndarray, background: np.ndarray, seed: in
     return values, _unit(estimator, kind)
 
 
+AGE_GROUPS = ((0, 1), (1, 5), (5, 10), (10, 20), (20, 60), (60, None))   # bars back from the row's own bar
+
+
+def window_groups(channels: list[str], window: int) -> tuple[list[str], list[np.ndarray]]:
+    """Names and column positions (in the flattened block, channel by channel, oldest bar first) of each channel's
+    bar-age groups: the row's own bar, bars 2-5 back, 6-10, 11-20, 21-60, older. The mask channel is not explained."""
+    names, columns = [], []
+    for c, channel in enumerate(channels):
+        if channel == "_mask":
+            continue
+        for lo, hi in AGE_GROUPS:
+            hi = window if hi is None else min(hi, window)
+            if lo >= hi:
+                continue
+            ages = np.arange(lo, hi)                        # 0 = the row's own bar
+            names.append(f"{channel}[{'own bar' if hi - lo == 1 and lo == 0 else f'{lo + 1}-{hi} back'}]")
+            columns.append(c * window + (window - 1 - ages))
+    return names, columns
+
+
+def explain_window_model(estimator, X: np.ndarray, background: np.ndarray, channels: list[str], window: int,
+                         seed: int = 42) -> tuple[np.ndarray, list[str]]:
+    """Interventional SHAP values of a window model's probability, one per channel and bar-age group.
+
+    Each explained row is coded as a vector of row numbers, one per group; masking a group takes its columns from a
+    background row instead. SHAP's permutation explainer runs on that coding, so the values are exact Shapley
+    estimates over groups and sum to the prediction minus the background's average.
+    """
+    import shap
+
+    names, columns = window_groups(channels, window)
+    data = np.vstack([X, background])
+    own = np.tile(np.arange(len(X))[:, None], (1, len(columns)))
+    back = np.tile(np.arange(len(X), len(data))[:, None], (1, len(columns)))
+
+    def predict(codes):
+        codes = np.asarray(codes, dtype=int)
+        rebuilt = np.repeat(data[:1], len(codes), axis=0)
+        rebuilt[:] = data[codes[:, 0]]                      # columns outside every group follow the first group's row
+        for g, cols in enumerate(columns):
+            rebuilt[:, cols] = data[codes[:, g]][:, cols]
+        return estimator.predict_proba(rebuilt)[:, 1]
+
+    explainer = shap.PermutationExplainer(predict, shap.maskers.Independent(back, max_samples=len(back)), seed=seed)
+    values = explainer(own, max_evals=max(500, 2 * len(columns) + 1)).values
+    return np.asarray(values), names
+
+
 def sample_rows(n_rows: int, size: int, seed: int) -> np.ndarray:
     """A sorted seeded sample of row positions (all rows when there are fewer than ``size``)."""
     if n_rows <= size:
@@ -140,16 +189,20 @@ def shap_analysis(model, partition: Partition) -> None:
             estimator = model.uncalibrated.get(algo, model.estimators.get(algo))
             if estimator is None:
                 continue
-            if hasattr(estimator, "n_channels") and hasattr(estimator, "window"):
-                logger.info("SHAP for window model %s is not available yet; skipped", algo)
-                continue
             X, names = algo_matrix(model, algo, X_all)
             background, _ = algo_matrix(model, algo, model.X_train)
-            kind = _kind(unwrap(estimator, X[:1], X[:1])[0])
+            window_model = hasattr(estimator, "n_channels") and hasattr(estimator, "window")
+            kind = "other" if window_model else _kind(unwrap(estimator, X[:1], X[:1])[0])
             rows = sample_rows(X.shape[0], size if kind != "other" else min(size, PERMUTATION_ROWS), seed)
             back = background[sample_rows(background.shape[0], BACKGROUND_ROWS, seed + 1)]
             logger.info("SHAP for Algorithm: %s (%d rows)", algo, len(rows))
-            values, unit = explain_estimator(estimator, X[rows], back, seed)
+            if window_model:
+                from alphapy.sequence import MASK
+                channels = list(model.specs["sequence"]["channels"]) + [MASK]
+                values, names = explain_window_model(estimator, X[rows], back, channels, estimator.window, seed)
+                unit, X = "probability", np.zeros((X.shape[0], len(names)))   # plots colour by value: none here
+            else:
+                values, unit = explain_estimator(estimator, X[rows], back, seed)
             tag = USEP.join([pstring, algo])
             ranking(values, names).assign(unit=unit).to_csv(SSEP.join([out_dir, f"shap_ranking_{tag}.csv"]),
                                                             index=False)

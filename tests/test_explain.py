@@ -95,3 +95,24 @@ def test_low_variance_removal_keeps_the_feature_names_with_the_columns():
                             feature_names=["a", "b", "c"], feature_map={}, algolist=["LGB"], fnames_algo={})
     reduced = remove_lv_features(model, X)
     assert reduced.shape[1] == 2 and model.feature_names == ["a", "c"] and model.fnames_algo["LGB"] == ["a", "c"]
+
+
+def test_window_models_are_explained_by_channel_and_bar_age_and_the_values_add_up():
+    from alphapy.explain import explain_window_model, window_groups
+    window, channels = 12, ["close", "volume", "_mask"]
+    names, columns = window_groups(channels, window)
+    assert names[:4] == ["close[own bar]", "close[2-5 back]", "close[6-10 back]", "close[11-12 back]"]
+    assert list(columns[0]) == [window - 1] and "_mask" not in " ".join(names)
+
+    class SixToTen:                                    # depends only on close, 6-10 bars back
+        def predict_proba(self, X):
+            p = 1 / (1 + np.exp(-X[:, columns[2]].sum(axis=1)))
+            return np.column_stack([1 - p, p])
+
+    rng = np.random.default_rng(0)
+    X, back = rng.normal(size=(30, 3 * window)), rng.normal(size=(20, 3 * window))
+    values, got = explain_window_model(SixToTen(), X, back, channels, window)
+    assert got == names and values.shape == (30, len(names))
+    assert np.abs(values).mean(axis=0).argmax() == 2
+    f = SixToTen().predict_proba
+    assert np.allclose(values.sum(axis=1), f(X)[:, 1] - f(back)[:, 1].mean(), atol=1e-6)

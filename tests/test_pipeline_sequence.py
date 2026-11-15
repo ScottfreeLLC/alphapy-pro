@@ -64,7 +64,7 @@ def config():
                      "univariate": {"option": False, "percentage": 50, "uni_grid": [5, 10],
                                     "score_func": "f_regression"},
                      "variance": {"option": False, "threshold": 0.1}},
-        "pipeline": {"number_jobs": 1, "seed": 42, "verbosity": 0},
+        "pipeline": {"number_jobs": -1, "seed": 42, "verbosity": 0},   # the setting that segfaulted LightGBM
         "plots": {"calibration": False, "confusion_matrix": False, "importances": False, "learning_curve": False,
                   "roc_curve": False, "shap": True, "shap_samples": 200},
         "sequence": {"option": True, "group": "ticker", "order": "date", "channels": ["close", "volume"],
@@ -87,7 +87,7 @@ def test_tabular_and_window_algorithms_run_side_by_side_through_the_pipeline(tmp
                          text=True, timeout=900)
     assert run.returncode == 0, run.stderr[-3000:]
     log = run.stdout + run.stderr
-    assert "Appended 36 window columns to 1 tabular columns" in log
+    assert "Appended 36 window columns to 1 tabular columns" in log and "Segmentation" not in log
     out = next((tmp_path / "runs").iterdir()) / "output"
     ranked = pd.read_csv(out / "ranked_test.csv")
     auc = {a: roc_auc_score(ranked["label"], ranked[f"prob_test_{a}"]) for a in ("lgb", "cnn", "mrock")}

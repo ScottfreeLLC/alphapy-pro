@@ -23,14 +23,14 @@
 
 """Classifiers that learn their own features from raw windows (the ``sequence`` section).
 
-``LearnedFeatureClassifier`` takes the window block as the last ``n_channels * window`` columns of what it is given
-(any columns before them are tabular), fits a feature learner on its training rows only, and fits a classifier on the
-learned features, with the tabular columns too when ``use_tabular`` is set. Because the learner is fitted inside
+``LearnedFeatureClassifier`` takes the window block (AlphaPy gives window algorithms only the block), fits a feature
+learner on its training rows only, and fits a classifier on the learned features. Because the learner is fitted inside
 ``fit``, every cross-validation, calibration and time-ordered fold refits it on that fold's training rows.
 
 Learners (optional dependencies): ``minirocket`` (aeon's MiniRocket random convolution kernels), ``tsfresh``
-(tsfresh feature extraction with its FRESH hypothesis-test selection) and ``symbolic`` (gplearn's genetic-programming
-``SymbolicTransformer`` over the window's values).
+(tsfresh feature extraction with its FRESH hypothesis-test selection), ``symbolic`` (gplearn's genetic-programming
+``SymbolicTransformer`` over the window's values), ``ts2vec`` (alphapy.ts2vec), ``kronos`` (frozen Kronos embeddings,
+alphapy.kronos_features) and ``formula`` (reinforcement-learning formula search, alphapy.formula_search).
 """
 
 #
@@ -64,7 +64,7 @@ class _MiniRocket:
 
 
 class _Tsfresh:
-    def __init__(self, fc_parameters="efficient", fdr_level=0.05, n_jobs=1, random_state=0):
+    def __init__(self, fc_parameters="minimal", fdr_level=0.05, n_jobs=1, random_state=0):
         self.fc_parameters, self.fdr_level, self.n_jobs = fc_parameters, fdr_level, n_jobs
 
     def _extract(self, windows):
@@ -81,13 +81,13 @@ class _Tsfresh:
                                     n_jobs=self.n_jobs, disable_progressbar=True)
         return features.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-    def fit(self, windows, y):
+    def fit_transform(self, windows, y):
         from tsfresh import select_features
 
-        features = self._extract(windows)
+        features = self._extract(windows)                  # extracted once; the selection reuses it
         selected = select_features(features, np.asarray(y), fdr_level=self.fdr_level, n_jobs=self.n_jobs)
         self.columns_ = list(selected.columns) or list(features.columns[:1])
-        return self
+        return features[self.columns_].to_numpy(dtype=np.float32)
 
     def transform(self, windows):
         return self._extract(windows).reindex(columns=self.columns_, fill_value=0.0).to_numpy(dtype=np.float32)
@@ -108,7 +108,25 @@ class _Symbolic:
         return np.asarray(self.model.transform(windows.reshape(len(windows), -1)), dtype=np.float32)
 
 
-LEARNERS = {"minirocket": _MiniRocket, "tsfresh": _Tsfresh, "symbolic": _Symbolic}
+def _ts2vec(**params):
+    from alphapy.ts2vec import TS2VecLearner
+    return TS2VecLearner(**params)
+
+
+def _kronos(**params):
+    from alphapy.kronos_features import KronosLearner
+    return KronosLearner(**params)
+
+
+def _formula(**params):
+    from alphapy.formula_search import FormulaSearchLearner
+    return FormulaSearchLearner(**params)
+
+
+# Learners that need the window's channel names receive ``channels``; the others do not take it.
+LEARNERS = {"minirocket": _MiniRocket, "tsfresh": _Tsfresh, "symbolic": _Symbolic, "ts2vec": _ts2vec,
+            "kronos": _kronos, "formula": _formula}
+TAKES_CHANNELS = {"kronos", "formula"}
 
 
 def _classifier(name, params, random_state):
@@ -117,48 +135,71 @@ def _classifier(name, params, random_state):
                                                                   **(params or {})))
     if name == "lgbm":
         import lightgbm as lgb
-        return lgb.LGBMClassifier(random_state=random_state, verbose=-1, **(params or {}))
+        # One thread: a multithreaded LightGBM segfaults in a process where torch was loaded first.
+        return lgb.LGBMClassifier(random_state=random_state, verbose=-1, n_jobs=1, **(params or {}))
     raise ValueError(f"Unknown classifier {name}")
 
 
 class LearnedFeatureClassifier(ClassifierMixin, BaseEstimator):
-    """A feature learner on the window block, then a classifier; both fitted on the rows ``fit`` receives."""
+    """A feature learner on the window block, then a classifier; both fitted on the rows ``fit`` receives.
 
-    def __init__(self, learner="minirocket", n_channels=6, window=20, use_tabular=False, classifier="logistic",
-                 learner_params=None, classifier_params=None, n_jobs=1, random_state=0):
+    ``X`` is the window block alone (AlphaPy gives window algorithms only the block). Learned features are produced
+    ``chunk_rows`` rows at a time, and a learner whose features for all rows would exceed ``max_gb`` is refused.
+    ``n_jobs`` below 1 means 1: AlphaPy's ``-1`` would oversubscribe the cross-validation workers (numba refuses it,
+    tsfresh rejects it).
+    """
+
+    def __init__(self, learner="minirocket", n_channels=6, window=20, classifier="logistic", learner_params=None,
+                 classifier_params=None, channels=None, chunk_rows=50000, max_gb=8.0, n_jobs=1, random_state=0):
         self.learner = learner
         self.n_channels = n_channels
         self.window = window
-        self.use_tabular = use_tabular
         self.classifier = classifier
         self.learner_params = learner_params
         self.classifier_params = classifier_params
+        self.channels = channels
+        self.chunk_rows = chunk_rows
+        self.max_gb = max_gb
         self.n_jobs = n_jobs
         self.random_state = random_state
 
-    def _split(self, X):
-        X = np.asarray(X, dtype=np.float32)
+    def _windows(self, X):
         width = self.n_channels * self.window
-        return X[:, :-width], unflatten(X[:, -width:], self.n_channels, self.window)
+        X = np.asarray(X, dtype=np.float32)
+        if X.shape[1] != width:
+            raise ValueError(f"Expected the {width}-column window block, got {X.shape[1]} columns")
+        return unflatten(X, self.n_channels, self.window)
 
-    def _features(self, X):
-        tabular, windows = self._split(X)
-        learned = self.learner_.transform(windows)
-        return np.hstack([learned, tabular]) if self.use_tabular and tabular.shape[1] else learned
+    def _features(self, windows, first=None):
+        parts = [] if first is None else [first]
+        start = 0 if first is None else len(first)
+        for i in range(start, len(windows), self.chunk_rows):
+            part = self.learner_.transform(windows[i:i + self.chunk_rows])
+            if not parts and part.size and len(windows) * part.shape[1] * 4 / 1e9 > self.max_gb:
+                raise MemoryError(f"{self.learner} features for {len(windows)} rows need "
+                                  f"{len(windows) * part.shape[1] * 4 / 1e9:.1f} GB, above max_gb={self.max_gb}")
+            parts.append(part)
+        return np.vstack(parts) if parts else np.zeros((0, 0), np.float32)
 
     def fit(self, X, y):
         y = np.asarray(y).ravel()
-        _, windows = self._split(X)
-        params = {"n_jobs": self.n_jobs, **(self.learner_params or {})}
+        windows = self._windows(X)
+        params = {"n_jobs": max(1, int(self.n_jobs)), **(self.learner_params or {})}
+        if self.learner in TAKES_CHANNELS and self.channels is not None:
+            params.setdefault("channels", tuple(self.channels))
         self.learner_ = LEARNERS[self.learner](random_state=self.random_state, **params)
-        self.learner_.fit(windows, y)
+        if hasattr(self.learner_, "fit_transform"):
+            features = self._features(windows, first=self.learner_.fit_transform(windows, y))
+        else:
+            self.learner_.fit(windows, y)
+            features = self._features(windows)
         self.model_ = _classifier(self.classifier, self.classifier_params, self.random_state)
-        self.model_.fit(self._features(X), y)
+        self.model_.fit(features, y)
         self.classes_ = self.model_.classes_
         return self
 
     def predict_proba(self, X):
-        return self.model_.predict_proba(self._features(X))
+        return self.model_.predict_proba(self._features(self._windows(X)))
 
     def predict(self, X):
-        return self.model_.predict(self._features(X))
+        return self.classes_[np.argmax(self.predict_proba(X), axis=1)]

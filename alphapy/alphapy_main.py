@@ -359,7 +359,9 @@ def training_pipeline(alphapy_specs, model):
     logger.info("Selecting Models")
 
     failed_algos = []
-    for algo in model.algolist:
+    # Tabular algorithms first: window algorithms load torch, after which LightGBM's multithreaded cross-validation
+    # can segfault (two OpenMP runtimes).
+    for algo in sorted(model.algolist, key=is_window_algo):
         logger.info("Algorithm: %s", algo)
         # select estimator
         try:
@@ -496,11 +498,10 @@ def prediction_pipeline(alphapy_specs, model):
     # Remove low-variance features
     X_all = remove_lv_features(model, X_all)
 
-    # Append the raw window block [if the sequence section is on]: each row's window comes from the prediction
-    # frame itself, so it must carry each group's earlier bars
+    # Window algorithms are not supported in predict mode yet
 
     if model.specs.get('sequence'):
-        X_all = append_windows(model, X_all, raw_frames=(X_predict,))
+        raise NotImplementedError("Predict mode does not support the sequence section yet")
 
     # Load the LOFO support vector, if any
 
