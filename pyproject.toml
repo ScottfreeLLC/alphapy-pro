@@ -60,6 +60,11 @@ dependencies = [
 explain = [
     "shap>=0.54",
 ]
+sequence = [
+    "aeon>=1.6",
+    "tsfresh>=0.21",
+    "gplearn>=0.4.3",
+]
 dev = [
     "pytest>=6.0",
     "pytest-cov>=2.0",
