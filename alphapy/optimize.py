@@ -26,6 +26,7 @@
 # Imports
 #
 
+from alphapy.estimators import worker_jobs
 from alphapy.globals import ModelType
 from alphapy.model import apply_feature_selection_support
 
@@ -155,7 +156,8 @@ def rfecv_search(model, algo):
 
     # Extract model data.
 
-    X_train = model.X_train
+    # The columns the algorithm was fitted on (its univariate or LOFO selection), so RFE's support lines up with them
+    X_train = apply_feature_selection_support(model, algo, model.X_train)
     y_train = model.y_train
 
     # Extract model parameters.
@@ -184,11 +186,16 @@ def rfecv_search(model, algo):
             if param in valid_params:
                 rfe_est.set_params(**{param: 1})
 
+    if X_train.shape[1] < 2:
+        logger.info("RFE skipped for %s: its feature selection left %d column", algo, X_train.shape[1])
+        return model
+
     logger.info("Recursive Feature Elimination with CV")
     rfecv = RFECV(rfe_est, step=rfe_step, cv=cv_folds,
-                  scoring=scorer, verbose=verbosity, n_jobs=n_jobs)
+                  scoring=scorer, verbose=verbosity, n_jobs=worker_jobs(n_jobs, rfe_est))
     start = time()
-    selector = rfecv.fit(X_train, y_train.values.ravel())
+    y_np = y_train.to_numpy().ravel() if hasattr(y_train, "to_numpy") else np.asarray(y_train).ravel()
+    selector = rfecv.fit(X_train, y_np)
     logger.info("RFECV took %.2f seconds for step %d and %d folds",
                 (time() - start), rfe_step, cv_folds)
     logger.info("Algorithm: %s, Selected Features: %d, Ranking: %s",
@@ -334,7 +341,7 @@ def hyper_grid_search(model, estimator):
         scoring=scorer,
         n_trials=n_trials,
         timeout=timeout,
-        n_jobs=n_jobs,
+        n_jobs=worker_jobs(n_jobs, optuna_est),
         verbose=0
     )
 

@@ -74,6 +74,7 @@ from sklearn.model_selection import validation_curve
 from sklearn.utils.multiclass import unique_labels
 import warnings
 
+from alphapy.estimators import worker_jobs
 from alphapy.estimators import get_estimators
 from alphapy.globals import BSEP, SSEP, USEP
 from alphapy.globals import ModelType
@@ -169,6 +170,9 @@ def generate_plots(alphapy_specs, model, partition):
         plot_confusion_matrix(model, partition)
     if roc_curve_flag:
         plot_roc_curve(model, partition)
+    if model.specs.get('shap') and (partition == Partition.test or not model.test_labels):
+        from alphapy.explain import shap_analysis
+        shap_analysis(model, partition)
     if partition == Partition.train:
         if learning_curve_flag:
             plot_learning_curve(alphapy_specs, model, partition)
@@ -341,7 +345,8 @@ def plot_calibration(model, partition):
         if hasattr(clf, "predict_proba"):
             prob_pos = model.probas[(algo, partition)]
         else:  # use decision function
-            prob_pos = clf.decision_function(X)
+            from alphapy.model import algo_matrix
+            prob_pos = clf.decision_function(algo_matrix(model, algo, X)[0])
             prob_pos = \
                 (prob_pos - prob_pos.min()) / (prob_pos.max() - prob_pos.min())
         fraction_of_positives, mean_predicted_value = \
@@ -517,9 +522,10 @@ def plot_learning_curve(alphapy_specs, model, partition):
         # call learning curve function
         train_sizes=np.linspace(0.1, 1.0, cv_folds)
         y_np = y.to_numpy().ravel() if hasattr(y, 'to_numpy') else y.values.ravel()
+        from alphapy.model import algo_matrix
         train_sizes, train_scores, test_scores = \
-            learning_curve(est, X, y_np, train_sizes=train_sizes,
-                           cv=cv_folds, n_jobs=n_jobs, verbose=verbosity)
+            learning_curve(est, algo_matrix(model, algo, X)[0], y_np, train_sizes=train_sizes,
+                           cv=cv_folds, n_jobs=worker_jobs(n_jobs, est), verbose=verbosity)
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
@@ -781,7 +787,7 @@ def plot_validation_curve(model, partition, pname, prange):
         # set up plot
         train_scores, test_scores = validation_curve(
             estimator, X, y.values.ravel(), param_name=pname, param_range=prange,
-            cv=cv_folds, scoring=scorer, n_jobs=n_jobs)
+            cv=cv_folds, scoring=scorer, n_jobs=worker_jobs(n_jobs, estimator))
         train_scores_mean = np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
         test_scores_mean = np.mean(test_scores, axis=1)
@@ -952,7 +958,7 @@ def plot_partial_dependence(est, X, features, fnames, tag,
     # Plot partial dependence
 
     fig, axs = PartialDependenceDisplay(est, X, features, feature_names=fnames,
-                                        grid_resolution=50, n_jobs=n_jobs,
+                                        grid_resolution=50, n_jobs=worker_jobs(n_jobs, est),
                                         verbose=verbosity)
     title = "Partial Dependence Plot"
     fig.suptitle(title)

@@ -318,3 +318,100 @@ XTR:
                   "n_jobs" : n_jobs,
                   "verbose" : verbosity}
     grid       : {}
+
+#
+# Window algorithms: they read the raw window block of the sequence section in model.yml and are offered only when it
+# is on. AlphaPy sets n_channels, window (and channels, where taken) from that section. Learners run single-threaded
+# inside AlphaPy's cross-validation workers.
+#
+
+MROCK:
+    # MiniRocket random convolution kernels (aeon), then logistic regression. About 924 features a row at 1,000
+    # kernels; learned features above max_gb (GB) are refused.
+    model_type : classification
+    params     : {"learner" : "minirocket", "learner_params" : {"n_kernels" : 1000}, "classifier" : "logistic",
+                  "max_gb" : 8.0, "random_state" : seed}
+    grid       : {}
+
+TSFRESH:
+    # tsfresh features (the minimal set; the efficient set costs about 0.4 s per row) with FRESH selection, then LightGBM
+    model_type : classification
+    params     : {"learner" : "tsfresh", "learner_params" : {"fc_parameters" : "minimal", "fdr_level" : 0.05},
+                  "classifier" : "lgbm", "random_state" : seed}
+    grid       : {}
+
+GPSYM:
+    # Genetic-programming formulas over the window's values (gplearn), then logistic regression
+    model_type : classification
+    params     : {"learner" : "symbolic",
+                  "learner_params" : {"n_components" : 10, "generations" : 20, "population_size" : 1000},
+                  "classifier" : "logistic", "random_state" : seed}
+    grid       : {}
+
+TS2VEC:
+    # Self-supervised TS2Vec representations (Yue et al., 2022), then logistic regression
+    model_type : classification
+    params     : {"learner" : "ts2vec", "learner_params" : {"epochs" : 20}, "classifier" : "logistic",
+                  "random_state" : seed}
+    grid       : {}
+
+KRONOS:
+    # Frozen Kronos-small embeddings (Shi et al., 2025), then logistic regression
+    model_type : classification
+    params     : {"learner" : "kronos", "classifier" : "logistic", "random_state" : seed}
+    grid       : {}
+
+FORMULA:
+    # Reinforcement-learning formula search after Yu et al., KDD 2023, then logistic regression
+    model_type : classification
+    params     : {"learner" : "formula", "learner_params" : {"pool_size" : 10, "total_timesteps" : 20000},
+                  "classifier" : "logistic", "random_state" : seed}
+    grid       : {}
+
+CNN:
+    # 1D convolutional network
+    model_type : classification
+    params     : {"arch" : "cnn", "hidden" : 64, "epochs" : 30, "batch_size" : 512, "random_state" : seed}
+    grid       : {}
+
+LSTM:
+    # Long short-term memory network
+    model_type : classification
+    params     : {"arch" : "lstm", "hidden" : 64, "epochs" : 30, "batch_size" : 512, "random_state" : seed}
+    grid       : {}
+
+GRU:
+    # Gated recurrent unit network
+    model_type : classification
+    params     : {"arch" : "gru", "hidden" : 64, "epochs" : 30, "batch_size" : 512, "random_state" : seed}
+    grid       : {}
+
+INCEPT:
+    # InceptionTime blocks (hidden must be a multiple of 4)
+    model_type : classification
+    params     : {"arch" : "inception", "hidden" : 64, "epochs" : 30, "batch_size" : 512, "random_state" : seed}
+    grid       : {}
+
+TCN:
+    # Dilated causal convolutions
+    model_type : classification
+    params     : {"arch" : "tcn", "hidden" : 64, "epochs" : 30, "batch_size" : 512, "random_state" : seed}
+    grid       : {}
+
+PATCH:
+    # Transformer encoder over patches of bars (hidden must be a multiple of 4, the attention heads)
+    model_type : classification
+    params     : {"arch" : "patch", "hidden" : 64, "epochs" : 30, "batch_size" : 512, "random_state" : seed}
+    grid       : {}
+
+CNNLSTM:
+    # Convolutions, then an LSTM over their outputs (bars, not order books)
+    model_type : classification
+    params     : {"arch" : "cnn_lstm", "hidden" : 64, "epochs" : 30, "batch_size" : 512, "random_state" : seed}
+    grid       : {}
+
+CHART:
+    # CNN on price-volume chart images (Jiang, Kelly and Xiu, 2023): needs open, high, low, close (volume optional)
+    model_type : classification
+    params     : {"epochs" : 30, "batch_size" : 128, "lr" : 0.00001, "random_state" : seed}
+    grid       : {}

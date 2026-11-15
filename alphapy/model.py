@@ -40,6 +40,7 @@ warnings.simplefilter(action='ignore', category=ConvergenceWarning)
 # Imports
 #
 
+from alphapy.estimators import worker_jobs
 from alphapy.estimators import scorers
 from alphapy.estimators import xgb_score_map
 from alphapy.features import feature_scorers
@@ -194,10 +195,13 @@ class Model:
         self.best_algo = None
         # feature names
         self.feature_names = []
+        # names of the raw window block (the sequence section), after the tabular columns
+        self.window_names = []
         # feature map
         self.feature_map = {}
         # Key: (algorithm)
         self.estimators = {}
+        self.uncalibrated = {}      # the full fit of a calibrated algorithm, for explanations
         self.importances = {}
         self.coefs = {}
         self.support = {}
@@ -358,6 +362,10 @@ def get_model_config(directory='.'):
     model_section = cfg['model']
     specs['algorithms'] = model_section['algorithms']
     specs['cv_folds'] = model_section['cv_folds']
+    # optional: time-ordered folds over a block column (for example a date), with an embargo in blocks
+    cv_blocks = model_section.get('cv_time_blocks') or {}
+    specs['cv_blocks_column'] = cv_blocks.get('column') if cv_blocks.get('option') else None
+    specs['cv_blocks_embargo'] = int(cv_blocks.get('embargo', 1))
     # determine whether or not model type is valid
     model_types = {x.name: x.value for x in ModelType}
     model_type = model_section['type']
@@ -421,6 +429,13 @@ def get_model_config(directory='.'):
     specs['importances'] = plots_section['importances']
     specs['learning_curve'] = plots_section['learning_curve']
     specs['roc_curve'] = plots_section['roc_curve']
+    specs['shap'] = plots_section.get('shap', False)
+
+    # Section: sequence (optional): raw windows for algorithms that learn their own features
+
+    sequence_section = cfg.get('sequence') or {}
+    specs['sequence'] = sequence_section if sequence_section.get('option') else None
+    specs['shap_samples'] = plots_section.get('shap_samples', 2000)
 
     # Section: transforms
 
@@ -492,6 +507,8 @@ def get_model_config(directory='.'):
     logger.info('rfe               = %r', specs['rfe'])
     logger.info('rfe_step          = %d', specs['rfe_step'])
     logger.info('roc_curve         = %r', specs['roc_curve'])
+    logger.info('shap              = %r', specs['shap'])
+    logger.info('sequence          = %r', specs['sequence'])
     logger.info('rounding          = %d', specs['rounding'])
     logger.info('scaler_option     = %r', specs['scaler_option'])
     logger.info('scaler_type       = %r', specs['scaler_type'])
@@ -682,6 +699,76 @@ def save_feature_map(model):
 
 
 #
+# Class TimeBlockSplit
+#
+
+class TimeBlockSplit:
+    r"""Walk-forward folds over time blocks (for example dates), for pooled data.
+
+    The sorted block values are cut into ``n_splits + 1`` runs. Fold ``k`` tests on run ``k`` and trains on every
+    row whose block is earlier than that run by more than ``embargo`` blocks, so a fold never trains on its own
+    or later timestamps.
+
+    Parameters
+    ----------
+    blocks : array-like
+        Each training row's block value (sortable), in row order.
+    n_splits : int
+        The number of folds.
+    embargo : int
+        Blocks left out between a fold's training and test rows.
+
+    """
+
+    def __init__(self, blocks, n_splits, embargo=1):
+        self.blocks = np.asarray(blocks)
+        self.n_splits = n_splits
+        self.embargo = embargo
+
+    def get_n_splits(self, X=None, y=None, groups=None):
+        return self.n_splits
+
+    def split(self, X=None, y=None, groups=None):
+        values, position = np.unique(self.blocks, return_inverse=True)
+        if len(values) < (self.n_splits + 1) * (self.embargo + 1):
+            raise ValueError("Too few time blocks for %d folds with an embargo of %d"
+                             % (self.n_splits, self.embargo))
+        runs = np.array_split(np.arange(len(values)), self.n_splits + 1)
+        for run in runs[1:]:
+            train = np.flatnonzero(position < run[0] - self.embargo)
+            test = np.flatnonzero((position >= run[0]) & (position <= run[-1]))
+            yield train, test
+
+
+#
+# Function time_block_splitter
+#
+
+def time_block_splitter(model, n_rows):
+    r"""The time-ordered splitter when the model asks for one, else None.
+
+    Parameters
+    ----------
+    model : alphapy.Model
+        The model object; ``cv_blocks_train`` holds each training row's block value.
+    n_rows : int
+        The number of training rows about to be split.
+
+    Returns
+    -------
+    splitter : TimeBlockSplit or None
+
+    """
+    if not model.specs.get('cv_blocks_column'):
+        return None
+    blocks = getattr(model, 'cv_blocks_train', None)
+    if blocks is None or len(blocks) != n_rows:
+        raise ValueError("Time-ordered folds need one block value per training row "
+                         "(shuffling, sampling and row filters must be off)")
+    return TimeBlockSplit(blocks, model.specs['cv_folds'], model.specs.get('cv_blocks_embargo', 1))
+
+
+#
 # Function first_fit
 #
 
@@ -714,12 +801,42 @@ def get_feature_selection_support(model, algo):
 
 
 def apply_feature_selection_support(model, algo, X):
-    r"""Apply the effective pre-model feature selection support to ``X``."""
+    r"""``X`` as an algorithm takes it. Tabular algorithms get the tabular columns with their pre-model feature
+    selection and never see the raw window block (the ``sequence`` section); window algorithms get the block alone,
+    as a view, without copying the matrix."""
 
+    from alphapy.estimators import is_window_algo
+
+    n_tabular = model.specs.get('n_tabular')
+    if n_tabular is not None and is_window_algo(algo):
+        return X[:, n_tabular:]
+    tabular = X if n_tabular is None else X[:, :n_tabular]
     support = get_feature_selection_support(model, algo)
-    if support is None:
-        return X
-    return X[:, support]
+    if support is not None:
+        tabular = tabular[:, support]
+    return tabular
+
+
+def algo_matrix(model, algo, X):
+    r"""``X`` as one algorithm sees it (its pre-model feature selection, then any RFE support), with its names.
+
+    ``model.fnames_algo`` already holds an algorithm's names after RFE. An RFE support whose length does not match the
+    pre-selected matrix (RFE fitted before univariate or LOFO selection) is not applied, as before, but logged.
+    """
+
+    X = apply_feature_selection_support(model, algo, X)
+    support = model.support.get(algo)
+    if support is not None:
+        if len(support) == X.shape[1]:
+            X = X[:, support]
+        else:
+            logger.warning("RFE support for %s has %d entries but its matrix has %d columns; not applied",
+                           algo, len(support), X.shape[1])
+    names = list(model.fnames_algo.get(algo, model.feature_names))
+    if len(names) != X.shape[1]:
+        logger.warning("%s has %d feature names for %d columns; using column numbers", algo, len(names), X.shape[1])
+        names = [f"x{i}" for i in range(X.shape[1])]
+    return X, names
 
 
 def first_fit(model, algo, est):
@@ -813,12 +930,13 @@ def first_fit(model, algo, est):
 
     if model_type != ModelType.ranking:
         logger.info("Cross-Validation")
-        if model_type == ModelType.regression:
+        cv_splitter = time_block_splitter(model, len(y_train_np))
+        if cv_splitter is None and model_type == ModelType.regression:
             cv_splitter = KFold(n_splits=cv_folds, shuffle=shuffle)
-        else:
+        elif cv_splitter is None:
             cv_splitter = StratifiedKFold(n_splits=cv_folds, shuffle=shuffle)
         scores = cross_val_score(est, X_train_np, y_train_np, scoring=scorer,
-                                 cv=cv_splitter, n_jobs=n_jobs, verbose=verbosity)
+                                 cv=cv_splitter, n_jobs=worker_jobs(n_jobs, est), verbose=verbosity)
         logger.info("Cross-Validation Scores: %s", scores)
 
     # Store the estimator
@@ -827,9 +945,12 @@ def first_fit(model, algo, est):
     # Copy feature name master into feature names per algorithm
     support = get_feature_selection_support(model, algo)
     if support is None:
-        model.fnames_algo[algo] = model.feature_names
+        model.fnames_algo[algo] = list(model.feature_names)
     else:
         model.fnames_algo[algo] = list(np.array(model.feature_names)[support])
+    from alphapy.estimators import is_window_algo
+    if model.specs.get('n_tabular') is not None and is_window_algo(algo):
+        model.fnames_algo[algo] = list(model.window_names)
 
     # Record importances and coefficients if necessary.
 
@@ -885,14 +1006,8 @@ def make_predictions(model, algo):
 
     # Extract model data
 
-    X_train = apply_feature_selection_support(model, algo, model.X_train)
-    X_test = apply_feature_selection_support(model, algo, model.X_test)
-    try:
-        support = model.support[algo]
-        X_train = X_train[:, support]
-        X_test = X_test[:, support]
-    except:
-        pass
+    X_train, _ = algo_matrix(model, algo, model.X_train)
+    X_test, _ = algo_matrix(model, algo, model.X_test)
 
     y_train = model.y_train
     groups_train = model.groups_train
@@ -906,9 +1021,11 @@ def make_predictions(model, algo):
             if cal_type == 'vennabers':
                 est = VennAbersCalibrator(estimator=est, inductive=True, cal_size=0.2)
             else:
-                est = CalibratedClassifierCV(est, cv=cv_folds, method=cal_type)
+                est = CalibratedClassifierCV(est, cv=time_block_splitter(model, y_train.shape[0]) or cv_folds,
+                                             method=cal_type)
             X_train_np = X_train.to_numpy() if hasattr(X_train, 'to_numpy') else X_train
             y_train_np = y_train.to_numpy().ravel() if hasattr(y_train, 'to_numpy') else y_train
+            model.uncalibrated[algo] = model.estimators[algo]
             est.fit(X_train_np, y_train_np)
             model.estimators[algo] = est
             logger.info("Calibration Complete")

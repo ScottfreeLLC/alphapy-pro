@@ -47,6 +47,7 @@ import yaml
 
 
 from alphapy.globals import ModelType
+from alphapy.sequence import MASK, window_shape
 from alphapy.globals import Objective
 from alphapy.globals import SSEP
 
@@ -168,6 +169,68 @@ estimator_map = {'AB'     : AdaBoostClassifier,
                  'XT'     : ExtraTreesClassifier,
                  'XTR'    : ExtraTreesRegressor
                 }
+
+
+#
+# Window algorithms: they read the raw window block of the ``sequence`` section (alphapy.sequence). They are kept out
+# of ``estimator_map`` and nothing they need is imported until a run with the sequence section fits one: importing
+# torch at start-up made LightGBM's multithreaded cross-validation segfault (two OpenMP runtimes).
+#
+
+# algorithm: (module that must be installed, "module:class")
+WINDOW_ALGOS = {'MROCK'   : ('aeon',        'alphapy.learners:LearnedFeatureClassifier'),
+                'TSFRESH' : ('tsfresh',     'alphapy.learners:LearnedFeatureClassifier'),
+                'GPSYM'   : ('gplearn',     'alphapy.learners:LearnedFeatureClassifier'),
+                'TS2VEC'  : ('torch',       'alphapy.learners:LearnedFeatureClassifier'),
+                'KRONOS'  : ('einops',      'alphapy.learners:LearnedFeatureClassifier'),
+                'FORMULA' : ('sb3_contrib', 'alphapy.learners:LearnedFeatureClassifier'),
+                'CNN'     : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'LSTM'    : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'GRU'     : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'INCEPT'  : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'TCN'     : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'PATCH'   : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'CNNLSTM' : ('torch',       'alphapy.networks:SequenceNetClassifier'),
+                'CHART'   : ('torch',       'alphapy.chart_cnn:ChartCNNClassifier')}
+
+
+def is_window_algo(algo):
+    r"""Whether an algorithm reads the window block."""
+    return algo in WINDOW_ALGOS
+
+
+def worker_jobs(n_jobs, estimator):
+    r"""Worker processes for a pool that fits ``estimator``: one when torch is loaded and the estimator is LightGBM.
+
+    LightGBM and torch each bundle an OpenMP runtime; a worker that loads torch before lightgbm segfaults in
+    LightGBM's multithreaded fit. Once a window algorithm has loaded torch in this process, LightGBM cross-validation,
+    RFE, grid search, LOFO and plots run in the parent process instead of workers.
+    """
+    import sys
+
+    if 'torch' not in sys.modules:
+        return n_jobs
+    inner = estimator
+    for attribute in ('estimator', 'base_estimator'):
+        inner = getattr(inner, attribute, inner) or inner
+    steps = [s for _, s in getattr(inner, 'steps', [])] or [inner]
+    if any('LGBM' in type(s).__name__ for s in steps):
+        logger.info("torch is loaded: %s runs without worker processes", type(steps[-1]).__name__)
+        return 1
+    return n_jobs
+
+
+def window_estimator_class(algo):
+    r"""The class of a window algorithm, imported now, or None when its package is not installed."""
+    import importlib
+    import importlib.util
+
+    module_name, target = WINDOW_ALGOS[algo]
+    if importlib.util.find_spec(module_name) is None:
+        logger.info("Cannot load %s for %s", module_name, algo)
+        return None
+    module, name = target.split(':')
+    return getattr(importlib.import_module(module), name)
 
 
 #
@@ -360,12 +423,27 @@ def get_estimators(alphapy_specs, model):
                 grid[param] = new_list
             elif isinstance(grid[param], str) and grid[param] in ps_fields:
                 grid[param] = ps_values[ps_fields[grid[param]]]
-        try:
-            algo_found = True
-            func = estimator_map[algo]
-        except Exception:
-            algo_found = False
-            logger.info("Algorithm %s not found (check package installation)", algo)
+        if is_window_algo(algo):
+            sequence = model.specs.get('sequence')
+            func = window_estimator_class(algo) if sequence and algo in model.algolist else None
+            algo_found = func is not None
+            if algo in model.algolist and not sequence:
+                logger.warning("Algorithm %s reads raw windows; it needs the sequence section of model.yml", algo)
+            if algo_found and algo == 'CHART' and not {'open', 'high', 'low', 'close'} <= set(sequence['channels']):
+                logger.warning("Algorithm CHART draws bars from open, high, low and close; the sequence section's "
+                               "channels %s lack some of them, so it is skipped", sequence['channels'])
+                algo_found = False
+            if algo_found:
+                params['n_channels'], params['window'] = window_shape(sequence)
+                if 'channels' in func().get_params():
+                    params['channels'] = list(sequence['channels']) + [MASK]
+        else:
+            try:
+                algo_found = True
+                func = estimator_map[algo]
+            except Exception:
+                algo_found = False
+                logger.info("Algorithm %s not found (check package installation)", algo)
         if algo_found:
             est = func(**params)
             # Wrap scale-sensitive algorithms in a Pipeline with StandardScaler

@@ -26,6 +26,8 @@
 # Imports
 #
 
+from alphapy.estimators import worker_jobs
+from alphapy.sequence import tabular
 from alphapy.globals import BSEP, LOFF, NULLTEXT
 from alphapy.globals import PSEP, SSEP, USEP
 from alphapy.globals import Encoders
@@ -1288,10 +1290,10 @@ def select_features_lofo(model, algo, est):
 
     if fs_univariate:
         support_uni = model.feature_map['support_uni']
-        X_fs = model.X_train[:, support_uni].copy()
+        X_fs = tabular(model, model.X_train)[:, support_uni].copy()
         fnames = list(itertools.compress(model.feature_names, support_uni))
     else:
-        X_fs = model.X_train.copy()
+        X_fs = tabular(model, model.X_train).copy()
         fnames = model.feature_names
 
     # Construct the LOFO dataset.
@@ -1336,7 +1338,8 @@ def select_features_lofo(model, algo, est):
     import sys
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', message='.*multithreaded.*', category=UserWarning)
-        lofo_imp = lofo.LOFOImportance(dataset, model=lofo_est, cv=cv, scoring=scorer, n_jobs=n_jobs)
+        lofo_imp = lofo.LOFOImportance(dataset, model=lofo_est, cv=cv, scoring=scorer,
+                                       n_jobs=worker_jobs(n_jobs, lofo_est))
     # Suppress None outputs from LOFO's multiprocessing (redirect at fd level for child processes)
     stdout_fd = sys.stdout.fileno()
     old_stdout_fd = os.dup(stdout_fd)
@@ -1405,7 +1408,7 @@ def select_features_univariate(model):
 
     # Extract model data.
 
-    X_train = model.X_train
+    X_train = tabular(model, model.X_train)       # never the raw window block
     y_train = model.y_train
 
     # Extract model parameters.
@@ -1430,7 +1433,7 @@ def select_features_univariate(model):
 
     # Count the number of new features.
 
-    X_train_new = model.X_train[:, support]
+    X_train_new = X_train[:, support]
     logger.info("Old Feature Count : %d", X_train.shape[1])
     logger.info("New Feature Count : %d", X_train_new.shape[1])
 
@@ -1652,6 +1655,7 @@ def remove_lv_features(model, X):
             support = model.feature_map['lv_support']
         X_reduced = X[:, support]
         feature_names = list(itertools.compress(model.feature_names, support))
+        model.feature_names = feature_names       # later stages read the reduced names
         for algo in model.algolist:
             model.fnames_algo[algo] = feature_names
         logger.info("Reduced Feature Count   : %d", X_reduced.shape[1])

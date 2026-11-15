@@ -57,6 +57,8 @@ from alphapy.data import get_data
 from alphapy.data import shuffle_data
 from alphapy.estimators import get_estimators
 from alphapy.estimators import scorers
+from alphapy.estimators import is_window_algo
+from alphapy.sequence import append_windows
 from alphapy.features import apply_transforms
 from alphapy.features import create_crosstabs
 from alphapy.features import create_features
@@ -230,6 +232,9 @@ def training_pipeline(alphapy_specs, model):
     # Save original train/test data
 
     model.df_X_train = X_train
+    cv_blocks_column = model.specs.get('cv_blocks_column')
+    if cv_blocks_column:
+        model.cv_blocks_train = X_train[cv_blocks_column].to_numpy()
     model.df_y_train = y_train
     model.df_X_test = X_test
     model.df_y_test = y_test
@@ -324,6 +329,13 @@ def training_pipeline(alphapy_specs, model):
     X_train, X_test = np.array_split(X_all, [split_point])
     model = save_features(model, X_train, X_test)
 
+    # Append the raw window block [if the sequence section is on]; tabular algorithms never see it
+
+    if model.specs.get('sequence'):
+        X_all = append_windows(model, X_all)
+        X_train, X_test = np.array_split(X_all, [split_point])
+        model = save_features(model, X_train, X_test)
+
     # Shuffle the data [if specified]
     model = shuffle_data(model)
 
@@ -347,7 +359,9 @@ def training_pipeline(alphapy_specs, model):
     logger.info("Selecting Models")
 
     failed_algos = []
-    for algo in model.algolist:
+    # Tabular algorithms first: window algorithms load torch, after which LightGBM's multithreaded cross-validation
+    # can segfault (two OpenMP runtimes).
+    for algo in sorted(model.algolist, key=is_window_algo):
         logger.info("Algorithm: %s", algo)
         # select estimator
         try:
@@ -357,6 +371,17 @@ def training_pipeline(alphapy_specs, model):
             est = None
             logger.info("Algorithm %s not found", algo)
             failed_algos.append(algo)
+        if est is not None and is_window_algo(algo):
+            # A window algorithm that cannot run (its features over max_gb, missing channels) is skipped, not fatal
+            try:
+                model = first_fit(model, algo, est)
+                model = make_predictions(model, algo)
+            except (MemoryError, ValueError, KeyError, RuntimeError) as e:
+                logger.error("Algorithm %s failed and is skipped: %s", algo, e)
+                failed_algos.append(algo)
+                for store in (model.estimators, model.uncalibrated, model.fnames_algo):
+                    store.pop(algo, None)
+            continue
         if est is not None:
             # select LOFO features
             if fs_lofo and (not fs_lofo_algorithms or algo in fs_lofo_algorithms):
@@ -377,10 +402,14 @@ def training_pipeline(alphapy_specs, model):
             # predictions
             model = make_predictions(model, algo)
 
-    # Remove algorithms that failed to load
+    # Remove algorithms that failed to load or run, and say so plainly
     for algo in failed_algos:
         model.algolist.remove(algo)
         logger.info("Removed unavailable algorithm %s from model", algo)
+    if failed_algos:
+        logger.warning("Algorithms not in this run's results: %s", ", ".join(failed_algos))
+    if not model.algolist:
+        raise RuntimeError(f"No algorithm could run (requested: {', '.join(failed_algos)}); see the log for each")
 
     # Create a blended estimator
 
@@ -483,6 +512,11 @@ def prediction_pipeline(alphapy_specs, model):
 
     # Remove low-variance features
     X_all = remove_lv_features(model, X_all)
+
+    # Window algorithms are not supported in predict mode yet
+
+    if model.specs.get('sequence'):
+        raise NotImplementedError("Predict mode does not support the sequence section yet")
 
     # Load the LOFO support vector, if any
 
