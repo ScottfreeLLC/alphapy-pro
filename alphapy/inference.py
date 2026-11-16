@@ -34,7 +34,12 @@ Window algorithms (the ``sequence`` section) read each row's ``window - 1`` earl
 supplies them, or ``history`` does: earlier raw rows that are not scored. A row with fewer earlier rows than that is
 refused, because its window would be padded where training's had values; ``allow_short_history=True`` scores it
 anyway. ``TrainedRun.training_tail`` holds each group's last training rows, the history training gave its test rows,
-and ``history_from_training(frame)`` keeps the groups whose rows in ``frame`` come after them.
+and ``history_from_training(frame)`` keeps the groups whose rows in ``frame`` all come strictly after them (a group
+whose first new row has the same order value as training's last row gets no training history).
+
+Loading a run unpickles its files (``joblib``), which can run code: load only run directories you trust, as with
+``model.pkl``. The manifest records the library versions training used; scikit-learn pickles are not portable
+across versions.
 """
 
 import json
@@ -152,7 +157,7 @@ class TrainedRun:
             X_algo, _ = algo_matrix(self._selection, algo, X)
             estimator = self.estimator(algo)
             pred = estimator.predict(X_algo)
-            if pred.ndim > 1 and pred.shape[1] > 1:
+            if self.classification and pred.ndim > 1 and pred.shape[1] > 1:   # one-hot class output
                 pred = np.argmax(pred, axis=1)
             preds[algo] = pred
             if self.classification:
@@ -163,7 +168,7 @@ class TrainedRun:
                 probas[BLEND] = np.mean([probas[a] for a in members], axis=0)
                 preds[BLEND] = np.round(probas[BLEND], 0).astype(int)
             else:
-                preds[BLEND] = np.round(np.mean([preds[a] for a in members], axis=0), 0).astype(int)
+                preds[BLEND] = np.mean([preds[a] for a in members], axis=0)   # regression: the mean, not rounded
         index = _index(frame)
         predictions = pd.DataFrame({a: preds[a] for a in names}, index=index)
         probabilities = pd.DataFrame({a: probas[a] for a in names}, index=index) if self.classification else None

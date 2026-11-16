@@ -604,6 +604,7 @@ def save_estimators(model):
         joblib.dump(model.estimators[algo], path)
     manifest = {
         "alphapy_version": alphapy_version(),
+        "libraries": library_versions(),
         "model_type": str(model.specs['model_type']),
         "target": model.specs['target'],
         "algorithms": list(model.algolist),
@@ -638,6 +639,17 @@ def save_feature_pipeline(model):
     path = SSEP.join([model.specs['run_dir'], 'model', 'feature_pipeline.pkl'])
     logger.info("Writing feature pipeline to %s", path)
     joblib.dump(model.feature_pipeline, path)
+
+
+def library_versions():
+    """Versions of the libraries whose objects the run pickles (pickles are not portable across versions)."""
+    versions = {}
+    for name in ("scikit-learn", "numpy", "scipy", "pandas", "polars", "lightgbm", "xgboost", "catboost", "torch"):
+        try:
+            versions[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            pass
+    return versions
 
 
 def alphapy_version():
@@ -1093,7 +1105,7 @@ def predict_blend(model):
 
     for partition in datasets.keys():
         pred_set = [model.preds[key] for key, _ in model.preds.items() if partition in key]
-        model.preds[(blend_tag, partition)] = np.round(np.mean(pred_set, axis=0), 0).astype(int)
+        model.preds[(blend_tag, partition)] = np.mean(pred_set, axis=0)    # regression keeps the mean
         if model_type == ModelType.classification:
             proba_set = [model.probas[key] for key, _ in model.probas.items() if partition in key]
             model.probas[(blend_tag, partition)] = np.mean(proba_set, axis=0)

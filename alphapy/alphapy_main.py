@@ -515,8 +515,7 @@ def prediction_pipeline(alphapy_specs, model):
 
     # Write the ranked predictions in training's format
 
-    best = run.manifest['best_algorithm']
-    best = BLEND if best == 'BLEND' else best
+    best = run.manifest['best_algorithm']   # always one of the algorithms: the blend is never chosen as best
     tags = {'BEST': best, 'BLEND': BLEND, **{algo: algo for algo in run.algorithms}}
     tags = {tag: column for tag, column in tags.items() if column in preds.columns}
     model.algolist = run.algorithms
@@ -688,6 +687,8 @@ def main(args=None):
         elif not os.path.isdir(run_dir):
             # a run name such as run_YYYYMMDD_hhmmss, under the project's runs directory
             run_dir = SSEP.join([model_specs['directory'], 'runs', run_dir])
+            if not os.path.isdir(run_dir):
+                raise FileNotFoundError(f"No run directory {args.run_dir!r}: neither a path nor a run under {model_specs['directory']}/runs")
     model_specs['run_dir'] = run_dir
 
     # Create a model from the arguments

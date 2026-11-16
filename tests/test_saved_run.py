@@ -64,3 +64,19 @@ def test_a_single_algorithm_run_has_no_blend(tmp_path):
     run = train(project(tmp_path, ["LOGR"]))
     manifest = json.loads((run / "model/manifest.json").read_text())
     assert manifest["algorithms"] == ["LOGR"] and manifest["blend"] == []
+
+
+def test_a_regression_blend_is_the_mean_not_rounded_and_the_manifest_records_library_versions(tmp_path):
+    from types import SimpleNamespace
+    from alphapy.globals import ModelType, Partition
+    from alphapy.model import predict_blend
+    model = SimpleNamespace(specs={"model_type": ModelType.regression},
+                            preds={("A", Partition.train): np.array([1.2, 2.6]), ("B", Partition.train): np.array([1.4, 2.9]),
+                                   ("A", Partition.test): np.array([0.3]), ("B", Partition.test): np.array([0.4])},
+                            probas={})
+    predict_blend(model)
+    assert np.allclose(model.preds[("BLEND", Partition.train)], [1.3, 2.75])
+    assert np.allclose(model.preds[("BLEND", Partition.test)], [0.35])
+    run = train(project(tmp_path, ["LOGR"]))
+    libraries = json.loads((run / "model/manifest.json").read_text())["libraries"]
+    assert {"scikit-learn", "numpy"} <= set(libraries)
