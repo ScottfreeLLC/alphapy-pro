@@ -29,20 +29,30 @@ Usage::
 Options:
 
 * ``--train`` - Train new models and make predictions [Default]
-* ``--predict`` - Make predictions using saved models
-* ``--verbose`` - Enable verbose logging
+* ``--predict`` - Score the test data with a trained run (the most recent, or ``--rundir``)
+* ``--rundir`` - The run to score with: a path, or a run name such as ``run_20261115_210812`` under ``runs/``
 * ``--debug`` - Enable debug mode with detailed output
 
 Example::
 
     # Train models (default behavior)
     alphapy
-    
-    # Use a saved model for predictions
+
+    # Score data/test with the most recent run
     alphapy --predict
-    
-    # Train with verbose output
-    alphapy --train --verbose
+
+    # Score with a chosen run
+    alphapy --predict --rundir run_20261115_210812
+
+Predict mode scores the test rows with every algorithm of the run and the blend, with the feature steps as fitted on
+the run's training rows, and writes ``output/ranked_predict`` in the format of training's ``ranked_test`` (the best
+algorithm's columns are ``best``). Training's own files are kept. Window algorithms (the ``sequence`` section) read
+each group's last training rows as history, as training did for its test rows.
+
+From Python, ``alphapy.inference.load_run(run_dir).predict_proba(frame)`` returns each algorithm's and the blend's
+probabilities for the rows of a frame (the raw columns training loaded), indexed like the frame. For window
+algorithms, the frame carries enough earlier rows per group, or ``history=`` supplies them. Runs trained before the
+feature pipeline was saved (``model/feature_pipeline.pkl``) cannot be scored this way; train them again.
 
 **Custom Pipelines**
 ~~~~~~~~~~~~~~~~~~~~
