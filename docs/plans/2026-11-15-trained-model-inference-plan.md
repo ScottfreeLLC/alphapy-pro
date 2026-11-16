@@ -57,12 +57,17 @@ recorded probabilities before feature fitting changes.
 
 1. **Save every fitted algorithm** (one file per algorithm beside the unchanged `model.pkl` and `feature_map.pkl`),
    the blend's members (the blend is a plain average, `predict_blend`) and a manifest. Measure the saved size on
-   the crypto 15-minute cell before any million-row cell. Status: pending.
+   the crypto 15-minute cell before any million-row cell. Status: done. `save_estimators` writes
+   `model/estimators/<ALGO>.pkl` and `model/manifest.json`; `tests/test_saved_run.py`. Crypto 15-minute: 131 MB for
+   the five models (the random forest dominates).
 2. **Refit check (alphapy-finance).**
    - Rerun the crypto 15-minute calibrated cell with the same config and seed.
    - Compare every algorithm's and the blend's held-back probabilities with the recorded `ranked_test.csv`.
    - If they don't reproduce, report that the validated blend cannot be recovered and any artifact is a new fit.
-   Status: pending.
+   Status: done. `projects/next-bar/crypto/15min_calibrated_lofo_refit/runs/run_20261115_210812` (114 s, 5.7 GB peak)
+   against `run_20261114_185343` on all 130,686 held-back rows. LightGBM, XGBoost, CatBoost and logistic regression
+   are identical; random forest differs by at most 6.7e-13 and the blend by at most 1.3e-13. The P(up) >= 0.55
+   decision is the same on every row. The validated blend is recovered and now saved.
 3. **Tests first:**
    - a trained two-model run reproduces its test probabilities through predict mode and through `predict_proba`,
      for each algorithm and the blend;

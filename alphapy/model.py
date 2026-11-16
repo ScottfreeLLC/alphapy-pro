@@ -55,7 +55,9 @@ from alphapy.utilities import most_recent_file
 
 from copy import copy
 from datetime import datetime
+import importlib.metadata
 import joblib
+import json
 
 import logging
 import os
@@ -622,6 +624,53 @@ def save_predictor(model, tag):
         full_path = SSEP.join([run_dir, 'model', filename])
         logger.info("Writing model predictor to %s", full_path)
         joblib.dump(predictor, full_path)
+
+
+#
+# Function save_estimators
+#
+
+def save_estimators(model):
+    r"""Save every fitted algorithm and a manifest beside ``model.pkl``.
+
+    ``model/estimators/<ALGO>.pkl`` holds each algorithm's final fitted (and, if configured, calibrated) estimator.
+    ``model/manifest.json`` names the algorithms in run order, the blend's members (the blend is the plain average of
+    their probabilities, ``predict_blend``), the best algorithm, and what a later scoring needs to line up columns.
+    ``model.pkl`` and ``feature_map.pkl`` are unchanged.
+    """
+    run_dir = model.specs['run_dir']
+    folder = SSEP.join([run_dir, 'model', 'estimators'])
+    os.makedirs(folder, exist_ok=True)
+    for algo in model.algolist:
+        path = SSEP.join([folder, PSEP.join([algo, 'pkl'])])
+        logger.info("Writing %s estimator to %s", algo, path)
+        joblib.dump(model.estimators[algo], path)
+    manifest = {
+        "alphapy_version": alphapy_version(),
+        "model_type": str(model.specs['model_type']),
+        "target": model.specs['target'],
+        "algorithms": list(model.algolist),
+        "blend": list(model.algolist) if len(model.algolist) > 1 else [],
+        "best_algorithm": model.best_algo,
+        "feature_names": [str(f) for f in (model.feature_names or [])],
+        "n_tabular": model.specs.get('n_tabular'),
+        "window_names": [str(f) for f in (getattr(model, 'window_names', None) or [])],
+        "sequence": model.specs.get('sequence'),
+        "calibration": {"option": bool(model.specs.get('calibration')),
+                        "type": str(model.specs.get('cal_type'))},
+    }
+    path = SSEP.join([run_dir, 'model', 'manifest.json'])
+    with open(path, 'w') as f:
+        json.dump(manifest, f, indent=1, default=str)
+    logger.info("Writing run manifest to %s", path)
+
+
+def alphapy_version():
+    """The installed alphapy-pro version, or 'unknown' outside an installed package."""
+    try:
+        return importlib.metadata.version("alphapy-pro")
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
 
 
 #

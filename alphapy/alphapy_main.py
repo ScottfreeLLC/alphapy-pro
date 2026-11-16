@@ -85,6 +85,7 @@ from alphapy.model import predict_blend
 from alphapy.model import save_feature_map
 from alphapy.model import save_metrics
 from alphapy.model import save_predictions
+from alphapy.model import save_estimators
 from alphapy.model import save_predictor
 from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
@@ -439,6 +440,7 @@ def training_pipeline(alphapy_specs, model):
     # Save the model and metrics
 
     save_predictor(model, 'BEST')
+    save_estimators(model)
     save_feature_map(model)
     save_metrics(model)
 
