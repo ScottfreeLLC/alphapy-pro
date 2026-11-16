@@ -28,12 +28,11 @@
 
 from alphapy.estimators import worker_jobs
 from alphapy.sequence import tabular
-from alphapy.globals import BSEP, LOFF, NULLTEXT
-from alphapy.globals import PSEP, SSEP, USEP
+from alphapy.globals import LOFF, NULLTEXT
+from alphapy.globals import USEP
 from alphapy.globals import Encoders
 from alphapy.globals import ModelType
 from alphapy.globals import Scalers
-from alphapy.variables import Variable
 from alphapy.variables import vparse
 
 import category_encoders as ce
@@ -314,7 +313,7 @@ def create_crosstabs(model, target):
 # The model specifications the feature steps read; the pipeline keeps its own copy, so a saved run needs no model.yml.
 PIPELINE_SPECS = ('clustering', 'cluster_inc', 'cluster_max', 'cluster_min', 'counts', 'drop', 'encoder', 'factors',
                   'interactions', 'isample_pct', 'isomap', 'iso_components', 'iso_neighbors', 'log_transform',
-                  'lv_remove', 'lv_threshold', 'model_type', 'n_jobs', 'ngrams_max', 'numpy', 'pca', 'pca_inc',
+                  'lv_remove', 'lv_threshold', 'model_type', 'n_jobs', 'numpy', 'pca', 'pca_inc',
                   'pca_max', 'pca_min', 'pca_whiten', 'poly_degree', 'pvalue_level', 'rounding', 'scaler_option',
                   'scaler_type', 'scipy', 'seed', 'sentinel', 'transforms', 'tsne', 'vectorize')
 
@@ -330,15 +329,13 @@ def column_values(feature, dtype):
 
 def new_imputer(dtype, sentinel):
     r"""The imputer for a numerical column: the median for floating point values, the most frequent value for signed
-    integers, zero for unsigned integers and ``sentinel`` for anything else except Booleans, which are not imputed."""
+    integers, zero for unsigned integers and ``sentinel`` for anything else."""
     if dtype.is_float():
         return SimpleImputer(missing_values=np.nan, strategy='median')
     if dtype.is_signed_integer():
         return SimpleImputer(missing_values=np.nan, strategy='most_frequent')
     if dtype.is_unsigned_integer():
         return SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=np.uint32(0))
-    if dtype == pl.Boolean:
-        return None
     return SimpleImputer(missing_values=np.nan, strategy='constant', fill_value=sentinel)
 
 
@@ -385,13 +382,18 @@ class FeaturePipeline:
 
     def conform(self, frame):
         r"""``frame`` (pandas or Polars) as training loaded its rows: its raw columns by name, in training's order,
-        with training's types. A frame missing a column, or whose values cannot take training's types, is refused;
-        other columns (the target, say) are left out."""
+        with training's types. A frame missing a column, with a fractional value in a column training read as
+        integers, or whose values cannot take training's types, is refused; other columns (the target, say) are left
+        out."""
         if not isinstance(frame, pl.DataFrame):
             frame = pl.from_pandas(pd.DataFrame(frame).reset_index(drop=True))
         missing = [c for c in self.raw_schema if c not in frame.columns]
         if missing:
             raise ValueError(f"The frame lacks columns the run was trained on: {missing}")
+        fractional = [c for c, dtype in self.raw_schema.items() if dtype.is_integer() and frame[c].dtype.is_float()
+                      and (frame[c].drop_nulls().drop_nans() % 1 != 0).any()]
+        if fractional:
+            raise ValueError(f"The frame has fractional values in columns training read as integers: {fractional}")
         try:
             return frame.select(list(self.raw_schema)).cast(self.raw_schema)
         except pl.exceptions.PolarsError as e:
@@ -424,7 +426,7 @@ class FeaturePipeline:
                 blocks.append(values)
                 names.extend(step['names'])
             else:
-                logger.info("Feature %d: %s is null (fractal length spans data)", i + 1, fname)
+                logger.info("Feature %d: %s has no nonzero values in the training rows; dropped", i + 1, fname)
         features, derived = self._features(blocks, fit=True)
         names.extend(derived)
         features = self._interactions(features, names, y, fit=True)
@@ -488,9 +490,7 @@ class FeaturePipeline:
             logger.info("Feature %d: %s is a numerical feature of type %s with %d unique values",
                         fnum, fname, dtype, nunique)
             imputer = new_imputer(dtype, self.specs['sentinel'])
-            values = column_values(X[fname], dtype)
-            if imputer is not None:
-                values = imputer.fit_transform(values)
+            values = imputer.fit_transform(column_values(X[fname], dtype))
             log = False
             if self.specs['log_transform'] and np.all(values > 0):
                 _, pvalue = sps.normaltest(values)
@@ -527,9 +527,7 @@ class FeaturePipeline:
         if kind == 'text':                          # a value training never saw gets -1
             text = pd.Series(X[step['name']].fill_null(NULLTEXT).to_list(), dtype=object)
             return text.map(step['codes']).fillna(-1).astype(np.int64).to_numpy()
-        values = column_values(X[step['name']], step['dtype'])
-        if step['imputer'] is not None:
-            values = step['imputer'].transform(values)
+        values = step['imputer'].transform(column_values(X[step['name']], step['dtype']))
         if step['log']:
             if not np.all(values > 0):
                 raise ValueError(f"Column {step['name']} was log-transformed in training, where all its values were "
