@@ -59,12 +59,11 @@ from alphapy.estimators import get_estimators
 from alphapy.estimators import scorers
 from alphapy.estimators import is_window_algo
 from alphapy.sequence import append_windows
+from alphapy.sequence import history_tail
 from alphapy.features import apply_transforms
 from alphapy.features import create_crosstabs
-from alphapy.features import create_features
-from alphapy.features import create_interactions
 from alphapy.features import drop_features
-from alphapy.features import remove_lv_features
+from alphapy.features import FeaturePipeline
 from alphapy.features import save_features
 from alphapy.features import select_features_lofo
 from alphapy.features import select_features_univariate
@@ -76,8 +75,6 @@ from alphapy.globals import Partition
 from alphapy.model import first_fit
 from alphapy.model import generate_metrics
 from alphapy.model import get_model_config
-from alphapy.model import load_feature_map
-from alphapy.model import load_predictor
 from alphapy.model import make_predictions
 from alphapy.model import Model
 from alphapy.model import select_best_model
@@ -86,6 +83,7 @@ from alphapy.model import save_feature_map
 from alphapy.model import save_metrics
 from alphapy.model import save_predictions
 from alphapy.model import save_estimators
+from alphapy.model import save_feature_pipeline
 from alphapy.model import save_predictor
 from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
@@ -312,22 +310,14 @@ def training_pipeline(alphapy_specs, model):
     if model_type == ModelType.classification:
         create_crosstabs(model, target)
 
-    # Create initial features
+    # Create features, interactions and the low-variance mask. Every step that learns from data is fitted on the
+    # training rows only; the test rows go through the fitted steps exactly as rows scored later will.
 
-    X_all = create_features(model, X_all, X_train, X_test, y_train)
-    X_train, X_test = np.array_split(X_all, [split_point])
-    model = save_features(model, X_train, X_test)
-
-    # Generate interactions
-
-    X_all = create_interactions(model, X_all)
-    X_train, X_test = np.array_split(X_all, [split_point])
-    model = save_features(model, X_train, X_test)
-
-    # Remove low-variance features
-
-    X_all = remove_lv_features(model, X_all)
-    X_train, X_test = np.array_split(X_all, [split_point])
+    pipeline = FeaturePipeline(model.specs, model.df_X_train.schema)
+    X_train = pipeline.fit_transform(model, X_all[:split_point], y_train)
+    X_test = pipeline.transform(X_all[split_point:])
+    X_all = np.vstack([X_train, X_test])
+    model.feature_pipeline = pipeline
     model = save_features(model, X_train, X_test)
 
     # Append the raw window block [if the sequence section is on]; tabular algorithms never see it
@@ -336,6 +326,7 @@ def training_pipeline(alphapy_specs, model):
         X_all = append_windows(model, X_all)
         X_train, X_test = np.array_split(X_all, [split_point])
         model = save_features(model, X_train, X_test)
+        pipeline.history = history_tail(model.df_X_train.to_pandas(), model.specs['sequence'])
 
     # Shuffle the data [if specified]
     model = shuffle_data(model)
@@ -441,6 +432,7 @@ def training_pipeline(alphapy_specs, model):
 
     save_predictor(model, 'BEST')
     save_estimators(model)
+    save_feature_pipeline(model)
     save_feature_map(model)
     save_metrics(model)
 

@@ -91,7 +91,7 @@ def test_regressors_are_explained_in_their_predicted_value_and_multiclass_is_ref
 def test_low_variance_removal_keeps_the_feature_names_with_the_columns():
     from alphapy.features import remove_lv_features
     X = np.column_stack([np.arange(6.0), np.ones(6), np.arange(6.0) ** 2])          # the middle column is constant
-    model = SimpleNamespace(specs={"lv_remove": True, "lv_threshold": 0.0, "predict_mode": False},
+    model = SimpleNamespace(specs={"lv_remove": True, "lv_threshold": 0.0},
                             feature_names=["a", "b", "c"], feature_map={}, algolist=["LGB"], fnames_algo={})
     reduced = remove_lv_features(model, X)
     assert reduced.shape[1] == 2 and model.feature_names == ["a", "c"] and model.fnames_algo["LGB"] == ["a", "c"]

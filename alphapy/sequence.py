@@ -159,10 +159,6 @@ def append_windows(model, X_all: np.ndarray) -> np.ndarray:
     spec = model.specs["sequence"]
     frames = [f for f in (model.df_X_train, model.df_X_test) if f is not None and len(f)]
     raw = pd.concat([f.to_pandas() if hasattr(f, "to_pandas") else f for f in frames], ignore_index=True)
-    needed = [spec["group"], spec["order"], *spec["channels"], *([spec["session"]] if spec.get("session") else [])]
-    missing = [c for c in needed if c not in raw.columns]
-    if missing:
-        raise KeyError(f"The sequence section names columns not in the data: {missing}")
     if len(raw) != X_all.shape[0]:
         raise ValueError(f"{len(raw)} raw rows for {X_all.shape[0]} feature rows")
     n_ch, window = window_shape(spec)
@@ -171,9 +167,32 @@ def append_windows(model, X_all: np.ndarray) -> np.ndarray:
     if 2 * final_gb > limit:            # the stacked float32 matrix, plus the windows while it is built
         raise MemoryError(f"The feature matrix with windows needs about {2 * final_gb:.1f} GB to build, above the "
                           f"{limit:.1f} GB limit (max_gb)")
-    block = flatten(build_windows(raw, spec))
+    block = window_block(raw, spec)
     model.specs["n_tabular"] = X_all.shape[1]
     model.window_names = window_names(spec)
     logger.info("Appended %d window columns to %d tabular columns (float32, %.2f GB)", block.shape[1], X_all.shape[1],
                 final_gb)
     return np.hstack([np.asarray(X_all, dtype=np.float32), block])
+
+
+def window_columns(spec: dict) -> list[str]:
+    """The raw columns the windows read: group, order, channels and any session column."""
+    return [spec["group"], spec["order"], *spec["channels"], *([spec["session"]] if spec.get("session") else [])]
+
+
+def window_block(raw: pd.DataFrame, spec: dict) -> np.ndarray:
+    """The flattened windows of every row of the raw frame ``raw``, in its row order."""
+    missing = [c for c in window_columns(spec) if c not in raw.columns]
+    if missing:
+        raise KeyError(f"The sequence section names columns not in the data: {missing}")
+    return flatten(build_windows(raw, spec))
+
+
+def history_tail(raw: pd.DataFrame, spec: dict) -> pd.DataFrame:
+    """Each group's last ``window - 1`` rows of the window columns, by order: all the history a later row's window
+    can read from these rows. Saved with a run so its test rows can be scored again with training's history."""
+    columns = window_columns(spec)
+    frame = raw[columns].assign(_key=_order_key(raw[spec["order"]].reset_index(drop=True)).to_numpy())
+    frame = frame.sort_values([spec["group"], "_key"], kind="stable")
+    return frame.groupby(spec["group"], sort=False).tail(int(spec["window"]) - 1).drop(columns="_key") \
+        .reset_index(drop=True)
