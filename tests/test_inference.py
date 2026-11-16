@@ -7,14 +7,17 @@ test files may have loaded torch into this process, after which LightGBM can cra
 import json
 import os
 import pickle
+import shutil
 import subprocess
 import sys
 import textwrap
 from pathlib import Path
+from types import SimpleNamespace
 
 import joblib
 import numpy as np
 import pandas as pd
+import polars as pl
 import pytest
 import yaml
 
@@ -78,12 +81,12 @@ def make_project(folder: Path, config: dict, train: pd.DataFrame, test: pd.DataF
     return folder
 
 
-def run_alphapy(folder: Path, *args) -> str:
+def run_alphapy(folder: Path, *args, fails=False) -> str:
     done = subprocess.run([sys.executable, "-c", "import sys; sys.argv = ['alphapy', *sys.argv[1:]]; "
                            "from alphapy.alphapy_main import main; main()", *args],
                           cwd=folder, env=ENV, capture_output=True, text=True, timeout=600)
     log = done.stdout + done.stderr
-    assert done.returncode == 0, log[-4000:]
+    assert (done.returncode != 0) == fails, log[-4000:]
     return log
 
 
@@ -92,10 +95,11 @@ def train(folder: Path) -> Path:
     return sorted((folder / "runs").iterdir())[-1]
 
 
-def score(run: Path, frame: Path, *, mode="batch", history=False, algorithms=None, pandas=False):
+def score(run: Path, frame: Path, *, mode="batch", history=None, algorithms=None, pandas=False, short=False):
     """Score a CSV of raw rows through ``alphapy.inference`` in a subprocess (read as training reads its files, or
     with pandas and a labelled index). ``mode`` is ``batch`` (one call), ``rows`` (one call per row) or ``features``
-    (the feature matrix)."""
+    (the feature matrix); ``history`` is None, ``"tail"`` (the training tail) or ``"follows"``
+    (``history_from_training``); ``short`` allows short window history."""
     out = frame.with_suffix(f".{mode}.pkl")
     code = textwrap.dedent(f"""
         import pickle, sys
@@ -108,9 +112,11 @@ def score(run: Path, frame: Path, *, mode="batch", history=False, algorithms=Non
         frame = read_frame({str(frame.parent)!r}, {frame.stem!r}, 'csv', ',')
         if {pandas!r}:
             frame = pd.read_csv({str(frame)!r}).set_axis([f'row{{i}}' for i in range(frame.height)])
-        history = run.training_tail if {history!r} else None
+        history = {{None: None, 'tail': run.training_tail,
+                    'follows': run.history_from_training(frame) if {history!r} == 'follows' else None}}[{history!r}]
         if {mode!r} == 'batch':
-            result = run.predict_proba(frame, algorithms={algorithms!r}, history=history)
+            result = run.predict_proba(frame, algorithms={algorithms!r}, history=history,
+                                       allow_short_history={short!r})
         elif {mode!r} == 'rows':
             result = pd.concat([run.predict_proba(frame[i:i + 1], algorithms={algorithms!r}, history=history)
                                 .set_axis([i]) for i in range(frame.height)])
@@ -223,8 +229,81 @@ def test_no_fitted_feature_step_reads_the_test_rows(tabular, tmp_path):
 def test_a_frame_missing_a_training_column_is_refused(tabular):
     folder, run, test_rows = tabular
     test_rows.drop(columns=["hour"]).iloc[:5].to_csv(folder / "no_hour.csv", index=False)
-    with pytest.raises(AssertionError, match="hour"):
+    with pytest.raises(AssertionError, match=r"lacks columns the run was trained on: \['hour'\]"):
         score(run, folder / "no_hour.csv")
+
+
+def copy_project(folder: Path, run: Path, to: Path) -> Path:
+    shutil.copytree(folder, to)
+    return to / "runs" / run.name
+
+
+def test_predict_mode_scores_unlabelled_rows(tabular, tmp_path):
+    folder, run, test_rows = tabular
+    run = copy_project(folder, run, tmp_path / "copy")
+    test_rows.assign(label=test_rows["label"].where(test_rows.index % 3 != 0)).to_csv(tmp_path / "copy/data/test.csv",
+                                                                                     index=False)
+    run_alphapy(tmp_path / "copy", "--predict", "--rundir", str(run))
+    predicted = pd.read_csv(run / "output/ranked_predict.csv")
+    assert len(predicted) == len(test_rows) and predicted["label"].isna().sum() == 100
+    expected = training_probabilities(run)
+    assert np.allclose(predicted.set_index("date").sort_index()["prob_test_blend"], expected["prob_test_blend"],
+                       **TIGHT)
+
+
+def test_predict_mode_refuses_the_run_input_copy_and_live_results(tabular, tmp_path):
+    folder, run, test_rows = tabular
+    run = copy_project(folder, run, tmp_path / "copy")
+    (tmp_path / "copy/data/test.csv").unlink()
+    log = run_alphapy(tmp_path / "copy", "--predict", "--rundir", str(run), fails=True)
+    assert "The project has no data/test.csv, and the run's input/test.csv is training's copy" in log
+    test_rows.to_csv(tmp_path / "copy/data/test.csv", index=False)
+    config = yaml.safe_load((tmp_path / "copy/config/model.yml").read_text())
+    config["project"]["live_results"] = True
+    (tmp_path / "copy/config/model.yml").write_text(yaml.safe_dump(config, sort_keys=False))
+    (run / "output/ranked_predict.csv").unlink(missing_ok=True)          # left by an earlier predict-mode test
+    log = run_alphapy(tmp_path / "copy", "--predict", "--rundir", str(run), fails=True)
+    assert "live_results is set" in log and not (run / "output/ranked_predict.csv").exists()
+
+
+def pipeline_for(train_rows, **specs):
+    """A feature pipeline fitted in this process on ``train_rows`` (every option off unless given)."""
+    from alphapy.features import PIPELINE_SPECS, FeaturePipeline
+    from alphapy.globals import ModelType
+    specs = {key: False for key in PIPELINE_SPECS} | {
+        "drop": [], "factors": [], "sentinel": -1, "transforms": None, "model_type": ModelType.classification,
+        "pvalue_level": 0.05, "lv_threshold": 0.0, "seed": 0, "n_jobs": 1} | specs
+    frame = pl.from_pandas(train_rows)
+    pipeline = FeaturePipeline(specs, frame.schema)
+    model = SimpleNamespace(specs=specs, feature_map={}, algolist=[], fnames_algo={}, feature_names=[])
+    pipeline.fit_transform(model, frame, np.arange(len(train_rows)) % 2)
+    return pipeline
+
+
+def test_a_text_value_training_never_saw_gets_minus_one():
+    pipeline = pipeline_for(pd.DataFrame({"venue": ["x", "y", "x", "y"], "a": [1.0, 2.0, 3.0, 4.0]}))
+    features = pipeline.transform(pipeline.conform(pd.DataFrame({"venue": ["z", "y"], "a": [1.0, 2.0]})))
+    assert pipeline.feature_names == ["venue_factor", "a"] and features[:, 0].tolist() == [-1, 1]
+
+
+def test_a_value_at_or_below_zero_in_a_log_transformed_column_is_refused():
+    volume = np.random.default_rng(0).lognormal(8.0, 1.0, 200)
+    pipeline = pipeline_for(pd.DataFrame({"volume": volume}), log_transform=True)
+    assert pipeline.feature_names == ["volume_log"]
+    with pytest.raises(ValueError, match="log-transformed in training"):
+        pipeline.transform(pipeline.conform(pd.DataFrame({"volume": [100.0, 0.0]})))
+
+
+def test_t_sne_is_refused():
+    with pytest.raises(ValueError, match="t-SNE cannot place rows"):
+        pipeline_for(pd.DataFrame({"a": np.arange(20.0), "b": np.arange(20.0) ** 2}), tsne=True)
+
+
+def test_a_fractional_value_in_an_integer_column_is_refused():
+    pipeline = pipeline_for(pd.DataFrame({"hour": [0, 5, 9, 23], "a": [1.0, 2.0, 3.0, 4.0]}))
+    assert pipeline.conform(pd.DataFrame({"hour": [7.0, np.nan], "a": [1.0, 2.0]}))["hour"].to_list() == [7, None]
+    with pytest.raises(ValueError, match=r"fractional values in columns training read as integers: \['hour'\]"):
+        pipeline.conform(pd.DataFrame({"hour": [1.5], "a": [1.0]}))
 
 
 def test_a_run_without_a_saved_feature_pipeline_is_refused(tmp_path):
@@ -300,7 +379,15 @@ def test_a_window_algorithm_scores_its_test_rows_as_training_did(tmp_path):
     folder = make_project(tmp_path / "windows", config, data[~cut], data[cut])
     run = train(folder)
     test_rows = data[cut]
-    scores = score(run, folder / "data/test.csv", history=True)
+    with pytest.raises(AssertionError, match="have fewer than 11 earlier rows"):
+        score(run, folder / "data/test.csv")                        # no history: the first rows' windows are short
+    padded = score(run, folder / "data/test.csv", short=True)
+    assert not np.allclose(padded["MROCK"].to_numpy()[:2], score(run, folder / "data/test.csv",
+                                                                 history="tail")["MROCK"].to_numpy()[:2])
+    data[~cut].iloc[-100:].to_csv(folder / "late_training.csv", index=False)   # not after training's last rows
+    with pytest.raises(AssertionError, match="have fewer than 11 earlier rows"):
+        score(run, folder / "late_training.csv", history="follows")
+    scores = score(run, folder / "data/test.csv", history="follows")
     expected = pd.read_csv(run / "output/ranked_test.csv").set_index(["date", "ticker"]).sort_index()
     scores = scores.set_axis(pd.MultiIndex.from_frame(test_rows[["date", "ticker"]])).sort_index()
     for column in ("LOGR", "MROCK", "blend"):
