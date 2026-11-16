@@ -429,7 +429,8 @@ class FeaturePipeline:
         names.extend(derived)
         features = self._interactions(features, names, y, fit=True)
         model.feature_names = names
-        model.feature_map['poly_support'] = self.poly_support
+        if self.poly_support is not None:
+            model.feature_map['poly_support'] = self.poly_support
         features = remove_lv_features(model, features)
         self.lv_support = model.feature_map.get('lv_support') if self.specs['lv_remove'] else None
         self.feature_names = list(model.feature_names)
