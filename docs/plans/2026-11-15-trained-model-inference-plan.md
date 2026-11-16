@@ -115,8 +115,10 @@ recorded probabilities before feature fitting changes.
    `load_predictor` and `load_feature_map` are removed. alphapy-sports' `sflow_main` calls predict mode after
    writing its prediction frame to the run's `input/test.csv`; it would now get `ranked_predict` instead of a
    crash (not run against alphapy-sports here).
-   Full alphapy-pro suite after steps 3-6: `116 passed, 33 warnings in 175.37s` (branch
-   `feature/trained-model-inference`).
+   Full alphapy-pro suite after steps 3-6: `118 passed, 33 warnings in 183.43s` (branch
+   `feature/trained-model-inference`). The SciPy row statistics needed one more fix: after standard scaling the
+   geometric mean is missing in every row and its column was dropped (8 columns, 9 names); it is now kept as
+   zero. Not exercised through inference: RFE supports, regression runs.
 7. **Close out.**
    - Full alphapy-pro suite.
    - alphapy-finance `tests/systems` and ML tests with a thread timeout (it imports this checkout editable).
