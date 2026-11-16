@@ -64,7 +64,7 @@ def default_scale(channels: list[str]) -> dict:
     return scale
 
 
-def _order_key(values: pd.Series) -> pd.Series:
+def order_key(values: pd.Series) -> pd.Series:
     """A sortable order: numbers and datetimes as they are, text parsed as dates (never sorted as text)."""
     if pd.api.types.is_numeric_dtype(values) or pd.api.types.is_datetime64_any_dtype(values):
         return values
@@ -87,7 +87,7 @@ def build_windows(frame: pd.DataFrame, spec: dict) -> np.ndarray:
         raise MemoryError(f"Sequence windows need {size_gb:.1f} GB, above the {limit:.1f} GB limit (max_gb)")
 
     out = np.zeros((n_rows, n_ch + 1, window), dtype=np.float32)
-    keys = pd.DataFrame({"g": frame[group].to_numpy(), "o": _order_key(frame[order].reset_index(drop=True))})
+    keys = pd.DataFrame({"g": frame[group].to_numpy(), "o": order_key(frame[order].reset_index(drop=True))})
     duplicated = keys.duplicated()
     if duplicated.any():
         raise ValueError(f"{int(duplicated.sum())} rows repeat a ({group}, {order}) pair; windows need one bar per pair")
@@ -192,7 +192,7 @@ def history_tail(raw: pd.DataFrame, spec: dict) -> pd.DataFrame:
     """Each group's last ``window - 1`` rows of the window columns, by order: all the history a later row's window
     can read from these rows. Saved with a run so its test rows can be scored again with training's history."""
     columns = window_columns(spec)
-    frame = raw[columns].assign(_key=_order_key(raw[spec["order"]].reset_index(drop=True)).to_numpy())
+    frame = raw[columns].assign(_key=order_key(raw[spec["order"]].reset_index(drop=True)).to_numpy())
     frame = frame.sort_values([spec["group"], "_key"], kind="stable")
     return frame.groupby(spec["group"], sort=False).tail(int(spec["window"]) - 1).drop(columns="_key") \
         .reset_index(drop=True)

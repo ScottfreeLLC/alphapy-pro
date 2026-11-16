@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 # Function get_data
 #
 
-def get_data(model, partition):
+def get_data(model, partition, keep_unlabeled=False):
     r"""Get data for the given partition.
 
     Parameters
@@ -64,6 +64,8 @@ def get_data(model, partition):
         The model object describing the data.
     partition : alphapy.Partition
         Reference to the dataset.
+    keep_unlabeled : bool, optional
+        Keep rows whose target is missing (predict mode scores them); their encoded target stays missing.
 
     Returns
     -------
@@ -110,14 +112,19 @@ def get_data(model, partition):
             nan_count = df[target].null_count()
             logger.info("Found %d records with NaN target values", nan_count)
             # drop NA targets
-            if not live_results or partition == Partition.train:
+            if not keep_unlabeled and (not live_results or partition == Partition.train):
                 df = df.drop_nulls(subset=[target])
                 if nan_count > 0:
                     logger.info("Dropped %d records with NaN target values", nan_count)
             # assign the target column to y
             df_y = df.select(target)
             # encode label only for classification or system
-            if model_type == ModelType.classification:
+            if model_type == ModelType.classification and keep_unlabeled:
+                labelled = df_y[target].is_not_null().to_numpy()
+                y = np.full(df_y.height, None, dtype=object)
+                y[labelled] = LabelEncoder().fit_transform(df_y[target].to_numpy()[labelled])
+                df_y = pl.DataFrame({target: pl.Series(target, y.tolist(), dtype=pl.Int64)})
+            elif model_type == ModelType.classification:
                 y = LabelEncoder().fit_transform(df_y[target].to_numpy())
                 df_y = pl.DataFrame({target: y})
             # drop the target from the original frame

@@ -1436,7 +1436,7 @@ def generate_metrics(model, partition):
 # Function save_predictions
 #
 
-def save_predictions(model, partition):
+def save_predictions(model, partition, output_file=None):
     r"""Save the predictions to files.
 
     Parameters
@@ -1445,6 +1445,8 @@ def save_predictions(model, partition):
         The model object to save.
     partition : alphapy.Partition
         Reference to the dataset.
+    output_file : str, optional
+        The ranked file's name in ``output``; ``ranked_<partition>`` when omitted.
 
     Returns
     -------
@@ -1531,7 +1533,7 @@ def save_predictions(model, partition):
     else:
         pred_name = USEP.join(['pred', datasets[partition], sort_tag.lower()])
         df_master = df_master.sort(pred_name, descending=True)
-    output_file = USEP.join(['ranked', datasets[partition]])
+    output_file = output_file or USEP.join(['ranked', datasets[partition]])
     write_frame(df_master, output_dir, output_file, extension, separator)
 
     # Generate submission file

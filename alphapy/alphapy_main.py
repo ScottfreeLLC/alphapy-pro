@@ -60,6 +60,7 @@ from alphapy.estimators import scorers
 from alphapy.estimators import is_window_algo
 from alphapy.sequence import append_windows
 from alphapy.sequence import history_tail
+from alphapy.sequence import window_columns
 from alphapy.features import apply_transforms
 from alphapy.features import create_crosstabs
 from alphapy.features import drop_features
@@ -69,7 +70,7 @@ from alphapy.features import select_features_lofo
 from alphapy.features import select_features_univariate
 from alphapy.frame import sequence_frame
 from alphapy.frame import write_frame
-from alphapy.globals import SSEP, USEP
+from alphapy.globals import PSEP, SSEP, USEP
 from alphapy.globals import ModelType
 from alphapy.globals import Partition, datasets
 from alphapy.inference import BLEND
@@ -318,17 +319,17 @@ def training_pipeline(alphapy_specs, model):
     pipeline = FeaturePipeline(model.specs, model.df_X_train.schema)
     X_train = pipeline.fit_transform(model, X_all[:split_point], y_train)
     X_test = pipeline.transform(X_all[split_point:])
-    X_all = np.vstack([X_train, X_test])
     model.feature_pipeline = pipeline
     model = save_features(model, X_train, X_test)
 
     # Append the raw window block [if the sequence section is on]; tabular algorithms never see it
 
-    if model.specs.get('sequence'):
-        X_all = append_windows(model, X_all)
+    spec = model.specs.get('sequence')
+    if spec:
+        X_all = append_windows(model, np.vstack([X_train, X_test]))
         X_train, X_test = np.array_split(X_all, [split_point])
         model = save_features(model, X_train, X_test)
-        pipeline.history = history_tail(model.df_X_train.to_pandas(), model.specs['sequence'])
+        pipeline.history = history_tail(model.df_X_train.select(window_columns(spec)).to_pandas(), spec)
 
     # Shuffle the data [if specified]
     model = shuffle_data(model)
@@ -461,12 +462,20 @@ def prediction_pipeline(alphapy_specs, model):
     model : alphapy.Model
         The model object with the predictions.
 
+    Raises
+    ------
+    ValueError
+        With ``live_results`` set (a live-results step after the pipeline may read training's ``ranked_test``),
+        when the project has no ``data/test`` file and the run's ``input/test`` copy lacks raw columns, or when
+        window algorithms' rows lack earlier rows.
+
     Notes
     -----
-    The trained run in ``run_dir`` scores the test partition's rows through ``alphapy.inference``: every algorithm
-    and the blend, with the feature steps as fitted on the run's training rows. Window algorithms read each group's
-    last training rows as history, as training did. The predictions are written to ``output/ranked_predict`` in the
-    format of training's ``ranked_test`` (the best algorithm's columns are ``best``); training's own files are kept.
+    The trained run in ``run_dir`` scores every row of the test partition, labelled or not, through
+    ``alphapy.inference``: every algorithm and the blend, with the feature steps as fitted on the run's training
+    rows. Window algorithms read each group's last training rows as history when the group's rows come after them
+    (as training's test rows did); otherwise the file carries its own earlier rows. The predictions are written to
+    ``output/ranked_predict`` in the format of training's ``ranked_test``; training's own files are kept.
 
     """
 
@@ -476,47 +485,49 @@ def prediction_pipeline(alphapy_specs, model):
 
     run_dir = model.specs['run_dir']
     extension = model.specs['extension']
-    model_type = model.specs['model_type']
-    separator = model.specs['separator']
+    partition = Partition.test
+    test_name = PSEP.join([datasets[partition], extension])
 
-    # Load the trained run and the rows to score
+    if model.specs['live_results']:
+        raise ValueError("Predict mode writes output/ranked_predict, but live_results is set: a live-results step "
+                         "that reads the newest output/ranked_test* would publish training's test predictions. Turn "
+                         "live_results off for predict mode and publish output/ranked_predict.")
+
+    # Load the trained run and the rows to score (every row, labelled or not)
 
     run = load_run(run_dir)
-    partition = Partition.test
-    X_predict, y_predict = get_data(model, partition)
+    X_predict, y_predict = get_data(model, partition, keep_unlabeled=True)
     if X_predict.is_empty():
-        raise ValueError("Predict mode found no rows in the test partition")
+        raise ValueError(f"Predict mode found no rows in data/{test_name}")
+    if not os.path.exists(SSEP.join([model.specs['directory'], 'data', test_name])):
+        missing = [c for c in run.pipeline.raw_schema if c not in X_predict.columns]
+        if missing:
+            raise ValueError(f"The project has no data/{test_name}, and the run's input/{test_name} is training's copy "
+                             f"after transforms and drops (it lacks {missing}). Put the raw rows to score in "
+                             f"data/{test_name}.")
     logger.info("Number of Prediction Rows    : %d", X_predict.shape[0])
     logger.info("Number of Prediction Columns : %d", X_predict.shape[1])
 
     # Score every algorithm and the blend
 
     logger.info("Making Predictions")
-    preds, probas = run.score(X_predict, history=run.training_tail)
+    preds, probas = run.predict_with_probabilities(X_predict, history=run.history_from_training(X_predict))
 
     # Write the ranked predictions in training's format
 
     best = run.manifest['best_algorithm']
     best = BLEND if best == 'BLEND' else best
-    tags = ['BEST'] + ([BLEND] if run.blend else []) + run.algorithms
-    df_master = pl.concat([X_predict, y_predict], how="horizontal") if not y_predict.is_empty() else X_predict
-    label = datasets[partition]
-    for tag in tags:
-        column = best if tag == 'BEST' else tag
-        df_master = df_master.with_columns(pl.Series(USEP.join(['pred', label, tag.lower()]),
-                                                     preds[column].to_numpy()))
-        if model_type == ModelType.classification:
-            df_master = df_master.with_columns(pl.Series(USEP.join(['prob', label, tag.lower()]),
-                                                         probas[column].to_numpy()))
-    kind = 'prob' if model_type == ModelType.classification else 'pred'
-    df_master = df_master.sort(USEP.join([kind, label, 'best']), descending=True)
-    write_frame(df_master, SSEP.join([run_dir, 'output']), 'ranked_predict', extension, separator)
-
-    # Return the model
-    model.preds = {(tag, partition): preds[best if tag == 'BEST' else tag].to_numpy() for tag in tags}
-    if model_type == ModelType.classification:
-        model.probas = {(tag, partition): probas[best if tag == 'BEST' else tag].to_numpy() for tag in tags}
-    return model
+    tags = {'BEST': best, 'BLEND': BLEND, **{algo: algo for algo in run.algorithms}}
+    tags = {tag: column for tag, column in tags.items() if column in preds.columns}
+    model.algolist = run.algorithms
+    model.best_algo = best
+    model.df_X_test = X_predict
+    model.df_y_test = y_predict
+    model.test_labels = not y_predict.is_empty()
+    model.preds = {(tag, partition): preds[column].to_numpy() for tag, column in tags.items()}
+    if probas is not None:
+        model.probas = {(tag, partition): probas[column].to_numpy() for tag, column in tags.items()}
+    return save_predictions(model, partition, output_file='ranked_predict')
 
 
 #
