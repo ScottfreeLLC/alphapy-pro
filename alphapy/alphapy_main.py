@@ -71,7 +71,9 @@ from alphapy.frame import sequence_frame
 from alphapy.frame import write_frame
 from alphapy.globals import SSEP, USEP
 from alphapy.globals import ModelType
-from alphapy.globals import Partition
+from alphapy.globals import Partition, datasets
+from alphapy.inference import BLEND
+from alphapy.inference import load_run
 from alphapy.model import first_fit
 from alphapy.model import generate_metrics
 from alphapy.model import get_model_config
@@ -456,12 +458,15 @@ def prediction_pipeline(alphapy_specs, model):
 
     Returns
     -------
-    None : None
+    model : alphapy.Model
+        The model object with the predictions.
 
     Notes
     -----
-    The saved model is loaded from disk, and predictions are made
-    on the new testing data.
+    The trained run in ``run_dir`` scores the test partition's rows through ``alphapy.inference``: every algorithm
+    and the blend, with the feature steps as fitted on the run's training rows. Window algorithms read each group's
+    last training rows as history, as training did. The predictions are written to ``output/ranked_predict`` in the
+    format of training's ``ranked_test`` (the best algorithm's columns are ``best``); training's own files are kept.
 
     """
 
@@ -470,96 +475,47 @@ def prediction_pipeline(alphapy_specs, model):
     # Unpack the model specifications
 
     run_dir = model.specs['run_dir']
-    drop = model.specs['drop']
-    fs_lofo = model.specs['fs_lofo']
-    fs_univariate = model.specs['fs_univariate']
+    extension = model.specs['extension']
     model_type = model.specs['model_type']
-    rfe = model.specs['rfe']
+    separator = model.specs['separator']
 
-    # Get all data. We need original train and test for encodings.
+    # Load the trained run and the rows to score
 
-    X_train, y_train = get_data(model, Partition.train)
-
+    run = load_run(run_dir)
     partition = Partition.test
-    X_predict, _ = get_data(model, partition)
-
-    # Load feature_map
-    model = load_feature_map(model, run_dir)
-
-    # Log feature statistics
-
-    logger.info("Feature Statistics")
+    X_predict, y_predict = get_data(model, partition)
+    if X_predict.is_empty():
+        raise ValueError("Predict mode found no rows in the test partition")
     logger.info("Number of Prediction Rows    : %d", X_predict.shape[0])
     logger.info("Number of Prediction Columns : %d", X_predict.shape[1])
 
-    # Apply transforms to the feature matrix
-    X_all = apply_transforms(model, X_predict)
-
-    # Drop features
-    X_all = drop_features(X_all, drop)
-
-    # Create initial features
-    X_all = create_features(model, X_all, X_train, X_predict, y_train)
-
-    # Generate interactions
-    X_all = create_interactions(model, X_all)
-
-    # Remove low-variance features
-    X_all = remove_lv_features(model, X_all)
-
-    # Window algorithms are not supported in predict mode yet
-
-    if model.specs.get('sequence'):
-        raise NotImplementedError("Predict mode does not support the sequence section yet")
-
-    # Load the LOFO support vector, if any
-
-    if fs_lofo:
-        logger.info("Getting LOFO Support")
-        try:
-            support = model.feature_map['support_lofo', model.best_algo]
-            X_all = X_all[:, support]
-            logger.info("New Feature Count : %d", X_all.shape[1])
-        except:
-            logger.info("No LOFO Support")
-
-    # Load the univariate support vector, if any
-
-    if fs_univariate:
-        logger.info("Getting Univariate Support")
-        try:
-            support = model.feature_map['support_uni']
-            X_all = X_all[:, support]
-            logger.info("New Feature Count : %d", X_all.shape[1])
-        except:
-            logger.info("No Univariate Support")
-
-    # Load the RFE support vector, if any
-
-    if rfe:
-        logger.info("Getting RFE Support")
-        try:
-            support = model.feature_map['rfe_support']
-            X_all = X_all[:, support]
-            logger.info("New Feature Count : %d", X_all.shape[1])
-        except:
-            logger.info("No RFE Support")
-
-    # Load predictor
-    predictor = load_predictor(run_dir)
-
-    # Make predictions
+    # Score every algorithm and the blend
 
     logger.info("Making Predictions")
-    tag = 'BEST'
-    model.preds[(tag, partition)] = predictor.predict(X_all)
-    if model_type == ModelType.classification:
-        model.probas[(tag, partition)]  = predictor.predict_proba(X_all)[:, 1]
+    preds, probas = run.score(X_predict, history=run.training_tail)
 
-    # Save predictions
-    save_predictions(model, tag, partition)
+    # Write the ranked predictions in training's format
+
+    best = run.manifest['best_algorithm']
+    best = BLEND if best == 'BLEND' else best
+    tags = ['BEST'] + ([BLEND] if run.blend else []) + run.algorithms
+    df_master = pl.concat([X_predict, y_predict], how="horizontal") if not y_predict.is_empty() else X_predict
+    label = datasets[partition]
+    for tag in tags:
+        column = best if tag == 'BEST' else tag
+        df_master = df_master.with_columns(pl.Series(USEP.join(['pred', label, tag.lower()]),
+                                                     preds[column].to_numpy()))
+        if model_type == ModelType.classification:
+            df_master = df_master.with_columns(pl.Series(USEP.join(['prob', label, tag.lower()]),
+                                                         probas[column].to_numpy()))
+    kind = 'prob' if model_type == ModelType.classification else 'pred'
+    df_master = df_master.sort(USEP.join([kind, label, 'best']), descending=True)
+    write_frame(df_master, SSEP.join([run_dir, 'output']), 'ranked_predict', extension, separator)
 
     # Return the model
+    model.preds = {(tag, partition): preds[best if tag == 'BEST' else tag].to_numpy() for tag in tags}
+    if model_type == ModelType.classification:
+        model.probas = {(tag, partition): probas[best if tag == 'BEST' else tag].to_numpy() for tag in tags}
     return model
 
 
@@ -718,6 +674,9 @@ def main(args=None):
             # get latest directory
             search_dir = SSEP.join([model_specs['directory'], 'runs'])
             run_dir = most_recent_file(search_dir, 'run_*')
+        elif not os.path.isdir(run_dir):
+            # a run name such as run_YYYYMMDD_hhmmss, under the project's runs directory
+            run_dir = SSEP.join([model_specs['directory'], 'runs', run_dir])
     model_specs['run_dir'] = run_dir
 
     # Create a model from the arguments
