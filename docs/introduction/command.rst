@@ -44,14 +44,17 @@ Example::
     # Score with a chosen run
     alphapy --predict --rundir run_20261115_210812
 
-Predict mode scores the test rows with every algorithm of the run and the blend, with the feature steps as fitted on
-the run's training rows, and writes ``output/ranked_predict`` in the format of training's ``ranked_test`` (the best
-algorithm's columns are ``best``). Training's own files are kept. Window algorithms (the ``sequence`` section) read
-each group's last training rows as history, as training did for its test rows.
+Predict mode scores every row of ``data/test`` (labelled or not) with every algorithm of the run and the blend, with
+the feature steps as fitted on the run's training rows, and writes ``output/ranked_predict`` in the format of
+training's ``ranked_test``. Training's own files are kept. Window algorithms (the ``sequence`` section) read each
+group's last training rows as history when the group's rows come after them, as training's test rows did; otherwise
+the file must carry its own earlier rows. Predict mode refuses to run with ``live_results`` set, because a
+live-results step reading the newest ``output/ranked_test*`` would publish training's test predictions.
 
 From Python, ``alphapy.inference.load_run(run_dir).predict_proba(frame)`` returns each algorithm's and the blend's
 probabilities for the rows of a frame (the raw columns training loaded), indexed like the frame. For window
-algorithms, the frame carries enough earlier rows per group, or ``history=`` supplies them. Runs trained before the
+algorithms, the frame carries enough earlier rows per group (``window - 1``), or ``history=`` supplies them; a row
+short of history is refused unless ``allow_short_history=True``. Runs trained before the
 feature pipeline was saved (``model/feature_pipeline.pkl``) cannot be scored this way; train them again.
 
 **Custom Pipelines**

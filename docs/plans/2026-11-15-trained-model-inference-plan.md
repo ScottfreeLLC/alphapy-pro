@@ -119,6 +119,28 @@ recorded probabilities before feature fitting changes.
    `feature/trained-model-inference`). The SciPy row statistics needed one more fix: after standard scaling the
    geometric mean is missing in every row and its column was dropped (8 columns, 9 names); it is now kept as
    zero. Not exercised through inference: RFE supports, regression runs.
+   Review fixes (2026-11-15, after Fable's review):
+   - A window algorithm's row with fewer than `window - 1` earlier rows in its group is refused, naming how many
+     rows and which groups (a probe scored MROCK 0.512 without history against 0.195 with it);
+     `allow_short_history=True` scores the padded window anyway. With a session column, only rows whose session may
+     begin before the rows given count as short.
+   - Predict mode prepends a group's training tail only when that group's rows all come after training's last row
+     by the order column (`history_from_training`); otherwise the file carries its own history or is refused.
+   - Predict mode scores unlabelled rows (`get_data(..., keep_unlabeled=True)`; their target stays missing).
+   - Predict mode refuses a run's `input/test` copy (training's file after transforms and drops) with a message to
+     put the raw rows in `data/test`, unless that copy has every raw column (alphapy-sports writes its raw
+     prediction frame there).
+   - Predict mode refuses to run with `live_results` set. alphapy-sports' `update_live_results`
+     (`sflow/common/data_operations.py`) reads `most_recent_file(output_dir, "ranked_test*.csv")` after the
+     pipeline, so a predict run would publish training's test predictions as live. Writing predictions under a
+     `ranked_test*` name was rejected: the newest-file rule goes by creation time, which a copied or synced run
+     directory scrambles. To use predict mode with live results, alphapy-sports reads
+     `"ranked_predict*.csv" if model_specs["predict_mode"] else "ranked_test*.csv"` there and passes
+     `live_results=False` to alphapy-pro's model in predict mode (its own flag still drives publishing).
+   - Estimators load on first use; training no longer stacks the tabular matrices when the sequence section is
+     off; the training tail selects the window columns before converting to pandas.
+   - A fractional value in a column training read as integers is refused (it used to be truncated).
+   - Predict mode writes its ranked file through `save_predictions` (new `output_file` argument).
 7. **Close out.**
    - Full alphapy-pro suite.
    - alphapy-finance `tests/systems` and ML tests with a thread timeout (it imports this checkout editable).
@@ -126,6 +148,24 @@ recorded probabilities before feature fitting changes.
    - Rerunning the crypto cell after step 4 measures the look-ahead. That rerun scores held-back rows with a
      changed model, so its trial line is written in the Record before it runs.
    Status: pending.
+
+## Follow-ups (from the review, 2026-11-15; not fixed here)
+
+- The best model is chosen on test labels when they exist (`alphapy_main.py` generate_results on the test
+  partition, `select_best_model` in `model.py`), so "best" reads the held-back rows.
+- LOFO (`features.py`, `KFold`), RFECV (`optimize.py`) and Optuna grid search (`optimize.py`) folds ignore
+  `cv_time_blocks`, so they can train on later rows than they test.
+- User transforms run on training and test rows together in training and on the frame alone at inference; a
+  transform that reads across rows sees different rows.
+- The regression blend is rounded to integers (`predict_blend` in `model.py`, copied in `alphapy/inference.py` so
+  inference matches training).
+- The window history check cannot see a gap: a frame whose first row comes after training's last row by the order
+  column gets the training tail even if bars are missing in between.
+- A text column given dates as datetimes at inference but read as text in training gets different text codes
+  (cast to text differs from the CSV's text).
+- Count features: `nan_count` counts nulls only; a float NaN (not null) is counted as present.
+- `log_transform` on with an all-missing training column: the median imputer drops the column, and the
+  log-transform test on the empty array is not guarded.
 
 ## Effect on alphapy-finance
 
