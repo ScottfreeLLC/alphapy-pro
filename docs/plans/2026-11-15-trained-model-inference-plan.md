@@ -74,7 +74,11 @@ recorded probabilities before feature fitting changes.
    - one-at-a-time equals batch scoring;
    - a one-row frame with `hour` 0, `day_of_week` 0 and a null keeps every column;
    - a test fails if any step reads test rows when fitting.
-   Status: pending.
+   Status: done (2026-11-15). `tests/test_inference.py`, every training and scoring in a subprocess. Also: LOFO on
+   one algorithm only, a MiniRocket window run, a frame missing a column and a run without a saved pipeline. Before
+   the change: the module did not exist, predict mode failed (`Could not find feature map`, then `KeyError:
+   'lv_support'`), training with PCA failed the names check, and changing only the test rows moved training
+   probabilities by up to 0.41 (LightGBM), 0.15 (logistic regression) and 0.20 (blend).
 4. **Fit on training rows and save the fitted pipeline.**
    - Covers imputation medians, the log-transform decision, scalers, encoders, vectorizers, clustering, PCA,
      isomap, t-SNE and the low-variance mask.
@@ -83,10 +87,36 @@ recorded probabilities before feature fitting changes.
      these by name and refuse a frame that does not match.
    - Training results change wherever scaling or imputation is on. That is the intended fix, and it is stated in
      the pull request.
-   Status: pending.
+   Status: done (2026-11-15). `alphapy.features.FeaturePipeline` replaces `create_features`,
+   `create_interactions` and their helpers; training produces its test features with the same `transform` that
+   scores later rows; saved as `model/feature_pipeline.pkl`. Findings and decisions:
+   - Also fitted on training rows: the NumPy and SciPy row statistics' imputer and scaler, the interaction scaler,
+     and the scalers inside clustering, PCA and isomap; text codes are training's (an unseen value gets -1).
+   - t-SNE is refused in training: it has no transform, so it could score test rows only by fitting on them.
+   - A value at or below zero in a column training log-transformed is refused (training's test rows included).
+   - Already broken on develop and fixed: interactions (`get_feature_names` removed from scikit-learn), PCA (one
+     name per block failed the names check), SciPy features (`signaltonoise` removed from SciPy). The `_log`
+     suffix went on the columns that were not log-transformed; it now goes on those that are.
+   - Text vectorization was never reached (`get_feature_names`), so text was always factorized; unchanged, with a
+     warning when `vectorize` is on.
+   - User transforms (`transforms`) still run on whatever rows they are given: on training and test rows together
+     in training, on the frame alone at inference. A transform that reads across rows needs those rows present.
 5. **`alphapy.inference`** (`load_run`, `predict_proba`): per-algorithm supports through the training gate; window
-   algorithms fed the training tail as history, as in training. Status: pending.
-6. **Predict mode on top of it** (fix the file names; sequence supported). Status: pending.
+   algorithms fed the training tail as history, as in training. Status: done (2026-11-15).
+   `load_run(run_dir).predict_proba(frame, algorithms=None, history=None)`, also `predict`, `score` and `features`.
+   The frame is conformed to training's raw columns by name and types; extra columns (the target) are ignored.
+   The training tail is passed explicitly (`history=run.training_tail`), never prepended by default: stale history
+   would be wrong for rows that do not follow training's. RFE supports and each algorithm's feature names are now
+   in the manifest. Runs trained before step 4, including the recovered crypto refit of step 2, have no saved
+   pipeline and are refused; they must be trained again to be scored this way.
+6. **Predict mode on top of it** (fix the file names; sequence supported). Status: done (2026-11-15). Writes
+   `output/ranked_predict` in training's `ranked_test` format (best, blend, every algorithm) and keeps training's
+   files; window algorithms read the training tail. `--rundir` accepts a path or a run name under `runs/`. The old
+   `load_predictor` and `load_feature_map` are removed. alphapy-sports' `sflow_main` calls predict mode after
+   writing its prediction frame to the run's `input/test.csv`; it would now get `ranked_predict` instead of a
+   crash (not run against alphapy-sports here).
+   Full alphapy-pro suite after steps 3-6: `116 passed, 33 warnings in 175.37s` (branch
+   `feature/trained-model-inference`).
 7. **Close out.**
    - Full alphapy-pro suite.
    - alphapy-finance `tests/systems` and ML tests with a thread timeout (it imports this checkout editable).
