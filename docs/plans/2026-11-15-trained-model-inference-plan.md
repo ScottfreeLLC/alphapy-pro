@@ -52,17 +52,43 @@ recent rows, for paper studies in alphapy-finance).
 
 ## Steps
 
-1. Tests first:
-   - a trained two-model run must reproduce its test probabilities through predict mode and through
-     `predict_proba`, for each algorithm and the blend;
-   - scoring rows one at a time must equal scoring them in a batch;
-   - a test that fails if any step reads test rows when fitting.
+The order matters: save every model first, on the current feature code, so a refit can be checked against the
+recorded probabilities before feature fitting changes.
+
+1. **Save every fitted algorithm** (one file per algorithm beside the unchanged `model.pkl` and `feature_map.pkl`),
+   the blend's members (the blend is a plain average, `predict_blend`) and a manifest. Measure the saved size on
+   the crypto 15-minute cell before any million-row cell. Status: pending.
+2. **Refit check (alphapy-finance).**
+   - Rerun the crypto 15-minute calibrated cell with the same config and seed.
+   - Compare every algorithm's and the blend's held-back probabilities with the recorded `ranked_test.csv`.
+   - If they don't reproduce, report that the validated blend cannot be recovered and any artifact is a new fit.
    Status: pending.
-2. Fit-on-train for every data-learning step in `features.py`; save the fitted pipeline. Status: pending.
-3. Save every fitted algorithm, the blend, supports, the sequence spec and the manifest. Status: pending.
-4. `alphapy.inference` (`load_run`, `predict_proba`), window algorithms included. Status: pending.
-5. Predict mode on top of it (fix the file names; per-algorithm supports; sequence supported). Status: pending.
-6. Full suite; Fable review; pull request to `main`. Status: pending.
+3. **Tests first:**
+   - a trained two-model run reproduces its test probabilities through predict mode and through `predict_proba`,
+     for each algorithm and the blend;
+   - one-at-a-time equals batch scoring;
+   - a one-row frame with `hour` 0, `day_of_week` 0 and a null keeps every column;
+   - a test fails if any step reads test rows when fitting.
+   Status: pending.
+4. **Fit on training rows and save the fitted pipeline.**
+   - Covers imputation medians, the log-transform decision, scalers, encoders, vectorizers, clustering, PCA,
+     isomap, t-SNE and the low-variance mask.
+   - Save training's column names, order, dtypes and keep or drop decisions. `create_features` drops all-zero
+     columns and routes columns by dtype and number of unique values, both of which a small frame changes. Apply
+     these by name and refuse a frame that does not match.
+   - Training results change wherever scaling or imputation is on. That is the intended fix, and it is stated in
+     the pull request.
+   Status: pending.
+5. **`alphapy.inference`** (`load_run`, `predict_proba`): per-algorithm supports through the training gate; window
+   algorithms fed the training tail as history, as in training. Status: pending.
+6. **Predict mode on top of it** (fix the file names; sequence supported). Status: pending.
+7. **Close out.**
+   - Full alphapy-pro suite.
+   - alphapy-finance `tests/systems` and ML tests with a thread timeout (it imports this checkout editable).
+   - Restart its server, Fable review, pull request to `main`.
+   - Rerunning the crypto cell after step 4 measures the look-ahead. That rerun scores held-back rows with a
+     changed model, so its trial line is written in the Record before it runs.
+   Status: pending.
 
 ## Effect on alphapy-finance
 
