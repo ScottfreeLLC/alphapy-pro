@@ -92,9 +92,10 @@ def train(folder: Path) -> Path:
     return sorted((folder / "runs").iterdir())[-1]
 
 
-def score(run: Path, frame: Path, *, mode="batch", history=False, algorithms=None):
-    """Score a CSV of raw rows through ``alphapy.inference`` in a subprocess (read as training reads its files).
-    ``mode`` is ``batch`` (one call), ``rows`` (one call per row) or ``features`` (the feature matrix)."""
+def score(run: Path, frame: Path, *, mode="batch", history=False, algorithms=None, pandas=False):
+    """Score a CSV of raw rows through ``alphapy.inference`` in a subprocess (read as training reads its files, or
+    with pandas and a labelled index). ``mode`` is ``batch`` (one call), ``rows`` (one call per row) or ``features``
+    (the feature matrix)."""
     out = frame.with_suffix(f".{mode}.pkl")
     code = textwrap.dedent(f"""
         import pickle, sys
@@ -105,6 +106,8 @@ def score(run: Path, frame: Path, *, mode="batch", history=False, algorithms=Non
         assert alphapy.__file__.startswith({str(ROOT)!r}), alphapy.__file__
         run = load_run({str(run)!r})
         frame = read_frame({str(frame.parent)!r}, {frame.stem!r}, 'csv', ',')
+        if {pandas!r}:
+            frame = pd.read_csv({str(frame)!r}).set_axis([f'row{{i}}' for i in range(frame.height)])
         history = run.training_tail if {history!r} else None
         if {mode!r} == 'batch':
             result = run.predict_proba(frame, algorithms={algorithms!r}, history=history)
@@ -155,7 +158,7 @@ def test_predict_proba_reproduces_the_test_probabilities_of_every_algorithm_and_
 def test_predict_mode_writes_the_test_probabilities_training_recorded(tabular):
     folder, run, test_rows = tabular
     recorded = (run / "output/ranked_test.csv").read_bytes()
-    run_alphapy(folder, "--predict", "--rundir", str(run))
+    run_alphapy(folder, "--predict", "--rundir", run.name)                      # a run name under runs/
     assert (run / "output/ranked_test.csv").read_bytes() == recorded          # training's record is kept
     predicted = pd.read_csv(run / "output/ranked_predict.csv")
     expected = pd.read_csv(run / "output/ranked_test.csv")
@@ -187,6 +190,17 @@ def test_a_single_row_with_zero_hour_and_weekday_and_a_gap_keeps_every_feature(t
     alone = score(run, folder / "one.csv")
     among = score(run, folder / "with_others.csv")
     assert np.allclose(alone.to_numpy(), among.iloc[:1].to_numpy(), **TIGHT)
+
+
+def test_a_pandas_frame_keeps_its_index_and_a_gap_in_an_integer_column_is_imputed(tabular):
+    """pandas reads an integer column with a gap as floats; the run casts it back and imputes as training did."""
+    folder, run, test_rows = tabular
+    test_rows.iloc[:20].assign(hour=lambda d: d["hour"].where(d.index != d.index[3])).to_csv(folder / "gap.csv",
+                                                                                          index=False)
+    from_pandas = score(run, folder / "gap.csv", pandas=True)
+    from_polars = score(run, folder / "gap.csv")
+    assert list(from_pandas.index) == [f"row{i}" for i in range(20)]
+    assert np.allclose(from_pandas.to_numpy(), from_polars.to_numpy(), **TIGHT)
 
 
 def test_no_fitted_feature_step_reads_the_test_rows(tabular, tmp_path):
@@ -227,6 +241,7 @@ def test_lofo_on_one_algorithm_scores_each_algorithm_with_its_own_columns(tmp_pa
     for k in range(4):
         data[f"noise{k}"] = rng.normal(size=len(data))
     config = tabular_config(["LGB", "LOGR"], lofo={"option": True, "algorithms": ["LGB"]},
+                            scaling={"option": True, "type": "minmax"},
                             interactions={"option": False, "poly_degree": 2, "sampling_pct": 50},
                             clustering={"option": False, "increment": 2, "maximum": 4, "minimum": 2},
                             pca={"option": False, "increment": 1, "maximum": 3, "minimum": 2, "whiten": False})
@@ -238,6 +253,19 @@ def test_lofo_on_one_algorithm_scores_each_algorithm_with_its_own_columns(tmp_pa
     lgb, logr = (joblib.load(run / f"model/estimators/{a}.pkl") for a in ("LGB", "LOGR"))
     assert lgb.n_features_in_ == sum(support) < logr.n_features_in_
     assert_reproduces(score(run, tmp_path / "lofo/data/test.csv"), run, test_rows)
+
+
+def test_scipy_and_isomap_features_reproduce_the_test_probabilities(tmp_path):
+    """After standard scaling some row values are negative, so the geometric mean is missing in every row; the
+    column is kept (zero), not dropped, so the names stay aligned with the columns."""
+    config = tabular_config(["LGB", "LOGR"], scipy={"option": True},
+                            isomap={"option": True, "components": 2, "neighbors": 5},
+                            interactions={"option": False, "poly_degree": 2, "sampling_pct": 50})
+    test_rows = rows(200, 5, start="2022-06-19")
+    run = train(make_project(tmp_path / "scipy", config, rows(600, 4), test_rows))
+    names = json.loads((run / "model/manifest.json").read_text())["feature_names"]
+    assert "sp_signal_to_noise" in names and "isomap_2" in names
+    assert_reproduces(score(run, tmp_path / "scipy/data/test.csv"), run, test_rows)
 
 
 def bars(seed):

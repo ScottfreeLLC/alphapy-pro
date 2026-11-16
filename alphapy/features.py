@@ -428,6 +428,7 @@ class FeaturePipeline:
         features, derived = self._features(blocks, fit=True)
         names.extend(derived)
         features = self._interactions(features, names, y, fit=True)
+        assert features.shape[1] == len(names), "Mismatched Features and Names"
         model.feature_names = names
         if self.poly_support is not None:
             model.feature_map['poly_support'] = self.poly_support
@@ -566,14 +567,16 @@ class FeaturePipeline:
             logger.info("Creating NumPy Features")
             stats = np.column_stack([base.sum(axis=1), base.mean(axis=1), base.std(axis=1), base.var(axis=1)])
             stats[np.isinf(stats)] = np.nan
-            stats = self._step('numpy_imputer', lambda: SimpleImputer(strategy='median'), stats, fit)
+            stats = self._step('numpy_imputer', lambda: SimpleImputer(strategy='median', keep_empty_features=True),
+                               stats, fit)
             blocks.append(self._step('numpy_scaler', StandardScaler, stats, fit))
             names.extend(['sum', 'mean', 'std', 'var'])
         if specs['scipy']:
             logger.info("Creating SciPy Features")
             stats = scipy_row_statistics(base)
             stats[np.isinf(stats)] = np.nan
-            stats = self._step('scipy_imputer', lambda: SimpleImputer(strategy='median'), stats, fit)
+            stats = self._step('scipy_imputer', lambda: SimpleImputer(strategy='median', keep_empty_features=True),
+                               stats, fit)
             blocks.append(self._step('scipy_scaler', StandardScaler, stats, fit))
             names.extend(['sp_geometric_mean', 'sp_kurtosis', 'sp_kurtosis_test', 'sp_normal_test', 'sp_skew',
                           'sp_skew_test', 'sp_variation', 'sp_signal_to_noise', 'sp_standard_error_of_mean'])
