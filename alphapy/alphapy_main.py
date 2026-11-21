@@ -59,25 +59,25 @@ from alphapy.estimators import get_estimators
 from alphapy.estimators import scorers
 from alphapy.estimators import is_window_algo
 from alphapy.sequence import append_windows
+from alphapy.sequence import history_tail
+from alphapy.sequence import window_columns
 from alphapy.features import apply_transforms
 from alphapy.features import create_crosstabs
-from alphapy.features import create_features
-from alphapy.features import create_interactions
 from alphapy.features import drop_features
-from alphapy.features import remove_lv_features
+from alphapy.features import FeaturePipeline
 from alphapy.features import save_features
 from alphapy.features import select_features_lofo
 from alphapy.features import select_features_univariate
 from alphapy.frame import sequence_frame
 from alphapy.frame import write_frame
-from alphapy.globals import SSEP, USEP
+from alphapy.globals import PSEP, SSEP, USEP
 from alphapy.globals import ModelType
-from alphapy.globals import Partition
+from alphapy.globals import Partition, datasets
+from alphapy.inference import BLEND
+from alphapy.inference import load_run
 from alphapy.model import first_fit
 from alphapy.model import generate_metrics
 from alphapy.model import get_model_config
-from alphapy.model import load_feature_map
-from alphapy.model import load_predictor
 from alphapy.model import make_predictions
 from alphapy.model import Model
 from alphapy.model import select_best_model
@@ -85,6 +85,8 @@ from alphapy.model import predict_blend
 from alphapy.model import save_feature_map
 from alphapy.model import save_metrics
 from alphapy.model import save_predictions
+from alphapy.model import save_estimators
+from alphapy.model import save_feature_pipeline
 from alphapy.model import save_predictor
 from alphapy.optimize import hyper_grid_search
 from alphapy.optimize import rfecv_search
@@ -311,30 +313,23 @@ def training_pipeline(alphapy_specs, model):
     if model_type == ModelType.classification:
         create_crosstabs(model, target)
 
-    # Create initial features
+    # Create features, interactions and the low-variance mask. Every step that learns from data is fitted on the
+    # training rows only; the test rows go through the fitted steps exactly as rows scored later will.
 
-    X_all = create_features(model, X_all, X_train, X_test, y_train)
-    X_train, X_test = np.array_split(X_all, [split_point])
-    model = save_features(model, X_train, X_test)
-
-    # Generate interactions
-
-    X_all = create_interactions(model, X_all)
-    X_train, X_test = np.array_split(X_all, [split_point])
-    model = save_features(model, X_train, X_test)
-
-    # Remove low-variance features
-
-    X_all = remove_lv_features(model, X_all)
-    X_train, X_test = np.array_split(X_all, [split_point])
+    pipeline = FeaturePipeline(model.specs, model.df_X_train.schema)
+    X_train = pipeline.fit_transform(model, X_all[:split_point], y_train)
+    X_test = pipeline.transform(X_all[split_point:])
+    model.feature_pipeline = pipeline
     model = save_features(model, X_train, X_test)
 
     # Append the raw window block [if the sequence section is on]; tabular algorithms never see it
 
-    if model.specs.get('sequence'):
-        X_all = append_windows(model, X_all)
+    spec = model.specs.get('sequence')
+    if spec:
+        X_all = append_windows(model, np.vstack([X_train, X_test]))
         X_train, X_test = np.array_split(X_all, [split_point])
         model = save_features(model, X_train, X_test)
+        pipeline.history = history_tail(model.df_X_train.select(window_columns(spec)).to_pandas(), spec)
 
     # Shuffle the data [if specified]
     model = shuffle_data(model)
@@ -439,6 +434,8 @@ def training_pipeline(alphapy_specs, model):
     # Save the model and metrics
 
     save_predictor(model, 'BEST')
+    save_estimators(model)
+    save_feature_pipeline(model)
     save_feature_map(model)
     save_metrics(model)
 
@@ -462,12 +459,23 @@ def prediction_pipeline(alphapy_specs, model):
 
     Returns
     -------
-    None : None
+    model : alphapy.Model
+        The model object with the predictions.
+
+    Raises
+    ------
+    ValueError
+        With ``live_results`` set (a live-results step after the pipeline may read training's ``ranked_test``),
+        when the project has no ``data/test`` file and the run's ``input/test`` copy lacks raw columns, or when
+        window algorithms' rows lack earlier rows.
 
     Notes
     -----
-    The saved model is loaded from disk, and predictions are made
-    on the new testing data.
+    The trained run in ``run_dir`` scores every row of the test partition, labelled or not, through
+    ``alphapy.inference``: every algorithm and the blend, with the feature steps as fitted on the run's training
+    rows. Window algorithms read each group's last training rows as history when the group's rows come after them
+    (as training's test rows did); otherwise the file carries its own earlier rows. The predictions are written to
+    ``output/ranked_predict`` in the format of training's ``ranked_test``; training's own files are kept.
 
     """
 
@@ -476,97 +484,49 @@ def prediction_pipeline(alphapy_specs, model):
     # Unpack the model specifications
 
     run_dir = model.specs['run_dir']
-    drop = model.specs['drop']
-    fs_lofo = model.specs['fs_lofo']
-    fs_univariate = model.specs['fs_univariate']
-    model_type = model.specs['model_type']
-    rfe = model.specs['rfe']
-
-    # Get all data. We need original train and test for encodings.
-
-    X_train, y_train = get_data(model, Partition.train)
-
+    extension = model.specs['extension']
     partition = Partition.test
-    X_predict, _ = get_data(model, partition)
+    test_name = PSEP.join([datasets[partition], extension])
 
-    # Load feature_map
-    model = load_feature_map(model, run_dir)
+    if model.specs['live_results']:
+        raise ValueError("Predict mode writes output/ranked_predict, but live_results is set: a live-results step "
+                         "that reads the newest output/ranked_test* would publish training's test predictions. Turn "
+                         "live_results off for predict mode and publish output/ranked_predict.")
 
-    # Log feature statistics
+    # Load the trained run and the rows to score (every row, labelled or not)
 
-    logger.info("Feature Statistics")
+    run = load_run(run_dir)
+    X_predict, y_predict = get_data(model, partition, keep_unlabeled=True)
+    if X_predict.is_empty():
+        raise ValueError(f"Predict mode found no rows in data/{test_name}")
+    if not os.path.exists(SSEP.join([model.specs['directory'], 'data', test_name])):
+        missing = [c for c in run.pipeline.raw_schema if c not in X_predict.columns]
+        if missing:
+            raise ValueError(f"The project has no data/{test_name}, and the run's input/{test_name} is training's copy "
+                             f"after transforms and drops (it lacks {missing}). Put the raw rows to score in "
+                             f"data/{test_name}.")
     logger.info("Number of Prediction Rows    : %d", X_predict.shape[0])
     logger.info("Number of Prediction Columns : %d", X_predict.shape[1])
 
-    # Apply transforms to the feature matrix
-    X_all = apply_transforms(model, X_predict)
-
-    # Drop features
-    X_all = drop_features(X_all, drop)
-
-    # Create initial features
-    X_all = create_features(model, X_all, X_train, X_predict, y_train)
-
-    # Generate interactions
-    X_all = create_interactions(model, X_all)
-
-    # Remove low-variance features
-    X_all = remove_lv_features(model, X_all)
-
-    # Window algorithms are not supported in predict mode yet
-
-    if model.specs.get('sequence'):
-        raise NotImplementedError("Predict mode does not support the sequence section yet")
-
-    # Load the LOFO support vector, if any
-
-    if fs_lofo:
-        logger.info("Getting LOFO Support")
-        try:
-            support = model.feature_map['support_lofo', model.best_algo]
-            X_all = X_all[:, support]
-            logger.info("New Feature Count : %d", X_all.shape[1])
-        except:
-            logger.info("No LOFO Support")
-
-    # Load the univariate support vector, if any
-
-    if fs_univariate:
-        logger.info("Getting Univariate Support")
-        try:
-            support = model.feature_map['support_uni']
-            X_all = X_all[:, support]
-            logger.info("New Feature Count : %d", X_all.shape[1])
-        except:
-            logger.info("No Univariate Support")
-
-    # Load the RFE support vector, if any
-
-    if rfe:
-        logger.info("Getting RFE Support")
-        try:
-            support = model.feature_map['rfe_support']
-            X_all = X_all[:, support]
-            logger.info("New Feature Count : %d", X_all.shape[1])
-        except:
-            logger.info("No RFE Support")
-
-    # Load predictor
-    predictor = load_predictor(run_dir)
-
-    # Make predictions
+    # Score every algorithm and the blend
 
     logger.info("Making Predictions")
-    tag = 'BEST'
-    model.preds[(tag, partition)] = predictor.predict(X_all)
-    if model_type == ModelType.classification:
-        model.probas[(tag, partition)]  = predictor.predict_proba(X_all)[:, 1]
+    preds, probas = run.predict_with_probabilities(X_predict, history=run.history_from_training(X_predict))
 
-    # Save predictions
-    save_predictions(model, tag, partition)
+    # Write the ranked predictions in training's format
 
-    # Return the model
-    return model
+    best = run.manifest['best_algorithm']   # always one of the algorithms: the blend is never chosen as best
+    tags = {'BEST': best, 'BLEND': BLEND, **{algo: algo for algo in run.algorithms}}
+    tags = {tag: column for tag, column in tags.items() if column in preds.columns}
+    model.algolist = run.algorithms
+    model.best_algo = best
+    model.df_X_test = X_predict
+    model.df_y_test = y_predict
+    model.test_labels = not y_predict.is_empty()
+    model.preds = {(tag, partition): preds[column].to_numpy() for tag, column in tags.items()}
+    if probas is not None:
+        model.probas = {(tag, partition): probas[column].to_numpy() for tag, column in tags.items()}
+    return save_predictions(model, partition, output_file='ranked_predict')
 
 
 #
@@ -724,6 +684,11 @@ def main(args=None):
             # get latest directory
             search_dir = SSEP.join([model_specs['directory'], 'runs'])
             run_dir = most_recent_file(search_dir, 'run_*')
+        elif not os.path.isdir(run_dir):
+            # a run name such as run_YYYYMMDD_hhmmss, under the project's runs directory
+            run_dir = SSEP.join([model_specs['directory'], 'runs', run_dir])
+            if not os.path.isdir(run_dir):
+                raise FileNotFoundError(f"No run directory {args.run_dir!r}: neither a path nor a run under {model_specs['directory']}/runs")
     model_specs['run_dir'] = run_dir
 
     # Create a model from the arguments

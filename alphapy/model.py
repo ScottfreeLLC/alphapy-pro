@@ -51,11 +51,12 @@ from alphapy.globals import Objective
 from alphapy.globals import Partition, datasets
 from alphapy.globals import PSEP, SSEP, USEP
 from alphapy.globals import Scalers
-from alphapy.utilities import most_recent_file
 
 from copy import copy
 from datetime import datetime
+import importlib.metadata
 import joblib
+import json
 
 import logging
 import os
@@ -541,48 +542,6 @@ def get_model_config(directory='.'):
 
 
 #
-# Function load_predictor
-#
-
-def load_predictor(directory):
-    r"""Load the model predictor from storage. By default, the
-    most recent model is loaded into memory.
-
-    Parameters
-    ----------
-    directory : str
-        Full directory specification of the predictor's location.
-
-    Returns
-    -------
-    predictor : function
-        The scoring function.
-
-    """
-
-    # Locate the model Pickle or HD5 file
-
-    search_dir = SSEP.join([directory, 'model'])
-    file_name = most_recent_file(search_dir, 'model_*.*')
-
-    # Load the model from the file
-
-    file_ext = file_name.split(PSEP)[-1]
-    if file_ext == 'pkl' or file_ext == 'h5':
-        logger.info("Loading model predictor from %s", file_name)
-        # load the model predictor
-        if file_ext == 'pkl':
-            predictor = joblib.load(file_name)
-        elif file_ext == 'h5':
-            predictor = load_model(file_name)
-    else:
-        logging.error("Could not find model predictor in %s", search_path)
-
-    # Return the model predictor
-    return predictor
-
-
-#
 # Function save_predictor
 #
 
@@ -625,41 +584,80 @@ def save_predictor(model, tag):
 
 
 #
-# Function load_feature_map
+# Function save_estimators
 #
 
-def load_feature_map(model, directory):
-    r"""Load the feature map from storage. By default, the
-    most recent feature map is loaded into memory.
+def save_estimators(model):
+    r"""Save every fitted algorithm and a manifest beside ``model.pkl``.
 
-    Parameters
-    ----------
-    model : alphapy.Model
-        The model object to contain the feature map.
-    directory : str
-        Full directory specification of the feature map's location.
-
-    Returns
-    -------
-    model : alphapy.Model
-        The model object containing the feature map.
-
+    ``model/estimators/<ALGO>.pkl`` holds each algorithm's final fitted (and, if configured, calibrated) estimator.
+    ``model/manifest.json`` names the algorithms in run order, the blend's members (the blend is the plain average of
+    their probabilities, ``predict_blend``), the best algorithm, and what a later scoring needs to line up columns.
+    ``model.pkl`` and ``feature_map.pkl`` are unchanged.
     """
+    run_dir = model.specs['run_dir']
+    folder = SSEP.join([run_dir, 'model', 'estimators'])
+    os.makedirs(folder, exist_ok=True)
+    for algo in model.algolist:
+        path = SSEP.join([folder, PSEP.join([algo, 'pkl'])])
+        logger.info("Writing %s estimator to %s", algo, path)
+        joblib.dump(model.estimators[algo], path)
+    manifest = {
+        "alphapy_version": alphapy_version(),
+        "libraries": library_versions(),
+        "model_type": str(model.specs['model_type']),
+        "target": model.specs['target'],
+        "algorithms": list(model.algolist),
+        "blend": list(model.algolist) if len(model.algolist) > 1 else [],
+        "best_algorithm": model.best_algo,
+        "feature_names": [str(f) for f in (model.feature_names or [])],
+        "feature_names_by_algorithm": {algo: [str(f) for f in model.fnames_algo.get(algo, [])]
+                                       for algo in model.algolist},
+        "rfe_support": {algo: [bool(x) for x in model.support[algo]]
+                        for algo in model.algolist if model.support.get(algo) is not None},
+        "n_tabular": model.specs.get('n_tabular'),
+        "window_names": [str(f) for f in (getattr(model, 'window_names', None) or [])],
+        "sequence": model.specs.get('sequence'),
+        "calibration": {"option": bool(model.specs.get('calibration')),
+                        "type": str(model.specs.get('cal_type'))},
+    }
+    path = SSEP.join([run_dir, 'model', 'manifest.json'])
+    with open(path, 'w') as f:
+        json.dump(manifest, f, indent=1, default=str)
+    logger.info("Writing run manifest to %s", path)
 
-    # Locate the feature map and load it
 
+#
+# Function save_feature_pipeline
+#
+
+def save_feature_pipeline(model):
+    r"""Save the run's fitted feature pipeline (``alphapy.features.FeaturePipeline``) to
+    ``model/feature_pipeline.pkl``: every feature step as fitted on the training rows, which ``alphapy.inference``
+    applies to new rows exactly as training applied it to its test rows. With the ``sequence`` section on, it also
+    holds each group's last training rows, the history training gave its test rows' windows."""
+    path = SSEP.join([model.specs['run_dir'], 'model', 'feature_pipeline.pkl'])
+    logger.info("Writing feature pipeline to %s", path)
+    joblib.dump(model.feature_pipeline, path)
+
+
+def library_versions():
+    """Versions of the libraries whose objects the run pickles (pickles are not portable across versions)."""
+    versions = {}
+    for name in ("scikit-learn", "numpy", "scipy", "pandas", "polars", "lightgbm", "xgboost", "catboost", "torch"):
+        try:
+            versions[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            pass
+    return versions
+
+
+def alphapy_version():
+    """The installed alphapy-pro version, or 'unknown' outside an installed package."""
     try:
-        search_dir = SSEP.join([directory, 'model'])
-        file_name = most_recent_file(search_dir, 'feature_map_*.pkl')
-        logger.info("Loading feature map from %s", file_name)
-        # load the feature map
-        feature_map = joblib.load(file_name)
-        model.feature_map = feature_map
-    except:
-        logging.error("Could not find feature map in %s", search_dir)
-
-    # Return the model with the feature map
-    return model
+        return importlib.metadata.version("alphapy-pro")
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
 
 
 #
@@ -1107,7 +1105,7 @@ def predict_blend(model):
 
     for partition in datasets.keys():
         pred_set = [model.preds[key] for key, _ in model.preds.items() if partition in key]
-        model.preds[(blend_tag, partition)] = np.round(np.mean(pred_set, axis=0), 0).astype(int)
+        model.preds[(blend_tag, partition)] = np.mean(pred_set, axis=0)    # regression keeps the mean
         if model_type == ModelType.classification:
             proba_set = [model.probas[key] for key, _ in model.probas.items() if partition in key]
             model.probas[(blend_tag, partition)] = np.mean(proba_set, axis=0)
@@ -1450,7 +1448,7 @@ def generate_metrics(model, partition):
 # Function save_predictions
 #
 
-def save_predictions(model, partition):
+def save_predictions(model, partition, output_file=None):
     r"""Save the predictions to files.
 
     Parameters
@@ -1459,6 +1457,8 @@ def save_predictions(model, partition):
         The model object to save.
     partition : alphapy.Partition
         Reference to the dataset.
+    output_file : str, optional
+        The ranked file's name in ``output``; ``ranked_<partition>`` when omitted.
 
     Returns
     -------
@@ -1545,7 +1545,7 @@ def save_predictions(model, partition):
     else:
         pred_name = USEP.join(['pred', datasets[partition], sort_tag.lower()])
         df_master = df_master.sort(pred_name, descending=True)
-    output_file = USEP.join(['ranked', datasets[partition]])
+    output_file = output_file or USEP.join(['ranked', datasets[partition]])
     write_frame(df_master, output_dir, output_file, extension, separator)
 
     # Generate submission file
